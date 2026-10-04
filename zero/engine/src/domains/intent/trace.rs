@@ -113,23 +113,25 @@ fn could_not(message: String) -> CoreError {
 }
 
 /// `core intent trace INT-x` -- every finding INT-x found, and whether each is still open.
-/// F-x goes to trace_finding (question b). A commit or a seal as the target comes next (question c).
+/// F-x goes to trace_finding (question b), a commit to trace_commit and a seal to trace_seal (question c).
 pub fn trace(ctx: &AppContext, target: &str) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
         &[Capability::FilesystemReadHome, Capability::SpawnProcess],
     )?;
     let t = target.trim();
-    if t.starts_with("F-") {
-        return trace_finding(ctx, t);
-    }
-    let id = t.strip_prefix("INT-").unwrap_or(t);
-    if id.is_empty() || !id.chars().all(|c| c.is_ascii_digit()) {
-        return Err(could_not(format!(
-            "{} is neither an intent nor a finding; trace answers INT-x and F-x today, and commits and seals come next",
-            t
-        )));
-    }
+    let id = match target_kind(t) {
+        Target::Intent(id) => id,
+        Target::Finding(f) => return trace_finding(ctx, &f),
+        Target::Commit(c) => return trace_commit(ctx, &c),
+        Target::SealOrCommit(s) => return trace_seal(ctx, &s),
+        Target::Unknown => {
+            return Err(could_not(format!(
+                "{} is not an intent (INT-x), a finding (F-x), a commit (7 to 40 hex) or a seal (16 hex)",
+                t
+            )));
+        }
+    };
     if !super::load_all(ctx).iter().any(|i| i.id == id) {
         return Err(could_not(format!(
             "INT-{} names no intent in the ledger",
@@ -289,61 +291,204 @@ fn trace_finding(ctx: &AppContext, id: &str) -> CoreResult<()> {
             id, e
         ))),
         State::Fixed(hashes) => {
-            let notes = git_read(core, &["notes", "--ref=seals", "list"])
+            let notes = seal_notes(core)
                 .map_err(|e| could_not(format!("the seal notes could not be read: {}", e)))?;
             for hash in &hashes {
                 let subject = git_read(core, &["log", "-1", "--format=%s", hash.as_str()])
                     .map_err(could_not)?;
-                let seal = trailer(core, hash, "Seal").map_err(could_not)?;
-                let fingerprint = trailer(core, hash, "Fingerprint").map_err(could_not)?;
-                let note = match note_for(&notes, hash) {
-                    Some(blob) => {
-                        Some(git_read(core, &["cat-file", "-p", blob]).map_err(could_not)?)
-                    }
-                    None => None,
-                };
-                let check = check_seal(
-                    seal.as_deref(),
-                    fingerprint.as_deref(),
-                    note.as_deref().map(str::as_bytes),
-                );
+                let check = check_commit_seal(core, &notes, hash).map_err(could_not)?;
                 println!(
                     "     {} {}  {}",
                     "fixed by".green(),
                     hash.bright_white(),
                     subject.trim()
                 );
-                let line = match check {
-                    SealCheck::Intact(s) => format!(
-                        "seal {} intact -- the plan text kept in refs/notes/seals hashes to it",
-                        s
-                    )
-                    .green()
-                    .to_string(),
-                    SealCheck::Broken { seal, got } => format!(
-                        "seal {} BROKEN -- the plan text kept in refs/notes/seals hashes to {}",
-                        seal, got
-                    )
-                    .red()
-                    .to_string(),
-                    SealCheck::NoNote(s) => format!(
-                        "seal {} recorded, but no plan text is kept in refs/notes/seals, so it cannot be re-checked",
-                        s
-                    )
-                    .yellow()
-                    .to_string(),
-                    SealCheck::Legacy(f) => {
-                        format!("predates the Seal rule: Fingerprint {}, not re-checkable", f)
-                            .dimmed()
-                            .to_string()
-                    }
-                    SealCheck::NoSeal => "no seal recorded on this commit".yellow().to_string(),
-                };
-                println!("          {}", line);
+                println!("          {}", seal_line(check));
             }
             Ok(())
         }
     }
+}
+
+/// How a trace target reads, by its shape alone.
+#[derive(Debug, PartialEq)]
+pub enum Target {
+    /// INT-x, or bare digits shorter than a commit hash.
+    Intent(String),
+    /// F-x.
+    Finding(String),
+    /// 16 hex: a seal if a commit on HEAD carries it, else tried as a commit.
+    SealOrCommit(String),
+    /// 7 to 40 hex.
+    Commit(String),
+    /// None of the above.
+    Unknown,
+}
+
+pub fn target_kind(t: &str) -> Target {
+    let t = t.trim();
+    if t.starts_with("F-") {
+        return Target::Finding(t.to_string());
+    }
+    let id = t.strip_prefix("INT-").unwrap_or(t);
+    let digits = !id.is_empty() && id.chars().all(|c| c.is_ascii_digit());
+    if digits && (t.starts_with("INT-") || id.len() < 7) {
+        return Target::Intent(id.to_string());
+    }
+    let hex = !t.is_empty() && t.chars().all(|c| c.is_ascii_hexdigit());
+    if hex && t.len() == 16 {
+        return Target::SealOrCommit(t.to_lowercase());
+    }
+    if hex && (7..=40).contains(&t.len()) {
+        return Target::Commit(t.to_string());
+    }
+    Target::Unknown
+}
+
+/// One line saying what a commit's seal is, re-checked.
+fn seal_line(check: SealCheck) -> String {
+    match check {
+        SealCheck::Intact(s) => format!(
+            "seal {} intact -- the plan text kept in refs/notes/seals hashes to it",
+            s
+        )
+        .green()
+        .to_string(),
+        SealCheck::Broken { seal, got } => format!(
+            "seal {} BROKEN -- the plan text kept in refs/notes/seals hashes to {}",
+            seal, got
+        )
+        .red()
+        .to_string(),
+        SealCheck::NoNote(s) => format!(
+            "seal {} recorded, but no plan text is kept in refs/notes/seals, so it cannot be re-checked",
+            s
+        )
+        .yellow()
+        .to_string(),
+        SealCheck::Legacy(f) => {
+            format!("predates the Seal rule: Fingerprint {}, not re-checkable", f)
+                .dimmed()
+                .to_string()
+        }
+        SealCheck::NoSeal => "no seal recorded on this commit".yellow().to_string(),
+    }
+}
+
+/// The seal notes: one line per kept plan, the note blob, a space, the full commit hash. A repository
+/// with no notes answers an empty list; git that cannot be read answers Err.
+fn seal_notes(core_root: &str) -> Result<String, String> {
+    git_read(core_root, &["notes", "--ref=seals", "list"])
+}
+
+/// A commit's seal, re-checked against the plan text kept for it.
+fn check_commit_seal(core_root: &str, notes: &str, hash: &str) -> Result<SealCheck, String> {
+    let seal = trailer(core_root, hash, "Seal")?;
+    let fingerprint = trailer(core_root, hash, "Fingerprint")?;
+    let note = match note_for(notes, hash) {
+        Some(blob) => Some(git_read(core_root, &["cat-file", "-p", blob])?),
+        None => None,
+    };
+    Ok(check_seal(
+        seal.as_deref(),
+        fingerprint.as_deref(),
+        note.as_deref().map(str::as_bytes),
+    ))
+}
+
+/// The abbreviated hash and subject of one commit. Err when git cannot show it.
+fn commit_header(core_root: &str, rev: &str) -> Result<(String, String), String> {
+    let text = git_read(core_root, &["log", "-1", "--format=%h%x09%s", rev])?;
+    match text.trim().split_once('\t') {
+        Some((h, s)) => Ok((h.to_string(), s.to_string())),
+        None => Err(format!("git log gave no header for {}", rev)),
+    }
+}
+
+/// Every seal on the current branch with the commit that carries it -- the same line shape as
+/// Fixes:, so parse_fixes reads it. Err when git cannot be read.
+fn seal_commits(core_root: &str) -> Result<Vec<(String, String)>, String> {
+    let text = git_read(
+        core_root,
+        &[
+            "log",
+            "--format=%h%x09%(trailers:key=Seal,valueonly,separator=%x2C)",
+            "HEAD",
+        ],
+    )?;
+    Ok(parse_fixes(&text))
+}
+
+/// Print each finding id a trailer names, with what its record says. Returns how many it printed.
+fn print_named(label: &str, ids: Option<&str>, records: &[Record]) -> usize {
+    let mut n = 0;
+    for id in ids
+        .unwrap_or("")
+        .split(',')
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        n += 1;
+        let what = records
+            .iter()
+            .find(|r| r.id == id)
+            .map(|r| r.what.as_str())
+            .unwrap_or("names a finding with no record");
+        println!("     {:<8} {}  {}", label, id.bright_white(), what);
+    }
+    n
+}
+
+/// `core intent trace <commit>` -- question c: the intent and the findings a commit names, and its
+/// seal re-checked.
+fn trace_commit(ctx: &AppContext, rev: &str) -> CoreResult<()> {
+    let core: &str = &ctx.core_root;
+    let (hash, subject) = commit_header(core, rev)
+        .map_err(|e| could_not(format!("git could not show {}: {}", rev, e)))?;
+    let intent = trailer(core, &hash, "Intent").map_err(could_not)?;
+    let fixes_ids = trailer(core, &hash, "Fixes").map_err(could_not)?;
+    let finding_ids = trailer(core, &hash, "Finding").map_err(could_not)?;
+    let notes = seal_notes(core)
+        .map_err(|e| could_not(format!("the seal notes could not be read: {}", e)))?;
+    let check = check_commit_seal(core, &notes, &hash).map_err(could_not)?;
+    let dir = super::intents_dir(ctx).join("findings");
+    let records = super::findings::read_records(&dir).map_err(could_not)?;
+    println!("  {}  {}", hash.bright_white(), subject);
+    match &intent {
+        Some(i) => println!("     intent   {}", i),
+        None => println!(
+            "     intent   {}",
+            "no Intent trailer -- trailers are the rule from 8c4c4c15 (2026-09-28)".dimmed()
+        ),
+    }
+    let named = print_named("fixes", fixes_ids.as_deref(), &records)
+        + print_named("touches", finding_ids.as_deref(), &records);
+    if named == 0 {
+        println!("     findings none named by a Fixes: or Finding: trailer");
+    }
+    println!("     {}", seal_line(check));
+    Ok(())
+}
+
+/// `core intent trace <seal>` -- the commit that carries the seal, traced as question c. A 16-hex
+/// value no commit on HEAD carries as a seal is tried as a commit, and says so.
+fn trace_seal(ctx: &AppContext, value: &str) -> CoreResult<()> {
+    let core: &str = &ctx.core_root;
+    let seals = seal_commits(core)
+        .map_err(|e| could_not(format!("the seals on HEAD could not be read: {}", e)))?;
+    let carriers: Vec<&String> = seals
+        .iter()
+        .filter(|(s, _)| s == value)
+        .map(|(_, h)| h)
+        .collect();
+    if carriers.is_empty() {
+        println!("  {} is no seal on HEAD; tracing it as a commit", value);
+        return trace_commit(ctx, value);
+    }
+    for hash in carriers {
+        trace_commit(ctx, hash)?;
+    }
+    Ok(())
 }
 
 /// Gate 9's class: did not start, started and refused, answered nothing. Each is its own test.
@@ -491,5 +636,50 @@ mod seal_tests {
         let list = "blob1 abcdef0123456789\nblob2 1234567890abcdef\n";
         assert_eq!(note_for(list, "1234567"), Some("blob2"));
         assert_eq!(note_for(list, "fffffff"), None);
+    }
+}
+
+/// INT-266 gate 9: every reader a trace query uses answers Err when git cannot be read -- never an
+/// empty answer that would print as no findings or no commits. NOWHERE is a path git cannot enter,
+/// so the answer does not depend on GIT_DIR or the current directory.
+#[cfg(test)]
+mod unreadable_tests {
+    use super::{commit_header, fixes, seal_commits, seal_notes, target_kind, trailer, Target};
+
+    const NOWHERE: &str = "/nonexistent/int266-no-repo";
+
+    #[test]
+    fn the_question_a_and_b_readers_refuse_an_unreadable_repo() {
+        assert!(fixes(NOWHERE).is_err(), "fixes");
+        assert!(trailer(NOWHERE, "HEAD", "Seal").is_err(), "trailer");
+        assert!(seal_notes(NOWHERE).is_err(), "seal notes");
+    }
+
+    #[test]
+    fn the_commit_reader_refuses_an_unreadable_repo() {
+        let got = commit_header(NOWHERE, "HEAD");
+        assert!(got.is_err(), "commit_header must answer Err, got {:?}", got);
+    }
+
+    #[test]
+    fn the_seal_reader_refuses_an_unreadable_repo() {
+        let got = seal_commits(NOWHERE);
+        assert!(got.is_err(), "seal_commits must answer Err, got {:?}", got);
+    }
+
+    #[test]
+    fn a_target_is_read_by_its_shape() {
+        assert_eq!(target_kind("INT-266"), Target::Intent("266".to_string()));
+        assert_eq!(target_kind("266"), Target::Intent("266".to_string()));
+        assert_eq!(target_kind("F-0010"), Target::Finding("F-0010".to_string()));
+        assert_eq!(
+            target_kind("369dd33f83163a00"),
+            Target::SealOrCommit("369dd33f83163a00".to_string())
+        );
+        assert_eq!(
+            target_kind("87e17913"),
+            Target::Commit("87e17913".to_string())
+        );
+        assert_eq!(target_kind("not-a-thing"), Target::Unknown);
     }
 }
