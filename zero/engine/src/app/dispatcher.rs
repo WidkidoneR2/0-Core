@@ -180,6 +180,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Find { what, at, by } => {
                     crate::domains::intent::findings::find(ctx, &what, at.as_deref(), by.as_deref())
                 }
+                IntentCommand::Trace { target } => {
+                    crate::domains::intent::trace::trace(ctx, &target)
+                }
             }
         }
 

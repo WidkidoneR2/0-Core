@@ -361,6 +361,9 @@ pub enum IntentCommand {
         id: String,
         reason: String,
     },
+    Trace {
+        target: String,
+    },
     Find {
         what: String,
         at: Option<String>,

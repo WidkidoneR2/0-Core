@@ -244,6 +244,7 @@ pub fn parse() -> Command {
             IntentCommands::Cancel { id, reason } => IntentCommand::Cancel { id, reason },
             IntentCommands::Override { id, reason } => IntentCommand::Override { id, reason },
             IntentCommands::Find { what, at, by } => IntentCommand::Find { what, at, by },
+            IntentCommands::Trace { target } => IntentCommand::Trace { target },
         }),
         Commands::Delegate { command } => Command::Delegate(match command {
             DelegateCommands::Simulate { action } => DelegateCommand::Simulate { action },

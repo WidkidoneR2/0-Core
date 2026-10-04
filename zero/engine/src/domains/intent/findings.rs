@@ -81,6 +81,79 @@ pub fn render(id: &str, what: &str, at: Option<&str>, by: Option<&str>, on: &str
     )
 }
 
+/// One finding, read back from its record. A field the file does not hold reads `unknown`, the
+/// same word render writes for a field nobody gave (INT-192).
+#[derive(Debug, PartialEq)]
+pub struct Record {
+    pub id: String,
+    pub what: String,
+    pub at: String,
+    pub found_by: String,
+    pub found_on: String,
+    pub closed_without_fix: String,
+}
+
+/// Parse a record body as render writes it. Only the frontmatter is read.
+pub fn parse_record(body: &str) -> Record {
+    let mut fields: Vec<(String, String)> = Vec::new();
+    let mut lines = body.lines();
+    if lines.next().map(str::trim) == Some("---") {
+        for line in lines {
+            if line.trim() == "---" {
+                break;
+            }
+            if let Some((key, value)) = line.split_once(':') {
+                fields.push((key.trim().to_string(), value.trim().to_string()));
+            }
+        }
+    }
+    let get = |name: &str| -> String {
+        fields
+            .iter()
+            .find(|(key, _)| key.as_str() == name)
+            .map(|(_, value)| value.clone())
+            .filter(|value| !value.is_empty())
+            .unwrap_or_else(|| "unknown".to_string())
+    };
+    Record {
+        id: get("id"),
+        what: get("what"),
+        at: get("at"),
+        found_by: get("found_by"),
+        found_on: get("found_on"),
+        closed_without_fix: get("closed_without_fix"),
+    }
+}
+
+/// Every record in `dir`, in id order. An absent folder truly holds none; a folder or record
+/// that cannot be read is an error, never an empty list (INT-192). Only F-NNNN.md is read.
+pub fn read_records(dir: &Path) -> Result<Vec<Record>, String> {
+    let entries = match fs::read_dir(dir) {
+        Ok(e) => e,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(Vec::new()),
+        Err(e) => return Err(format!("could not read {}: {}", dir.display(), e)),
+    };
+    let mut records = Vec::new();
+    for entry in entries {
+        let entry = entry.map_err(|e| format!("could not read {}: {}", dir.display(), e))?;
+        let name = entry.file_name().to_string_lossy().to_string();
+        let is_record = name
+            .strip_prefix("F-")
+            .and_then(|r| r.strip_suffix(".md"))
+            .and_then(|d| d.parse::<u32>().ok())
+            .is_some();
+        if !is_record {
+            continue;
+        }
+        let path = entry.path();
+        let body = fs::read_to_string(&path)
+            .map_err(|e| format!("could not read {}: {}", path.display(), e))?;
+        records.push(parse_record(&body));
+    }
+    records.sort_by(|a, b| a.id.cmp(&b.id));
+    Ok(records)
+}
+
 fn refuse(message: String) -> CoreError {
     CoreError::Domain {
         domain: "intent".to_string(),
@@ -172,6 +245,63 @@ mod collision_tests {
         assert_eq!(
             on_disk, b"first\n",
             "and the first record must survive byte for byte"
+        );
+    }
+}
+
+/// INT-266 question a: records read back. A missing field reads unknown, and a folder that
+/// cannot be read is an error, never an empty list (INT-192).
+#[cfg(test)]
+mod read_tests {
+    use super::{parse_record, read_records, render, Record};
+
+    #[test]
+    fn a_record_reads_back_as_it_was_written() {
+        let body = render(
+            "F-0001",
+            "something broke: here",
+            None,
+            Some("INT-266"),
+            "2026-10-04",
+        );
+        assert_eq!(
+            parse_record(&body),
+            Record {
+                id: "F-0001".to_string(),
+                what: "something broke: here".to_string(),
+                at: "unknown".to_string(),
+                found_by: "INT-266".to_string(),
+                found_on: "2026-10-04".to_string(),
+                closed_without_fix: "no".to_string(),
+            }
+        );
+    }
+
+    #[test]
+    fn a_field_missing_from_the_file_reads_unknown() {
+        let got = parse_record("---\nid: F-0003\n---\n");
+        assert_eq!(got.id, "F-0003");
+        assert_eq!(got.what, "unknown", "a missing what must read unknown");
+        assert_eq!(got.closed_without_fix, "unknown");
+    }
+
+    #[test]
+    fn a_folder_that_cannot_be_read_is_an_error_never_none() {
+        let base = std::env::temp_dir();
+        let absent = base.join(format!("core_finding_absent_{}", std::process::id()));
+        assert_eq!(
+            read_records(&absent),
+            Ok(Vec::new()),
+            "an absent folder holds none"
+        );
+        let file = base.join(format!("core_finding_not_a_dir_{}", std::process::id()));
+        std::fs::write(&file, "x").expect("seed");
+        let got = read_records(&file);
+        let _ = std::fs::remove_file(&file);
+        assert!(
+            got.is_err(),
+            "a file where the folder should be must answer Err, got {:?}",
+            got
         );
     }
 }
