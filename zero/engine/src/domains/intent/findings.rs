@@ -43,6 +43,14 @@ pub fn finding_id(n: u32) -> String {
     format!("F-{:04}", n)
 }
 
+/// The number in a finding's file name, F-NNNN.md, or None for any other name. The one place
+/// the name rule lives: the allocator and the reader both ask it (F-0010).
+fn record_number(name: &str) -> Option<u32> {
+    name.strip_prefix("F-")
+        .and_then(|r| r.strip_suffix(".md"))
+        .and_then(|d| d.parse::<u32>().ok())
+}
+
 /// The highest F-number on disk. An absent folder truly holds none, so it answers 0; a folder
 /// that exists but cannot be read is an error, never 0 (INT-192). Names that are not F-NNNN.md
 /// are not counted.
@@ -56,11 +64,7 @@ pub fn highest_number(dir: &Path) -> Result<u32, WriteError> {
     for entry in entries {
         let entry = entry.map_err(|e| WriteError::Io(dir.to_path_buf(), e.to_string()))?;
         let name = entry.file_name().to_string_lossy().to_string();
-        let n = name
-            .strip_prefix("F-")
-            .and_then(|r| r.strip_suffix(".md"))
-            .and_then(|d| d.parse::<u32>().ok());
-        if let Some(n) = n {
+        if let Some(n) = record_number(&name) {
             max = max.max(n);
         }
     }
@@ -137,12 +141,7 @@ pub fn read_records(dir: &Path) -> Result<Vec<Record>, String> {
     for entry in entries {
         let entry = entry.map_err(|e| format!("could not read {}: {}", dir.display(), e))?;
         let name = entry.file_name().to_string_lossy().to_string();
-        let is_record = name
-            .strip_prefix("F-")
-            .and_then(|r| r.strip_suffix(".md"))
-            .and_then(|d| d.parse::<u32>().ok())
-            .is_some();
-        if !is_record {
+        if record_number(&name).is_none() {
             continue;
         }
         let path = entry.path();
