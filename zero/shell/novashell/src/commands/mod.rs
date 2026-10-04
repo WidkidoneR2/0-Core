@@ -16733,35 +16733,88 @@ pub fn apply_version_bump(
     zero_core::version::apply_bump(&std::path::Path::new(core_root).join(rel), level)
 }
 
-fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
-    use colored::Colorize;
-    let apply = args.first().copied() == Some("apply");
+/// INT-271: the bump-versions contract. No args: the table. `<tool> <level>`, or the older
+/// `<level> <tool>`: one write. Anything else is an error, so a wrong call never looks like a table.
+fn parse_bump_args<'a>(args: &[&'a str]) -> Result<Option<(&'a str, &'a str)>, String> {
+    let is_level = |w: &str| zero_core::version::Level::parse(w).is_some();
+    match args {
+        [] => Ok(None),
+        [level, tool] if is_level(level) => Ok(Some((*tool, *level))),
+        [tool, level] if is_level(level) => Ok(Some((*tool, *level))),
+        _ => Err(BUMP_USAGE.to_string()),
+    }
+}
 
-    // INT-111: real write path -- `bump-versions patch|minor|major <tool>`
-    if let Some(level) = args.first().copied() {
-        if matches!(level, "patch" | "minor" | "major") {
-            let Some(tool) = args.get(1).copied() else {
-                return CommandResult::Error(
-                    "usage: bump-versions <patch|minor|major> <tool>"
-                        .to_string()
-                        .into(),
-                    1,
-                );
-            };
-            return match apply_version_bump(core_root, tool, level) {
-                Ok((old, new)) => CommandResult::Output(format!(
-                    "  {} {} {} -> {} ({})",
-                    "\u{1f4e6}".normal(),
-                    tool.bright_white(),
-                    old.dimmed(),
-                    new.bright_green(),
-                    level.dimmed()
-                )),
-                Err(e) => CommandResult::Error(format!("bump failed: {}", e).into(), 1),
-            };
-        }
+const BUMP_USAGE: &str = "usage: bump-versions                       print the version table\n       bump-versions <tool> <patch|minor|major>  write one bump (<level> <tool> also works)";
+
+#[cfg(test)]
+mod bump_args_tests {
+    use super::parse_bump_args;
+
+    #[test]
+    fn no_args_is_the_table() {
+        assert_eq!(parse_bump_args(&[]), Ok(None));
     }
 
+    #[test]
+    fn either_order_names_the_same_bump() {
+        assert_eq!(
+            parse_bump_args(&["novashell", "patch"]),
+            Ok(Some(("novashell", "patch")))
+        );
+        assert_eq!(
+            parse_bump_args(&["patch", "novashell"]),
+            Ok(Some(("novashell", "patch")))
+        );
+        assert_eq!(
+            parse_bump_args(&["engine", "major"]),
+            Ok(Some(("engine", "major")))
+        );
+    }
+
+    #[test]
+    fn anything_else_is_an_error_not_a_table() {
+        // Before INT-271 most of these printed the table and exited 0.
+        let bad: [&[&str]; 6] = [
+            &["novashell"],
+            &["apply"],
+            &["patch"],
+            &["novashell", "ptach"],
+            &["patch", "novashell", "extra"],
+            &["core", "(engine)", "patch"],
+        ];
+        for args in bad {
+            assert!(
+                parse_bump_args(args).is_err(),
+                "{:?} should be an error",
+                args
+            );
+        }
+    }
+}
+
+fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
+    use colored::Colorize;
+    let (tool, level) = match parse_bump_args(args) {
+        Ok(None) => return bump_versions_table(core_root),
+        Ok(Some(pair)) => pair,
+        Err(usage) => return CommandResult::Error(usage.into(), 2),
+    };
+    match apply_version_bump(core_root, tool, level) {
+        Ok((old, new)) => CommandResult::Output(format!(
+            "  {} {} {} -> {} ({})",
+            "\u{1f4e6}".normal(),
+            tool.bright_white(),
+            old.dimmed(),
+            new.bright_green(),
+            level.dimmed()
+        )),
+        Err(e) => CommandResult::Error(format!("bump failed: {}", e).into(), 1),
+    }
+}
+
+fn bump_versions_table(core_root: &str) -> CommandResult {
+    use colored::Colorize;
     let tools: Vec<(&str, String)> = ["novashell", "core", "zero-git", "friday-chat", "db-browse"]
         .iter()
         .filter_map(|n| tool_cargo_path(n).map(|p| (*n, p)))
@@ -16792,17 +16845,10 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
         }
     }
     out.push_str(&format!("  {}\n", "━".repeat(50).dimmed()));
-    if apply {
-        out.push_str(&format!(
-            "  {} Use: bump-versions patch <tool> or bump-versions minor <tool>\n",
-            "→".dimmed()
-        ));
-    } else {
-        out.push_str(&format!(
-            "  {} Use: bump-versions to see versions · cicomplete suggests bumps automatically\n",
-            "→".dimmed()
-        ));
-    }
+    out.push_str(&format!(
+        "  {} Write: bump-versions <tool> <patch|minor|major>\n",
+        "→".dimmed()
+    ));
     CommandResult::Output(out)
 }
 
