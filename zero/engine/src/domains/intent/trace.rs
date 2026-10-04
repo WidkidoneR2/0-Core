@@ -345,6 +345,15 @@ pub fn target_kind(t: &str) -> Target {
     Target::Unknown
 }
 
+/// A trailer list as a reader writes it: one space after each comma. git joins values with a bare
+/// comma.
+fn spaced(list: &str) -> String {
+    list.split(',')
+        .map(str::trim)
+        .collect::<Vec<_>>()
+        .join(", ")
+}
+
 /// One line saying what a commit's seal is, re-checked.
 fn seal_line(check: SealCheck) -> String {
     match check {
@@ -367,7 +376,7 @@ fn seal_line(check: SealCheck) -> String {
         .yellow()
         .to_string(),
         SealCheck::Legacy(f) => {
-            format!("predates the Seal rule: Fingerprint {}, not re-checkable", f)
+            format!("predates the Seal rule: Fingerprint {}, not re-checkable", spaced(&f))
                 .dimmed()
                 .to_string()
         }
@@ -455,7 +464,7 @@ fn trace_commit(ctx: &AppContext, rev: &str) -> CoreResult<()> {
     let records = super::findings::read_records(&dir).map_err(could_not)?;
     println!("  {}  {}", hash.bright_white(), subject);
     match &intent {
-        Some(i) => println!("     intent   {}", i),
+        Some(i) => println!("     intent   {}", spaced(i)),
         None => println!(
             "     intent   {}",
             "no Intent trailer -- trailers are the rule from 8c4c4c15 (2026-09-28)".dimmed()
@@ -681,5 +690,17 @@ mod unreadable_tests {
             Target::Commit("87e17913".to_string())
         );
         assert_eq!(target_kind("not-a-thing"), Target::Unknown);
+    }
+}
+
+/// Trailer lists print with a space after each comma, the way a reader writes them.
+#[cfg(test)]
+mod display_tests {
+    use super::spaced;
+
+    #[test]
+    fn a_trailer_list_reads_with_a_space_after_each_comma() {
+        assert_eq!(spaced("INT-272,INT-273"), "INT-272, INT-273");
+        assert_eq!(spaced("INT-266"), "INT-266");
     }
 }
