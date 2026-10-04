@@ -1104,24 +1104,12 @@ fn touched_crates(ctx: &AppContext, id: &str) -> Vec<TouchedCrate> {
         .output()
         .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
         .unwrap_or_default();
-    let in_crate_tree = |name: &str| {
-        zero_core::paths::CRATE_PARENTS_HISTORY
-            .iter()
-            .any(|p| touched.contains(&format!("{}/{}", p, name)))
-    };
-    let hits: [(&'static str, bool); 5] = [
-        ("novashell", in_crate_tree("novashell")),
-        (
-            "engine",
-            touched.contains("engine/src") || touched.contains("engine/Cargo"),
-        ),
-        ("zero-git", touched.contains("zero-git")),
-        ("friday-chat", touched.contains("friday-chat")),
-        ("db-browse", touched.contains("db-browse")),
-    ];
-    hits.iter()
-        .filter(|(_, hit)| *hit)
-        .filter_map(|(tool, _)| {
+    // INT-273: one rule for which crate a path is in, shared with the evidence at the question.
+    let paths: Vec<&str> = touched.lines().collect();
+    TRACKED_CRATES
+        .iter()
+        .filter(|tool| paths.iter().any(|p| path_in_crate(p, tool)))
+        .filter_map(|tool| {
             zero_core::paths::crate_rel_dir(tool).map(|d| TouchedCrate {
                 tool: *tool,
                 rel: format!("{}/Cargo.toml", d),
@@ -1198,6 +1186,299 @@ fn ask_level(tool: &str, current: &str) -> Result<Option<zero_core::version::Lev
     }
 }
 
+/// INT-273: the crates the close tracks, in the order it asks about them.
+const TRACKED_CRATES: [&str; 5] = [
+    "novashell",
+    "engine",
+    "zero-git",
+    "friday-chat",
+    "db-browse",
+];
+
+/// INT-273: whether a repo path is inside a tracked crate. The one rule: touched_crates uses it to
+/// decide what to ask about and the evidence uses it to decide what to show, so the two cannot
+/// disagree. novashell is matched under every parent it has lived in, engine by its source and
+/// manifest, the rest by name, as INT-326 did.
+fn path_in_crate(path: &str, tool: &str) -> bool {
+    match tool {
+        "novashell" => zero_core::paths::CRATE_PARENTS_HISTORY
+            .iter()
+            .any(|p| path.contains(&format!("{}/novashell", p))),
+        "engine" => path.contains("engine/src") || path.contains("engine/Cargo"),
+        _ => path.contains(tool),
+    }
+}
+
+/// INT-273: one file a commit changed. `added` and `removed` are None for a binary file; `from` is
+/// the old path when git detected a rename, and `path` is always the destination.
+#[derive(Debug, Clone, PartialEq)]
+struct EvFile {
+    added: Option<u64>,
+    removed: Option<u64>,
+    path: String,
+    from: Option<String>,
+}
+
+/// INT-273: one commit of this intent, as git log -z --numstat reports it.
+#[derive(Debug, Clone, PartialEq)]
+struct EvCommit {
+    hash: String,
+    subject: String,
+    files: Vec<EvFile>,
+}
+
+/// INT-273: this intent's commits with their numstat, read from the same commit set as
+/// touched_crates (the same --grep and --since), so the evidence describes exactly the work the
+/// question is about. Renames stay detected: a move counts its changed lines at its destination,
+/// never the whole file twice.
+fn intent_commits(core_root: &str, id: &str) -> Result<Vec<EvCommit>, String> {
+    let out = std::process::Command::new("git")
+        .args([
+            "-C",
+            core_root,
+            "log",
+            "-z",
+            "--numstat",
+            "--format=%x01%h%x09%s",
+            &format!("--grep=INT-{}", id),
+            "--since=60 days ago",
+        ])
+        .output()
+        .map_err(|e| format!("git log could not run: {}", e))?;
+    if !out.status.success() {
+        return Err(format!(
+            "git log exited {}: {}",
+            out.status.code().unwrap_or(-1),
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    Ok(parse_numstat_z(&String::from_utf8_lossy(&out.stdout)))
+}
+
+/// INT-273: parse git log -z --numstat --format=%x01%h%x09%s. A header is \x01, the hash, a TAB
+/// and the subject. A file is added TAB removed TAB path; a rename has an empty path and is
+/// followed by the old and the new path as their own NUL-separated fields.
+fn parse_numstat_z(raw: &str) -> Vec<EvCommit> {
+    let fields: Vec<&str> = raw.split('\0').collect();
+    let mut commits: Vec<EvCommit> = Vec::new();
+    let mut i = 0;
+    while i < fields.len() {
+        let f = fields[i].trim_start_matches('\n');
+        i += 1;
+        if f.is_empty() {
+            continue;
+        }
+        if let Some(head) = f.strip_prefix('\u{1}') {
+            let (hash, subject) = head.split_once('\t').unwrap_or((head, ""));
+            commits.push(EvCommit {
+                hash: hash.to_string(),
+                subject: subject.to_string(),
+                files: Vec::new(),
+            });
+            continue;
+        }
+        let mut parts = f.splitn(3, '\t');
+        let added = parts.next().and_then(|n| n.parse().ok());
+        let removed = parts.next().and_then(|n| n.parse().ok());
+        let path = parts.next().unwrap_or("");
+        let file = if path.is_empty() {
+            let from = fields.get(i).map(|s| s.to_string());
+            let to = fields.get(i + 1).copied().unwrap_or("");
+            i += 2;
+            EvFile {
+                added,
+                removed,
+                path: to.to_string(),
+                from,
+            }
+        } else {
+            EvFile {
+                added,
+                removed,
+                path: path.to_string(),
+                from: None,
+            }
+        };
+        if let Some(c) = commits.last_mut() {
+            c.files.push(file);
+        }
+    }
+    commits
+}
+
+/// INT-273: what is printed above the question for one crate: this intent's commits that touched
+/// it, the files and lines they changed under it, the tier legend and the join-key note. It
+/// informs the digit and never chooses it (INT-102 D4 and D5).
+fn evidence_lines(commits: &[EvCommit], tool: &str, id: &str) -> Vec<String> {
+    struct Total {
+        path: String,
+        from: Option<String>,
+        added: u64,
+        removed: u64,
+        binary: bool,
+    }
+    const SHOWN: usize = 8;
+    let mine: Vec<&EvCommit> = commits
+        .iter()
+        .filter(|c| c.files.iter().any(|f| path_in_crate(&f.path, tool)))
+        .collect();
+    let mut out = vec![format!(
+        "    {}: {} commit(s) naming INT-{}",
+        tool,
+        mine.len(),
+        id
+    )];
+    for c in mine.iter().take(SHOWN) {
+        out.push(format!("      {} {}", c.hash, c.subject));
+    }
+    if mine.len() > SHOWN {
+        out.push(format!("      ... and {} more", mine.len() - SHOWN));
+    }
+    let mut totals: Vec<Total> = Vec::new();
+    for c in &mine {
+        for f in c.files.iter().filter(|f| path_in_crate(&f.path, tool)) {
+            let at = match totals.iter().position(|t| t.path == f.path) {
+                Some(n) => n,
+                None => {
+                    totals.push(Total {
+                        path: f.path.clone(),
+                        from: None,
+                        added: 0,
+                        removed: 0,
+                        binary: false,
+                    });
+                    totals.len() - 1
+                }
+            };
+            let t = &mut totals[at];
+            if t.from.is_none() {
+                t.from = f.from.clone();
+            }
+            match (f.added, f.removed) {
+                (Some(a), Some(r)) => {
+                    t.added += a;
+                    t.removed += r;
+                }
+                _ => t.binary = true,
+            }
+        }
+    }
+    totals.sort_by(|a, b| a.path.cmp(&b.path));
+    let added: u64 = totals.iter().map(|t| t.added).sum();
+    let removed: u64 = totals.iter().map(|t| t.removed).sum();
+    out.push(format!(
+        "    {} file(s) under {}, +{} -{}",
+        totals.len(),
+        tool,
+        added,
+        removed
+    ));
+    for t in totals.iter().take(SHOWN) {
+        let size = if t.binary {
+            "binary".to_string()
+        } else {
+            format!("+{} -{}", t.added, t.removed)
+        };
+        let moved = match &t.from {
+            Some(f) => format!(" (renamed from {})", f),
+            None => String::new(),
+        };
+        out.push(format!("      {:<10} {}{}", size, t.path, moved));
+    }
+    if totals.len() > SHOWN {
+        out.push(format!("      ... and {} more files", totals.len() - SHOWN));
+    }
+    out.push(
+        "    tiers: major breaks a promise, minor adds one, patch fixes one or touches nothing promised"
+            .to_string(),
+    );
+    out.push(format!(
+        "    counted: only commits from the last 60 days whose message names INT-{}",
+        id
+    ));
+    out
+}
+
+#[cfg(test)]
+mod int273_tests {
+    use super::{evidence_lines, parse_numstat_z, path_in_crate};
+    use zero_core::paths::{CRATE_PARENTS_HISTORY, SHELL_PARENT, TOOLS_PARENT};
+
+    // The bytes git log -z --numstat --format=%x01%h%x09%s wrote for the INT-273 scratch tree.
+    // Crate directories come from the owner (INT-267 L2), never from a literal.
+    fn raw() -> String {
+        let a = format!("{}/novashell/src/a.rs", SHELL_PARENT);
+        let b = format!("{}/novashell/src/b.rs", SHELL_PARENT);
+        [
+            "\u{1}a13cd9e\tINT-999: novashell renames a.rs to b.rs with one edit".to_string(),
+            "\n1\t1\t".to_string(),
+            a.clone(),
+            b,
+            "\u{1}31ebd31\tINT-999: novashell edits a.rs, engine gains e.rs".to_string(),
+            "\n5\t0\tzero/engine/src/e.rs".to_string(),
+            format!("3\t2\t{}", a),
+            "\u{1}f064548\tINT-999: novashell gains a.rs".to_string(),
+            format!("\n10\t0\t{}", a),
+        ]
+        .join("\u{0}")
+            + "\u{0}"
+    }
+
+    #[test]
+    fn numstat_z_reads_a_rename_at_its_destination() {
+        let commits = parse_numstat_z(&raw());
+        assert_eq!(commits.len(), 3);
+        let moved = &commits[0].files[0];
+        assert_eq!(moved.path, format!("{}/novashell/src/b.rs", SHELL_PARENT));
+        let from = format!("{}/novashell/src/a.rs", SHELL_PARENT);
+        assert_eq!(moved.from.as_deref(), Some(from.as_str()));
+        assert_eq!((moved.added, moved.removed), (Some(1), Some(1)));
+        assert_eq!(commits[1].files.len(), 2);
+        assert_eq!(commits[2].subject, "INT-999: novashell gains a.rs");
+    }
+
+    #[test]
+    fn every_number_matches_the_scratch_tree() {
+        let commits = parse_numstat_z(&raw());
+        let ns = evidence_lines(&commits, "novashell", "999").join("\n");
+        let renamed = format!("(renamed from {}/novashell/src/a.rs)", SHELL_PARENT);
+        assert!(
+            ns.contains("novashell: 3 commit(s) naming INT-999"),
+            "{}",
+            ns
+        );
+        assert!(ns.contains("2 file(s) under novashell, +14 -3"), "{}", ns);
+        assert!(ns.contains("+13 -2"), "{}", ns);
+        assert!(ns.contains(&renamed), "{}", ns);
+        assert!(ns.contains("tiers: major breaks a promise"), "{}", ns);
+        assert!(ns.contains("whose message names INT-999"), "{}", ns);
+        let en = evidence_lines(&commits, "engine", "999").join("\n");
+        assert!(en.contains("engine: 1 commit(s) naming INT-999"), "{}", en);
+        assert!(en.contains("1 file(s) under engine, +5 -0"), "{}", en);
+        assert!(!en.contains("novashell/src"), "{}", en);
+    }
+
+    #[test]
+    fn one_rule_places_a_path_in_a_crate() {
+        for parent in CRATE_PARENTS_HISTORY {
+            let p = format!("{}/novashell/src/main.rs", parent);
+            assert!(path_in_crate(&p, "novashell"), "{}", p);
+        }
+        // A historical parent under an older root still matches, as touched_crates always did.
+        let nested = format!("old/{}/novashell/Cargo.toml", CRATE_PARENTS_HISTORY[0]);
+        assert!(path_in_crate(&nested, "novashell"), "{}", nested);
+        assert!(path_in_crate("zero/engine/src/main.rs", "engine"));
+        assert!(path_in_crate("zero/engine/Cargo.toml", "engine"));
+        assert!(!path_in_crate("zero/engine/README.md", "engine"));
+        let git = format!("{}/zero-git/src/lib.rs", TOOLS_PARENT);
+        assert!(path_in_crate(&git, "zero-git"), "{}", git);
+        assert!(!path_in_crate(
+            "zero/intents/complete/272-x.md",
+            "novashell"
+        ));
+    }
+}
+
 /// INT-271: every version decision, made and checked before the first write. A --bump decides
 /// first, --skip-bumps fills the rest, a terminal asks for what is left, and anywhere else an
 /// undecided crate refuses the close. Each Cargo.toml passes plan_bump here, so a manifest the
@@ -1212,6 +1493,12 @@ fn decide_versions(
     let ids: Vec<&'static str> = touched.iter().map(|t| t.tool).collect();
     let explicit = parse_bump_flags(&flags.bumps, &ids)?;
     let interactive = std::io::stdin().is_terminal();
+    // INT-273: the work this intent did, read once and shown above each question that is asked.
+    let evidence = if interactive {
+        Some(intent_commits(&ctx.core_root, id))
+    } else {
+        None
+    };
     let mut plans = Vec::new();
     let mut undecided: Vec<&'static str> = Vec::new();
     for t in &touched {
@@ -1226,6 +1513,15 @@ fn decide_versions(
         } else if flags.skip_rest {
             None
         } else if interactive {
+            match &evidence {
+                Some(Ok(commits)) => {
+                    for line in evidence_lines(commits, t.tool, id) {
+                        eprintln!("{}", line);
+                    }
+                }
+                Some(Err(e)) => eprintln!("    evidence unavailable: {}", e),
+                None => {}
+            }
             ask_level(t.tool, &current)?
         } else {
             undecided.push(t.tool);
