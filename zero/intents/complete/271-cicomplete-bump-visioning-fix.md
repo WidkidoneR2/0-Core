@@ -3,7 +3,7 @@ id: 271
 date: 2026-10-03
 type: future
 title: "Cicomplete Bump visioning fix"
-status: in-progress
+status: complete
 tags: [nsh, novashell, cicomplete, bum-version]
 ---
 
@@ -177,3 +177,7 @@ Findings:
 
 ## The Rule
 "A command the tool prints is a promise the tool keeps. A digit the tool guesses is a promise nobody made."
+
+## Versions
+- novashell skipped
+- engine skipped
