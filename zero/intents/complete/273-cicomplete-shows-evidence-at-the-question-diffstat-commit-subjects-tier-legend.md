@@ -3,7 +3,7 @@ id: 273
 date: 2026-10-03
 type: future
 title: "cicomplete shows evidence at the question: diffstat, commit subjects, tier legend"
-status: in-progress
+status: complete
 tags: [cicomplete, versions, evidence]
 ---
 
@@ -73,3 +73,6 @@ Phase 2 -- ship; doors.
 
 ## The Rule
 "Show the work beside the question. The digit stays a judgement, made with the evidence in view."
+
+## Versions
+- engine skipped
