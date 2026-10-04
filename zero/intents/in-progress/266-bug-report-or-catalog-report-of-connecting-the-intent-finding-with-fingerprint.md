@@ -252,7 +252,12 @@ The three questions -- the test of whether this worked:
 - [x] A finding record states what, where, found by and when, and its state; a field that is not
       known says so rather than reading as empty (INT-192)
       <!-- evidence: commit 3492c26f, 2026-10-04. findings.rs record_tests: red with an empty default (at is empty), green with unknown (3 passed). Real records F-0001 and F-0002 carry every field. Seal a938510047aa5245 intact. -->
-- [ ] Question a is answered by one command, on real data
+- [x] Question a is answered by one command, on real data
+      <!-- evidence: commit 3f510f01, 2026-10-04, shipped as core 4.1.5 (~/.local/bin/core,
+      17:46:44). Deployed core intent trace INT-266: 9 findings, F-0001 to F-0009, each open,
+      9 open -- no Fixes: trailer on HEAD. With no git on PATH all 9 read not known, exit 1.
+      Red first: 4 of 13 failed (unreadable git read open among them), then 13 of 13.
+      Seal b2684f76540370f7 intact against refs/notes/seals. -->
 - [ ] Question b is answered by one command, on real data, naming the fixing commit and the
       fingerprint of the plan that produced it
 - [ ] Question c is answered by one command, on real data
