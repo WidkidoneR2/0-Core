@@ -1,0 +1,9 @@
+INT-266 gate 10 -- the method in AGENTS.md -- plan
+  E1 AGENTS.md: the opening line: CONVENTIONS.md holds more than two rules now
+     - holds the reasoning behind two of these rules.
+     + holds the reasoning behind several of these rules.
+  E2 AGENTS.md: section 2 Evidence: the findings, fixes and seals method
+     - A gate can be closed by declining the thing, with numbered reasons. That is still proof.
+     + A gate can be closed by declining the thing, with numbered reasons. That is still proof.
+     + 
+     + Findings and commits point at each other by name. A problem found and not fixed is filed with core intent find, never left as prose in an intent. A commit carries Intent:, and Fixes: F-x when it closes a finding; a commit made from a reviewed plan also carries Seal:, with the plan text kept as a note under refs/notes/seals. core intent trace answers what is open, what fixed it, and which plan produced it. Reasoning: docs/CONVENTIONS.md (INT-266).
