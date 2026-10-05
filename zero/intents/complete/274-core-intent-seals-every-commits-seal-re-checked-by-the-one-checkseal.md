@@ -3,7 +3,7 @@ id: 274
 date: 2026-10-05
 type: future
 title: "core intent seals: every commit's seal, re-checked by the one check_seal"
-status: in-progress
+status: complete
 tags: [seal, fingerprint, core, intent]
 depends_on: []
 ---
@@ -67,7 +67,8 @@ Exit is the worst row in the window: 1 beats 2 beats 0. Legacy stays 0 (ruled at
 <!-- evidence: demonstrated 2026-10-05: core intent trace 272d7b68, F-0010, 384222b57603b29a and INT-266 byte-identical, deployed build before against the new build, run again after run() became a wrapper over run_bytes(). -->
 - [x] G10 Doors. cargo test for the engine crate passing; ship; the deployed core prints the table (mtime of ~/.local/bin/core checked against the commit); nsh-test all passing; d 0 failed.
 <!-- evidence: demonstrated 2026-10-05: engine cargo test 45 passed; ship shipped core 4.2.0, deployed mtime 0 s old; nsh-test 215/215; d 0 failed, the two warnings are the uncommitted tree. -->
-- [ ] G11 Self-proof. The commit that lands this is made from a reviewed plan, carries Intent: INT-274 and Seal:, and keeps its plan note. `core intent seals -n 1` run after that commit shows it sealed.
+- [x] G11 Self-proof. The commit that lands this is made from a reviewed plan, carries Intent: INT-274 and Seal:, and keeps its plan note. `core intent seals -n 1` run after that commit shows it sealed.
+<!-- evidence: demonstrated 2026-10-05: commit 82e24e4e carries Intent: INT-274 and Seal: c9c38dc5f73cc2e7 from the reviewed commit plan; the plan text kept under refs/notes/seals with no-stripspace re-hashes to c9c38dc5f73cc2e7, SEAL INTACT; the deployed core intent seals -n 1 shows 82e24e4e sealed, exit 0. -->
 
 ## Non-goals
 
@@ -84,3 +85,6 @@ None. INT-266 (the Seal: trailer, refs/notes/seals, check_seal) is complete. dep
 ## Order of work
 
 cistart 274 -> recon (how trace reads trailers and notes, how core maps a result to an exit code, whether core_root can point at a fixture) -> plan with fingerprint -> review -> apply -> cargo test and debug core -> ship -> doors -> commit with seal -> G11 -> cicomplete 274.
+
+## Versions
+- engine 4.2.0 -> 4.3.0 (minor)
