@@ -1,0 +1,76 @@
+INT-275 core integrity -- the commit plan
+
+This commit lands the work of these reviewed plans, each applied only on its fingerprint:
+  cee4e2b11cfa01ff  intent record: G1 rulings and G2 baseline written into the intent
+  7866cfdeac61191e  the four red tests (G3 to G6), watched red on the old code
+  fb77d78c89358038  the code plan; edits 1 and 2 applied, edit 3 refused by fpatch (non-ASCII anchor)
+  3989c45ff24e1131  edits 3 to 8 of the same code by patch_between, replayed in memory first
+and the gate ticks below, written by this plan.
+
+Files committed, by name (git add scope is a bug class):
+  zero/engine/src/domains/integrity/mod.rs
+  zero/registry/tools.toml
+  zero/intents/findings/F-0011.md
+  zero/intents/findings/F-0012.md
+  zero/intents/future/275-fix-core-integrity.md
+  zero/intents/in-progress/275-fix-core-integrity.md
+
+git status now:
+   D zero/intents/future/275-fix-core-integrity.md
+   M zero/engine/src/domains/integrity/mod.rs
+   M zero/registry/tools.toml
+  ?? zero/intents/findings/F-0011.md
+  ?? zero/intents/findings/F-0012.md
+  ?? zero/intents/in-progress/275-fix-core-integrity.md
+
+Gate ticks in zero/intents/in-progress/275-fix-core-integrity.md:
+== G3
+  - - [ ] G3 Ghosts retire. A pending row whose check is not in build_check_suite() is never listed by fix, refuses apply, and is retired with reason check removed. Red first in a cargo test against a temp database; then row 8 is absent from the deployed fix and present in the table as retired.
+  + - [x] G3 Ghosts retire. A pending row whose check is not in build_check_suite() is never listed by fix, refuses apply, and is retired with reason check removed. Red first in a cargo test against a temp database; then row 8 is absent from the deployed fix and present in the table as retired.
+  + <!-- evidence: demonstrated 2026-10-05. Red first: cargo test a_row_of_a_removed_check_is_not_pending FAILED on the old persist (/tmp/int275-red.txt) and passes after; applying_a_row_of_a_removed_check_refuses passes. Deployed core (mtime 2026-10-05 17:20:16): row 8 absent from core integrity fix, retired_reason check removed in pending_fixes; core integrity apply 8 printed Nothing applied: #8 was retired: check removed, exit 1. -->
+== G4
+  - - [ ] G4 One row per identity. Two runs with the cargo version moved between them leave exactly one pending drift row for that tool, carrying the newer version; the older row is retired superseded. Red first: on today's persist_proposal the same test leaves two pending rows. On the real database, 17 and 19 end retired superseded and one core row is pending.
+  + - [x] G4 One row per identity. Two runs with the cargo version moved between them leave exactly one pending drift row for that tool, carrying the newer version; the older row is retired superseded. Red first: on today's persist_proposal the same test leaves two pending rows. On the real database, 17 and 19 end retired superseded and one core row is pending.
+  + <!-- evidence: demonstrated 2026-10-05. Red first: one_pending_row_per_identity FAILED with two pending rows (alpha 2.0.0, alpha 2.1.0) and passes after. Real database on the deployed build: rows 17 and 19 retired superseded by #20, subject core backfilled from action_data; #20 was the one pending core row. -->
+== G5
+  - - [ ] G5 Resolved findings retire. A pending row whose check ran and no longer reports its subject is retired resolved. Fixture: make a drift true, run, correct the registry by hand, run; the row is retired, not left pending and not marked applied.
+  + - [x] G5 Resolved findings retire. A pending row whose check ran and no longer reports its subject is retired resolved. Fixture: make a drift true, run, correct the registry by hand, run; the row is retired, not left pending and not marked applied.
+  + <!-- evidence: demonstrated 2026-10-05. Red first: a_resolved_drift_is_not_pending FAILED (a drift corrected by hand is still pending) and passes after: the row is retired resolved and applied_at stays NULL. -->
+== G6
+  - - [ ] G6 Apply refuses what is no longer true. apply on a retired or no-longer-found row prints one line naming why, exits non-zero, and the registry and the ledger are byte-identical before and after (cmp). Red first: on today's code, applying a stale drift row writes the old version into a temp registry.
+  + - [x] G6 Apply refuses what is no longer true. apply on a retired or no-longer-found row prints one line naming why, exits non-zero, and the registry and the ledger are byte-identical before and after (cmp). Red first: on today's code, applying a stale drift row writes the old version into a temp registry.
+  + <!-- evidence: demonstrated 2026-10-05. Red first: applying_a_stale_drift_refuses_and_writes_nothing FAILED (refused Some(false), the old apply carried the stale version out) and passes after. Deployed: apply 7, 8, 17 and 19 each printed one Nothing applied line naming the reason and exited 1; sha256 of registry/tools.toml (8477f60e7b7641f7) and of every file under zero/intents (9613197551d28bff) identical before and after. -->
+== G7
+  - - [ ] G7 Apply does what the proposal says. A move is carried out from the from and to stored on that row, and only that file moves. Red first: a fixture future/ intent with status planned whose body contains the text "status: complete" is moved by today's apply arm and is not moved after the change. Status is read by one function, shared by the check and the apply, and the check and the apply use one path owner.
+  + - [x] G7 Apply does what the proposal says. A move is carried out from the from and to stored on that row, and only that file moves. Red first: a fixture future/ intent with status planned whose body contains the text "status: complete" is moved by today's apply arm and is not moved after the change. Status is read by one function, shared by the check and the apply, and the check and the apply use one path owner.
+  + <!-- evidence: demonstrated 2026-10-05. Red on the deployed pre-change build: core integrity apply 900001 in a stand-in HOME moved a status: planned fixture whose body says status: complete, row naming another file; real ledger and state.db hashed unchanged. Green: a_move_moves_only_the_file_its_row_names passes (only the named file moves, the bystander stays). Status is read only by frontmatter_status, used by the check; the apply arm reads no status and carries out the from and to the check stored (ctx.fpath); apply no longer calls zero_core::paths::intents_dir. -->
+== G8
+  - - [ ] G8 Drift applies true. After apply of the one pending core drift row, registry/tools.toml says the cargo version of the moment, the next run proposes nothing for core, and no other line of the registry changed (diff of the file by line count and cmp of the rest).
+  + - [x] G8 Drift applies true. After apply of the one pending core drift row, registry/tools.toml says the cargo version of the moment, the next run proposes nothing for core, and no other line of the registry changed (diff of the file by line count and cmp of the rest).
+  + <!-- evidence: demonstrated 2026-10-05 on the deployed core: cargo version of core 4.3.0; core integrity apply 20 exit 0; registry/tools.toml line 8 version 4.1.5 -> 4.3.0, 500 lines before and after, every other line identical; the next core integrity fix printed No pending proposals. -->
+== G9
+  - - [ ] G9 INT-308 settled by the G1 ruling, not by the tool: either the deployed apply moves exactly that one file (git status shows that rename and nothing else), or its status is corrected and the check stops reporting it. Either way the row ends applied or resolved, with evidence.
+  + - [x] G9 INT-308 settled by the G1 ruling, not by the tool: either the deployed apply moves exactly that one file (git status shows that rename and nothing else), or its status is corrected and the check stops reporting it. Either way the row ends applied or resolved, with evidence.
+  + <!-- evidence: demonstrated 2026-10-05. Ruling (c): INT-308 has no file (completed 97f2191a, archived 445ba3a8, deleted c847e8b7). Row 7 retired pre-275 row on the deployed build; apply 7 refused, and the ledger hash was unchanged, so no intent file moved. -->
+== G10
+  - - [ ] G10 The count tells the truth. The doctor's "N integrity proposal(s) pending" line (doctor/mod.rs:434) equals the number of rows fix lists, read on the deployed build. What the doctor's Integrity percentage measures is read before anything is claimed about it.
+  + - [x] G10 The count tells the truth. The doctor's "N integrity proposal(s) pending" line (doctor/mod.rs:434) equals the number of rows fix lists, read on the deployed build. What the doctor's Integrity percentage measures is read before anything is claimed about it.
+  + <!-- evidence: demonstrated 2026-10-05. The doctor count is quick_scan proposed (doctor/mod.rs:351, 434), already a fresh run. Deployed: d said 1 pending while fix listed only #20; after G8 fix lists none and d prints no pending line. Integrity percentage read before any claim: total_weight is 3x the found weight, so it reads 67 whenever anything is found and 100 otherwise (F-0012, filed, not fixed here); it went 67 -> 100 when #20 was applied. -->
+== G11
+  - - [ ] G11 Doors. Engine cargo test passing; ship; the deployed core fix shows only proposals a fresh run finds (mtime of ~/.local/bin/core checked); nsh-test all passing; d 0 failed.
+  + - [x] G11 Doors. Engine cargo test passing; ship; the deployed core fix shows only proposals a fresh run finds (mtime of ~/.local/bin/core checked); nsh-test all passing; d 0 failed.
+  + <!-- evidence: demonstrated 2026-10-05: engine cargo test 52/52 (/tmp/int275-engine.txt), integrity 10/10; ship shipped core 4.3.0, ~/.local/bin/core mtime 17:20:16 after HEAD bb134bea 12:38:54; the deployed fix shows only what a fresh run finds; nsh-test 215/215 (/tmp/int275-suite.txt); d 0 failed (2 warnings: the uncommitted changes). -->
+
+Commit message:
+
+core: integrity shows, counts and applies a proposal only while a fresh run still finds it (INT-275)
+
+What was false: core integrity fix listed every pending_fixes row it had ever written, 7 8 17 19 20, without re-running a check, while the doctor counted a fresh run and said 1. A drift was keyed by its description, which carries the version, so every cargo bump added a row and applying an old one wrote an old version. The move arm ignored its row and moved any future/ intent whose text contained status: complete. Row 8 belonged to a check that no longer exists.
+
+What is true now: a proposal has an identity, (check_name, subject), with its fix stored as data (tool and version, or from and to). pending_fixes gains subject, retired_at and retired_reason (additive; drift rows backfilled from action_data). After every run a reconcile retires a pending row as check removed, pre-275 row, superseded by #N, or resolved; retired is not applied and stays as history. fix runs the suite and lists only pending rows, with one history line. apply re-runs that row's check alone, refuses in one line with a non-zero exit when the row is no longer true, and carries out the stored fix. heal goes through the same refusing apply. One status reader, frontmatter_status.
+
+How it was watched: four cargo tests red on the old code then green (ghost, identity, resolved, stale apply); the move class red on the deployed build in a stand-in HOME, green as a cargo test. On the real table: 8 check removed, 7 pre-275 row, 17 and 19 superseded by #20, apply on each refused with registry and ledger hashes unchanged; #20 applied, one registry line changed; doctor count equals fix. Doors: engine 52/52, nsh-test 215/215, d 0 failed. Findings F-0011 (swaylock via Niri) and F-0012 (integrity_pct is presence, not proportion) filed by this intent, not fixed.
+
+Intent: INT-275
+Finding: F-0011
+Finding: F-0012
