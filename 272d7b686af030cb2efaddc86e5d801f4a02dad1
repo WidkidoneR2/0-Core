@@ -1,0 +1,14 @@
+INT-266 gates 10 and 11 tick -- plan
+  E1 zero/intents/in-progress/266-*.md: tick gate 10 and write its evidence
+     - - [ ] The convention is in docs/CONVENTIONS.md and the method in AGENTS.md
+     + - [x] The convention is in docs/CONVENTIONS.md and the method in AGENTS.md
+     +       <!-- evidence: commit 80833eee, 2026-10-04: docs/CONVENTIONS.md section Findings, fixes
+     +       and seals (seal c96070f70c573a8f). Commit b5ea674f: AGENTS.md section 2 Evidence, the
+     +       method in one paragraph, applied at Christian's request (seal d04f2ad5528b9811). nsh-test
+     +       215/215 after each, including every_backticked_repo_path_in_the_docs_exists. -->
+  E2 zero/intents/in-progress/266-*.md: tick gate 11 and write its evidence
+     - - [ ] Each gate carries its evidence on the line after it (INT-158)
+     + - [x] Each gate carries its evidence on the line after it (INT-158)
+     +       <!-- evidence: demonstrated 2026-10-04 at b5ea674f: the plan that ticked this gate read
+     +       the file and refused unless gates 1 to 9 each carried an evidence comment on the line after
+     +       their text; gate 10 gets its evidence in the same edit. -->
