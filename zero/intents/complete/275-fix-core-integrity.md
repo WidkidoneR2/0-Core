@@ -3,7 +3,7 @@ id: 275
 date: 2026-10-05
 type: future
 title: "Fix core integrity"
-status: in-progress
+status: complete
 tags: [core, integrity]
 depends_on: []
 ---
@@ -69,7 +69,7 @@ The doctor is not changed. Its pending count is quick_scan proposed (doctor/mod.
 - [x] G6 Apply refuses what is no longer true. apply on a retired or no-longer-found row prints one line naming why, exits non-zero, and the registry and the ledger are byte-identical before and after (cmp). Red first: on today's code, applying a stale drift row writes the old version into a temp registry.
 <!-- evidence: demonstrated 2026-10-05. Red first: applying_a_stale_drift_refuses_and_writes_nothing FAILED (refused Some(false), the old apply carried the stale version out) and passes after. Deployed: apply 7, 8, 17 and 19 each printed one Nothing applied line naming the reason and exited 1; sha256 of registry/tools.toml (8477f60e7b7641f7) and of every file under zero/intents (9613197551d28bff) identical before and after. -->
 - [x] G7 Apply does what the proposal says. A move is carried out from the from and to stored on that row, and only that file moves. Red first: a fixture future/ intent with status planned whose body contains the text "status: complete" is moved by today's apply arm and is not moved after the change. Status is read by one function, shared by the check and the apply, and the check and the apply use one path owner.
-<!-- evidence: demonstrated 2026-10-05. Red on the deployed pre-change build: core integrity apply 900001 in a stand-in HOME moved a status: planned fixture whose body says status: complete, row naming another file; real ledger and state.db hashed unchanged. Green: a_move_moves_only_the_file_its_row_names passes (only the named file moves, the bystander stays). Status is read only by frontmatter_status, used by the check; the apply arm reads no status and carries out the from and to the check stored (ctx.fpath); apply no longer calls zero_core::paths::intents_dir. -->
+<!-- evidence: demonstrated 2026-10-05. Red on the deployed pre-change build: core integrity apply 900001 in a stand-in HOME moved a status: complete fixture whose body says status: complete, row naming another file; real ledger and state.db hashed unchanged. Green: a_move_moves_only_the_file_its_row_names passes (only the named file moves, the bystander stays). Status is read only by frontmatter_status, used by the check; the apply arm reads no status and carries out the from and to the check stored (ctx.fpath); apply no longer calls zero_core::paths::intents_dir. -->
 - [x] G8 Drift applies true. After apply of the one pending core drift row, registry/tools.toml says the cargo version of the moment, the next run proposes nothing for core, and no other line of the registry changed (diff of the file by line count and cmp of the rest).
 <!-- evidence: demonstrated 2026-10-05 on the deployed core: cargo version of core 4.3.0; core integrity apply 20 exit 0; registry/tools.toml line 8 version 4.1.5 -> 4.3.0, 500 lines before and after, every other line identical; the next core integrity fix printed No pending proposals. -->
 - [x] G9 INT-308 settled by the G1 ruling, not by the tool: either the deployed apply moves exactly that one file (git status shows that rename and nothing else), or its status is corrected and the check stops reporting it. Either way the row ends applied or resolved, with evidence.
@@ -78,7 +78,16 @@ The doctor is not changed. Its pending count is quick_scan proposed (doctor/mod.
 <!-- evidence: demonstrated 2026-10-05. The doctor count is quick_scan proposed (doctor/mod.rs:351, 434), already a fresh run. Deployed: d said 1 pending while fix listed only #20; after G8 fix lists none and d prints no pending line. Integrity percentage read before any claim: total_weight is 3x the found weight, so it reads 67 whenever anything is found and 100 otherwise (F-0012, filed, not fixed here); it went 67 -> 100 when #20 was applied. -->
 - [x] G11 Doors. Engine cargo test passing; ship; the deployed core fix shows only proposals a fresh run finds (mtime of ~/.local/bin/core checked); nsh-test all passing; d 0 failed.
 <!-- evidence: demonstrated 2026-10-05: engine cargo test 52/52 (/tmp/int275-engine.txt), integrity 10/10; ship shipped core 4.3.0, ~/.local/bin/core mtime 17:20:16 after HEAD bb134bea 12:38:54; the deployed fix shows only what a fresh run finds; nsh-test 215/215 (/tmp/int275-suite.txt); d 0 failed (2 warnings: the uncommitted changes). -->
-- [ ] G12 Sealed. The commit is made from a reviewed plan by the INT-266 method, carries Intent: INT-275 and Seal:, keeps its plan note, and `core intent seals -n 1` shows it sealed.
+- [x] G12 Sealed. The commit is made from a reviewed plan by the INT-266 method, carries Intent: INT-275 and Seal:, keeps its plan note, and `core intent seals -n 1` shows it sealed.
+<!-- evidence: demonstrated 2026-10-05: commit 0e972772 made from the reviewed plan by the INT-266 method (Intent: INT-275, Finding: F-0011, Finding: F-0012, Seal: e445ae2c3b72933d); the plan text is kept as note blob 5d9ab178 under refs/notes/seals and its sha256 starts e445ae2c3b72933d; core intent seals -n 1 shows 0e972772 sealed; pushed, origin/main at 0e972772. -->
+
+## START HERE (2026-10-05)
+
+INT-275 is complete. The work is commit 0e972772 (sealed e445ae2c3b72933d, plan kept as a note), pushed. core integrity now shows, counts and applies a proposal only while a fresh run of its check still finds it; retired rows stay in pending_fixes with retired_at and retired_reason, and fix prints them as one history line.
+
+Open findings filed by this intent, each its own intent when taken up: F-0011 (lock/mod.rs names swaylock via Niri), F-0012 (integrity_pct reads presence, not proportion), F-0013 (notify desktop lets the busctl reply into the doctor output). A new chat opens with: core intent trace INT-275.
+
+Not touched, and possibly the same disease (a non-goal here): the evolution, friday_arch, self_transformation, partner and strategy proposal tables.
 
 ## Non-goals
 
@@ -96,3 +105,6 @@ None. INT-274 is complete; its seal method is used at G12. depends_on stays empt
 ## Order of work
 
 cistart 275 -> G2 baseline -> G1 rulings -> recon (doctor count, run order, how fix and apply are dispatched) -> plan with fingerprint -> review -> apply -> red tests then green -> ship -> G3 to G10 on the deployed build -> doors -> sealed commit -> cicomplete 275.
+
+## Versions
+- engine 4.3.0 -> 4.3.1 (patch)
