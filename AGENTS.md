@@ -2,7 +2,7 @@
 
 This file is the operating contract for this repository.
 
-docs/CONVENTIONS.md holds the reasoning behind two of these rules. Read it; do not copy it here. docs/NSH-COMPATIBILITY.md owns version tiers. One owner.
+docs/CONVENTIONS.md holds the reasoning behind several of these rules. Read it; do not copy it here. docs/NSH-COMPATIBILITY.md owns version tiers. One owner.
 
 A sentence in this file is either enforceable now, marked UNVERIFIED / CLOSED / BOARD, or it does not belong here.
 
@@ -213,6 +213,8 @@ An exit code is evidence only from a command that sets one on purpose. diff on t
 Forward-only: never retrofit old intents.
 
 A gate can be closed by declining the thing, with numbered reasons. That is still proof.
+
+Findings and commits point at each other by name. A problem found and not fixed is filed with core intent find, never left as prose in an intent. A commit carries Intent:, and Fixes: F-x when it closes a finding; a commit made from a reviewed plan also carries Seal:, with the plan text kept as a note under refs/notes/seals. core intent trace answers what is open, what fixed it, and which plan produced it. Reasoning: docs/CONVENTIONS.md (INT-266).
 
 ### Edit
 
