@@ -1,0 +1,77 @@
+INT-266 gate 10 -- the findings, fixes and seals convention in docs/CONVENTIONS.md -- plan
+  E1 docs/CONVENTIONS.md: append this section at the end of the file
+     + ---
+     + 
+     + ## Findings, fixes and seals (INT-266)
+     + 
+     + **A finding is something found and not fixed. It gets a name, so the fix can point back at it.**
+     + 
+     + When work turns up a problem that is not part of the change in hand, file it instead of describing
+     + it in prose:
+     + 
+     + ```text
+     + core intent find "what is wrong, in one line" --at file:line
+     + ```
+     + 
+     + That writes a record, F-NNNN.md, in the zero/intents/findings folder. It holds what was found,
+     + where, which intent found it (the focused one, unless `--by` names another) and when. A record is
+     + never edited to say it was fixed, and never deleted.
+     + 
+     + A commit says what it touches in trailers, the last lines of its message:
+     + 
+     + ```text
+     + Intent: INT-266           the intent this commit belongs to
+     + Fixes: F-0010             this commit closes F-0010
+     + Finding: F-0012           this commit touches F-0012 without closing it
+     + Seal: 369dd33f83163a00    the reviewed plan that produced this commit
+     + ```
+     + 
+     + Whether a finding is fixed is never stored. It is worked out when asked, from the `Fixes:`
+     + trailers in git.
+     + 
+     + A seal is the first 16 hex characters of the sha256 of the plan text that was reviewed. The plan
+     + text itself is kept as a git note under refs/notes/seals, so the seal can be checked again at
+     + any time.
+     + 
+     + One command answers the questions:
+     + 
+     + ```text
+     + core intent trace INT-266            what did INT-266 find, and what is still open?
+     + core intent trace F-0010             what fixed F-0010, and is its seal intact?
+     + core intent trace 87e17913           which intent and findings does this commit touch?
+     + core intent trace 369dd33f83163a00   which commit did this reviewed plan produce?
+     + ```
+     + 
+     + ### The three limits
+     + 
+     + 1. **Could not read is never none.** If git or the findings folder cannot be read, trace says so
+     +    and exits 1. It never shows "open", "no findings" or "no commits" in place of an answer it did
+     +    not get.
+     + 2. **Old commits answer as old.** A commit from before the trailer rule (8c4c4c15, 2026-09-28)
+     +    answers "no Intent trailer". A commit with only a `Fingerprint:` trailer answers "predates the
+     +    Seal rule". Neither reads as blank, and neither is rewritten.
+     + 3. **A seal covers the plan, not the layout.** The commit step formats code: measured 2026-10-04,
+     +    trace.rs hashed differently before and after its commit, with nothing left uncommitted. So a
+     +    commit holds rustfmt's layout of what the sealed plan wrote. The behaviour is the same; the
+     +    bytes are not.
+     + 
+     + ### Why this exists
+     + 
+     + Before INT-266, findings lived as prose in whichever intent file was open. When it was measured on
+     + 2026-09-26, INT-247 alone held 14 "Found, not fixed" sections, and none of them had a name, so a
+     + later fix could only describe the problem again. Commits named intents in prose, so
+     + `git log --grep` found every passing mention. Reviewed plans had fingerprints, but no commit
+     + carried them, so a commit could not be tied back to the plan that was reviewed. Recovering how one
+     + earlier step had been done took three searches of past conversations.
+     + 
+     + ### The tell
+     + 
+     + You are about to write "Found, not fixed" into an intent file, or a commit message that says
+     + "this fixes the thing from yesterday". File the finding, and put its name in a trailer instead.
+     + 
+     + ### Exemplars
+     + 
+     + - 87e17913: the first commit to carry `Fixes:`. `core intent trace F-0010` names it and checks its
+     +   seal, 369dd33f83163a00, as intact.
+     + - F-0001 to F-0010: the first finding records, all found by INT-266.
+     + - 6865d306: an intent-file commit with `Intent:` and `Seal:` trailers and its plan kept as a note.
