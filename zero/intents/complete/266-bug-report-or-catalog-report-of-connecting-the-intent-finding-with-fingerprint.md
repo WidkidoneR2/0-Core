@@ -3,7 +3,7 @@ id: 266
 date: 2026-09-26
 type: future
 title: "Bug Report or Catalog Report of connecting the intent, finding with fingerprint"
-status: in-progress
+status: complete
 tags: [intent, fingerprint, organization, bug report]
 depends_on: [247, 252, 265]
 ---
@@ -303,3 +303,6 @@ The three questions -- the test of whether this worked:
 - INT-213 and decision 142: store facts, derive conclusions. A finding's state is a fact; "still
   open for INT-X" is a query and is never stored
 - INT-192: an unreadable source answers as unreadable, never as empty
+
+## Versions
+- engine 4.1.5 -> 4.2.0 (minor)
