@@ -739,6 +739,18 @@ pub enum IntentCommands {
         /// INT-x (or x), F-x, a commit hash, or a 16-hex seal
         target: String,
     },
+    /// Every commit seal in the last N on HEAD, re-checked: sealed, broken, no plan, legacy, unsealed (INT-274)
+    ///
+    /// Exit 0 nothing broken or unproven, 1 a seal is broken, 2 a seal names a plan that is not
+    /// kept, 3 could not answer. A clap usage error (an unknown flag) also exits 2.
+    Seals {
+        /// How many commits back from HEAD
+        #[arg(short = 'n', default_value = "15")]
+        n: String,
+        /// Only commits whose Intent: trailer names this intent (INT-x or x)
+        #[arg(long)]
+        intent: Option<String>,
+    },
     /// File a finding: something found and not fixed (INT-266)
     Find {
         /// What was found, in one line

@@ -364,6 +364,10 @@ pub enum IntentCommand {
     Trace {
         target: String,
     },
+    Seals {
+        n: String,
+        intent: Option<String>,
+    },
     Find {
         what: String,
         at: Option<String>,

@@ -18,9 +18,15 @@ pub fn git_read(core_root: &str, args: &[&str]) -> Result<String, String> {
     run("git", core_root, args)
 }
 
-/// The one place trace spawns a process. The program is a parameter so a test can prove the
-/// could-not-run answer without touching the real git.
+/// Text from the one spawn below, decoded as git_read always has.
 fn run(program: &str, core_root: &str, args: &[&str]) -> Result<String, String> {
+    run_bytes(program, core_root, args).map(|out| String::from_utf8_lossy(&out).into_owned())
+}
+
+/// The one place trace spawns a process. The program is a parameter so a test can prove the
+/// could-not-run answer without touching the real git. INT-274: stdout comes back as bytes,
+/// because a seal is a hash of exact bytes and a lossy decode could change them.
+fn run_bytes(program: &str, core_root: &str, args: &[&str]) -> Result<Vec<u8>, String> {
     let out = Command::new(program)
         .arg("-C")
         .arg(core_root)
@@ -40,7 +46,7 @@ fn run(program: &str, core_root: &str, args: &[&str]) -> Result<String, String> 
             String::from_utf8_lossy(&out.stderr).trim()
         ));
     }
-    Ok(String::from_utf8_lossy(&out.stdout).into_owned())
+    Ok(out.stdout)
 }
 
 /// Every finding id a Fixes: trailer names on the current branch, with the commit that named it.
@@ -498,6 +504,560 @@ fn trace_seal(ctx: &AppContext, value: &str) -> CoreResult<()> {
         trace_commit(ctx, hash)?;
     }
     Ok(())
+}
+
+/// INT-274: one row of `core intent seals` -- what one commit claims, and its seal re-checked.
+#[derive(Debug, PartialEq)]
+pub struct SealRow {
+    pub hash: String,
+    pub date: String,
+    pub intent: Option<String>,
+    pub subject: String,
+    pub check: SealCheck,
+}
+
+/// The field separator in the walk's git log read (git writes it as %x1f).
+const UNIT: char = '\u{1f}';
+
+/// One commit's header from the walk's git log read.
+struct Head {
+    full: String,
+    hash: String,
+    date: String,
+    intent: Option<String>,
+    seal: Option<String>,
+    fingerprint: Option<String>,
+    subject: String,
+}
+
+/// The walk's commit read (INT-274 G7): `n` commits from HEAD, NUL between commits, the subject
+/// last. The plan note is NOT read here. %N is git's display of a note, not its bytes: measured
+/// 2026-10-05, it drops a trailing blank line and adds a missing final newline, and reading it
+/// called four intact seals on 0-core broken. A seal is a hash of the exact bytes.
+fn walk_text(core_root: &str, n: usize) -> Result<String, String> {
+    let count = format!("-n{}", n);
+    git_read(
+        core_root,
+        &[
+            "log",
+            "-z",
+            count.as_str(),
+            "--format=%H%x1f%h%x1f%cs%x1f%(trailers:key=Intent,valueonly,separator=%x2C)%x1f%(trailers:key=Seal,valueonly,separator=%x2C)%x1f%(trailers:key=Fingerprint,valueonly,separator=%x2C)%x1f%s",
+            "HEAD",
+        ],
+    )
+}
+
+/// One header per record of walk_text. Err when a record does not have its seven fields.
+fn parse_heads(text: &str) -> Result<Vec<Head>, String> {
+    fn some(s: &str) -> Option<String> {
+        let s = s.trim();
+        if s.is_empty() {
+            None
+        } else {
+            Some(s.to_string())
+        }
+    }
+    let mut heads = Vec::new();
+    for record in text.split('\0').filter(|r| !r.trim().is_empty()) {
+        let f: Vec<&str> = record.splitn(7, UNIT).collect();
+        if f.len() != 7 {
+            return Err(format!(
+                "git log gave a record with {} fields, not 7, beginning {:?}",
+                f.len(),
+                record.chars().take(40).collect::<String>()
+            ));
+        }
+        heads.push(Head {
+            full: f[0].trim().to_string(),
+            hash: f[1].to_string(),
+            date: f[2].to_string(),
+            intent: some(f[3]),
+            seal: some(f[4]),
+            fingerprint: some(f[5]),
+            subject: f[6].to_string(),
+        });
+    }
+    Ok(heads)
+}
+
+/// Blob sizes from `git ls-tree -r -l` of the notes tree: oid to size in bytes.
+fn parse_sizes(tree: &str) -> std::collections::HashMap<String, usize> {
+    tree.lines()
+        .filter_map(|line| {
+            let (meta, _path) = line.split_once('\t')?;
+            let f: Vec<&str> = meta.split_whitespace().collect();
+            if f.len() == 4 && f[1] == "blob" {
+                Some((f[2].to_string(), f[3].parse().ok()?))
+            } else {
+                None
+            }
+        })
+        .collect()
+}
+
+/// The exact bytes of the plan note kept for each commit, in at most three git reads whatever the
+/// window: the notes list, the blob sizes in the notes tree, and one `git show` of the blobs split
+/// by those sizes. `git show` of a blob is its raw bytes (measured 2026-10-05: the concatenation
+/// equals `cat-file -p` of each, a trailing blank line and a missing final newline included).
+fn note_bytes(core_root: &str, commits: &[&str]) -> Result<Vec<Option<Vec<u8>>>, String> {
+    let list = seal_notes(core_root)?;
+    let blobs: Vec<Option<String>> = commits
+        .iter()
+        .map(|c| note_for(&list, c).map(str::to_string))
+        .collect();
+    let mut wanted: Vec<&str> = Vec::new();
+    for b in blobs.iter().flatten() {
+        if !wanted.contains(&b.as_str()) {
+            wanted.push(b.as_str());
+        }
+    }
+    if wanted.is_empty() {
+        return Ok(blobs.iter().map(|_| None).collect());
+    }
+    let sizes = parse_sizes(&git_read(
+        core_root,
+        &["ls-tree", "-r", "-l", "refs/notes/seals"],
+    )?);
+    let mut args: Vec<&str> = vec!["show"];
+    args.extend(wanted.iter().copied());
+    let shown = run_bytes("git", core_root, &args)?;
+    let mut bytes: std::collections::HashMap<&str, Vec<u8>> = std::collections::HashMap::new();
+    let mut at = 0;
+    for blob in &wanted {
+        let size = *sizes
+            .get(*blob)
+            .ok_or_else(|| format!("note blob {} has no size in refs/notes/seals", blob))?;
+        if at + size > shown.len() {
+            return Err(format!(
+                "git show gave {} bytes, fewer than the notes tree sizes",
+                shown.len()
+            ));
+        }
+        bytes.insert(*blob, shown[at..at + size].to_vec());
+        at += size;
+    }
+    if at != shown.len() {
+        return Err(format!(
+            "git show gave {} bytes; the notes tree sizes add to {}",
+            shown.len(),
+            at
+        ));
+    }
+    Ok(blobs
+        .iter()
+        .map(|b| b.as_deref().and_then(|b| bytes.get(b).cloned()))
+        .collect())
+}
+
+/// The last `n` commits on HEAD in `core_root`, each seal re-checked against the exact bytes of
+/// its kept plan. Err when git cannot be read.
+pub fn walk(core_root: &str, n: usize) -> Result<Vec<SealRow>, String> {
+    let heads = parse_heads(&walk_text(core_root, n)?)?;
+    let fulls: Vec<&str> = heads.iter().map(|h| h.full.as_str()).collect();
+    let notes = note_bytes(core_root, &fulls)?;
+    Ok(heads
+        .into_iter()
+        .zip(notes)
+        .map(|(h, note)| SealRow {
+            hash: h.hash,
+            date: h.date,
+            intent: h.intent,
+            subject: h.subject,
+            check: check_seal(h.seal.as_deref(), h.fingerprint.as_deref(), note.as_deref()),
+        })
+        .collect())
+}
+
+/// Does an Intent: trailer (comma-joined) name intent `id`? INT-x and bare x both count.
+fn names_intent(trailer: Option<&str>, id: &str) -> bool {
+    trailer
+        .map(|t| {
+            t.split(',')
+                .map(str::trim)
+                .any(|v| v.strip_prefix("INT-").unwrap_or(v) == id)
+        })
+        .unwrap_or(false)
+}
+
+/// INT-274 exit: 1 if any seal in the window is broken, else 2 if any names a plan that is not
+/// kept, else 0. Legacy and unsealed are shown, never failed.
+pub fn seals_exit(rows: &[SealRow]) -> i32 {
+    if rows
+        .iter()
+        .any(|r| matches!(r.check, SealCheck::Broken { .. }))
+    {
+        1
+    } else if rows.iter().any(|r| matches!(r.check, SealCheck::NoNote(_))) {
+        2
+    } else {
+        0
+    }
+}
+
+/// `core intent seals [-n N] [--intent INT-x]` -- INT-274. Every seal in the last N commits on
+/// HEAD, re-checked by check_seal from one git read. Exit 0 nothing broken or unproven, 1 a seal is
+/// broken, 2 a seal names a plan that is not kept, 3 could not answer. The domain owns its exit,
+/// as `core fingerprint show` does, so a refusal is never read as a broken seal.
+pub fn seals(ctx: &AppContext, n: &str, intent: Option<&str>) -> CoreResult<()> {
+    let code = match seals_answer(ctx, n, intent) {
+        Ok(code) => code,
+        Err(e) => {
+            eprintln!("{} {}", "\u{2717}".bright_red(), e);
+            3
+        }
+    };
+    if code != 0 {
+        std::process::exit(code);
+    }
+    Ok(())
+}
+
+fn seals_answer(ctx: &AppContext, n: &str, intent: Option<&str>) -> Result<i32, String> {
+    ctx.capabilities
+        .require(
+            "intent",
+            &[Capability::FilesystemReadHome, Capability::SpawnProcess],
+        )
+        .map_err(|e| e.to_string())?;
+    let count: usize = match n.trim().parse() {
+        Ok(c) if c > 0 => c,
+        _ => {
+            return Err(format!(
+                "seals could not answer -- -n {} is not a count of commits (1 or more)",
+                n
+            ))
+        }
+    };
+    let wanted = match intent {
+        None => None,
+        Some(t) => {
+            let t = t.trim();
+            let id = t.strip_prefix("INT-").unwrap_or(t).to_string();
+            if id.is_empty() || !id.chars().all(|c| c.is_ascii_digit()) {
+                return Err(format!(
+                    "seals could not answer -- {} is not an intent (INT-x or x)",
+                    t
+                ));
+            }
+            if !super::load_all(ctx).iter().any(|i| i.id == id) {
+                return Err(format!(
+                    "seals could not answer -- INT-{} names no intent in the ledger",
+                    id
+                ));
+            }
+            Some(id)
+        }
+    };
+    let rows = walk(&ctx.core_root, count)
+        .map_err(|e| format!("seals could not answer -- git could not be read: {}", e))?;
+    Ok(print_seals(rows, count, wanted.as_deref()))
+}
+
+/// Print the table, newest first, with a reason line under broken, no plan and legacy. Returns the
+/// exit code for the rows printed.
+fn print_seals(rows: Vec<SealRow>, count: usize, wanted: Option<&str>) -> i32 {
+    let rows: Vec<SealRow> = match wanted {
+        Some(id) => rows
+            .into_iter()
+            .filter(|r| names_intent(r.intent.as_deref(), id))
+            .collect(),
+        None => rows,
+    };
+    if rows.is_empty() {
+        match wanted {
+            Some(id) => println!("  no commit in the last {} on HEAD names INT-{}", count, id),
+            None => println!("  no commits on HEAD"),
+        }
+        return 0;
+    }
+    let code = seals_exit(&rows);
+    println!(
+        "{}",
+        format!(
+            "  {:<10}  {:<9}  {:<9}  {:<16}  {:<8}  {}",
+            "date", "commit", "intent", "seal", "verdict", "subject"
+        )
+        .dimmed()
+    );
+    for r in rows {
+        let intent = r
+            .intent
+            .as_deref()
+            .map(spaced)
+            .unwrap_or_else(|| "-".to_string());
+        let (seal, word) = match &r.check {
+            SealCheck::Intact(s) => (s.clone(), format!("{:<8}", "sealed").green().to_string()),
+            SealCheck::Broken { seal, .. } => {
+                (seal.clone(), format!("{:<8}", "broken").red().to_string())
+            }
+            SealCheck::NoNote(s) => (s.clone(), format!("{:<8}", "no plan").yellow().to_string()),
+            SealCheck::Legacy(f) => (spaced(f), format!("{:<8}", "legacy").dimmed().to_string()),
+            SealCheck::NoSeal => (
+                "-".to_string(),
+                format!("{:<8}", "unsealed").dimmed().to_string(),
+            ),
+        };
+        println!(
+            "  {:<10}  {:<9}  {:<9}  {:<16}  {}  {}",
+            r.date, r.hash, intent, seal, word, r.subject
+        );
+        if !matches!(r.check, SealCheck::Intact(_) | SealCheck::NoSeal) {
+            println!("              {}", seal_line(r.check));
+        }
+    }
+    code
+}
+
+/// INT-274 G3 and G6: a real repository in a temp directory, one commit per verdict, walked by the
+/// same function the command uses. The real refs/notes/seals is never touched.
+#[cfg(test)]
+mod seals_tests {
+    use super::{names_intent, parse_heads, seal_digest, seals_exit, walk, SealCheck};
+
+    struct Fixture(std::path::PathBuf);
+    impl Drop for Fixture {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn git(dir: &str, args: &[&str]) {
+        let st = std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args([
+                "-c",
+                "user.name=int274",
+                "-c",
+                "user.email=int274@localhost",
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "core.hooksPath=/dev/null",
+            ])
+            .args(args)
+            .status()
+            .expect("git runs");
+        assert!(st.success(), "fixture git {:?} failed", args);
+    }
+
+    fn fixture() -> Fixture {
+        let nanos = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let dir =
+            std::env::temp_dir().join(format!("int274-fixture-{}-{}", std::process::id(), nanos));
+        std::fs::create_dir_all(&dir).expect("temp dir");
+        let f = Fixture(dir);
+        let d = f.0.to_str().expect("utf-8 temp path").to_string();
+        git(&d, &["init", "-q"]);
+        let plan = b"plan A\n\ta tab and a \x1f unit separator\n";
+        let altered = b"plan C, altered after review\n";
+        std::fs::write(f.0.join("plan-a"), plan).expect("plan a");
+        std::fs::write(f.0.join("plan-c"), altered).expect("plan c");
+        let seal_a = format!("Seal: {}", seal_digest(plan));
+        let seal_b = format!("Seal: {}", seal_digest(b"plan B\n"));
+        let seal_c = format!("Seal: {}", seal_digest(b"plan C\n"));
+        let plan_a = f.0.join("plan-a").to_str().unwrap().to_string();
+        let plan_c = f.0.join("plan-c").to_str().unwrap().to_string();
+        git(&d, &["commit", "-q", "--allow-empty", "-m", "unsealed"]);
+        git(
+            &d,
+            &[
+                "commit",
+                "-q",
+                "--allow-empty",
+                "-m",
+                "legacy",
+                "--trailer",
+                "Fingerprint: ce3dd6c2176c585a",
+            ],
+        );
+        git(
+            &d,
+            &[
+                "commit",
+                "-q",
+                "--allow-empty",
+                "-m",
+                "no plan",
+                "--trailer",
+                &seal_b,
+            ],
+        );
+        git(
+            &d,
+            &[
+                "commit",
+                "-q",
+                "--allow-empty",
+                "-m",
+                "broken",
+                "--trailer",
+                &seal_c,
+                "--trailer",
+                "Intent: INT-7",
+            ],
+        );
+        git(&d, &["notes", "--ref=seals", "add", "-F", &plan_c, "HEAD"]);
+        git(
+            &d,
+            &[
+                "commit",
+                "-q",
+                "--allow-empty",
+                "-m",
+                "sealed",
+                "--trailer",
+                &seal_a,
+                "--trailer",
+                "Intent: INT-7",
+            ],
+        );
+        git(&d, &["notes", "--ref=seals", "add", "-F", &plan_a, "HEAD"]);
+        f
+    }
+
+    #[test]
+    fn the_walk_gives_all_five_verdicts_newest_first() {
+        let f = fixture();
+        let rows = walk(f.0.to_str().unwrap(), 10).expect("fixture walks");
+        let subjects: Vec<&str> = rows.iter().map(|r| r.subject.as_str()).collect();
+        assert_eq!(
+            subjects,
+            ["sealed", "broken", "no plan", "legacy", "unsealed"]
+        );
+        assert!(
+            matches!(rows[0].check, SealCheck::Intact(_)),
+            "{:?}",
+            rows[0]
+        );
+        assert!(
+            matches!(rows[1].check, SealCheck::Broken { .. }),
+            "{:?}",
+            rows[1]
+        );
+        assert!(
+            matches!(rows[2].check, SealCheck::NoNote(_)),
+            "{:?}",
+            rows[2]
+        );
+        assert_eq!(
+            rows[3].check,
+            SealCheck::Legacy("ce3dd6c2176c585a".to_string())
+        );
+        assert_eq!(rows[4].check, SealCheck::NoSeal);
+        assert_eq!(rows[0].intent.as_deref(), Some("INT-7"));
+    }
+
+    #[test]
+    fn the_exit_is_the_worst_row() {
+        let f = fixture();
+        let rows = walk(f.0.to_str().unwrap(), 10).expect("fixture walks");
+        assert_eq!(seals_exit(&rows), 1, "a broken seal exits 1");
+        let rows = walk(f.0.to_str().unwrap(), 10).expect("fixture walks");
+        let without_broken: Vec<_> = rows.into_iter().filter(|r| r.subject != "broken").collect();
+        assert_eq!(
+            seals_exit(&without_broken),
+            2,
+            "a seal with no kept plan exits 2"
+        );
+        let rows = walk(f.0.to_str().unwrap(), 10).expect("fixture walks");
+        let clean: Vec<_> = rows
+            .into_iter()
+            .filter(|r| r.subject != "broken" && r.subject != "no plan")
+            .collect();
+        assert_eq!(seals_exit(&clean), 0, "sealed, legacy and unsealed exit 0");
+    }
+
+    fn git_out(dir: &str, args: &[&str]) -> String {
+        let out = std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .output()
+            .expect("git runs");
+        assert!(out.status.success(), "fixture git {:?} failed", args);
+        String::from_utf8_lossy(&out.stdout).into_owned()
+    }
+
+    /// INT-274 regression -- the class, not the example. git's %N is a display of a note, not its
+    /// bytes: it drops a trailing blank line and adds a missing final newline. A walk that hashed %N
+    /// called four intact seals on 0-core broken (20804eaf, 3492c26f, cb1dbe90, d5a65703). These
+    /// notes are written raw (hash-object --no-filters, notes add -C) so git cannot clean them first.
+    #[test]
+    fn a_note_git_would_display_differently_still_hashes_exactly() {
+        let f = fixture();
+        let d = f.0.to_str().unwrap().to_string();
+        let bodies: [&[u8]; 3] = [
+            b"ends in a blank line\n\n",
+            b"no final newline",
+            b"crlf\r\nand a blank line\r\n\r\n",
+        ];
+        for (i, body) in bodies.iter().enumerate() {
+            let p = f.0.join(format!("raw-{}", i));
+            std::fs::write(&p, body).expect("raw note");
+            let blob = git_out(
+                &d,
+                &["hash-object", "-w", "--no-filters", p.to_str().unwrap()],
+            );
+            let seal = format!("Seal: {}", seal_digest(body));
+            let subject = format!("raw {}", i);
+            git(
+                &d,
+                &[
+                    "commit",
+                    "-q",
+                    "--allow-empty",
+                    "-m",
+                    &subject,
+                    "--trailer",
+                    &seal,
+                ],
+            );
+            git(
+                &d,
+                &["notes", "--ref=seals", "add", "-C", blob.trim(), "HEAD"],
+            );
+        }
+        let rows = walk(&d, 3).expect("fixture walks");
+        assert_eq!(rows.len(), 3);
+        for r in &rows {
+            assert!(
+                matches!(r.check, SealCheck::Intact(_)),
+                "{} read as {:?}",
+                r.subject,
+                r.check
+            );
+        }
+    }
+
+    #[test]
+    fn n_limits_the_window() {
+        let f = fixture();
+        let rows = walk(f.0.to_str().unwrap(), 2).expect("fixture walks");
+        assert_eq!(rows.len(), 2);
+    }
+
+    #[test]
+    fn an_unreadable_repo_refuses() {
+        assert!(walk("/nonexistent/int274-no-repo", 5).is_err());
+    }
+
+    #[test]
+    fn a_record_short_of_fields_refuses_rather_than_guessing() {
+        assert!(parse_heads("abc1234\u{1f}2026-10-05\0").is_err());
+    }
+
+    #[test]
+    fn an_intent_trailer_matches_by_id() {
+        assert!(names_intent(Some("INT-266"), "266"));
+        assert!(names_intent(Some("INT-272,INT-266"), "266"));
+        assert!(!names_intent(Some("INT-2660"), "266"));
+        assert!(!names_intent(None, "266"));
+    }
 }
 
 /// Gate 9's class: did not start, started and refused, answered nothing. Each is its own test.
