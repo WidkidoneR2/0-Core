@@ -179,6 +179,32 @@ pub fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
             applied_at  INTEGER
         );",
     )?;
+    // INT-275: a proposal has an identity and can retire without being applied. Additive
+    // columns on the existing table, added once; no row is rewritten except pending drift rows,
+    // whose subject is the tool already stored as data before the tab.
+    for (column, decl) in [
+        ("subject", "TEXT"),
+        ("retired_at", "INTEGER"),
+        ("retired_reason", "TEXT"),
+    ] {
+        let present: i64 = ctx.runtime.db.query_row(
+            "SELECT COUNT(*) FROM pragma_table_info('pending_fixes') WHERE name = ?1",
+            [column],
+            |r| r.get(0),
+        )?;
+        if present == 0 {
+            ctx.runtime.db.execute_batch(&format!(
+                "ALTER TABLE pending_fixes ADD COLUMN {} {};",
+                column, decl
+            ))?;
+        }
+    }
+    ctx.runtime.db.execute(
+        "UPDATE pending_fixes SET subject = substr(action_data, 1, instr(action_data, char(9)) - 1)
+         WHERE subject IS NULL AND applied_at IS NULL
+           AND action_type = 'UpdateRegistryVersion' AND instr(action_data, char(9)) > 0",
+        [],
+    )?;
     Ok(())
 }
 
@@ -274,6 +300,53 @@ fn log_issue(ctx: &IntegrityContext, issue: &IntegrityIssue, fixed: bool) {
     }
 }
 
+// ── INT-275: a proposal's identity, and the rows a reader may show ────────────────
+//
+// A proposal is shown, counted and applied only while a fresh run of its check still finds it.
+// Identity is (check_name, subject). The description is display text and carries versions, so it
+// is never a key. Retired is not applied: a retired row stays as history, with when and why.
+
+/// The one test of "still pending": not applied and not retired.
+const PENDING: &str = "applied_at IS NULL AND retired_at IS NULL";
+
+/// What a fix acts on: the file for a move or an edit, the tool for drift. With the check name
+/// this is the proposal's identity. Exhaustive on purpose: a new FixAction must name its subject.
+fn fix_subject(fix: &FixAction) -> Option<String> {
+    match fix {
+        FixAction::MoveFile { from, .. } => Some(from.display().to_string()),
+        FixAction::UpdateRegistryVersion { tool, .. } => Some(tool.clone()),
+        FixAction::UpdateRegistryField { tool, field, .. } => Some(format!("{}.{}", tool, field)),
+        FixAction::InsertDbRow { table, .. } => Some(table.clone()),
+        FixAction::VacuumDb => Some("state.db".to_string()),
+        FixAction::SyncDocs => Some("docs".to_string()),
+        FixAction::RebuildJarvisScore => Some("jarvis-score".to_string()),
+        FixAction::UpdateFile { path, .. } => Some(path.display().to_string()),
+    }
+}
+
+/// The fix as data, so apply carries it out without a re-scan (INT-267 batch 1b; moves, INT-275).
+fn fix_data(issue: &IntegrityIssue) -> String {
+    match &issue.fix {
+        Some(FixAction::UpdateRegistryVersion { tool, version }) => {
+            format!("{}\t{}", tool, version)
+        }
+        Some(FixAction::MoveFile { from, to }) => format!("{}\t{}", from.display(), to.display()),
+        _ => issue.description.clone(),
+    }
+}
+
+/// INT-275: the one reader of an intent's status -- its frontmatter line, exactly, within the
+/// first twenty lines. A body that mentions a status is not a status.
+pub fn frontmatter_status(content: &str) -> String {
+    content
+        .lines()
+        .take(20)
+        .find(|l| l.trim().starts_with("status:"))
+        .unwrap_or("")
+        .trim()
+        .to_string()
+}
+
 fn persist_proposal(ctx: &IntegrityContext, issue: &IntegrityIssue) {
     let action_type = match &issue.fix {
         Some(FixAction::MoveFile { .. }) => "MoveFile",
@@ -283,39 +356,100 @@ fn persist_proposal(ctx: &IntegrityContext, issue: &IntegrityIssue) {
         Some(FixAction::UpdateFile { .. }) => "UpdateFile",
         _ => "Unknown",
     };
-    // The fix as data, so apply can carry it out (INT-267 batch 1b); other fixes keep their text.
-    let action_data = match &issue.fix {
-        Some(FixAction::UpdateRegistryVersion { tool, version }) => {
-            format!("{}\t{}", tool, version)
-        }
-        _ => issue.description.clone(),
-    };
-    // Already pending means the same check AND the same finding, so each drift is its own row.
+    let action_data = fix_data(issue);
+    let subject = issue.fix.as_ref().and_then(fix_subject);
+    // INT-275: the same check, subject and fix already pending is the same proposal. A new fix
+    // for the same identity is a new row; the reconcile retires the older one as superseded.
     let exists: i64 = ctx
         .ctx
         .runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM pending_fixes
-             WHERE check_name=?1 AND description=?2 AND applied_at IS NULL",
-            rusqlite::params![issue.check, &issue.description],
+            &format!(
+                "SELECT COUNT(*) FROM pending_fixes
+                 WHERE check_name = ?1 AND subject IS ?2 AND action_data = ?3 AND {}",
+                PENDING
+            ),
+            rusqlite::params![issue.check, subject, &action_data],
             |r| r.get(0),
         )
         .unwrap_or(0);
 
     if exists == 0 {
         ctx.ctx.runtime.db.execute(
-            "INSERT INTO pending_fixes (category, check_name, action_type, action_data, description, created_at)
-             VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+            "INSERT INTO pending_fixes (category, check_name, action_type, action_data, description, created_at, subject)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
             rusqlite::params![
                 issue.category.as_str(),
                 issue.check,
                 action_type,
                 &action_data,
                 &issue.description,
-                now_ts()
+                now_ts(),
+                subject
             ],
         ).ok();
+    }
+}
+
+/// INT-275: after a run, every pending row is still found or retired with its reason. First
+/// match wins: check removed, pre-275 row, superseded by #N, resolved. A check that did not run
+/// in this pipeline (a partial run) says nothing about its rows; they are left alone.
+fn reconcile(ctx: &IntegrityContext, ran: &[&'static str], found: &[&IntegrityIssue]) {
+    let db = &ctx.ctx.runtime.db;
+    let suite: Vec<&'static str> = build_check_suite().iter().map(|c| c.name()).collect();
+    let rows: Vec<(i64, String, Option<String>)> = match db.prepare(&format!(
+        "SELECT id, check_name, subject FROM pending_fixes WHERE {} ORDER BY id DESC",
+        PENDING
+    )) {
+        Ok(mut stmt) => {
+            let x: Vec<(i64, String, Option<String>)> = stmt
+                .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))
+                .map(|it| it.filter_map(|r| r.ok()).collect())
+                .unwrap_or_default();
+            x
+        }
+        Err(_) => return,
+    };
+    // Newest first, so the first row seen for an identity is the one that stays.
+    let mut newest: std::collections::HashMap<(String, String), i64> =
+        std::collections::HashMap::new();
+    for (id, check, subject) in &rows {
+        let ran_now = ran.iter().any(|c| *c == check.as_str());
+        let reason = if !suite.iter().any(|c| *c == check.as_str()) {
+            Some("check removed".to_string())
+        } else if subject.is_none() {
+            Some("pre-275 row".to_string())
+        } else if !ran_now {
+            None
+        } else {
+            let subject = subject.clone().unwrap_or_default();
+            let key = (check.clone(), subject.clone());
+            if let Some(newer) = newest.get(&key) {
+                Some(format!("superseded by #{}", newer))
+            } else {
+                newest.insert(key, *id);
+                let still_found = found.iter().any(|i| {
+                    i.check == check.as_str()
+                        && i.fix.as_ref().and_then(fix_subject).as_deref() == Some(subject.as_str())
+                });
+                if still_found {
+                    None
+                } else {
+                    Some("resolved".to_string())
+                }
+            }
+        };
+        if let Some(reason) = reason {
+            db.execute(
+                &format!(
+                    "UPDATE pending_fixes SET retired_at = ?1, retired_reason = ?2 WHERE id = ?3 AND {}",
+                    PENDING
+                ),
+                rusqlite::params![now_ts(), reason, id],
+            )
+            .ok();
+        }
     }
 }
 
@@ -388,6 +522,10 @@ pub fn run_pipeline(
         persist_proposal(ctx, issue);
         log_issue(ctx, issue, false);
     }
+
+    // INT-275: every pending row is still found, or retired with its reason.
+    let ran: Vec<&'static str> = checks.iter().map(|c| c.name()).collect();
+    reconcile(ctx, &ran, &proposals);
 
     // Log alerts
     for issue in &alerts {
@@ -589,10 +727,14 @@ pub fn cmd_log(ctx: &AppContext) -> CoreResult<()> {
 
 pub fn cmd_fix(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
+    // INT-275: list what a fresh run finds, not what the table remembers. This is the run
+    // quick_scan makes on every d; the reconcile at its end retires what is no longer true.
+    run_pipeline(&IntegrityContext::new(ctx), &build_check_suite(), true);
 
-    let mut stmt = ctx.runtime.db.prepare(
-        "SELECT id, category, check_name, description FROM pending_fixes WHERE applied_at IS NULL ORDER BY created_at ASC"
-    )?;
+    let mut stmt = ctx.runtime.db.prepare(&format!(
+        "SELECT id, category, check_name, description FROM pending_fixes WHERE {} ORDER BY created_at ASC",
+        PENDING
+    ))?;
 
     let rows: Vec<(i64, String, String, String)> = stmt
         .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
@@ -601,6 +743,7 @@ pub fn cmd_fix(ctx: &AppContext) -> CoreResult<()> {
 
     if rows.is_empty() {
         println!("  {} No pending proposals", "✅".normal());
+        print_retired_history(ctx);
         return Ok(());
     }
 
@@ -628,7 +771,45 @@ pub fn cmd_fix(ctx: &AppContext) -> CoreResult<()> {
         );
         println!();
     }
+    print_retired_history(ctx);
     Ok(())
+}
+
+/// INT-275: one line for what fix no longer shows, so a retired row is visible without being
+/// pending. Superseded rows are counted together; each row keeps its own reason in the table.
+fn print_retired_history(ctx: &AppContext) {
+    let counts: Vec<(String, i64)> = match ctx.runtime.db.prepare(
+        "SELECT CASE WHEN retired_reason LIKE 'superseded%' THEN 'superseded' ELSE retired_reason END AS why,
+                COUNT(*) FROM pending_fixes WHERE retired_at IS NOT NULL GROUP BY why ORDER BY why",
+    ) {
+        Ok(mut stmt) => {
+            let x: Vec<(String, i64)> = stmt
+                .query_map([], |r| {
+                    Ok((
+                        r.get::<_, Option<String>>(0)?.unwrap_or_default(),
+                        r.get::<_, i64>(1)?,
+                    ))
+                })
+                .map(|it| it.filter_map(|r| r.ok()).collect())
+                .unwrap_or_default();
+            x
+        }
+        Err(_) => return,
+    };
+    let total: i64 = counts.iter().map(|c| c.1).sum();
+    if total == 0 {
+        return;
+    }
+    let parts: Vec<String> = counts
+        .iter()
+        .map(|(why, n)| format!("{} {}", why, n))
+        .collect();
+    println!(
+        "  {} {} retired, kept as history, not applied: {}",
+        "·".dimmed(),
+        total,
+        parts.join(", ").dimmed()
+    );
 }
 
 // ── Check Suite ───────────────────────────────────────────────────────────────
@@ -697,13 +878,7 @@ pub mod checks {
                         if let Ok(content) = std::fs::read_to_string(&path) {
                             // Check for status mismatch
                             // Only check frontmatter status field — exact line match
-                            let status_line = content
-                                .lines()
-                                .take(20)
-                                .find(|l| l.trim().starts_with("status:"))
-                                .unwrap_or("")
-                                .trim()
-                                .to_string();
+                            let status_line = frontmatter_status(&content);
                             let has_complete = status_line == "status: complete";
                             let has_planned = status_line == "status: planned";
                             let has_deferred = status_line == "status: deferred";
@@ -1288,35 +1463,73 @@ pub fn quick_scan(ctx: &AppContext) -> (u32, usize, usize, usize) {
 pub fn cmd_apply(ctx: &AppContext, id: &str) -> CoreResult<()> {
     use colored::*;
     ensure_tables(ctx)?;
-    let fix_id: i64 = id.parse().unwrap_or(0);
+    let outcome = match id.parse::<i64>() {
+        Ok(fix_id) => apply_row(ctx, fix_id).map_err(|why| format!("#{} {}", fix_id, why)),
+        Err(_) => Err(format!("{} is not a proposal id", id)),
+    };
+    match outcome {
+        Ok(()) => Ok(()),
+        Err(why) => {
+            // INT-275, INT-272: result first, said once, non-zero exit kept by the top level.
+            println!("  {} Nothing applied: {}", "✗".bright_red(), why);
+            Err(crate::errors::CoreError::Reported(format!(
+                "nothing applied: {}",
+                why
+            )))
+        }
+    }
+}
 
-    // Get the pending fix
-    let fix: Option<(i64, String, String, String, String)> = ctx
-        .runtime
-        .db
+/// INT-275: carry out one pending row, or say why not. The row's own check runs again first, so a
+/// proposal is applied only while a fresh run still finds it; then the row's stored data is
+/// carried out, never a re-scan. Err is the reason, for the caller to print. Nothing is written
+/// on any Err path.
+fn apply_row(ctx: &AppContext, fix_id: i64) -> Result<(), String> {
+    use colored::*;
+    let db = &ctx.runtime.db;
+    let row: Option<(String, String, String, Option<i64>, Option<String>)> = db
         .query_row(
-            "SELECT id, category, check_name, action_type, description FROM pending_fixes 
-         WHERE id = ?1 AND applied_at IS NULL",
-            rusqlite::params![fix_id],
+            "SELECT check_name, action_type, description, applied_at, retired_reason
+             FROM pending_fixes WHERE id = ?1",
+            [fix_id],
             |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
         )
         .ok();
-    let (pid, _cat, check_name, action_type, description) = match fix {
-        None => {
-            println!(
-                "  {} Fix #{} not found or already applied",
-                "✗".bright_red(),
-                id
-            );
-            return Ok(());
-        }
-        Some(f) => f,
+    let (check_name, action_type, description, applied, retired) = match row {
+        None => return Err("is not a proposal".to_string()),
+        Some(r) => r,
     };
+    if applied.is_some() {
+        return Err("was already applied".to_string());
+    }
+    if let Some(reason) = retired {
+        return Err(format!("was retired: {}", reason));
+    }
+
+    // Re-run this row's check alone. A check no longer in the suite runs nothing, and the
+    // reconcile retires the row as check removed.
+    let own: Vec<Box<dyn IntegrityCheck>> = build_check_suite()
+        .into_iter()
+        .filter(|c| c.name() == check_name)
+        .collect();
+    let ictx = IntegrityContext::new(ctx);
+    run_pipeline(&ictx, &own, true);
+    let (retired, data): (Option<String>, String) = db
+        .query_row(
+            "SELECT retired_reason, action_data FROM pending_fixes WHERE id = ?1",
+            [fix_id],
+            |r| Ok((r.get(0)?, r.get(1)?)),
+        )
+        .map_err(|e| format!("could not be read again: {}", e))?;
+    if let Some(reason) = retired {
+        return Err(format!("is no longer true: {}", reason));
+    }
+
     println!();
     println!(
         "  {} Applying fix #{}: {}",
         "🔧".normal(),
-        pid,
+        fix_id,
         description.bright_white()
     );
     println!(
@@ -1326,79 +1539,54 @@ pub fn cmd_apply(ctx: &AppContext, id: &str) -> CoreResult<()> {
         action_type.dimmed()
     );
     println!();
-    // Execute the fix based on action type and check name
-    let success = match check_name.as_str() {
-        "intent_status_directory" => {
-            // Move complete intent from future/ to complete/
-            let _root = std::path::PathBuf::from(&ctx.core_root);
-            let future_dir = zero_core::paths::intents_dir().join("future");
-            let complete_dir = zero_core::paths::intents_dir().join("complete");
-            let mut moved = false;
-            if let Ok(entries) = std::fs::read_dir(&future_dir) {
-                for entry in entries.flatten() {
-                    let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
-                    if content.contains("status: complete") {
-                        let dest = complete_dir.join(entry.file_name());
-                        if std::fs::rename(entry.path(), &dest).is_ok() {
-                            println!(
-                                "  {} Moved {} to complete/",
-                                "✅".normal(),
-                                entry.file_name().to_string_lossy().bright_white()
-                            );
-                            moved = true;
-                        }
-                    }
-                }
-            }
-            moved
+    let done = match (action_type.as_str(), data.split_once('\t')) {
+        ("UpdateRegistryVersion", Some((tool, version))) => {
+            println!(
+                "  {} registry/tools.toml: {} version becomes {}",
+                "→".dimmed(),
+                tool.bright_white(),
+                version.bright_white()
+            );
+            apply_safe_fix(
+                &FixAction::UpdateRegistryVersion {
+                    tool: tool.to_string(),
+                    version: version.to_string(),
+                },
+                &ictx,
+            )
         }
-        "registry_version_drift" => {
-            // INT-267 batch 1b: the proposal holds the tool and version as data.
-            let data: String = ctx
-                .runtime
-                .db
-                .query_row(
-                    "SELECT action_data FROM pending_fixes WHERE id = ?1",
-                    rusqlite::params![pid],
-                    |r| r.get(0),
-                )
-                .unwrap_or_default();
-            match data.split_once('\t') {
-                Some((tool, version)) => apply_safe_fix(
-                    &FixAction::UpdateRegistryVersion {
-                        tool: tool.to_string(),
-                        version: version.to_string(),
-                    },
-                    &IntegrityContext::new(ctx),
-                ),
-                None => false,
+        ("MoveFile", Some((from, to))) => {
+            let (from, to) = (PathBuf::from(from), PathBuf::from(to));
+            if !from.exists() {
+                return Err(format!("names {}, which is not there", from.display()));
             }
+            if to.exists() {
+                return Err(format!("would overwrite {}", to.display()));
+            }
+            println!(
+                "  {} move {} -> {}",
+                "→".dimmed(),
+                from.display(),
+                to.display()
+            );
+            std::fs::rename(&from, &to).is_ok()
         }
         _ => {
-            println!(
-                "  {} Fix type '{}' requires manual application",
-                "⚠️ ".normal(),
-                action_type.bright_yellow()
-            );
-            println!("     Description: {}", description);
-            false
+            return Err(format!(
+                "has no stored {} fix to carry out; apply it by hand: {}",
+                action_type, description
+            ))
         }
     };
-    if success {
-        // Mark as applied
-        let now = chrono::Utc::now().timestamp();
-        ctx.runtime.db.execute(
-            "UPDATE pending_fixes SET applied_at = ?1 WHERE id = ?2",
-            rusqlite::params![now, pid],
-        )?;
-        println!("  {} Fix applied successfully", "✅".normal());
-    } else {
-        println!(
-            "  {} Fix could not be applied automatically — see description above",
-            "⚠️ ".normal()
-        );
+    if !done {
+        return Err("could not be carried out; it stays pending".to_string());
     }
-    println!();
+    db.execute(
+        "UPDATE pending_fixes SET applied_at = ?1 WHERE id = ?2",
+        rusqlite::params![now_ts(), fix_id],
+    )
+    .map_err(|e| format!("was carried out but could not be marked applied: {}", e))?;
+    println!("  {} Fix applied successfully", "✅".normal());
     Ok(())
 }
 pub fn cmd_heal(ctx: &AppContext, dry_run: bool) -> CoreResult<()> {
@@ -1497,12 +1685,14 @@ pub fn cmd_heal(ctx: &AppContext, dry_run: bool) -> CoreResult<()> {
             }
         }
     }
+    // INT-275: a fresh run first, so heal only carries out rows a run still finds.
+    run_pipeline(&IntegrityContext::new(ctx), &build_check_suite(), true);
     // Check 2: Apply all pending safe fixes
     let pending: Vec<(i64, String)> = {
-        let mut stmt = ctx
-            .runtime
-            .db
-            .prepare("SELECT id, check_name FROM pending_fixes WHERE applied_at IS NULL")?;
+        let mut stmt = ctx.runtime.db.prepare(&format!(
+            "SELECT id, check_name FROM pending_fixes WHERE {}",
+            PENDING
+        ))?;
         let x = stmt
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
             .filter_map(|r| r.ok())
@@ -1518,8 +1708,10 @@ pub fn cmd_heal(ctx: &AppContext, dry_run: bool) -> CoreResult<()> {
         for (id, check) in &pending {
             println!("    {} #{} {}", "·".dimmed(), id, check.bright_white());
             if !dry_run {
-                cmd_apply(ctx, &id.to_string())?;
-                healed += 1;
+                match apply_row(ctx, *id) {
+                    Ok(()) => healed += 1,
+                    Err(why) => println!("      {} #{} not healed: {}", "·".dimmed(), id, why),
+                }
             } else {
                 would_heal += 1;
             }
@@ -1581,6 +1773,247 @@ mod tests {
 
     fn drift_only() -> Vec<Box<dyn IntegrityCheck>> {
         vec![Box::new(checks::RegistryVersionDriftCheck)]
+    }
+
+    // ── INT-275: proposals are shown and applied only while a fresh run still finds them ──
+
+    /// The rows a reader may show: not applied, and not retired once that column exists.
+    /// Written to work on the table before and after INT-275, so the same tests go red then green.
+    fn pending_ids(ctx: &AppContext) -> Vec<i64> {
+        let has_retired = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM pragma_table_info('pending_fixes') WHERE name = 'retired_at'",
+                [],
+                |r| r.get::<_, i64>(0),
+            )
+            .map(|n| n > 0)
+            .unwrap_or(false);
+        let sql = if has_retired {
+            "SELECT id FROM pending_fixes WHERE applied_at IS NULL AND retired_at IS NULL ORDER BY id"
+        } else {
+            "SELECT id FROM pending_fixes WHERE applied_at IS NULL ORDER BY id"
+        };
+        let mut stmt = ctx.runtime.db.prepare(sql).unwrap();
+        let ids: Vec<i64> = stmt
+            .query_map([], |r| r.get::<_, i64>(0))
+            .unwrap()
+            .filter_map(|r| r.ok())
+            .collect();
+        ids
+    }
+
+    /// Pending rows whose description matches, with their action_data.
+    fn pending_data(ctx: &AppContext, like: &str) -> Vec<(i64, String)> {
+        pending_ids(ctx)
+            .into_iter()
+            .filter_map(|id| {
+                ctx.runtime
+                    .db
+                    .query_row(
+                        "SELECT id, action_data FROM pending_fixes WHERE id = ?1 AND description LIKE ?2",
+                        rusqlite::params![id, like],
+                        |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)),
+                    )
+                    .ok()
+            })
+            .collect()
+    }
+
+    /// Move the stand-in tool crate to a new cargo version.
+    fn set_alpha(root: &std::path::Path, ver: &str) {
+        let cargo = root
+            .join(zero_core::paths::CRATE_PARENTS[0])
+            .join("alpha")
+            .join("Cargo.toml");
+        std::fs::write(cargo, format!("[package]\nversion = \"{}\"\n", ver)).unwrap();
+    }
+
+    /// INT-275 G3: a row whose check is no longer in the suite is never pending again.
+    #[test]
+    fn a_row_of_a_removed_check_is_not_pending() {
+        let (ctx, root) = stand_in("ghost");
+        ctx.runtime
+            .db
+            .execute(
+                "INSERT INTO pending_fixes (category, check_name, action_type, action_data, description, created_at)
+                 VALUES ('autostart', 'autostart_retired_tool', 'UpdateFile', 'x', 'keyscan is retired', 1)",
+                [],
+            )
+            .unwrap();
+        let ghost = ctx.runtime.db.last_insert_rowid();
+        run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+        let pending = pending_ids(&ctx);
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(
+            !pending.contains(&ghost),
+            "a row of a removed check is still pending"
+        );
+    }
+
+    /// INT-275 G4: the same tool drifting twice leaves one pending row, carrying the newer version.
+    #[test]
+    fn one_pending_row_per_identity() {
+        let (ctx, root) = stand_in("identity");
+        run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+        set_alpha(&root, "2.1.0");
+        run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+        let alpha = pending_data(&ctx, "alpha:%");
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(
+            alpha.len(),
+            1,
+            "one tool drifting twice left these pending: {:?}",
+            alpha
+        );
+        assert_eq!(
+            alpha[0].1, "alpha\t2.1.0",
+            "the pending row does not carry the newer version"
+        );
+    }
+
+    /// INT-275 G5: a drift corrected by hand retires resolved; it is not left pending or marked applied.
+    #[test]
+    fn a_resolved_drift_is_not_pending() {
+        let (ctx, root) = stand_in("resolved");
+        run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+        let id = pending_data(&ctx, "alpha:%").first().map(|r| r.0);
+        let path = root.join("zero/registry/tools.toml");
+        let corrected = std::fs::read_to_string(&path).unwrap().replace(
+            "name = \"alpha\"\nversion = \"1.0.0\"",
+            "name = \"alpha\"\nversion = \"2.0.0\"",
+        );
+        std::fs::write(&path, corrected).unwrap();
+        run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+        let pending = pending_ids(&ctx);
+        let applied: Option<i64> = id.and_then(|id| {
+            ctx.runtime
+                .db
+                .query_row(
+                    "SELECT applied_at FROM pending_fixes WHERE id = ?1",
+                    [id],
+                    |r| r.get::<_, Option<i64>>(0),
+                )
+                .ok()
+                .flatten()
+        });
+        let _ = std::fs::remove_dir_all(&root);
+        let id = id.expect("no drift row for alpha was recorded");
+        assert!(
+            !pending.contains(&id),
+            "a drift corrected by hand is still pending"
+        );
+        assert_eq!(applied, None, "a resolved row was marked applied");
+    }
+
+    /// INT-275 G6: applying a superseded drift refuses as an error and writes nothing.
+    #[test]
+    fn applying_a_stale_drift_refuses_and_writes_nothing() {
+        let (ctx, root) = stand_in("stale");
+        run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+        let stale: Option<i64> = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT id FROM pending_fixes WHERE action_data = ?1",
+                ["alpha\t2.0.0"],
+                |r| r.get::<_, i64>(0),
+            )
+            .ok();
+        set_alpha(&root, "3.0.0");
+        run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+        let path = root.join("zero/registry/tools.toml");
+        let before = std::fs::read(&path).unwrap();
+        let refused = stale.map(|id| cmd_apply(&ctx, &id.to_string()).is_err());
+        let after = std::fs::read(&path).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(
+            refused,
+            Some(true),
+            "applying a superseded drift did not refuse"
+        );
+        assert!(
+            before == after,
+            "applying a superseded drift wrote the registry"
+        );
+    }
+    /// INT-275 G3: apply on a row of a removed check refuses, writes nothing, and retires it.
+    #[test]
+    fn applying_a_row_of_a_removed_check_refuses() {
+        let (ctx, root) = stand_in("ghost-apply");
+        ctx.runtime
+            .db
+            .execute(
+                "INSERT INTO pending_fixes (category, check_name, action_type, action_data, description, created_at)
+                 VALUES ('autostart', 'autostart_retired_tool', 'UpdateFile', 'x', 'keyscan is retired', 1)",
+                [],
+            )
+            .unwrap();
+        let ghost = ctx.runtime.db.last_insert_rowid();
+        let refused = cmd_apply(&ctx, &ghost.to_string()).is_err();
+        let reason: Option<String> = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT retired_reason FROM pending_fixes WHERE id = ?1",
+                [ghost],
+                |r| r.get::<_, Option<String>>(0),
+            )
+            .ok()
+            .flatten();
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(refused, "apply on a row of a removed check did not refuse");
+        assert_eq!(reason.as_deref(), Some("check removed"));
+    }
+
+    /// INT-275 G7: a move carries out the from and to stored on its row; only that file moves,
+    /// even when another intent mentions the phrase. Red on the deployed build 2026-10-05: the
+    /// old apply arm moved a planned stand-in intent whose body said status: complete.
+    #[test]
+    fn a_move_moves_only_the_file_its_row_names() {
+        let (ctx, root) = stand_in("move");
+        let future = ctx.fpath("intents/future");
+        let complete = ctx.fpath("intents/complete");
+        std::fs::create_dir_all(&future).unwrap();
+        std::fs::create_dir_all(&complete).unwrap();
+        let bystander = future.join("901-bystander.md");
+        std::fs::write(
+            &bystander,
+            "---\nstatus: planned\n---\nThis body only mentions the phrase status: complete\n",
+        )
+        .unwrap();
+        let done = future.join("902-done.md");
+        std::fs::write(&done, "---\nstatus: complete\n---\n").unwrap();
+        let suite: Vec<Box<dyn IntegrityCheck>> =
+            vec![Box::new(checks::IntentStatusDirectoryCheck)];
+        run_pipeline(&IntegrityContext::new(&ctx), &suite, true);
+        let rows = pending_data(&ctx, "902-done.md%");
+        let applied = rows
+            .first()
+            .map(|r| cmd_apply(&ctx, &r.0.to_string()).is_ok());
+        let moved = complete.join("902-done.md").exists() && !done.exists();
+        let stayed = bystander.exists();
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(
+            rows.len(),
+            1,
+            "expected one pending move for 902-done.md: {:?}",
+            rows
+        );
+        assert_eq!(applied, Some(true), "the move was not applied");
+        assert!(moved, "the named file was not moved to complete/");
+        assert!(stayed, "a file the row does not name was moved");
+    }
+
+    /// INT-275: an intent's status is its frontmatter line; a body that mentions one is not one.
+    #[test]
+    fn status_is_the_frontmatter_line_not_a_mention() {
+        assert_eq!(
+            frontmatter_status("---\nstatus: planned\n---\nsays status: complete\n"),
+            "status: planned"
+        );
+        assert_eq!(frontmatter_status("no frontmatter at all\n"), "");
     }
 
     /// INT-267 L2: the check finds Cargo.toml where the owner says crates live. Seen red while
