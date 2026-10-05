@@ -279,8 +279,15 @@ The three questions -- the test of whether this worked:
       store: read_tests a_folder_that_cannot_be_read_is_an_error_never_none (3f510f01). Deployed core
       with no git on PATH, exit 1 for each: trace INT-266, F-0010, 87e17913 and 369dd33f83163a00 all
       say could not answer, and none calls a finding open. -->
-- [ ] The convention is in docs/CONVENTIONS.md and the method in AGENTS.md
-- [ ] Each gate carries its evidence on the line after it (INT-158)
+- [x] The convention is in docs/CONVENTIONS.md and the method in AGENTS.md
+      <!-- evidence: commit 80833eee, 2026-10-04: docs/CONVENTIONS.md section Findings, fixes
+      and seals (seal c96070f70c573a8f). Commit b5ea674f: AGENTS.md section 2 Evidence, the
+      method in one paragraph, applied at Christian's request (seal d04f2ad5528b9811). nsh-test
+      215/215 after each, including every_backticked_repo_path_in_the_docs_exists. -->
+- [x] Each gate carries its evidence on the line after it (INT-158)
+      <!-- evidence: demonstrated 2026-10-04 at b5ea674f: the plan that ticked this gate read
+      the file and refused unless gates 1 to 9 each carried an evidence comment on the line after
+      their text; gate 10 gets its evidence in the same edit. -->
 
 ## Not in scope
 
