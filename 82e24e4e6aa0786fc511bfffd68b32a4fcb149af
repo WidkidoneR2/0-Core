@@ -1,0 +1,72 @@
+INT-274 core intent seals -- the commit plan
+
+This commit lands the work of three reviewed plans, each applied only on its fingerprint:
+  6c83c84bdd8510d6  9 edits in 6 files: Seals in parser, commands, cli/mod, dispatcher;
+                    the walk, table, exit and fixture tests in trace.rs; 274 depends_on, G1, Shape, G6
+  64f0d837854e61a9  phase A: the raw-note regression test, watched red on the %N walk
+  47b2657fd0ab44ec  phase B: run_bytes, and the walk reads exact blob bytes, watched green
+and the gate ticks below, written by this plan.
+
+Files committed, by name (git add scope is a bug class):
+  zero/engine/src/cli/parser.rs
+  zero/engine/src/cli/commands.rs
+  zero/engine/src/cli/mod.rs
+  zero/engine/src/app/dispatcher.rs
+  zero/engine/src/domains/intent/trace.rs
+  zero/intents/future/274-core-intent-seals-every-commits-seal-re-checked-by-the-one-checkseal.md
+  zero/intents/in-progress/274-core-intent-seals-every-commits-seal-re-checked-by-the-one-checkseal.md
+
+git status now:
+   M zero/engine/src/app/dispatcher.rs
+   M zero/engine/src/cli/commands.rs
+   M zero/engine/src/cli/mod.rs
+   M zero/engine/src/cli/parser.rs
+   M zero/engine/src/domains/intent/trace.rs
+   D zero/intents/future/274-core-intent-seals-every-commits-seal-re-checked-by-the-one-checkseal.md
+  ?? zero/intents/in-progress/274-core-intent-seals-every-commits-seal-re-checked-by-the-one-checkseal.md
+
+Gate ticks in zero/intents/in-progress/274-core-intent-seals-every-commits-seal-re-checked-by-the-one-checkseal.md:
+== G2
+   - - [ ] G2 One checker. Every verdict comes from check_seal. The change adds no digest, no sha256 call, and no second reader of refs/notes/seals outside what trace.rs already owns. Proof: fsearch for seal_digest and sha256 after the change names only the sites that existed before it.
+   + - [x] G2 One checker. Every verdict comes from check_seal. The change adds no digest, no sha256 call, and no second reader of refs/notes/seals outside what trace.rs already owns. Proof: fsearch for seal_digest and sha256 after the change names only the sites that existed before it.
+   + <!-- evidence: demonstrated 2026-10-05: fsearch seal_digest names trace.rs 179 (the definition), 209 (check_seal), the INT-266 seal_tests, and three new fixture lines in seals_tests that build fixture seals. fsearch Sha256 names only seal_digest and the unrelated doctor entropy module. No verdict path computes a hash. -->
+== G3
+   - - [ ] G3 Five verdicts, each watched. A fixture repo in mktemp produces all five: a correct note (sealed), an altered note (broken, watched red first), a Seal: trailer with no note (no plan), a Fingerprint: trailer only (legacy), neither trailer (unsealed). The real refs/notes/seals is never written. How core is pointed at the fixture is decided at recon; if core_root cannot be pointed elsewhere, the fixture runs as a cargo test against the walk function given a root path.
+   + - [x] G3 Five verdicts, each watched. A fixture repo in mktemp produces all five: a correct note (sealed), an altered note (broken, watched red first), a Seal: trailer with no note (no plan), a Fingerprint: trailer only (legacy), neither trailer (unsealed). The real refs/notes/seals is never written. How core is pointed at the fixture is decided at recon; if core_root cannot be pointed elsewhere, the fixture runs as a cargo test against the walk function given a root path.
+   + <!-- evidence: demonstrated 2026-10-05: cargo test seals_tests, the_walk_gives_all_five_verdicts_newest_first passes with sealed, broken, no plan, legacy, unsealed newest first in a mktemp repo; the real refs/notes/seals was never written. Red first, the broken assertion: the altered note was mutated to the correct plan text and the test FAILED, then restored byte for byte and passed. Red first, the class: a_note_git_would_display_differently_still_hashes_exactly FAILED on the %N walk (raw 1 read as Broken) and passed after the blob read. -->
+== G4
+   - - [ ] G4 The real tree. On ~/0-core the deployed core shows 272d7b68 sealed and 05dbc617 unsealed, and with -n deep enough to reach the 2026-09-28 trailer commits, at least one Fingerprint-trailer commit shows legacy.
+   + - [x] G4 The real tree. On ~/0-core the deployed core shows 272d7b68 sealed and 05dbc617 unsealed, and with -n deep enough to reach the 2026-09-28 trailer commits, at least one Fingerprint-trailer commit shows legacy.
+   + <!-- evidence: demonstrated 2026-10-05 on the deployed core: intent seals -n 80 shows 272d7b68 sealed, 05dbc617 unsealed, 62f9e40b legacy, 0 broken (17 sealed, 23 legacy, 40 unsealed before this commit). -->
+== G5
+   - - [ ] G5 Filter. --intent 266 and --intent INT-266 print the same rows: only commits whose Intent: trailer names INT-266 (a comma-joined trailer counts if any value matches). An intent with no commits in the window says so in one line and exits 0.
+   + - [x] G5 Filter. --intent 266 and --intent INT-266 print the same rows: only commits whose Intent: trailer names INT-266 (a comma-joined trailer counts if any value matches). An intent with no commits in the window says so in one line and exits 0.
+   + <!-- evidence: demonstrated 2026-10-05: the intent option given 266 and given INT-266 byte-identical over -n 40, 20 rows, every row INT-266, exit 0; given 213 over 3 commits it prints one no-commit line, exit 0. -->
+== G6
+   - - [ ] G6 Exit codes measured, not declared: 1 and 2 from the fixture rows in a cargo test (no real seal is broken to prove 1); 0 and 3 read back from the deployed core through python, 3 by -n x and by --intent 99999.
+   + - [x] G6 Exit codes measured, not declared: 1 and 2 from the fixture rows in a cargo test (no real seal is broken to prove 1); 0 and 3 read back from the deployed core through python, 3 by -n x and by --intent 99999.
+   + <!-- evidence: demonstrated 2026-10-05: 1 and 2 from the_exit_is_the_worst_row on fixture rows; deployed core intent seals -n 8 exit 0, -n x exit 3, intent 99999 exit 3, read back through python. -->
+== G7
+   - - [ ] G7 Cost does not grow with N. The number of git processes spawned is the same for -n 5 and -n 30. Measured with a counting git wrapper first on PATH that execs the real git; the wrapper lives in mktemp and is removed.
+   + - [x] G7 Cost does not grow with N. The number of git processes spawned is the same for -n 5 and -n 30. Measured with a counting git wrapper first on PATH that execs the real git; the wrapper lives in mktemp and is removed.
+   + <!-- evidence: demonstrated 2026-10-05: a counting git wrapper first on PATH in mktemp, removed after: 4 git processes at -n 5 and 4 at -n 30 (log, notes list, ls-tree, one show). The first walk spawned 1 but hashed git log %N, which alters note bytes; see G3. -->
+== G8
+   - - [ ] G8 Refusals. Outside a readable repo, or with -n 0 or -n x, it refuses in one line naming what it could not do, non-zero, as every INT-266 reader does.
+   + - [x] G8 Refusals. Outside a readable repo, or with -n 0 or -n x, it refuses in one line naming what it could not do, non-zero, as every INT-266 reader does.
+   + <!-- evidence: demonstrated 2026-10-05: -n 0, -n x, intent 99999 and intent abc each print one could-not-answer line and exit 3; an unreadable repo refuses in seals_tests::an_unreadable_repo_refuses. -->
+== G9
+   - - [ ] G9 trace is unchanged. `core intent trace` for one commit, one finding and one seal is captured before the change and compared with cmp after.
+   + - [x] G9 trace is unchanged. `core intent trace` for one commit, one finding and one seal is captured before the change and compared with cmp after.
+   + <!-- evidence: demonstrated 2026-10-05: core intent trace 272d7b68, F-0010, 384222b57603b29a and INT-266 byte-identical, deployed build before against the new build, run again after run() became a wrapper over run_bytes(). -->
+== G10
+   - - [ ] G10 Doors. cargo test for the engine crate passing; ship; the deployed core prints the table (mtime of ~/.local/bin/core checked against the commit); nsh-test all passing; d 0 failed.
+   + - [x] G10 Doors. cargo test for the engine crate passing; ship; the deployed core prints the table (mtime of ~/.local/bin/core checked against the commit); nsh-test all passing; d 0 failed.
+   + <!-- evidence: demonstrated 2026-10-05: engine cargo test 45 passed; ship shipped core 4.2.0, deployed mtime 0 s old; nsh-test 215/215; d 0 failed, the two warnings are the uncommitted tree. -->
+
+Commit message:
+  core: intent seals -- every commit seal in a window, re-checked by the one check_seal (INT-274)
+
+  What was missing: core intent trace re-checks one seal at a time; nothing walked a stretch of history. What is true now: core intent seals [-n N] [--intent INT-x] prints date, commit, intent, seal, verdict and subject for the last N commits on HEAD, every verdict from check_seal. Exit 0 nothing broken or unproven, 1 a seal is broken, 2 a seal with no kept plan, 3 could not answer. Found and fixed before ship: reading notes through git log %N called four intact INT-266 seals broken, because %N drops a trailing blank line and adds a missing final newline. The walk now reads exact blob bytes (notes list, ls-tree sizes, one git show), four git processes at any -n. run() decodes text from run_bytes(), still the one spawn site; four trace outputs byte-identical before and after. Watched: the raw-note regression red then green, the broken assertion red under mutation; doors engine 45/45, nsh-test 215/215, d 0 failed.
+
+  Intent: INT-274
+  Seal: (the first 16 hex of sha256 over this plan text)
