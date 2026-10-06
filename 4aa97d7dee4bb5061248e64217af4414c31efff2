@@ -1,0 +1,82 @@
+== PLAN (read-only, nothing written)
+edit   : repl.rs line 365 -- run_session becomes a wrapper; run_session_banner and run_repl_lines_banner
+-- old
+fn run_session(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+    answer: Option<(&str, &str)>,
+    delivery: InputDelivery,
+) -> Result<(Vec<String>, Option<i32>), String> {
+    let pty = openpty(None, None).map_err(|e| format!("openpty: {}", e))?;
+-- new
+/// The session runner every case but one uses: what nsh printed before its first prompt is
+/// dropped. INT-262: a thin wrapper, so the shell is still started in exactly one place.
+fn run_session(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+    answer: Option<(&str, &str)>,
+    delivery: InputDelivery,
+) -> Result<(Vec<String>, Option<i32>), String> {
+    run_session_banner(cmds, env, answer, delivery)
+        .map(|(lines, status, _)| (lines, status))
+}
+
+/// INT-262: submit lines, and also return what nsh printed BEFORE its first prompt. A startup
+/// report -- an unreadable persisted store -- lands there, where no other runner can see it.
+pub fn run_repl_lines_banner(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+) -> Result<(Vec<String>, String), String> {
+    run_session_banner(cmds, env, None, InputDelivery::Incremental)
+        .map(|(lines, _, banner)| (lines, banner))
+}
+
+fn run_session_banner(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+    answer: Option<(&str, &str)>,
+    delivery: InputDelivery,
+) -> Result<(Vec<String>, Option<i32>, String), String> {
+    let pty = openpty(None, None).map_err(|e| format!("openpty: {}", e))?;
+edit   : repl.rs line 433 -- the banner is kept, not dropped
+-- old
+    raw.clear(); // the banner belongs to no command
+-- new
+    // The banner belongs to no command, so it is in no line's capture. INT-262: it is returned
+    // on its own instead of dropped, because nsh's startup reports print there.
+    let banner = strip_ansi(&raw);
+    raw.clear();
+edit   : repl.rs line 582 -- run_session_banner returns it
+-- old
+    Ok((lines, status))
+-- new
+    Ok((lines, status, banner))
+edit   : main.rs line 2832 -- restore_262_empty_store_is_silent, before repl_241
+-- old
+    results.push(test(
+        "repl_241_pwd_follows_the_working_directory",
+-- new
+    results.push(test(
+        "restore_262_empty_store_is_silent",
+        Category::Repl,
+        || {
+            // A readable, empty shell_persist says nothing at startup. The banner must not be
+            // empty either: a capture that saw nothing would pass this case without looking.
+            let db = repl::case_db_path();
+            let (_, banner) =
+                repl::run_repl_lines_banner(&["true"], &[("ZERO_STATE_DB", db.as_str())])?;
+            if banner.trim().is_empty() {
+                return Err("the banner capture is empty -- the helper saw nothing".to_string());
+            }
+            if banner.contains("stored variables could not be read") {
+                return Err(format!("an empty store was reported at startup: {:?}", banner));
+            }
+            Ok(())
+        },
+    ));
+    results.push(test(
+        "repl_241_pwd_follows_the_working_directory",
+file   : main.rs 250763 -> 251591 bytes, sha256 07d5c507bda3226c -> 5d0be25631e5542d
+file   : repl.rs 29164 -> 30256 bytes, sha256 51ba29e287d67126 -> 756d2bf895aa0f7b
+writer : fpatch.patch from /home/christian/0-core/zero/scripts/dev on apply; nothing else touched
+FINGERPRINT 739983a066836ad0
