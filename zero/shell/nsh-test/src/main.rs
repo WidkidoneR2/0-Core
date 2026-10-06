@@ -2830,6 +2830,27 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(test(
+        "restore_262_empty_store_is_silent",
+        Category::Repl,
+        || {
+            // A readable, empty shell_persist says nothing at startup. The banner must not be
+            // empty either: a capture that saw nothing would pass this case without looking.
+            let db = repl::case_db_path();
+            let (_, banner) =
+                repl::run_repl_lines_banner(&["true"], &[("ZERO_STATE_DB", db.as_str())])?;
+            if banner.trim().is_empty() {
+                return Err("the banner capture is empty -- the helper saw nothing".to_string());
+            }
+            if banner.contains("stored variables could not be read") {
+                return Err(format!(
+                    "an empty store was reported at startup: {:?}",
+                    banner
+                ));
+            }
+            Ok(())
+        },
+    ));
+    results.push(test(
         "repl_241_pwd_follows_the_working_directory",
         Category::Repl,
         || {

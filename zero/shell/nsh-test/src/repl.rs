@@ -362,12 +362,33 @@ pub fn run_repl_answered_after(
 /// LIMIT, STATED RATHER THAN DISCOVERED LATER: an answer applies to EVERY submitted line, so it is
 /// meaningful only for single-command sessions. The answered door enforces that by taking one
 /// command.
+/// The session runner every case but one uses: what nsh printed before its first prompt is
+/// dropped. INT-262: a thin wrapper, so the shell is still started in exactly one place.
 fn run_session(
     cmds: &[&str],
     env: &[(&str, &str)],
     answer: Option<(&str, &str)>,
     delivery: InputDelivery,
 ) -> Result<(Vec<String>, Option<i32>), String> {
+    run_session_banner(cmds, env, answer, delivery).map(|(lines, status, _)| (lines, status))
+}
+
+/// INT-262: submit lines, and also return what nsh printed BEFORE its first prompt. A startup
+/// report -- an unreadable persisted store -- lands there, where no other runner can see it.
+pub fn run_repl_lines_banner(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+) -> Result<(Vec<String>, String), String> {
+    run_session_banner(cmds, env, None, InputDelivery::Incremental)
+        .map(|(lines, _, banner)| (lines, banner))
+}
+
+fn run_session_banner(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+    answer: Option<(&str, &str)>,
+    delivery: InputDelivery,
+) -> Result<(Vec<String>, Option<i32>, String), String> {
     let pty = openpty(None, None).map_err(|e| format!("openpty: {}", e))?;
 
     let s_in = pty.slave.try_clone().map_err(|e| e.to_string())?;
@@ -430,7 +451,10 @@ fn run_session(
     let mut raw: Vec<u8> = Vec::new();
     wait_for(&rx, &mut raw, READY, 0, Duration::from_secs(20))
         .ok_or_else(|| "nsh never reached its first prompt".to_string())?;
-    raw.clear(); // the banner belongs to no command
+    // The banner belongs to no command, so it is in no line's capture. INT-262: it is returned
+    // on its own instead of dropped, because nsh's startup reports print there.
+    let banner = strip_ansi(&raw);
+    raw.clear();
 
     // Each line waits for the prompt to return before the next is sent, because a later command
     // may depend on an earlier one having finished. The search starts at `mark` so the PREVIOUS
@@ -579,5 +603,5 @@ fn run_session(
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect();
-    Ok((lines, status))
+    Ok((lines, status, banner))
 }
