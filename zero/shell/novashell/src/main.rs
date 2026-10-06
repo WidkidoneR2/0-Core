@@ -1492,6 +1492,15 @@ fn run_input(
                 }
             }
         }
+        // INT-262: unpersist NAME -- the inverse of persist; removes the stored entry only.
+        if let Some(outcome) = engine.try_unpersist(line) {
+            match outcome {
+                crate::engine::SegmentOutcome::Next => continue,
+                crate::engine::SegmentOutcome::ExitShell => {
+                    return crate::engine::SegmentOutcome::ExitShell
+                }
+            }
+        }
         // INT-169 DEBUG ENTRY: run one line through the SPINE path end to end --
         // parse, lower with the real session variables, then execute with the SAME
         // preexec/postexec hooks the text path gets.

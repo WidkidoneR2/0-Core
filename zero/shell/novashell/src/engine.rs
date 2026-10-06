@@ -483,8 +483,76 @@ impl Engine {
         Some(SegmentOutcome::Next)
     }
 
+    /// INT-262: bare `persist` -- what is stored, one NAME=value per row, the way `export -p`
+    /// shows the environment. A store that cannot be read is a failure, never an empty list.
+    fn list_persisted(&mut self) -> SegmentOutcome {
+        // Bound inside the closure before it returns: the rows borrow `stmt`.
+        let read = self
+            .db()
+            .conn
+            .prepare("SELECT key, value FROM shell_persist ORDER BY key")
+            .and_then(|mut stmt| {
+                let rows = stmt
+                    .query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?
+                    .collect::<Result<Vec<_>, _>>();
+                rows
+            });
+        match read {
+            Err(e) => {
+                eprintln!("  x persist: the store could not be read -- {}", e);
+                self.set_last_exit(Some(1));
+            }
+            Ok(rows) if rows.is_empty() => {
+                println!("  nothing is persisted");
+                self.set_last_exit(Some(0));
+            }
+            Ok(rows) => {
+                for (k, v) in rows {
+                    println!("  {}={}", k, v);
+                }
+                self.set_last_exit(Some(0));
+            }
+        }
+        SegmentOutcome::Next
+    }
+
+    /// INT-262: `unpersist NAME` -- the inverse of persist. It removes the stored entry and leaves
+    /// the session alone, the mirror of persist, which stores without changing the session.
+    /// `unset` keeps its bash meaning: this session only.
+    pub fn try_unpersist(&mut self, line: &str) -> Option<SegmentOutcome> {
+        let name = line.trim().strip_prefix("unpersist ")?.trim().to_string();
+        let removed = self.db().conn.execute(
+            "DELETE FROM shell_persist WHERE key = ?1",
+            rusqlite::params![&name],
+        );
+        match removed {
+            Err(e) => {
+                eprintln!("  x unpersist {}: not removed -- {}", name, e);
+                self.set_last_exit(Some(1));
+            }
+            Ok(0) => {
+                // Nothing to remove is the state asked for -- status 0, as unset does.
+                println!("  {} is not persisted", name);
+                self.set_last_exit(Some(0));
+            }
+            Ok(_) => {
+                if self.var(&name).is_some() || std::env::var(&name).is_ok() {
+                    println!("  {} unpersisted; still set until unset", name);
+                } else {
+                    println!("  {} unpersisted", name);
+                }
+                self.set_last_exit(Some(0));
+            }
+        }
+        Some(SegmentOutcome::Next)
+    }
+
     /// `persist NAME` -- write a variable to shell_persist so it survives the session.
     pub fn try_persist(&mut self, line: &str) -> Option<SegmentOutcome> {
+        // INT-262: bare `persist` lists the store; it used to fall through to an external lookup.
+        if line.trim() == "persist" {
+            return Some(self.list_persisted());
+        }
         let name = line.trim().strip_prefix("persist ")?.trim().to_string();
         // INT-262: every path below decides $?. Until a write succeeds, persist has failed --
         // the variable-not-set branch included. It used to leave the previous command's status.
