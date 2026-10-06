@@ -97,27 +97,75 @@ Two test tools, both deterministic and neither relying on file permissions:
 
 ## Success Criteria
 
-- [ ] ISOLATION: this intent's nsh-test cases run against their own state directory, and the real
+- [x] ISOLATION: this intent's nsh-test cases run against their own state directory, and the real
       ~/.local/state/zero/state.db shell_persist is unchanged by the suite -- proven by reading it
       before and after a full run
-- [ ] Every case below is seen RED on the current binary before its fix lands
-- [ ] `unpersist NAME` removes the stored entry: a case persists NAME, unpersists it, and a FRESH
+      <!-- evidence: every INT-262 case passes ZERO_STATE_DB = repl::case_db_path(), its own
+      /tmp/nsh-test-<pid>/caseN.db. The live ~/.local/state/zero/state.db shell_persist, read
+      in SQLite read-only mode, held key, value and 0 rows after the 215/215 baseline run
+      (2026-10-05), 0 rows after five full runs exercising every persist case (after fix 4),
+      and 0 rows again on 2026-10-06 after the last debug runs. -->
+- [x] Every case below is seen RED on the current binary before its fix lands
+      <!-- evidence: each case was seen red on the binary built before its fix. a47e3711 (seal
+      deec732e2a2ad0a2): 216/223, the seven original cases red for their named reasons and the
+      :492 pin green. c955d854 (seal 87f9590b95c60237): persist_262_stores_its_own_value red
+      with stored Some(hidden), 218/223. 75968536 (seal 6b24d6f713a95a8f):
+      restore_262_unreadable_store_is_reported red, the banner held no report, 224/225.
+      d4a62e06 (seal 2ba8df44f7fb1b93): discover_262_where_and_explain_know_persist red, where
+      persist said not found, 225/226. One exception, by design:
+      restore_262_empty_store_is_silent (4aa97d7d) guards a silence that already held, so it
+      passed from the start. -->
+- [x] `unpersist NAME` removes the stored entry: a case persists NAME, unpersists it, and a FRESH
       shell on the same state directory does not have it
-- [ ] `unpersist NAME` for a name that is not stored says so, instead of reporting a removal
-- [ ] Bare `persist` lists the stored names and values; with nothing stored it says so
-- [ ] `persist NAME` whose INSERT fails (the trigger above) reports the failure and does NOT print
+      <!-- evidence: unpersist_262_removes_for_a_fresh_shell is green at 0f2a2b21 (seal
+      8fbc3ffbdbb48fb3): the row is gone and a fresh shell on the same case database prints
+      <>. Live on the shipped nsh 5.0.3: persist T262, then unpersist T262, then persist
+      printed nothing is persisted. -->
+- [x] `unpersist NAME` for a name that is not stored says so, instead of reporting a removal
+      <!-- evidence: unpersist_262_not_stored_says_so is green at 0f2a2b21 (seal 8fbc3ffbdbb48fb3).
+      Live on the shipped nsh 5.0.3: a second unpersist T262 printed T262 is not persisted. -->
+- [x] Bare `persist` lists the stored names and values; with nothing stored it says so
+      <!-- evidence: persist_262_bare_empty_says_so and persist_262_bare_lists_the_store are green
+      at 0f2a2b21 (seal 8fbc3ffbdbb48fb3). Live on the shipped nsh 5.0.3: nothing is
+      persisted, then T262=hello after persist T262. -->
+- [x] `persist NAME` whose INSERT fails (the trigger above) reports the failure and does NOT print
       "persisted"
-- [ ] A failed persist or unpersist leaves a non-zero exit status. RECON FIRST: these builtins
+      <!-- evidence: persist_262_failed_insert_is_reported is green at c6b05edf (seal
+      b7eb6d44d7b905d5): with the BEFORE INSERT trigger planted, the output holds no persisted
+      line and the status is non-zero. -->
+- [x] A failed persist or unpersist leaves a non-zero exit status. RECON FIRST: these builtins
       return SegmentOutcome::Next, which carries no status
-- [ ] The startup restore reports an unreadable shell_persist; a readable empty one stays silent
-- [ ] The :492 indirection is pinned by a case showing what it does today, Christian rules keep or
+      <!-- evidence: persist: the same case asserts a non-zero status (c6b05edf). unpersist: the
+      DELETE failure path from 0f2a2b21, demonstrated 2026-10-06 on the debug build with a
+      BEFORE DELETE trigger: x unpersist U9: not removed (reason forced), and echo $? printed
+      status=1. RECON FIRST is answered in ## Recon: builtins report status through
+      set_last_exit, not SegmentOutcome. -->
+- [x] The startup restore reports an unreadable shell_persist; a readable empty one stays silent
+      <!-- evidence: restore_262_unreadable_store_is_reported went red then green at 75968536 (seal
+      6b24d6f713a95a8f); restore_262_empty_store_is_silent holds at 4aa97d7d (seal
+      52d894a55e2f7fe3). Both read the pre-prompt output through run_repl_lines_banner, added
+      at 4aa97d7d because the harness dropped it. -->
+- [x] The :492 indirection is pinned by a case showing what it does today, Christian rules keep or
       remove, and the ruling is written here
-- [ ] `persist` and `unpersist` appear wherever `unset` is registered (commands/mod.rs:11392 and
+      <!-- evidence: pinned by persist_262_indirection_pinned at a47e3711 (P262 stored hidden).
+      Ruled remove on 2026-10-05, written in ## Rulings. Removed at c955d854 (seal
+      87f9590b95c60237); the case became persist_262_stores_its_own_value, expecting Q262. -->
+- [x] `persist` and `unpersist` appear wherever `unset` is registered (commands/mod.rs:11392 and
       :11536), after each list's purpose is read and written here
-- [ ] A SUCCESSFUL persist or unpersist leaves exit status 0. Today neither builtin calls
+      <!-- evidence: both lists were read and their purpose written in ## Recon: explain_cmd and
+      where_cmd, discovery only. persist and unpersist joined both at d4a62e06 (seal
+      2ba8df44f7fb1b93). Live on the shipped nsh 5.0.3: where unpersist printed builtin native
+      nsh. -->
+- [x] A SUCCESSFUL persist or unpersist leaves exit status 0. Today neither builtin calls
       set_last_exit, so `$?` after them is the previous command's (`false; persist X; echo $?`
       is predicted to print 1). Seen RED first, like every case here
-- [ ] nsh-test green after ship, and `d` 0 failed
+      <!-- evidence: persist_262_success_leaves_status_zero was red with Some(1) at a47e3711 and is
+      green at c6b05edf (seal b7eb6d44d7b905d5); unpersist sets 0 on success at 0f2a2b21. Live
+      on the shipped nsh 5.0.3: echo $? printed 0 after persist T262 and after unpersist T262. -->
+- [x] nsh-test green after ship, and `d` 0 failed
+      <!-- evidence: shipped nsh 5.0.3 on 2026-10-06, a release build from d4a62e06. nsh-test
+      226/226 on the shipped binary; d 28/28, 100 percent, 0 failed, working tree clean and
+      all commits pushed. -->
 
 ## Relationship
 
@@ -173,10 +221,25 @@ What the reading settled:
 - ISOLATION baseline, read 2026-10-05 in SQLite read-only mode after a full 215/215 nsh-test
   run: ~/.local/state/zero/state.db shell_persist has columns key, value and 0 rows.
 
+## Rulings (2026-10-05)
+
+- The :492 indirection: REMOVE. `persist NAME` stores NAME's own value -- the shell variable, else
+  the environment value -- never another variable's. Removed at c955d854
+- shell_persist's schema: owned by StateDb::open's shell-table batch (db.rs), which runtime_init
+  runs for both doors; the REPL restore only reads it. Landed at cf650f88
+- The startup-restore case: a harness helper that keeps the pre-prompt output
+  (run_repl_lines_banner), not a test through bare `persist`. Landed at 4aa97d7d
+- `unpersist` of a name that is not stored leaves status 0, as `unset` does. Taken as recommended
+  at 0f2a2b21, not ruled explicitly; open to revision
+
 ## START HERE
 
-Written 2026-10-05. No gate is ticked. Next: the ISOLATION proof as the first case group (the
-live shell_persist read before and after a full run), then the RED cases on the current binary
--- bare persist, unpersist, forced INSERT failure, unreadable table, stale status after persist,
-the :492 indirection pinned as it behaves -- each seen red before any fix. Plan, review, apply
-for every edit; one concern per commit.
+Written 2026-10-06; supersedes the 2026-10-05 entry. Every gate is ticked with its evidence. The
+work is eight sealed commits, all pushed and shipped as nsh 5.0.3: a47e3711 (the RED cases),
+cf650f88 fix 1, c6b05edf fix 2, c955d854 fix 3, 0f2a2b21 fix 4, 4aa97d7d fix 5a, 75968536 fix 5b,
+d4a62e06 fix 6. Next: `cicomplete 262`, then INT-277 -- cistart, tick G0 from its ## Recon, and
+take its three G2 rulings before any work.
+
+Carried forward: a two-step payload recognises its first step by a marker that survives rustfmt
+(the case name), never by its bytes. 5b's step 2 was refused for exactly that and re-planned
+engine-only; fix 6 used the name guard and went through a reflow untouched.
