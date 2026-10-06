@@ -1,0 +1,20 @@
+== PLAN (read-only, nothing written)
+edit   : zero/shell/nsh-test/Cargo.toml line 3 -- the version
+-- old
+version = "2.0.0"
+-- new
+version = "2.0.1"
+edit   : Cargo.lock line 1629 -- nsh-test's lock entry
+-- old
+name = "nsh-test"
+version = "2.0.0"
+-- new
+name = "nsh-test"
+version = "2.0.1"
+edit   : zero/shell/nsh-test/src/main.rs line 5050 -- the banner reads Cargo's version
+-- old
+    println!("{}", "  nsh-test v2.0.0".bold());
+-- new
+    println!("{}", concat!("  nsh-test v", env!("CARGO_PKG_VERSION")).bold());
+writer : fpatch.patch from /home/christian/0-core/zero/scripts/dev on apply; nothing else touched
+FINGERPRINT a0fab421a5752d17
