@@ -114,6 +114,9 @@ Two test tools, both deterministic and neither relying on file permissions:
       remove, and the ruling is written here
 - [ ] `persist` and `unpersist` appear wherever `unset` is registered (commands/mod.rs:11392 and
       :11536), after each list's purpose is read and written here
+- [ ] A SUCCESSFUL persist or unpersist leaves exit status 0. Today neither builtin calls
+      set_last_exit, so `$?` after them is the previous command's (`false; persist X; echo $?`
+      is predicted to print 1). Seen RED first, like every case here
 - [ ] nsh-test green after ship, and `d` 0 failed
 
 ## Relationship
@@ -124,3 +127,56 @@ Two test tools, both deterministic and neither relying on file permissions:
 - INT-251: unknown read as success -- the discarded INSERT result at engine.rs:496
 - INT-257 law 1: a write inside the clean room never reaches the host. The ISOLATION gate is that
   law applied to this suite
+
+## Recon (2026-10-05 -- re-located after the 2026-09-25 tree move)
+
+The Problem table above is the 2026-09-24 record and stays as written. Where each piece is
+today, in zero/shell/novashell/src/:
+
+```text
+    WHAT                    2026-09-24          TODAY
+    try_unset               engine.rs:474       engine.rs:474 -- session var and env only
+    try_persist             engine.rs:487       engine.rs:487
+    the indirection         engine.rs:492       engine.rs:492
+    the discarded INSERT    engine.rs:496       engine.rs:496-499 `let _ =`, then 500-504
+                                                print "persisted" unconditionally
+    dispatch                main.rs:1493        main.rs:1487, after export :1469, unset :1478
+    the restore             main.rs:2566        main.rs:2526-2551: CREATE result discarded
+                                                :2529, filter_map(r.ok()) :2542,
+                                                unwrap_or_default :2543, Err(_) => Vec::new()
+                                                :2544
+    unset lists             commands/mod.rs     commands/mod.rs:11309 in explain_cmd (:11198)
+                            :11392, :11536      and :11452 in where_cmd (:11405)
+```
+
+What the reading settled:
+
+- try_persist matches only the prefix "persist " (engine.rs:488). Bare `persist` and
+  `unpersist NAME` both fall through to the external-command path. Predicted RED: command not
+  found.
+- Status: SegmentOutcome (engine.rs:93) is Next | ExitShell and carries no status, and does not
+  need to. Builtins report through engine.set_last_exit(Some(code)) (engine.rs:1775, dozens of
+  callers). try_persist and try_unset never call it; main.rs:1386's set_last_exit(Some(0))
+  belongs to `flow` only. So after persist, $? is the previous command's -- the class INT-169's
+  comment at main.rs:1383 records. The fix is a set_last_exit call, not a new variant.
+- The two unset lists are both "what is this word" answers: explain_cmd describes a builtin,
+  where_cmd prints "builtin  native nsh". Neither dispatches. Registering persist and unpersist
+  there is discovery, not routing.
+- Isolation already exists: nsh-test gives each REPL case its own database through
+  ZERO_STATE_DB = repl::case_db_path() (nsh-test repl.rs:224; /tmp/nsh-test-<pid>/caseN.db, the
+  directory removed at the end of the run). zero_core::paths::state_db() honours the override
+  (zero-core paths.rs:287) and nsh's database follows it (db.rs:69).
+- The two-session pattern exists: nsh-test main.rs:2609-2626 runs session 1 on a case database,
+  writes into that database directly with rusqlite, then runs session 2 against it. The same
+  shape gives the FRESH-shell proof, plants the forced-INSERT trigger and builds the broken
+  table.
+- ISOLATION baseline, read 2026-10-05 in SQLite read-only mode after a full 215/215 nsh-test
+  run: ~/.local/state/zero/state.db shell_persist has columns key, value and 0 rows.
+
+## START HERE
+
+Written 2026-10-05. No gate is ticked. Next: the ISOLATION proof as the first case group (the
+live shell_persist read before and after a full run), then the RED cases on the current binary
+-- bare persist, unpersist, forced INSERT failure, unreadable table, stale status after persist,
+the :492 indirection pinned as it behaves -- each seen red before any fix. Plan, review, apply
+for every edit; one concern per commit.
