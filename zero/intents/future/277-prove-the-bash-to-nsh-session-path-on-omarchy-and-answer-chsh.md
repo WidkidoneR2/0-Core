@@ -194,11 +194,35 @@ answer it in writing.
 - sudo, anywhere
 
 ## Dependencies
-depends_on is empty: nothing must finish first. Not started while INT-262
-is in progress (one intent at a time).
+depends_on is empty: nothing must finish first. INT-262 closed on
+2026-10-06, so nothing holds cistart.
 
 ## START HERE
-Written 2026-10-05, before cistart. When INT-262 closes: cistart 277, tick
-G0 from ## Recon, then take the three G2 rulings (crash mechanism, off-file
-location, door) before any work. Nothing in this intent edits ~/.bashrc,
-nsh or Omarchy until G1's contract is written here.
+Written 2026-10-06; supersedes the 2026-10-05 entry. INT-262 is complete:
+nsh 5.1.0 and nsh-test 2.0.1 shipped, everything pushed through be041ac1,
+nsh-test 226/226, d 28/28. Nothing has been done on 277 yet.
+
+Next, in order:
+1. cistart 277. The file moves out of future/, so take its new path from
+   cistart's output before any payload names it.
+2. Tick G0 with an evidence comment pointing at ## Recon (five rounds,
+   2026-10-05). If Omarchy has updated past 4.0.4-1 since, re-run the
+   recon rows that read Omarchy's files before ticking.
+3. Take the three G2 rulings before any work:
+   - the crash mechanism: (a) nsh as a child of the interactive bash,
+     staying in bash on panic (101) or signal (>128), else exiting with
+     its status -- recommended, because the fallback shows in the same
+     window; or (b) exec plus a crash stamp in ~/.local/state, where the
+     failure only shows on the next terminal;
+   - where the off-switch file lives;
+   - whether the always-bash door is a Hyprland bind or a launcher entry.
+4. Write G1's contract here before anything touches ~/.bashrc, nsh or
+   Omarchy. Christian edits ~/.bashrc himself.
+
+A version bump touches four places: Cargo.toml, Cargo.lock, any copy
+hardcoded in source, and zero/registry/tools.toml. nsh-test 2.0.1 missed
+the registry until core integrity proposal #22 caught it (2026-10-06).
+
+Carried method: a payload that spans two steps finds its first step by a
+marker that survives rustfmt, never by its bytes; one ship at the end of
+a fix series; after ship, reload with a second window open.
