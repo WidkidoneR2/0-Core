@@ -1,0 +1,142 @@
+== PLAN (read-only, nothing written)
+target : /home/christian/0-core/zero/shell/nsh-test/src/main.rs
+current: 242923 bytes sha256 f4ead05dd807ad0a
+new    : 249487 bytes sha256 cbf80a49f9045dcb
+edit   : insert 8 INT-262 cases at line 2637, before the repl_241_pwd_follows_the_working_directory case
+writer : fpatch.patch from /home/christian/0-core/zero/scripts/dev on apply
+kept   : every existing line, unchanged
+== INSERTED BLOCK
+    // ---- INT-262: persist / unpersist, RED FIRST --------------------------------------------
+    // Every case below runs on its OWN case database (ZERO_STATE_DB, applied after the harness
+    // default, so two sessions in one case share it). The live state.db is never opened.
+    // Each was written to fail on the binary that existed when it landed, for the reason its
+    // gate names. persist_262_indirection_pinned is the exception: it records today's
+    // behaviour until Christian rules keep or remove.
+    results.push(test("persist_262_bare_empty_says_so", Category::Repl, || {
+        let db = repl::case_db_path();
+        let (out, _) =
+            repl::run_repl_lines_status(&["persist"], &[("ZERO_STATE_DB", db.as_str())])?;
+        let got = out.join("\n");
+        if got.contains("command not found") {
+            return Err(format!("bare persist is not a command: {:?}", got));
+        }
+        expect_contains(&got, "nothing is persisted")
+    }));
+    results.push(test("persist_262_bare_lists_the_store", Category::Repl, || {
+        let db = repl::case_db_path();
+        repl::run_repl_lines_status(&["true"], &[("ZERO_STATE_DB", db.as_str())])?;
+        let conn = rusqlite::Connection::open(&db).map_err(|e| format!("open {}: {}", db, e))?;
+        conn.execute(
+            "INSERT OR REPLACE INTO shell_persist (key, value) VALUES ('L262', 'listed')",
+            [],
+        )
+        .map_err(|e| format!("seed shell_persist: {}", e))?;
+        drop(conn);
+        let (out, _) =
+            repl::run_repl_lines_status(&["persist"], &[("ZERO_STATE_DB", db.as_str())])?;
+        expect_contains(&out.join("\n"), "L262=listed")
+    }));
+    results.push(test("unpersist_262_removes_for_a_fresh_shell", Category::Repl, || {
+        let db = repl::case_db_path();
+        let env = [("ZERO_STATE_DB", db.as_str())];
+        repl::run_repl_lines_status(&["export U262=one", "persist U262"], &env)?;
+        let rows = || -> Result<i64, String> {
+            let c = rusqlite::Connection::open(&db).map_err(|e| format!("open {}: {}", db, e))?;
+            c.query_row("SELECT COUNT(*) FROM shell_persist WHERE key = 'U262'", [], |r| {
+                r.get(0)
+            })
+            .map_err(|e| format!("count U262: {}", e))
+        };
+        if rows()? != 1 {
+            return Err("setup: persist U262 did not store a row".to_string());
+        }
+        repl::run_repl_lines_status(&["unpersist U262"], &env)?;
+        let left = rows()?;
+        if left != 0 {
+            return Err(format!("unpersist U262 left {} row(s) in shell_persist", left));
+        }
+        let (out, _) = repl::run_repl_lines_status(&["echo \"<$U262>\""], &env)?;
+        expect_contains(&out.join("\n"), "<>")
+    }));
+    results.push(test("unpersist_262_not_stored_says_so", Category::Repl, || {
+        let db = repl::case_db_path();
+        let (out, _) =
+            repl::run_repl_lines_status(&["unpersist N262"], &[("ZERO_STATE_DB", db.as_str())])?;
+        let got = out.join("\n");
+        if got.contains("command not found") {
+            return Err(format!("unpersist is not a command: {:?}", got));
+        }
+        expect_contains(&got, "not persisted")
+    }));
+    results.push(test("persist_262_failed_insert_is_reported", Category::Repl, || {
+        let db = repl::case_db_path();
+        let env = [("ZERO_STATE_DB", db.as_str())];
+        repl::run_repl_lines_status(&["true"], &env)?;
+        let conn = rusqlite::Connection::open(&db).map_err(|e| format!("open {}: {}", db, e))?;
+        conn.execute_batch(
+            "CREATE TRIGGER t262 BEFORE INSERT ON shell_persist \
+             BEGIN SELECT RAISE(ABORT, 'forced'); END;",
+        )
+        .map_err(|e| format!("plant trigger: {}", e))?;
+        drop(conn);
+        let (out, status) = repl::run_repl_lines_status(&["export F262=x", "persist F262"], &env)?;
+        let got = out.join("\n");
+        if got.contains("persisted across sessions") {
+            return Err(format!("a refused INSERT was reported as persisted: {:?}", got));
+        }
+        match status {
+            Some(code) if code != 0 => Ok(()),
+            other => Err(format!("a failed persist left status {:?}, expected non-zero", other)),
+        }
+    }));
+    results.push(test("persist_262_dashc_without_a_table_is_honest", Category::Regression, || {
+        // The -c door never runs the REPL's startup restore, which is the only place that
+        // creates shell_persist. Honest outcomes: the row is stored, or the command fails.
+        let db = repl::case_db_path();
+        let res = run_fsh_env("export C262=x; persist C262", &[("ZERO_STATE_DB", db.as_str())]);
+        let stored: Option<String> = rusqlite::Connection::open(&db).ok().and_then(|c| {
+            c.query_row("SELECT value FROM shell_persist WHERE key = 'C262'", [], |r| r.get(0))
+                .ok()
+        });
+        match (stored.as_deref(), &res) {
+            (Some("x"), _) => Ok(()),
+            (_, Err(_)) => Ok(()),
+            (_, Ok(out)) => Err(format!(
+                "-c stored nothing (row {:?}) and exited 0; output {:?}",
+                stored, out
+            )),
+        }
+    }));
+    results.push(test("persist_262_success_leaves_status_zero", Category::Repl, || {
+        let db = repl::case_db_path();
+        let (_, status) = repl::run_repl_lines_status(
+            &["export S262=y", "false", "persist S262"],
+            &[("ZERO_STATE_DB", db.as_str())],
+        )?;
+        if status != Some(0) {
+            return Err(format!("persist left status {:?}, expected Some(0)", status));
+        }
+        Ok(())
+    }));
+    results.push(test("persist_262_indirection_pinned", Category::Repl, || {
+        // engine.rs:492 -- if NAME is not a shell variable but its ENVIRONMENT value names one,
+        // the OTHER variable's value is stored under NAME. Pinned as read, pending a ruling.
+        let db = repl::case_db_path();
+        repl::run_repl_lines_status(
+            &["Q262=hidden", "persist P262"],
+            &[("ZERO_STATE_DB", db.as_str()), ("P262", "Q262")],
+        )?;
+        let c = rusqlite::Connection::open(&db).map_err(|e| format!("open {}: {}", db, e))?;
+        let stored: Option<String> = c
+            .query_row("SELECT value FROM shell_persist WHERE key = 'P262'", [], |r| r.get(0))
+            .ok();
+        if stored.as_deref() != Some("hidden") {
+            return Err(format!(
+                "the :492 indirection is not what was read: P262 stored {:?}",
+                stored
+            ));
+        }
+        Ok(())
+    }));
+== END
+FINGERPRINT 73e13d96683acc22
