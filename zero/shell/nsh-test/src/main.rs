@@ -2869,6 +2869,28 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(test(
+        "discover_262_where_and_explain_know_persist",
+        Category::Vocabulary,
+        || {
+            // INT-262: persist and unpersist are builtins, so the two "what is this word" answers
+            // must say so, as they do for unset. Both used to report not found.
+            for word in ["persist", "unpersist"] {
+                let out = run_fsh(&format!("where {}", word))?;
+                if !out.contains("native nsh") {
+                    return Err(format!("where {} does not name a builtin: {:?}", word, out));
+                }
+                let out = run_fsh(&format!("explain {}", word))?;
+                if !out.contains("native nsh command") {
+                    return Err(format!(
+                        "explain {} does not name a builtin: {:?}",
+                        word, out
+                    ));
+                }
+            }
+            Ok(())
+        },
+    ));
+    results.push(test(
         "repl_241_pwd_follows_the_working_directory",
         Category::Repl,
         || {
