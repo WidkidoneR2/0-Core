@@ -2638,8 +2638,8 @@ print('CLASS-DONE')"##;
     // Every case below runs on its OWN case database (ZERO_STATE_DB, applied after the harness
     // default, so two sessions in one case share it). The live state.db is never opened.
     // Each was written to fail on the binary that existed when it landed, for the reason its
-    // gate names. persist_262_indirection_pinned is the exception: it records today's
-    // behaviour until Christian rules keep or remove.
+    // gate names. persist_262_stores_its_own_value replaced the pin on the :492 indirection
+    // when fix 3 removed it, ruled 2026-10-05.
     results.push(test(
         "persist_262_bare_empty_says_so",
         Category::Repl,
@@ -2802,11 +2802,11 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(test(
-        "persist_262_indirection_pinned",
+        "persist_262_stores_its_own_value",
         Category::Repl,
         || {
-            // engine.rs:492 -- if NAME is not a shell variable but its ENVIRONMENT value names one,
-            // the OTHER variable's value is stored under NAME. Pinned as read, pending a ruling.
+            // INT-262 fix 3 removed the engine.rs:492 indirection (ruled remove, 2026-10-05).
+            // P262's own environment value is Q262, so Q262 -- not hidden -- must be stored.
             let db = repl::case_db_path();
             repl::run_repl_lines_status(
                 &["Q262=hidden", "persist P262"],
@@ -2820,9 +2820,9 @@ print('CLASS-DONE')"##;
                     |r| r.get(0),
                 )
                 .ok();
-            if stored.as_deref() != Some("hidden") {
+            if stored.as_deref() != Some("Q262") {
                 return Err(format!(
-                    "the :492 indirection is not what was read: P262 stored {:?}",
+                    "persist P262 must store its own value Q262, but stored {:?}",
                     stored
                 ));
             }

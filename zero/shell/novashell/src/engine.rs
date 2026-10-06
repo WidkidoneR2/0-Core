@@ -490,11 +490,10 @@ impl Engine {
         // the variable-not-set branch included. It used to leave the previous command's status.
         self.set_last_exit(Some(1));
         let env_val = std::env::var(&name).ok();
-        let found = self
-            .var(&name)
-            .or_else(|| env_val.as_deref().and_then(|v| self.var(v)))
-            .or(env_val.as_ref())
-            .cloned();
+        // INT-262 fix 3: NAME's own value -- the shell variable, else the environment. A line
+        // here used to store ANOTHER variable's value when NAME's environment value named one
+        // (P=Q, Q=hidden stored "hidden" under P). Ruled remove, 2026-10-05.
+        let found = self.var(&name).or(env_val.as_ref()).cloned();
         if let Some(val) = found {
             // INT-262: a refused write is a failure, never "persisted". The old `let _ =` threw
             // this Result away and printed success either way. Bound first, so the borrow of
