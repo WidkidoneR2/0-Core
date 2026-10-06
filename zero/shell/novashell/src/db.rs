@@ -137,6 +137,13 @@ impl StateDb {
                 key   TEXT PRIMARY KEY,
                 value TEXT NOT NULL
             );
+            -- INT-262: shell_persist lives HERE, beside its siblings, because runtime_init opens
+            -- this database for BOTH doors. It used to be created only by the REPL's startup
+            -- restore, so nsh -c had no table and persist reported success into nothing.
+            CREATE TABLE IF NOT EXISTS shell_persist (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
             -- load_history asks for the newest 10000 rows ordered by timestamp, at EVERY
             -- interactive start. Without this the plan is SCAN shell_history + USE TEMP B-TREE
             -- FOR ORDER BY: a full scan of 187,630 rows and a sort, to return the newest 5%.

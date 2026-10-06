@@ -2525,10 +2525,9 @@ fn repl_main() -> Result<()> {
     // Restore persisted variables from state.db
     {
         {
-            mark("shell vars: table ensured");
-            let _ = engine.db().conn.execute_batch(
-            "CREATE TABLE IF NOT EXISTS shell_persist (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
-        );
+            // INT-262: shell_persist is created by StateDb::open (db.rs), which runtime_init calls
+            // for BOTH doors. This restore only reads it. Creating it here left nsh -c without the
+            // table, and persist reported success into a table that did not exist.
             // INT-201: collect first, insert after. The prepared statement borrows the engine's
             // database and the Result temporary lives to the end of the block, so inserting
             // inside it would need &mut engine while that borrow is still outstanding.
