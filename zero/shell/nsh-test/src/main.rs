@@ -2851,6 +2851,24 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(test(
+        "restore_262_unreadable_store_is_reported",
+        Category::Repl,
+        || {
+            // A shell_persist without key and value columns, planted before nsh first opens the
+            // database: CREATE TABLE IF NOT EXISTS leaves it alone and the restore's SELECT
+            // cannot prepare. That failure must reach the screen before the first prompt.
+            let db = repl::case_db_path();
+            let conn =
+                rusqlite::Connection::open(&db).map_err(|e| format!("open {}: {}", db, e))?;
+            conn.execute_batch("CREATE TABLE shell_persist (x INTEGER);")
+                .map_err(|e| format!("plant broken table: {}", e))?;
+            drop(conn);
+            let (_, banner) =
+                repl::run_repl_lines_banner(&["true"], &[("ZERO_STATE_DB", db.as_str())])?;
+            expect_contains(&banner, "stored variables could not be read")
+        },
+    ));
+    results.push(test(
         "repl_241_pwd_follows_the_working_directory",
         Category::Repl,
         || {

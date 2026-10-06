@@ -2540,16 +2540,24 @@ fn repl_main() -> Result<()> {
             // INT-201: collect first, insert after. The prepared statement borrows the engine's
             // database and the Result temporary lives to the end of the block, so inserting
             // inside it would need &mut engine while that borrow is still outstanding.
-            let persisted: Vec<(String, String)> = match engine
+            // INT-262: an unreadable store is reported, never restored as an empty one. Every
+            // failure -- the statement, the query, a single row -- lands in the one Err below.
+            let read: Result<Vec<(String, String)>, rusqlite::Error> = engine
                 .db()
                 .conn
                 .prepare("SELECT key, value FROM shell_persist")
-            {
-                Ok(mut stmt) => stmt
-                    .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
-                    .map(|rows| rows.filter_map(|r| r.ok()).collect())
-                    .unwrap_or_default(),
-                Err(_) => Vec::new(),
+                .and_then(|mut stmt| {
+                    let rows = stmt
+                        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+                        .collect::<Result<Vec<_>, _>>();
+                    rows
+                });
+            let persisted = match read {
+                Ok(rows) => rows,
+                Err(e) => {
+                    eprintln!("  x persist: stored variables could not be read -- {}", e);
+                    Vec::new()
+                }
             };
             for (k, v) in persisted {
                 std::env::set_var(&k, &v);
