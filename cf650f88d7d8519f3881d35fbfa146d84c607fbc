@@ -1,0 +1,33 @@
+== PLAN (read-only, nothing written)
+edit   : db.rs line 136 -- add shell_persist to the shell-table batch, after shell_state
+  current 27650 bytes sha256 e70a0afb175b71cf -> new 28078 bytes sha256 e4e8b3083a76cb08
+-- old
+            CREATE TABLE IF NOT EXISTS shell_state (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+-- new
+            CREATE TABLE IF NOT EXISTS shell_state (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+            -- INT-262: shell_persist lives HERE, beside its siblings, because runtime_init opens
+            -- this database for BOTH doors. It used to be created only by the REPL's startup
+            -- restore, so nsh -c had no table and persist reported success into nothing.
+            CREATE TABLE IF NOT EXISTS shell_persist (
+                key   TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+edit   : main.rs line 2528 -- the startup restore stops creating shell_persist
+  current 186293 bytes sha256 9346cf80c5b88d9b -> new 186368 bytes sha256 0f915971f4a4da75
+-- old
+            mark("shell vars: table ensured");
+            let _ = engine.db().conn.execute_batch(
+            "CREATE TABLE IF NOT EXISTS shell_persist (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+        );
+-- new
+            // INT-262: shell_persist is created by StateDb::open (db.rs), which runtime_init calls
+            // for BOTH doors. This restore only reads it. Creating it here left nsh -c without the
+            // table, and persist reported success into a table that did not exist.
+writer : fpatch.patch from /home/christian/0-core/zero/scripts/dev on apply; nothing else touched
+FINGERPRINT 81d616e206a0506b
