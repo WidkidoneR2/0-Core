@@ -1,0 +1,41 @@
+== PLAN (read-only, nothing written)
+step 1 apply-test  : nsh-test main.rs line 2871 -- discover_262_where_and_explain_know_persist, before repl_241
+-- inserted
+    results.push(test(
+        "discover_262_where_and_explain_know_persist",
+        Category::Vocabulary,
+        || {
+            // INT-262: persist and unpersist are builtins, so the two "what is this word" answers
+            // must say so, as they do for unset. Both used to report not found.
+            for word in ["persist", "unpersist"] {
+                let out = run_fsh(&format!("where {}", word))?;
+                if !out.contains("native nsh") {
+                    return Err(format!("where {} does not name a builtin: {:?}", word, out));
+                }
+                let out = run_fsh(&format!("explain {}", word))?;
+                if !out.contains("native nsh command") {
+                    return Err(format!("explain {} does not name a builtin: {:?}", word, out));
+                }
+            }
+            Ok(())
+        },
+    ));
+step 2 apply-engine: commands/mod.rs line 11309 -- explain_cmd list gains persist and unpersist
+-- old
+        "unset",
+        "let",
+-- new
+        "unset",
+        "persist",
+        "unpersist",
+        "let",
+step 2 apply-engine: commands/mod.rs line 11452 -- where_cmd list gains persist and unpersist
+-- old
+        "unalias", "export", "unset", "let", "run",
+-- new
+        "unalias", "export", "unset", "persist", "unpersist", "let", "run",
+order  : apply-test, build and run (the new case must be RED), then apply-engine
+guard  : apply-engine requires the discover_262_where_and_explain_know_persist case by NAME, so a reflow between steps cannot block it
+writer : fpatch.patch from /home/christian/0-core/zero/scripts/dev; nothing else touched
+FINGERPRINT test   ed1c8c71b5089a56
+FINGERPRINT engine b486cd29083d714b
