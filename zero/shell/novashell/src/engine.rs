@@ -486,6 +486,9 @@ impl Engine {
     /// `persist NAME` -- write a variable to shell_persist so it survives the session.
     pub fn try_persist(&mut self, line: &str) -> Option<SegmentOutcome> {
         let name = line.trim().strip_prefix("persist ")?.trim().to_string();
+        // INT-262: every path below decides $?. Until a write succeeds, persist has failed --
+        // the variable-not-set branch included. It used to leave the previous command's status.
+        self.set_last_exit(Some(1));
         let env_val = std::env::var(&name).ok();
         let found = self
             .var(&name)
@@ -493,10 +496,18 @@ impl Engine {
             .or(env_val.as_ref())
             .cloned();
         if let Some(val) = found {
-            let _ = self.db().conn.execute(
+            // INT-262: a refused write is a failure, never "persisted". The old `let _ =` threw
+            // this Result away and printed success either way. Bound first, so the borrow of
+            // the database ends before set_last_exit needs &mut self.
+            let written = self.db().conn.execute(
                 "INSERT OR REPLACE INTO shell_persist (key, value) VALUES (?1, ?2)",
                 rusqlite::params![&name, &val],
             );
+            if let Err(e) = written {
+                eprintln!("  x persist {}: not stored -- {}", name, e);
+                return Some(SegmentOutcome::Next);
+            }
+            self.set_last_exit(Some(0));
             println!(
                 "  {} {} persisted across sessions",
                 colored::Colorize::bright_cyan("→"),
