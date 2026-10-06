@@ -1,0 +1,94 @@
+== PLAN (read-only, nothing written)
+step 1 apply-test  : nsh-test main.rs line 2853 -- restore_262_unreadable_store_is_reported, before repl_241
+-- inserted
+    results.push(test(
+        "restore_262_unreadable_store_is_reported",
+        Category::Repl,
+        || {
+            // A shell_persist without key and value columns, planted before nsh first opens the
+            // database: CREATE TABLE IF NOT EXISTS leaves it alone and the restore's SELECT
+            // cannot prepare. That failure must reach the screen before the first prompt.
+            let db = repl::case_db_path();
+            let conn = rusqlite::Connection::open(&db).map_err(|e| format!("open {}: {}", db, e))?;
+            conn.execute_batch("CREATE TABLE shell_persist (x INTEGER);")
+                .map_err(|e| format!("plant broken table: {}", e))?;
+            drop(conn);
+            let (_, banner) =
+                repl::run_repl_lines_banner(&["true"], &[("ZERO_STATE_DB", db.as_str())])?;
+            expect_contains(&banner, "stored variables could not be read")
+        },
+    ));
+step 2 apply-engine: novashell main.rs line 2543 -- the startup restore reports an unreadable store
+-- old
+            let persisted: Vec<(String, String)> = match engine
+                .db()
+                .conn
+                .prepare("SELECT key, value FROM shell_persist")
+            {
+                Ok(mut stmt) => stmt
+                    .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+                    .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                    .unwrap_or_default(),
+                Err(_) => Vec::new(),
+            };
+-- new
+            // INT-262: an unreadable store is reported, never restored as an empty one. Every
+            // failure -- the statement, the query, a single row -- lands in the one Err below.
+            let read: Result<Vec<(String, String)>, rusqlite::Error> = engine
+                .db()
+                .conn
+                .prepare("SELECT key, value FROM shell_persist")
+                .and_then(|mut stmt| {
+                    let rows = stmt
+                        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+                        .collect::<Result<Vec<_>, _>>();
+                    rows
+                });
+            let persisted = match read {
+                Ok(rows) => rows,
+                Err(e) => {
+                    eprintln!("  x persist: stored variables could not be read -- {}", e);
+                    Vec::new()
+                }
+            };
+order  : apply-test, build and run (the new case must be RED), then apply-engine
+writer : fpatch.patch from /home/christian/0-core/zero/scripts/dev; nothing else touched
+FINGERPRINT 48155db46ad84806
+== PLAN (read-only, nothing written)
+guard  : nsh-test holds restore_262_unreadable_store_is_reported (the RED step is in place)
+edit   : novashell main.rs line 2543 -- the startup restore reports an unreadable store
+  current 186786 bytes sha256 8e458fd3d25a630c -> new 187214 bytes sha256 616bdee8eb6373a4
+-- old
+            let persisted: Vec<(String, String)> = match engine
+                .db()
+                .conn
+                .prepare("SELECT key, value FROM shell_persist")
+            {
+                Ok(mut stmt) => stmt
+                    .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))
+                    .map(|rows| rows.filter_map(|r| r.ok()).collect())
+                    .unwrap_or_default(),
+                Err(_) => Vec::new(),
+            };
+-- new
+            // INT-262: an unreadable store is reported, never restored as an empty one. Every
+            // failure -- the statement, the query, a single row -- lands in the one Err below.
+            let read: Result<Vec<(String, String)>, rusqlite::Error> = engine
+                .db()
+                .conn
+                .prepare("SELECT key, value FROM shell_persist")
+                .and_then(|mut stmt| {
+                    let rows = stmt
+                        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+                        .collect::<Result<Vec<_>, _>>();
+                    rows
+                });
+            let persisted = match read {
+                Ok(rows) => rows,
+                Err(e) => {
+                    eprintln!("  x persist: stored variables could not be read -- {}", e);
+                    Vec::new()
+                }
+            };
+writer : fpatch.patch from /home/christian/0-core/zero/scripts/dev on apply; nothing else touched
+FINGERPRINT b95c746bca140f2c
