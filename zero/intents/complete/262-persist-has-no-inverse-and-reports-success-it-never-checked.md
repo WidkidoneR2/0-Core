@@ -3,7 +3,7 @@ id: 262
 date: 2026-09-24
 type: future
 title: "persist has no inverse and reports success it never checked"
-status: in-progress
+status: complete
 tags: [novashell, builtins, state]
 ---
 
@@ -243,3 +243,6 @@ take its three G2 rulings before any work.
 Carried forward: a two-step payload recognises its first step by a marker that survives rustfmt
 (the case name), never by its bytes. 5b's step 2 was refused for exactly that and re-planned
 engine-only; fix 6 used the name guard and went through a reflow untouched.
+
+## Versions
+- novashell 5.0.3 -> 5.1.0 (minor)
