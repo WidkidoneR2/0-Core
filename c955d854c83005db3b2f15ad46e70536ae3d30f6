@@ -1,0 +1,43 @@
+== PLAN (read-only, nothing written)
+step 1 apply-test  : nsh-test main.rs -- the pin becomes persist_262_stores_its_own_value, expecting Q262
+  -- main.rs line 2641 old
+     // gate names. persist_262_indirection_pinned is the exception: it records today's
+         // behaviour until Christian rules keep or remove.
+  -- new
+     // gate names. persist_262_stores_its_own_value replaced the pin on the :492 indirection
+         // when fix 3 removed it, ruled 2026-10-05.
+  -- main.rs line 2805 old
+     "persist_262_indirection_pinned",
+  -- new
+     "persist_262_stores_its_own_value",
+  -- main.rs line 2808 old
+     engine.rs:492 -- if NAME is not a shell variable but its ENVIRONMENT value names one,
+  -- new
+     INT-262 fix 3 removed the engine.rs:492 indirection (ruled remove, 2026-10-05).
+  -- main.rs line 2809 old
+     the OTHER variable's value is stored under NAME. Pinned as read, pending a ruling.
+  -- new
+     P262's own environment value is Q262, so Q262 -- not hidden -- must be stored.
+  -- main.rs line 2823 old
+     Some("hidden")
+  -- new
+     Some("Q262")
+  -- main.rs line 2825 old
+     "the :492 indirection is not what was read: P262 stored {:?}",
+  -- new
+     "persist P262 must store its own value Q262, but stored {:?}",
+step 2 apply-engine: engine.rs line 493 -- the indirection line is removed
+  -- old
+        let found = self
+            .var(&name)
+            .or_else(|| env_val.as_deref().and_then(|v| self.var(v)))
+            .or(env_val.as_ref())
+            .cloned();
+  -- new
+        // INT-262 fix 3: NAME's own value -- the shell variable, else the environment. A line
+        // here used to store ANOTHER variable's value when NAME's environment value named one
+        // (P=Q, Q=hidden stored "hidden" under P). Ruled remove, 2026-10-05.
+        let found = self.var(&name).or(env_val.as_ref()).cloned();
+order  : apply-test, build and run (the renamed case must be RED), then apply-engine
+writer : fpatch.patch from /home/christian/0-core/zero/scripts/dev; nothing else touched
+FINGERPRINT d4f0a7d50b3dbca6
