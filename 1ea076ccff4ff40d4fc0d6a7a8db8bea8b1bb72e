@@ -1,0 +1,125 @@
+file /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs  sha256 10cfd2b0b9997c21 -> 1f8af7ed2c7c89a1
+file /home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md  sha256 5f0ef2f64724cc78 -> f4a49f4c484a3720
+--- /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: replacing lines 452..452 ---
+   450:         let db = &ctx.runtime.db;
+   451:         let stmt = db.prepare(
+>> 452:             "SELECT payload, timestamp FROM events WHERE domain='doctor' ORDER BY id DESC LIMIT 10",
+   453:         );
+   454:         if let Ok(mut stmt) = stmt {
+++ "SELECT payload FROM events WHERE domain='doctor' AND action='run' ORDER BY id DESC LIMIT 10",
+--- /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: replacing lines 460..460 ---
+   458:                 Err(_) => vec![],
+   459:             };
+>> 460:             let (runs, _skipped) = run_healths(&payloads, health as i64);
+   461: 
+   462:             // INT-279 G10: the intents in progress come from the intent domain's own loader, the same
+++             // INT-279 G11: only doctor run events carry a health; anything unreadable is left out
+++             // and counted, never replaced with this run's health.
+++             let (runs, skipped) = run_healths(&payloads);
+++             if let Some(note) = skipped_note(skipped) {
+++                 println!("{}", note);
+++             }
+--- /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: replacing lines 1122..1137 ---
+   1120: }
+   1121: 
+>> 1122: /// INT-279 G11: the health of each past doctor run, newest first, read from event payloads.
+>> 1123: /// Returns the healths it read and how many payloads it could not read.
+>> 1124: /// TODAY (the G11 red): an unreadable payload counts as the current run's health.
+>> 1125: pub(crate) fn run_healths(payloads: &[Option<String>], current: i64) -> (Vec<i64>, usize) {
+>> 1126:     let runs = payloads
+>> 1127:         .iter()
+>> 1128:         .map(|p| {
+>> 1129:             p.as_deref()
+>> 1130:                 .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+>> 1131:                 .and_then(|v| v["detail"]["health"].as_i64())
+>> 1132:                 .unwrap_or(current)
+>> 1133:         })
+>> 1134:         .collect();
+>> 1135:     (runs, 0)
+>> 1136: }
+>> 1137: 
+   1138: /// INT-279 characterisation and gates: what forecast_lines says. G1's red is commit 9d808f0f
+   1139: /// (the warning on the 2026-10-06 shape); the old wording these replace is pinned at d56f7c8c.
+++ /// INT-279 G11: the health of each past doctor run, newest first, read from event payloads.
+++ /// Returns the healths it read and how many payloads it could not read. A payload with no
+++ /// readable health is left out and counted, never replaced with the current run's health.
+++ pub(crate) fn run_healths(payloads: &[Option<String>]) -> (Vec<i64>, usize) {
+++     let mut runs = Vec::new();
+++     let mut skipped = 0;
+++     for p in payloads {
+++         match p
+++             .as_deref()
+++             .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+++             .and_then(|v| v["detail"]["health"].as_i64())
+++         {
+++             Some(h) => runs.push(h),
+++             None => skipped += 1,
+++         }
+++     }
+++     (runs, skipped)
+++ }
+++ 
+++ /// INT-279 G11: the line d prints when past runs were left out, or nothing when none were.
+++ pub(crate) fn skipped_note(skipped: usize) -> Option<String> {
+++     match skipped {
+++         0 => None,
+++         1 => Some("   History  1 past run had no readable health and was left out".to_string()),
+++         n => Some(format!(
+++             "   History  {} past runs had no readable health and were left out",
+++             n
+++         )),
+++     }
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: replacing lines 1316..1316 ---
+   1314: #[cfg(test)]
+   1315: mod history_tests {
+>> 1316:     use super::run_healths;
+   1317: 
+   1318:     // INT-279 G11: a payload with no readable health is left out and counted, never replaced
+++     use super::{run_healths, skipped_note};
+--- /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: replacing lines 1330..1331 ---
+   1328:             Some(r#"{"detail":{"health":100}}"#.to_string()),
+   1329:         ];
+>> 1330:         assert_eq!(run_healths(&payloads, 50), (vec![92, 100], 3));
+>> 1331:     }
+   1332: }
+   1333: 
+++         assert_eq!(run_healths(&payloads), (vec![92, 100], 3));
+++     }
+++ 
+++     // INT-279 G11: the skipped count is reported, and a clean history says nothing.
+++     #[test]
+++     fn g11_the_skipped_count_is_reported() {
+++         assert_eq!(skipped_note(0), None);
+++         assert_eq!(
+++             skipped_note(1).as_deref(),
+++             Some("   History  1 past run had no readable health and was left out")
+++         );
+++         assert_eq!(
+++             skipped_note(3).as_deref(),
+++             Some("   History  3 past runs had no readable health and were left out")
+++         );
+++     }
+--- /home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md: replacing lines 157..157 ---
+   155:   warning (an uncommitted file) shows the warning path still works and names the
+   156:   Git Repository check. The file is removed afterwards.
+>> 157: - [ ] G10: the intent count asks the ledger. Red: with an intent in intents/in-progress/
+   158:   the doctor counts 0 today. Green: the count comes from the intent domain's loader and
+   159:   matches core intent list; fsearch shows no other "status: in-progress" scan in the
+++ - [x] G10: the intent count asks the ledger.
+--- /home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md: replacing lines 161..161 ---
+   159:   matches core intent list; fsearch shows no other "status: in-progress" scan in the
+   160:   doctor.
+>> 161: - [ ] G11: unreadable history is skipped. Red: a fixture event with no readable health
+   162:   is counted as the current health today. Green: it is left out, the run count drops by
+   163:   one, and the skipped count is reported.
+++ <!-- evidence: commit 10f0ccf7, 2026-10-07, Seal 3f15d50261f40133 intact (core intent trace). Red at 118a9d72: debug core doctor run printed no In progress line while 279 sat in intents/in-progress/ and core intent list showed it in progress. Green: the same run prints In progress: INT-279. intent::in_progress_ids filters the one loader that core intent list reads; fsearch status: in-progress in doctor finds no results. cargo test -p core: 59 passed. -->
+++ - [ ] G11: unreadable history is skipped.
+/home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md: 1 replaced
