@@ -1092,8 +1092,13 @@ pub(crate) fn forecast_lines(
         "stable".to_string()
     };
     out.push(format!(
-        "{}  Forecast  24h: {}%  7d: {}%  trend: {}",
-        trend_icon, forecast_24h, forecast_7d, trend_str,
+        "{}  Forecast  24h: {}%  7d: {}%  trend: {}  (last {} runs: newest 3 vs the {} before)",
+        trend_icon,
+        forecast_24h,
+        forecast_7d,
+        trend_str,
+        runs.len(),
+        runs.len() - 3,
     ));
     // INT-279 G2: a run with no warnings, no failures and full health is not declining,
     // whatever older runs said. A recovered dip is not a decline, so no trend advisory fires.
@@ -1163,7 +1168,7 @@ mod forecast_tests {
         let runs = [100, 92, 92, 98, 98, 98, 98, 98, 98, 98];
         assert_eq!(
             forecast_lines(&runs, 100, 0, 0, &[], &[]),
-            lines(&["📉  Forecast  24h: 98%  7d: 93%  trend: -3.3"])
+            lines(&["📉  Forecast  24h: 98%  7d: 93%  trend: -3.3  (last 10 runs: newest 3 vs the 7 before)"])
         );
     }
 
@@ -1180,7 +1185,7 @@ mod forecast_tests {
         assert_eq!(
             forecast_lines(&runs, 80, 0, 1, &problems, &[]),
             lines(&[
-                "📉  Forecast  24h: 75%  7d: 60%  trend: -10.0",
+                "📉  Forecast  24h: 75%  7d: 60%  trend: -10.0  (last 10 runs: newest 3 vs the 7 before)",
                 "  ⚠️   Health is falling: the newest 3 of the last 10 runs average 88%, the 7 before them 98%",
                 "       Not passing now: Git Repository (fail)",
                 "       Next: commit or stash tracked changes",
@@ -1196,7 +1201,7 @@ mod forecast_tests {
         assert_eq!(
             forecast_lines(&runs, 50, 0, 0, &[], &[]),
             lines(&[
-                "📉  Forecast  24h: 25%  7d: 0%  trend: -50.0",
+                "📉  Forecast  24h: 25%  7d: 0%  trend: -50.0  (last 6 runs: newest 3 vs the 3 before)",
                 "  ⚠️   Health is falling: the newest 3 of the last 6 runs average 50%, the 3 before them 100%",
                 "       No check is warning or failing; health is below 100% this run",
                 "       Next: no recovery step is recorded for these checks",
@@ -1213,7 +1218,7 @@ mod forecast_tests {
         assert_eq!(
             forecast_lines(&runs, 96, 1, 0, &problems, &intents),
             lines(&[
-                "📉  Forecast  24h: 94%  7d: 88%  trend: -4.0",
+                "📉  Forecast  24h: 94%  7d: 88%  trend: -4.0  (last 6 runs: newest 3 vs the 3 before)",
                 "  ⚠️   Health is falling: the newest 3 of the last 6 runs average 96%, the 3 before them 100%",
                 "       Not passing now: Git Repository (warn)",
                 "       Next: no recovery step is recorded for these checks",
@@ -1271,7 +1276,7 @@ mod forecast_tests {
         assert_eq!(
             forecast_lines(&runs, 100, 0, 0, &[], &[]),
             lines(&[
-                "➡️   Forecast  24h: 100%  7d: 100%  trend: stable",
+                "➡️   Forecast  24h: 100%  7d: 100%  trend: stable  (last 4 runs: newest 3 vs the 1 before)",
                 "  💚  Stable — no concerns"
             ])
         );

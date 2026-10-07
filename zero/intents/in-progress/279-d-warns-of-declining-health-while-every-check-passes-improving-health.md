@@ -135,13 +135,15 @@ em dash; any fpatch anchor near it must be ASCII-only (patch_between).
   them contains a causal claim; the intents in progress, when printed, are a separate
   plain line.
 <!-- evidence: commit 1cff1fe5, 2026-10-07. Removed from the chain: expected pattern, with no active work -- investigate, review active work, and recovery expected on completion. fsearch on 2026-10-07 finds no active work, expected pattern and recovery expected only at doctor/mod.rs:1245-1247, the phrase list inside g4_no_advisory_names_a_cause, which asserts their absence across six fixtures. g4_an_intent_in_progress_is_a_fact_not_a_reason: intents in progress print as their own plain line. Red: d56f7c8c pinned with no active work -- investigate and expected pattern. -->
-- [ ] G5: not enough history. Fixtures holding 0, 1, 2 and 3 runs each print "not
+- [x] G5: not enough history. Fixtures holding 0, 1, 2 and 3 runs each print "not
   enough history (N runs)" and no number. Red first: today 0-2 print nothing at all, and
   3 prints a trend equal to the recent average (older_avg is 0), which clamps both
   forecasts to 100.
-- [ ] G6: the arithmetic is pinned. A fixture series with a hand-computed trend and
+<!-- evidence: commit 25b8dbed, 2026-10-07, Seal 58668a97845392cd intact (core intent trace). forecast_lines needs 4 runs, one on each side of the newest-3 comparison; with fewer it prints Forecast  not enough history (N runs) and no number. g5_under_four_runs_says_not_enough_history asserts 0, 1, 2 and 3 runs. Red: 1cff1fe5 pinned 0 to 2 runs printing nothing and 3 runs printing trend +90.0, both forecasts clamped to 100. cargo test -p core forecast_tests: 7 passed, 0 failed on HEAD after the pre-commit rustfmt wrap. -->
+- [x] G6: the arithmetic is pinned. A fixture series with a hand-computed trend and
   forecast is asserted to the printed precision. Changing the formula without updating
   the test turns it red.
+<!-- evidence: demonstrated 2026-10-07. The arithmetic is pinned to the printed precision by g2 (trend -3.3, 24h 98, 7d 93), g3_a_failing_run (-10.0, 75, 60), g3_no_named_check (-50.0, 25, 0 clamped) and g4_an_intent_in_progress (-4.0, 94, 88), each hand-computed. The 24h multiplier was changed from 0.5 to 0.6 with fpatch: cargo test -p core forecast_tests exited 101, 5 passed, 2 failed, exactly the two predicted by hand (g3_a_failing_run 75 to 74, g3_no_named_check 25 to 20); g2 and g4 stayed green because their 24h rounds the same. Restored with git checkout, status clean, 7 passed. -->
 - [ ] G7: every forecast states its basis. The forecast line shows window and run count
   for each number it prints. A test asserts it.
 - [ ] G8: wired in, not configured. The new tests run in the owning crate under cargo
