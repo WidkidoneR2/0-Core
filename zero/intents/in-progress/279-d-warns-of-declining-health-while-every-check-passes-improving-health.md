@@ -120,7 +120,7 @@ em dash; any fpatch anchor near it must be ASCII-only (patch_between).
 - [x] G2: no warning on a clean run. Same fixture: no decline warning. A second fixture
   whose current run has a failure that earlier runs did not still warns.
 <!-- evidence: commit d56f7c8c, 2026-10-07. clean = 0 warnings, 0 failures and health 100 (health is in the rule because a critical check that could not run caps it at 50 with nothing warning or failing). The trend advisories skip a clean run. g2_clean_run_after_a_dip_does_not_warn drives the 2026-10-06 history and gets the forecast line only; g2_a_failing_run_after_a_dip_still_warns (80%, one failure) still warns. Red: G1's test at 9d808f0f produced the warning on the same history. cargo test -p core forecast_tests: 6 passed, 0 failed. -->
-- [ ] G3: the warning names its evidence. When it fires, the message carries the window (the
+- [x] G3: the warning names its evidence. When it fires, the message carries the window (the
   run count), the averages it compared (the newest 3 runs against the older ones), the checks
   warning or failing in this run, and one next move: the first named check's recorded
   recovery, or a plain statement that none is recorded. A test asserts each part.
@@ -128,11 +128,13 @@ em dash; any fpatch anchor near it must be ASCII-only (patch_between).
   fail": (1) the run history holds no per-check record -- doctor events carry a health number
   and unlinked health_check_failed events, and health_patterns holds counts only; (2) a per-run
   check snapshot would be new persistence, outside this intent.
-- [ ] G4: no implied cause, across the whole advisory chain. "with no active work",
+<!-- evidence: commit 1cff1fe5, 2026-10-07. g3_a_failing_run_warns_with_its_evidence: the warning carries the window (the last 10 runs), the averages it compared (newest 3 at 88%, the 7 before them at 98%), the check not passing now (Git Repository (fail)) and that check's recorded recovery as the next move. g3_no_named_check_and_no_recovery_say_so: nothing warning or failing, and no recovery recorded, are each stated plainly. cargo test -p core forecast_tests: 8 passed, 0 failed. Red: d56f7c8c pinned the old warning, which named none of these. -->
+- [x] G4: no implied cause, across the whole advisory chain. "with no active work",
   "expected pattern" and "recovery expected on completion" are gone; fsearch for each
   returns no live source line. A test runs every advisory branch and asserts none of
   them contains a causal claim; the intents in progress, when printed, are a separate
   plain line.
+<!-- evidence: commit 1cff1fe5, 2026-10-07. Removed from the chain: expected pattern, with no active work -- investigate, review active work, and recovery expected on completion. fsearch on 2026-10-07 finds no active work, expected pattern and recovery expected only at doctor/mod.rs:1245-1247, the phrase list inside g4_no_advisory_names_a_cause, which asserts their absence across six fixtures. g4_an_intent_in_progress_is_a_fact_not_a_reason: intents in progress print as their own plain line. Red: d56f7c8c pinned with no active work -- investigate and expected pattern. -->
 - [ ] G5: not enough history. Fixtures holding 0, 1, 2 and 3 runs each print "not
   enough history (N runs)" and no number. Red first: today 0-2 print nothing at all, and
   3 prints a trend equal to the recent average (older_avg is 0), which clamps both
@@ -160,3 +162,46 @@ em dash; any fpatch anchor near it must be ASCII-only (patch_between).
   reading a file nothing writes, and the finding id is cited here.
 - [ ] G13: doors. nsh-test all passing against the deployed binaries, d 0 failed,
   commits carry Intent: INT-279.
+
+## START HERE (2026-10-07)
+
+Open the next session with: ints 279, then paste this section. No earlier START HERE exists for
+this intent, so nothing is superseded.
+
+STATE. In progress. G0-G4 ticked with evidence. G5-G13 open. Nothing shipped yet: the deployed
+d still prints the old warning until the one ship at the end (G9).
+
+COMMITS SO FAR. 79dd01c6 body and gates; f6a4a897 G0 recon and widened scope; 9d808f0f
+forecast_lines extracted, no behaviour change; d56f7c8c no trend advisory on a clean run (G2);
+1cff1fe5 the warning names its evidence, no advisory asserts a cause (G3, G4).
+
+WHERE THE CODE IS. zero/engine/src/domains/doctor/mod.rs. forecast_lines (pure; about line 1049)
+takes runs, health, warnings, failed, problems and active_intents and returns the lines d prints.
+Problem sits above it. The call site in the doctor run still builds active_intents by scanning
+intents/future/ (G10 replaces that). Tests: mod forecast_tests, 8 tests, run with
+cargo test -p core forecast_tests.
+
+NEXT, IN ORDER.
+- G5: fewer than 4 runs prints "not enough history (N runs)" and no number. The red is already
+  committed: three_runs_trend_is_the_recent_average_today and under_three_runs_prints_nothing_today
+  pin today's behaviour. Flip them.
+- G6: pin the arithmetic with a hand-computed series (most current tests already do; record which).
+- G7: the forecast line states its basis -- window and run count for each number.
+- G10: the intent count asks the ledger. intent::load_all (intent/mod.rs:90) is private; make it
+  pub(crate), filter status in-progress, and remove the folder scan at the call site.
+- G11: the forecast query reads every domain='doctor' event, and health_check_failed events carry
+  no health, so they are counted as the current run's health. First find the writer of the event
+  that records a run's health (not yet found; runtime/mod.rs:205-232 wraps payloads as detail),
+  then read only that action.
+- G12: file forecast.declining as a finding with core intent find (reaction/mod.rs:316-343 reads
+  ~/.cache/zero/forecast.txt, which nothing writes). Read core intent find's usage first.
+- G8: find what runs core's tests (the commit gate, nsh-test, or nothing) before claiming wired.
+- G9: one ship; in a new shell, the deployed d on a clean tree prints no warning; an uncommitted
+  file makes it warn and name Git Repository; remove the file.
+- G13: doors.
+
+REMINDERS. The pre-commit hook reformats with rustfmt, so read the function fresh before every
+Plan; anchors stay ASCII-only. Plan show first, then apply with the real Seal.
+
+AFTER 279. Christian's idea, its own intent: d's Update Readiness check gates Omarchy updates on
+the 0-core tree, which Omarchy's updater never touches. File it with inta when 279 closes.
