@@ -468,105 +468,33 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
             };
             // points already bound above
 
-            if points.len() >= 3 {
-                // Compute trend slope
-                let n = points.len() as f64;
-                let sum_h: f64 = points.iter().map(|(h, _)| *h as f64).sum();
-                let _avg_h = sum_h / n;
-                let recent_avg: f64 =
-                    points.iter().take(3).map(|(h, _)| *h as f64).sum::<f64>() / 3.0;
-                let older_avg: f64 =
-                    points.iter().skip(3).map(|(h, _)| *h as f64).sum::<f64>() / (n - 3.0).max(1.0);
-                let trend = recent_avg - older_avg;
-
-                let forecast_24h = (health as f64 + trend * 0.5).round() as i64;
-                let forecast_7d = (health as f64 + trend * 2.0).round() as i64;
-                let forecast_24h = forecast_24h.clamp(0, 100);
-                let forecast_7d = forecast_7d.clamp(0, 100);
-
-                let trend_icon = if trend > 1.0 {
-                    "📈"
-                } else if trend < -1.0 {
-                    "📉"
-                } else {
-                    "➡️ "
-                };
-                let trend_str = if trend > 0.5 {
-                    format!("+{:.1}", trend)
-                } else if trend < -0.5 {
-                    format!("{:.1}", trend)
-                } else {
-                    "stable".to_string()
-                };
-
-                // Add active intent context to forecast
-                let _core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
-                let future_dir = zero_core::paths::intents_dir().join("future");
-                let active_intents: Vec<String> = std::fs::read_dir(&future_dir)
-                    .map(|entries| {
-                        entries
-                            .flatten()
-                            .filter_map(|e| {
-                                let p = e.path();
-                                if p.extension().map(|x| x != "md").unwrap_or(true) {
-                                    return None;
-                                }
-                                let content = std::fs::read_to_string(&p).ok()?;
-                                if !content.contains("status: in-progress") {
-                                    return None;
-                                }
-                                let fname = p.file_stem()?.to_string_lossy().to_string();
-                                let id = fname.split('-').next()?;
-                                Some(format!("INT-{}", id))
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                let context_str = if !active_intents.is_empty() {
-                    format!(" ({} in progress)", active_intents.join(", "))
-                } else {
-                    String::new()
-                };
-                println!(
-                    "{}  Forecast  24h: {}%  7d: {}%  trend: {}{}",
-                    trend_icon, forecast_24h, forecast_7d, trend_str, context_str,
-                );
-                // Predictive health advisory
-                let intent_count = active_intents.len();
-                let advisory: Option<(&str, String)> = if health == 100
-                    && trend.abs() <= 0.5
-                    && intent_count == 0
-                {
-                    Some(("💚", "Stable — no concerns".to_string()))
-                } else if trend < -1.0 && intent_count > 0 {
-                    Some(("💡", format!(
-                        "Health dip during active development — expected pattern ({} intent{} in progress)",
-                        intent_count, if intent_count == 1 { "" } else { "s" }
-                    )))
-                } else if trend < -1.0 && intent_count == 0 {
-                    Some((
-                        "⚠️ ",
-                        "Declining health with no active work — investigate".to_string(),
-                    ))
-                } else if forecast_7d < 90 {
-                    Some(("⚠️ ", format!(
-                        "7-day forecast shows potential concern ({forecast_7d}%) — review active work"
-                    )))
-                } else if intent_count > 4 {
-                    Some(("💡", format!(
-                        "High intent load ({intent_count} active) — consider completing before opening a new intent"
-                    )))
-                } else if health < 100 && intent_count > 0 {
-                    Some(("💡", format!(
-                        "Below peak health — {} intent{} in progress, recovery expected on completion",
-                        intent_count, if intent_count == 1 { "" } else { "s" }
-                    )))
-                } else {
-                    None
-                };
-                if let Some((icon, msg)) = advisory {
-                    println!("  {}  {}", icon, msg);
-                }
+            // INT-279: what this prints is decided by forecast_lines, a pure function with tests
+            // beside it. The in-progress scan stays as it was until G10 replaces it with the intent
+            // domain's own loader.
+            let future_dir = zero_core::paths::intents_dir().join("future");
+            let active_intents: Vec<String> = std::fs::read_dir(&future_dir)
+                .map(|entries| {
+                    entries
+                        .flatten()
+                        .filter_map(|e| {
+                            let p = e.path();
+                            if p.extension().map(|x| x != "md").unwrap_or(true) {
+                                return None;
+                            }
+                            let content = std::fs::read_to_string(&p).ok()?;
+                            if !content.contains("status: in-progress") {
+                                return None;
+                            }
+                            let fname = p.file_stem()?.to_string_lossy().to_string();
+                            let id = fname.split('-').next()?;
+                            Some(format!("INT-{}", id))
+                        })
+                        .collect()
+                })
+                .unwrap_or_default();
+            let runs: Vec<i64> = points.iter().map(|(h, _)| *h).collect();
+            for line in forecast_lines(&runs, health, &active_intents) {
+                println!("{}", line);
             }
         }
     }
@@ -1088,6 +1016,166 @@ pub fn trend(ctx: &AppContext) -> CoreResult<()> {
 
     println!("{}", "━".repeat(52).dimmed());
     Ok(())
+}
+
+/// INT-279: the forecast line and the advisory printed after a doctor run, as a pure function a
+/// fixture can drive. runs holds health readings newest first, exactly as the inline block reads
+/// them from the events table. Moved out of the print path with no behaviour change (G1); the
+/// INT-279 gates change what it says from here, under the tests below.
+pub(crate) fn forecast_lines(runs: &[i64], health: u32, active_intents: &[String]) -> Vec<String> {
+    let mut out = Vec::new();
+    if runs.len() < 3 {
+        return out;
+    }
+    // Compute trend slope
+    let n = runs.len() as f64;
+    let recent_avg: f64 = runs.iter().take(3).map(|h| *h as f64).sum::<f64>() / 3.0;
+    let older_avg: f64 = runs.iter().skip(3).map(|h| *h as f64).sum::<f64>() / (n - 3.0).max(1.0);
+    let trend = recent_avg - older_avg;
+
+    let forecast_24h = (health as f64 + trend * 0.5).round() as i64;
+    let forecast_7d = (health as f64 + trend * 2.0).round() as i64;
+    let forecast_24h = forecast_24h.clamp(0, 100);
+    let forecast_7d = forecast_7d.clamp(0, 100);
+
+    let trend_icon = if trend > 1.0 {
+        "📈"
+    } else if trend < -1.0 {
+        "📉"
+    } else {
+        "➡️ "
+    };
+    let trend_str = if trend > 0.5 {
+        format!("+{:.1}", trend)
+    } else if trend < -0.5 {
+        format!("{:.1}", trend)
+    } else {
+        "stable".to_string()
+    };
+    let context_str = if !active_intents.is_empty() {
+        format!(" ({} in progress)", active_intents.join(", "))
+    } else {
+        String::new()
+    };
+    out.push(format!(
+        "{}  Forecast  24h: {}%  7d: {}%  trend: {}{}",
+        trend_icon, forecast_24h, forecast_7d, trend_str, context_str,
+    ));
+    // Predictive health advisory
+    let intent_count = active_intents.len();
+    let advisory: Option<(&str, String)> = if health == 100
+        && trend.abs() <= 0.5
+        && intent_count == 0
+    {
+        Some(("💚", "Stable — no concerns".to_string()))
+    } else if trend < -1.0 && intent_count > 0 {
+        Some((
+            "💡",
+            format!(
+                "Health dip during active development — expected pattern ({} intent{} in progress)",
+                intent_count,
+                if intent_count == 1 { "" } else { "s" }
+            ),
+        ))
+    } else if trend < -1.0 && intent_count == 0 {
+        Some((
+            "⚠️ ",
+            "Declining health with no active work — investigate".to_string(),
+        ))
+    } else if forecast_7d < 90 {
+        Some((
+            "⚠️ ",
+            format!("7-day forecast shows potential concern ({forecast_7d}%) — review active work"),
+        ))
+    } else if intent_count > 4 {
+        Some(("💡", format!(
+            "High intent load ({intent_count} active) — consider completing before opening a new intent"
+        )))
+    } else if health < 100 && intent_count > 0 {
+        Some((
+            "💡",
+            format!(
+                "Below peak health — {} intent{} in progress, recovery expected on completion",
+                intent_count,
+                if intent_count == 1 { "" } else { "s" }
+            ),
+        ))
+    } else {
+        None
+    };
+    if let Some((icon, msg)) = advisory {
+        out.push(format!("  {}  {}", icon, msg));
+    }
+    out
+}
+
+/// INT-279 characterisation: what forecast_lines says TODAY, hand-computed from the inline code
+/// it replaced (doctor/mod.rs 471-569 before the move). These pin the move as behaviour-neutral;
+/// the INT-279 gates then change them one by one, red first.
+#[cfg(test)]
+mod forecast_tests {
+    use super::forecast_lines;
+
+    fn lines(v: &[&str]) -> Vec<String> {
+        v.iter().map(|s| s.to_string()).collect()
+    }
+
+    // G1: the 2026-10-06 shape -- the current run at 100% among the newest three, two 92% runs
+    // beside it, older runs at 98%, no intents counted. Every check passed, and today this
+    // still produces the decline warning.
+    #[test]
+    fn g1_clean_run_after_a_dip_warns_today() {
+        let runs = [100, 92, 92, 98, 98, 98, 98, 98, 98, 98];
+        assert_eq!(
+            forecast_lines(&runs, 100, &[]),
+            lines(&[
+                "📉  Forecast  24h: 98%  7d: 93%  trend: -3.3",
+                "  ⚠️   Declining health with no active work — investigate",
+            ])
+        );
+    }
+
+    #[test]
+    fn steady_history_is_stable() {
+        let runs = [100, 100, 100, 100];
+        assert_eq!(
+            forecast_lines(&runs, 100, &[]),
+            lines(&[
+                "➡️   Forecast  24h: 100%  7d: 100%  trend: stable",
+                "  💚  Stable — no concerns"
+            ])
+        );
+    }
+
+    // G5's red case: with exactly 3 runs the older set is empty, older_avg is 0, and the trend
+    // equals the recent average.
+    #[test]
+    fn three_runs_trend_is_the_recent_average_today() {
+        let runs = [90, 90, 90];
+        assert_eq!(
+            forecast_lines(&runs, 90, &[]),
+            lines(&["📈  Forecast  24h: 100%  7d: 100%  trend: +90.0"])
+        );
+    }
+
+    #[test]
+    fn under_three_runs_prints_nothing_today() {
+        assert!(forecast_lines(&[100, 100], 100, &[]).is_empty());
+        assert!(forecast_lines(&[], 100, &[]).is_empty());
+    }
+
+    #[test]
+    fn an_intent_in_progress_changes_the_advisory_today() {
+        let runs = [96, 96, 96, 100, 100, 100];
+        let intents = vec!["INT-279".to_string()];
+        assert_eq!(
+            forecast_lines(&runs, 96, &intents),
+            lines(&[
+                "📉  Forecast  24h: 94%  7d: 88%  trend: -4.0 (INT-279 in progress)",
+                "  💡  Health dip during active development — expected pattern (1 intent in progress)",
+            ])
+        );
+    }
 }
 
 pub fn forecast(ctx: &AppContext) -> CoreResult<()> {
