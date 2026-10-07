@@ -147,13 +147,15 @@ em dash; any fpatch anchor near it must be ASCII-only (patch_between).
 - [x] G7: every forecast states its basis. The forecast line shows window and run count
   for each number it prints. A test asserts it.
 <!-- evidence: commit 118a9d72, 2026-10-07, Seal 85fd226b0978fc5c intact (core intent trace). The forecast line ends with (last N runs: newest 3 vs the N-3 before), the one comparison 24h, 7d and the trend all come from; five tests assert it for 10, 6 and 4 runs. Red: 25b8dbed pinned the same fixtures without the basis. forecast_tests: 7 passed on HEAD after the rustfmt wrap. The 24h and 7d labels name time spans the code never measured: filed as F-0014, not changed here. -->
-- [ ] G8: wired in, not configured. The new tests run in the owning crate under cargo
+- [x] G8: wired in, not configured. The new tests run in the owning crate under cargo
   test, and that crate is already covered by the commit gate or nsh-test (whichever G0
   finds owns it). A deliberately broken assertion turns that run red; restored, green.
-- [ ] G9: DEPLOYED. One ship at the end. In a new shell, the deployed d on a clean tree
+<!-- evidence: commit 9ebe0654, 2026-10-07, Seal c10937740d6b9b62 intact (core intent trace). Recon: pre-commit runs secrets, rustfmt and retired spawns; pre-push ran nsh-test only (.githooks/lib/nsh-test-gate.sh); nothing ran core unit tests. Ruled by Christian: wire them into pre-push. Red: with g5_under_four_runs_says_not_enough_history broken on purpose, zero-gate pre-push exited 0. After the core tests gate, the same break made it exit 1, naming that test. Restored with git checkout, pre-push exited 0. cargo test -p zero-gate: 4 passed. -->
+- [x] G9: DEPLOYED. One ship at the end. In a new shell, the deployed d on a clean tree
   prints no decline warning and a forecast line with its basis. Then a deliberate
   warning (an uncommitted file) shows the warning path still works and names the
   Git Repository check. The file is removed afterwards.
+<!-- evidence: ships 2026-10-07 at 9ebe0654 and 083ae016. In a new shell on the deployed nsh, the deployed d on a clean pushed tree printed HEALTHY 100%, 28/28, a forecast line with its basis (trend -2.7, last 10 runs: newest 3 vs the 7 before), In progress: INT-279, and no decline advisory. With an untracked probe file the advisory named Git Repository (warn) with its window and averages and Next: Commit and push, or stash; the probe was removed and status came back clean. The first ship exposed a rustdoc warning from 10f0ccf7 (INT-<id> in a doc comment), fixed in 083ae016. -->
 - [x] G10: the intent count asks the ledger. Red: with an intent in intents/in-progress/
   the doctor counts 0 today. Green: the count comes from the intent domain's loader and
   matches core intent list; fsearch shows no other "status: in-progress" scan in the
@@ -166,10 +168,11 @@ em dash; any fpatch anchor near it must be ASCII-only (patch_between).
 - [x] G12: the dead reaction rule is filed. core intent find records forecast.declining
   reading a file nothing writes, and the finding id is cited here.
 <!-- evidence: F-0015 filed 2026-10-07 by INT-279: forecast.declining reads ~/.cache/zero/forecast.txt through paths::forecast_cache, which nothing writes. fsearch forecast_cache finds only the definition (zero-core paths.rs:413) and the reader (reaction/mod.rs:318); fsearch forecast.txt finds only paths.rs:414 and this ledger. -->
-- [ ] G13: doors. nsh-test all passing against the deployed binaries, d 0 failed,
+- [x] G13: doors. nsh-test all passing against the deployed binaries, d 0 failed,
   commits carry Intent: INT-279.
+<!-- evidence: demonstrated 2026-10-07 on the deployed binaries after the 083ae016 ship. NSH_BIN=/home/christian/.local/bin/nsh nsh-test: 227 / 227 passed, exit 0. Deployed d: HEALTHY 100%, 28/28, 0 failed. git log 79dd01c6^..HEAD: 12 commits, none missing Intent: INT-279. -->
 
-## START HERE (2026-10-07)
+## START HERE (2026-10-07) -- SUPERSEDED by the closing record below
 
 Open the next session with: ints 279, then paste this section. No earlier START HERE exists for
 this intent, so nothing is superseded.
@@ -211,3 +214,20 @@ Plan; anchors stay ASCII-only. Plan show first, then apply with the real Seal.
 
 AFTER 279. Christian's idea, its own intent: d's Update Readiness check gates Omarchy updates on
 the 0-core tree, which Omarchy's updater never touches. File it with inta when 279 closes.
+
+## Closing record (2026-10-07)
+
+STATE. Complete. G0-G13 ticked with evidence. Shipped twice, 9ebe0654 and 083ae016; the deployed d
+was verified in a new shell. The START HERE above is superseded by this record.
+
+COMMITS. 79dd01c6 body and gates; f6a4a897 G0 recon; 9d808f0f forecast_lines extracted; d56f7c8c no
+advisory on a clean run (G2); 1cff1fe5 evidence and no implied cause (G3, G4); 039fb13d START HERE;
+25b8dbed not enough history (G5); 118a9d72 the forecast states its basis (G7); 10f0ccf7 the intent
+count asks the loader (G10), F-0014 filed; 1ea076cc only run events, unreadable skipped (G11);
+9ebe0654 zero-gate pre-push runs core tests (G8), F-0015 filed; 083ae016 rustdoc fix found by the ship.
+
+FINDINGS FILED. F-0014: the 24h and 7d labels name time spans the forecast never measures.
+F-0015: forecast.declining reads ~/.cache/zero/forecast.txt, which nothing writes.
+
+AFTER 279. Christian's idea, its own intent: d's Update Readiness check gates Omarchy updates on the
+0-core tree, which Omarchy's updater never touches. File it with inta.
