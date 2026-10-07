@@ -2375,6 +2375,43 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(repo_test(
+        "fpatch_tests_pass",
+        Category::Regression,
+        "needs a real 0-Core: it runs zero/scripts/dev/test_fpatch.py, which only a checkout has",
+        || {
+            // INT-278: fpatch is the edit primitive, and its guards are only as good as the tests
+            // that prove them. Each test works in its own temp directory and touches nothing else.
+            // A missing test file, a missing python3, or a run of zero tests is a failure, not a
+            // skip: reading nothing is not a clean result.
+            let dev = std::path::Path::new(&home()).join("0-core/zero/scripts/dev");
+            if !dev.join("test_fpatch.py").is_file() {
+                return Err(format!(
+                    "{} has no test_fpatch.py -- the fpatch tests are missing",
+                    dev.display()
+                ));
+            }
+            let out = Command::new("python3")
+                .args(["-m", "unittest", "test_fpatch"])
+                .current_dir(&dev)
+                .env("FPATCH_COLOR", "0")
+                .env("PYTHONDONTWRITEBYTECODE", "1")
+                .env_remove("FPATCH_DEBUG")
+                .output()
+                .map_err(|e| format!("cannot run python3: {}", e))?;
+            let err = String::from_utf8_lossy(&out.stderr);
+            if !out.status.success() {
+                return Err(format!("fpatch tests failed:\n{}", err.trim_end()));
+            }
+            if !err
+                .lines()
+                .any(|l| l.starts_with("Ran ") && !l.starts_with("Ran 0 "))
+            {
+                return Err(format!("fpatch tests ran nothing:\n{}", err.trim_end()));
+            }
+            Ok(())
+        },
+    ));
+    results.push(repo_test(
         "the_tree_map_names_every_entry",
         Category::Regression,
         "needs a real 0-Core: it reads docs/TREE.md and the tree, which only a checkout has",
