@@ -159,11 +159,13 @@ em dash; any fpatch anchor near it must be ASCII-only (patch_between).
   matches core intent list; fsearch shows no other "status: in-progress" scan in the
   doctor.
 <!-- evidence: commit 10f0ccf7, 2026-10-07, Seal 3f15d50261f40133 intact (core intent trace). Red at 118a9d72: debug core doctor run printed no In progress line while 279 sat in intents/in-progress/ and core intent list showed it in progress. Green: the same run prints In progress: INT-279. intent::in_progress_ids filters the one loader that core intent list reads; fsearch status: in-progress in doctor finds no results. cargo test -p core: 59 passed. -->
-- [ ] G11: unreadable history is skipped. Red: a fixture event with no readable health
+- [x] G11: unreadable history is skipped. Red: a fixture event with no readable health
   is counted as the current health today. Green: it is left out, the run count drops by
   one, and the skipped count is reported.
-- [ ] G12: the dead reaction rule is filed. core intent find records forecast.declining
+<!-- evidence: commit 1ea076cc, 2026-10-07, Seal e0838080e1ab62e3 intact (core intent trace). Red under plan dde5b95a9d281edd: g11_unreadable_history_is_skipped_and_counted, left ([92, 50, 50, 50, 100], 0) against right ([92, 100], 3). Green: run_healths leaves out and counts a payload with no readable health, the forecast query reads action run only, and skipped_note reports the count (g11_the_skipped_count_is_reported). cargo test -p core: 61 passed. Debug core doctor run reads the last 10 run events. -->
+- [x] G12: the dead reaction rule is filed. core intent find records forecast.declining
   reading a file nothing writes, and the finding id is cited here.
+<!-- evidence: F-0015 filed 2026-10-07 by INT-279: forecast.declining reads ~/.cache/zero/forecast.txt through paths::forecast_cache, which nothing writes. fsearch forecast_cache finds only the definition (zero-core paths.rs:413) and the reader (reaction/mod.rs:318); fsearch forecast.txt finds only paths.rs:414 and this ledger. -->
 - [ ] G13: doors. nsh-test all passing against the deployed binaries, d 0 failed,
   commits carry Intent: INT-279.
 

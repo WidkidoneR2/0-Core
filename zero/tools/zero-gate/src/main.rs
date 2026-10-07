@@ -182,6 +182,47 @@ fn run_repo_script(root: &Path, rel: &str, args: &[String]) -> Verdict {
     }
 }
 
+/// INT-279 G8: core's own unit tests, run on every push beside the shell suite. Until this gate
+/// nothing ran a crate's unit tests on commit or push, so a red doctor test could leave the
+/// machine. Failing tests are named from cargo's own "test ... FAILED" lines.
+fn gate_core_tests(root: &Path) -> Verdict {
+    if !has("cargo") {
+        return Verdict::Unknown("cargo not on PATH -- core tests NOT run".into());
+    }
+    let out = match Command::new("cargo")
+        .args(["test", "-p", "core"])
+        .current_dir(root)
+        .output()
+    {
+        Ok(o) => o,
+        Err(e) => return Verdict::Unknown(format!("could not run cargo test -p core: {e}")),
+    };
+    if out.status.success() {
+        return Verdict::Pass;
+    }
+    let stdout = String::from_utf8_lossy(&out.stdout);
+    let failed: Vec<&str> = stdout
+        .lines()
+        .filter(|l| l.starts_with("test ") && l.ends_with(" ... FAILED"))
+        .map(|l| {
+            l.trim_start_matches("test ")
+                .trim_end_matches(" ... FAILED")
+        })
+        .collect();
+    if failed.is_empty() {
+        Verdict::Fail(format!(
+            "cargo test -p core exited {} and named no failing test (a build error?) -- run it to see",
+            out.status.code().unwrap_or(-1)
+        ))
+    } else {
+        Verdict::Fail(format!(
+            "{} failing: {} -- reproduce: cargo test -p core",
+            failed.len(),
+            failed.join(", ")
+        ))
+    }
+}
+
 /// ripsecrets prints each finding as `file:line:content`. Keep `file:line` and drop the
 /// content: a secrets gate must not print the secret into scrollback. A line whose location
 /// cannot be read is withheld whole, never echoed.
@@ -436,7 +477,7 @@ fn main() -> ExitCode {
         eprintln!("zero-gate -- repository-owned quality gates");
         eprintln!();
         eprintln!("  zero-gate pre-commit    secrets, formatting, retired spawns   (default)");
-        eprintln!("  zero-gate pre-push      the shell test suite");
+        eprintln!("  zero-gate pre-push      the shell test suite, then core unit tests");
         eprintln!("  zero-gate all           everything");
         eprintln!();
         eprintln!("Silent on success. A gate that cannot run reports UNKNOWN and fails the run,");
@@ -474,6 +515,10 @@ fn main() -> ExitCode {
         gates.push(Gate {
             name: "shell tests",
             verdict: run_repo_script(&root, ".githooks/lib/nsh-test-gate.sh", &[]),
+        });
+        gates.push(Gate {
+            name: "core tests",
+            verdict: gate_core_tests(&root),
         });
     }
 
