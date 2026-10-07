@@ -449,30 +449,25 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     {
         let db = &ctx.runtime.db;
         let stmt = db.prepare(
-            "SELECT payload, timestamp FROM events WHERE domain='doctor' ORDER BY id DESC LIMIT 10",
+            "SELECT payload FROM events WHERE domain='doctor' AND action='run' ORDER BY id DESC LIMIT 10",
         );
         if let Ok(mut stmt) = stmt {
-            let points_result = stmt.query_map([], |r| {
-                let payload: Option<String> = r.get(0)?;
-                let ts: i64 = r.get(1)?;
-                let h = payload
-                    .as_deref()
-                    .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
-                    .and_then(|v| v["detail"]["health"].as_i64())
-                    .unwrap_or(health as i64);
-                Ok((h, ts))
-            });
-            let points: Vec<(i64, i64)> = match points_result {
+            let rows = stmt.query_map([], |r| r.get::<_, Option<String>>(0));
+            let payloads: Vec<Option<String>> = match rows {
                 Ok(rows) => rows.filter_map(|r| r.ok()).collect(),
                 Err(_) => vec![],
             };
-            // points already bound above
+            // INT-279 G11: only doctor run events carry a health; anything unreadable is left out
+            // and counted, never replaced with this run's health.
+            let (runs, skipped) = run_healths(&payloads);
+            if let Some(note) = skipped_note(skipped) {
+                println!("{}", note);
+            }
 
             // INT-279 G10: the intents in progress come from the intent domain's own loader, the same
             // one core intent list reads. The folder scan this replaces looked only in intents/future/,
             // and cistart moves an intent to intents/in-progress/, so it always counted none.
             let active_intents: Vec<String> = crate::domains::intent::in_progress_ids(ctx);
-            let runs: Vec<i64> = points.iter().map(|(h, _)| *h).collect();
             // INT-279 G3: the checks not passing in this run, so a warning can name them.
             let problems: Vec<Problem> = checks
                 .iter()
@@ -1124,6 +1119,37 @@ pub(crate) fn forecast_lines(
     out
 }
 
+/// INT-279 G11: the health of each past doctor run, newest first, read from event payloads.
+/// Returns the healths it read and how many payloads it could not read. A payload with no
+/// readable health is left out and counted, never replaced with the current run's health.
+pub(crate) fn run_healths(payloads: &[Option<String>]) -> (Vec<i64>, usize) {
+    let mut runs = Vec::new();
+    let mut skipped = 0;
+    for p in payloads {
+        match p
+            .as_deref()
+            .and_then(|p| serde_json::from_str::<serde_json::Value>(p).ok())
+            .and_then(|v| v["detail"]["health"].as_i64())
+        {
+            Some(h) => runs.push(h),
+            None => skipped += 1,
+        }
+    }
+    (runs, skipped)
+}
+
+/// INT-279 G11: the line d prints when past runs were left out, or nothing when none were.
+pub(crate) fn skipped_note(skipped: usize) -> Option<String> {
+    match skipped {
+        0 => None,
+        1 => Some("   History  1 past run had no readable health and was left out".to_string()),
+        n => Some(format!(
+            "   History  {} past runs had no readable health and were left out",
+            n
+        )),
+    }
+}
+
 /// INT-279 characterisation and gates: what forecast_lines says. G1's red is commit 9d808f0f
 /// (the warning on the 2026-10-06 shape); the old wording these replace is pinned at d56f7c8c.
 #[cfg(test)]
@@ -1281,6 +1307,40 @@ mod forecast_tests {
         assert_eq!(
             forecast_lines(&[90, 90, 90], 90, 0, 0, &[], &[]),
             lines(&["   Forecast  not enough history (3 runs)"])
+        );
+    }
+}
+
+#[cfg(test)]
+mod history_tests {
+    use super::{run_healths, skipped_note};
+
+    // INT-279 G11: a payload with no readable health is left out and counted, never replaced
+    // with the current run's health. Shapes: a run event, a health_check_failed detail, a row
+    // with no payload, and text that is not JSON.
+    #[test]
+    fn g11_unreadable_history_is_skipped_and_counted() {
+        let payloads = vec![
+            Some(r#"{"detail":{"health":92}}"#.to_string()),
+            Some(r#"{"detail":{"check_id":"git"}}"#.to_string()),
+            None,
+            Some("not json".to_string()),
+            Some(r#"{"detail":{"health":100}}"#.to_string()),
+        ];
+        assert_eq!(run_healths(&payloads), (vec![92, 100], 3));
+    }
+
+    // INT-279 G11: the skipped count is reported, and a clean history says nothing.
+    #[test]
+    fn g11_the_skipped_count_is_reported() {
+        assert_eq!(skipped_note(0), None);
+        assert_eq!(
+            skipped_note(1).as_deref(),
+            Some("   History  1 past run had no readable health and was left out")
+        );
+        assert_eq!(
+            skipped_note(3).as_deref(),
+            Some("   History  3 past runs had no readable health and were left out")
         );
     }
 }

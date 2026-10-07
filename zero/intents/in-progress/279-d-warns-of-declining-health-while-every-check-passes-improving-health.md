@@ -154,10 +154,11 @@ em dash; any fpatch anchor near it must be ASCII-only (patch_between).
   prints no decline warning and a forecast line with its basis. Then a deliberate
   warning (an uncommitted file) shows the warning path still works and names the
   Git Repository check. The file is removed afterwards.
-- [ ] G10: the intent count asks the ledger. Red: with an intent in intents/in-progress/
+- [x] G10: the intent count asks the ledger. Red: with an intent in intents/in-progress/
   the doctor counts 0 today. Green: the count comes from the intent domain's loader and
   matches core intent list; fsearch shows no other "status: in-progress" scan in the
   doctor.
+<!-- evidence: commit 10f0ccf7, 2026-10-07, Seal 3f15d50261f40133 intact (core intent trace). Red at 118a9d72: debug core doctor run printed no In progress line while 279 sat in intents/in-progress/ and core intent list showed it in progress. Green: the same run prints In progress: INT-279. intent::in_progress_ids filters the one loader that core intent list reads; fsearch status: in-progress in doctor finds no results. cargo test -p core: 59 passed. -->
 - [ ] G11: unreadable history is skipped. Red: a fixture event with no readable health
   is counted as the current health today. Green: it is left out, the run count drops by
   one, and the skipped count is reported.
