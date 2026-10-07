@@ -468,30 +468,10 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
             };
             // points already bound above
 
-            // INT-279: what this prints is decided by forecast_lines, a pure function with tests
-            // beside it. The in-progress scan stays as it was until G10 replaces it with the intent
-            // domain's own loader.
-            let future_dir = zero_core::paths::intents_dir().join("future");
-            let active_intents: Vec<String> = std::fs::read_dir(&future_dir)
-                .map(|entries| {
-                    entries
-                        .flatten()
-                        .filter_map(|e| {
-                            let p = e.path();
-                            if p.extension().map(|x| x != "md").unwrap_or(true) {
-                                return None;
-                            }
-                            let content = std::fs::read_to_string(&p).ok()?;
-                            if !content.contains("status: in-progress") {
-                                return None;
-                            }
-                            let fname = p.file_stem()?.to_string_lossy().to_string();
-                            let id = fname.split('-').next()?;
-                            Some(format!("INT-{}", id))
-                        })
-                        .collect()
-                })
-                .unwrap_or_default();
+            // INT-279 G10: the intents in progress come from the intent domain's own loader, the same
+            // one core intent list reads. The folder scan this replaces looked only in intents/future/,
+            // and cistart moves an intent to intents/in-progress/, so it always counted none.
+            let active_intents: Vec<String> = crate::domains::intent::in_progress_ids(ctx);
             let runs: Vec<i64> = points.iter().map(|(h, _)| *h).collect();
             // INT-279 G3: the checks not passing in this run, so a warning can name them.
             let problems: Vec<Problem> = checks

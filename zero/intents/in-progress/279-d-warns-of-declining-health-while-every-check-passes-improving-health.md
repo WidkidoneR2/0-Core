@@ -144,8 +144,9 @@ em dash; any fpatch anchor near it must be ASCII-only (patch_between).
   forecast is asserted to the printed precision. Changing the formula without updating
   the test turns it red.
 <!-- evidence: demonstrated 2026-10-07. The arithmetic is pinned to the printed precision by g2 (trend -3.3, 24h 98, 7d 93), g3_a_failing_run (-10.0, 75, 60), g3_no_named_check (-50.0, 25, 0 clamped) and g4_an_intent_in_progress (-4.0, 94, 88), each hand-computed. The 24h multiplier was changed from 0.5 to 0.6 with fpatch: cargo test -p core forecast_tests exited 101, 5 passed, 2 failed, exactly the two predicted by hand (g3_a_failing_run 75 to 74, g3_no_named_check 25 to 20); g2 and g4 stayed green because their 24h rounds the same. Restored with git checkout, status clean, 7 passed. -->
-- [ ] G7: every forecast states its basis. The forecast line shows window and run count
+- [x] G7: every forecast states its basis. The forecast line shows window and run count
   for each number it prints. A test asserts it.
+<!-- evidence: commit 118a9d72, 2026-10-07, Seal 85fd226b0978fc5c intact (core intent trace). The forecast line ends with (last N runs: newest 3 vs the N-3 before), the one comparison 24h, 7d and the trend all come from; five tests assert it for 10, 6 and 4 runs. Red: 25b8dbed pinned the same fixtures without the basis. forecast_tests: 7 passed on HEAD after the rustfmt wrap. The 24h and 7d labels name time spans the code never measured: filed as F-0014, not changed here. -->
 - [ ] G8: wired in, not configured. The new tests run in the owning crate under cargo
   test, and that crate is already covered by the commit gate or nsh-test (whichever G0
   finds owns it). A deliberately broken assertion turns that run red; restored, green.

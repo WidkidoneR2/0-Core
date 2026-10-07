@@ -87,6 +87,17 @@ pub fn dep_state(intents: &[Intent], dep_id: &str) -> DepState {
     }
 }
 
+/// INT-279 G10: the intents in progress, as INT-<id>, asked of the one loader that core intent
+/// list reads. The doctor used to scan intents/future/ for the status line itself, and cistart
+/// moves an intent to intents/in-progress/, so that scan never found one.
+pub(crate) fn in_progress_ids(ctx: &AppContext) -> Vec<String> {
+    load_all(ctx)
+        .into_iter()
+        .filter(|i| i.status == "in-progress")
+        .map(|i| format!("INT-{}", i.id.trim_start_matches("INT-")))
+        .collect()
+}
+
 fn load_all(ctx: &AppContext) -> Vec<Intent> {
     let base = intents_dir(ctx);
     let folders = [
