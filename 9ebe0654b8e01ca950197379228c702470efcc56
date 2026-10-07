@@ -1,0 +1,152 @@
+file /home/christian/0-core/zero/tools/zero-gate/src/main.rs  sha256 c5d617da1461741a -> 0646c5cec8199495
+file /home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md  sha256 f4a49f4c484a3720 -> 5e4dd82fff4b0731
+--- /home/christian/0-core/zero/tools/zero-gate/src/main.rs: replacing lines 155..183 ---
+   153: /// `set -u` -- a declared-but-empty array reads as UNSET and aborts before any logic runs. Running
+   154: /// it any other way would silently change the conditions its author debugged under.
+>> 155: fn run_repo_script(root: &Path, rel: &str, args: &[String]) -> Verdict {
+>> 156:     let script = root.join(rel);
+>> 157:     if !script.exists() {
+>> 158:         return Verdict::Unknown(format!("{rel} not found in this checkout"));
+>> 159:     }
+>> 160:     if !has("bash") {
+>> 161:         return Verdict::Unknown("bash not on PATH".into());
+>> 162:     }
+>> 163:     let mut cmd = Command::new("bash");
+>> 164:     cmd.arg("-euo")
+>> 165:         .arg("pipefail")
+>> 166:         .arg(&script)
+>> 167:         .args(args)
+>> 168:         .current_dir(root);
+>> 169:     match cmd.output() {
+>> 170:         Err(e) => Verdict::Unknown(format!("could not run {rel}: {e}")),
+>> 171:         Ok(o) if o.status.success() => Verdict::Pass,
+>> 172:         Ok(o) => {
+>> 173:             let mut msg = String::from_utf8_lossy(&o.stderr).trim().to_string();
+>> 174:             if msg.is_empty() {
+>> 175:                 msg = String::from_utf8_lossy(&o.stdout).trim().to_string();
+>> 176:             }
+>> 177:             if msg.is_empty() {
+>> 178:                 msg = format!("exited {}", o.status.code().unwrap_or(-1));
+>> 179:             }
+>> 180:             Verdict::Fail(msg)
+>> 181:         }
+>> 182:     }
+>> 183: }
+   184: 
+   185: /// ripsecrets prints each finding as `file:line:content`. Keep `file:line` and drop the
+++ fn run_repo_script(root: &Path, rel: &str, args: &[String]) -> Verdict {
+++     let script = root.join(rel);
+++     if !script.exists() {
+++         return Verdict::Unknown(format!("{rel} not found in this checkout"));
+++     }
+++     if !has("bash") {
+++         return Verdict::Unknown("bash not on PATH".into());
+++     }
+++     let mut cmd = Command::new("bash");
+++     cmd.arg("-euo")
+++         .arg("pipefail")
+++         .arg(&script)
+++         .args(args)
+++         .current_dir(root);
+++     match cmd.output() {
+++         Err(e) => Verdict::Unknown(format!("could not run {rel}: {e}")),
+++         Ok(o) if o.status.success() => Verdict::Pass,
+++         Ok(o) => {
+++             let mut msg = String::from_utf8_lossy(&o.stderr).trim().to_string();
+++             if msg.is_empty() {
+++                 msg = String::from_utf8_lossy(&o.stdout).trim().to_string();
+++             }
+++             if msg.is_empty() {
+++                 msg = format!("exited {}", o.status.code().unwrap_or(-1));
+++             }
+++             Verdict::Fail(msg)
+++         }
+++     }
+++ }
+++ 
+++ /// INT-279 G8: core's own unit tests, run on every push beside the shell suite. Until this gate
+++ /// nothing ran a crate's unit tests on commit or push, so a red doctor test could leave the
+++ /// machine. Failing tests are named from cargo's own "test ... FAILED" lines.
+++ fn gate_core_tests(root: &Path) -> Verdict {
+++     if !has("cargo") {
+++         return Verdict::Unknown("cargo not on PATH -- core tests NOT run".into());
+++     }
+++     let out = match Command::new("cargo")
+++         .args(["test", "-p", "core"])
+++         .current_dir(root)
+++         .output()
+++     {
+++         Ok(o) => o,
+++         Err(e) => return Verdict::Unknown(format!("could not run cargo test -p core: {e}")),
+++     };
+++     if out.status.success() {
+++         return Verdict::Pass;
+++     }
+++     let stdout = String::from_utf8_lossy(&out.stdout);
+++     let failed: Vec<&str> = stdout
+++         .lines()
+++         .filter(|l| l.starts_with("test ") && l.ends_with(" ... FAILED"))
+++         .map(|l| l.trim_start_matches("test ").trim_end_matches(" ... FAILED"))
+++         .collect();
+++     if failed.is_empty() {
+++         Verdict::Fail(format!(
+++             "cargo test -p core exited {} and named no failing test (a build error?) -- run it to see",
+++             out.status.code().unwrap_or(-1)
+++         ))
+++     } else {
+++         Verdict::Fail(format!(
+++             "{} failing: {} -- reproduce: cargo test -p core",
+++             failed.len(),
+++             failed.join(", ")
+++         ))
+++     }
+++ }
+--- /home/christian/0-core/zero/tools/zero-gate/src/main.rs: replacing lines 514..515 ---
+   512:         gates.push(Gate {
+   513:             name: "shell tests",
+>> 514:             verdict: run_repo_script(&root, ".githooks/lib/nsh-test-gate.sh", &[]),
+>> 515:         });
+   516:     }
+   517: 
+++ verdict: run_repo_script(&root, ".githooks/lib/nsh-test-gate.sh", &[]),
+++         });
+++         gates.push(Gate {
+++             name: "core tests",
+++             verdict: gate_core_tests(&root),
+++         });
+--- /home/christian/0-core/zero/tools/zero-gate/src/main.rs: replacing lines 477..477 ---
+   475:         eprintln!();
+   476:         eprintln!("  zero-gate pre-commit    secrets, formatting, retired spawns   (default)");
+>> 477:         eprintln!("  zero-gate pre-push      the shell test suite");
+   478:         eprintln!("  zero-gate all           everything");
+   479:         eprintln!();
+++ the shell test suite, then core unit tests");
+--- /home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md: replacing lines 162..162 ---
+   160:   doctor.
+   161: <!-- evidence: commit 10f0ccf7, 2026-10-07, Seal 3f15d50261f40133 intact (core intent trace). Red at 118a9d72: debug core doctor run printed no In progress line while 279 sat in intents/in-progress/ and core intent list showed it in progress. Green: the same run prints In progress: INT-279. intent::in_progress_ids filters the one loader that core intent list reads; fsearch status: in-progress in doctor finds no results. cargo test -p core: 59 passed. -->
+>> 162: - [ ] G11: unreadable history is skipped. Red: a fixture event with no readable health
+   163:   is counted as the current health today. Green: it is left out, the run count drops by
+   164:   one, and the skipped count is reported.
+++ - [x] G11: unreadable history is skipped.
+--- /home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md: replacing lines 165..165 ---
+   163:   is counted as the current health today. Green: it is left out, the run count drops by
+   164:   one, and the skipped count is reported.
+>> 165: - [ ] G12: the dead reaction rule is filed. core intent find records forecast.declining
+   166:   reading a file nothing writes, and the finding id is cited here.
+   167: - [ ] G13: doors. nsh-test all passing against the deployed binaries, d 0 failed,
+++ <!-- evidence: commit 1ea076cc, 2026-10-07, Seal e0838080e1ab62e3 intact (core intent trace). Red under plan dde5b95a9d281edd: g11_unreadable_history_is_skipped_and_counted, left ([92, 50, 50, 50, 100], 0) against right ([92, 100], 3). Green: run_healths leaves out and counts a payload with no readable health, the forecast query reads action run only, and skipped_note reports the count (g11_the_skipped_count_is_reported). cargo test -p core: 61 passed. Debug core doctor run reads the last 10 run events. -->
+++ - [x] G12: the dead reaction rule is filed.
+--- /home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md: replacing lines 168..168 ---
+   166: - [x] G12: the dead reaction rule is filed. core intent find records forecast.declining
+   167:   reading a file nothing writes, and the finding id is cited here.
+>> 168: - [ ] G13: doors. nsh-test all passing against the deployed binaries, d 0 failed,
+   169:   commits carry Intent: INT-279.
+   170: 
+++ <!-- evidence: F-0015 filed 2026-10-07 by INT-279: forecast.declining reads ~/.cache/zero/forecast.txt through paths::forecast_cache, which nothing writes. fsearch forecast_cache finds only the definition (zero-core paths.rs:413) and the reader (reaction/mod.rs:318); fsearch forecast.txt finds only paths.rs:414 and this ledger. -->
+++ - [ ] G13: doors.
+/home/christian/0-core/zero/tools/zero-gate/src/main.rs: 1 replaced
+/home/christian/0-core/zero/tools/zero-gate/src/main.rs: 1 replaced
+/home/christian/0-core/zero/tools/zero-gate/src/main.rs: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md: 1 replaced
