@@ -169,7 +169,7 @@ Hardcoded readers still to classify, not blindly replace: zero-core/src/paths.rs
 - Repo on disk: /home/christian/0-core
 - Deployed binaries: /home/christian/.local/bin
 - cat is bat. ls is eza — ls -lt fails; eza wants --sort=modified.
-- d is the health check. gc is git commit. gp is git push.
+- d is the health check (core doctor run; bare core doctor prints its usage and exits 2). gc is git commit. gp is git push.
 - Retired: dep, rebuild, rebuild-safe, rebuild-dry, nix develop, generations, rollback-by-generation, sbctl, grub. Installed and present: snapper, limine. Installed is not working.
 
 ## 2. How a change is allowed
@@ -233,6 +233,7 @@ p.run(sys.argv[2:])                        # no args: show + Seal. apply SEAL: w
 Absolute path always. old and new stay Python string literals. The payload is one argv word.
 
 - More than one edit is a Plan. show runs every check and writes nothing. apply SEAL writes every edit or none, and refuses if a target changed since show. The apply line carries the real Seal, sent after the plan has been read.
+- A change applied as two plans (the red, then the fix) commits once, with the fix plan's Seal: and note; the red plan's seal is cited in the body. refs/notes/seals holds one note per commit. Save p.text() before apply: afterwards the plan no longer matches the files and cannot be rebuilt.
 - Writes are atomic and verified: staged beside the target, mode bits kept, symlinks followed, read back and compared byte for byte.
 - refuse exits 1 and promises nothing was written. Exit 2 is an fpatch defect or a write that did not verify: check the file before anything else.
 - Anchors match the file byte for byte. An anchor that matches three times is refused; widen it. count=N shows every site.
@@ -287,6 +288,7 @@ env NSH_BIN=/home/christian/0-core/target/debug/nsh nsh-test > /tmp/suite.txt 2>
 - Deployed binary can trail HEAD by many commits with no warning. Version string does not change per commit. Compare mtime (/usr/bin/ls -la --time-style=full-iso ~/.local/bin/nsh) to git log --format="%h %ci %s" before treating a red as a source bug.
 - After any rename: cargo check --workspace.
 - ship has no health gate and no rollback.
+- Every push runs zero-gate pre-push: nsh-test against a fresh debug build (.githooks/lib/nsh-test-gate.sh), then cargo test -p core (INT-279). Either red refuses the push. No other crate's unit tests run in any gate. Hooks are tracked in .githooks (core.hooksPath); .git/hooks is not used.
 
 Recon uses fsearch, not grep or awk:
 
@@ -294,7 +296,7 @@ Recon uses fsearch, not grep or awk:
 fsearch <pattern> [--type ext] [--file name] [--live] [--intent] [--all|--scripts]
 ```
 
-Its table truncates. When the exact text matters, read numbered lines. Disk state is read the same way before anything touches it.
+Its table truncates. When the exact text matters, read numbered lines. Disk state is read the same way before anything touches it. --file matches a file's name, not its directory: --file zero-gate finds nothing in zero-gate/src/main.rs. A miss under --file proves nothing; read the directory's files instead.
 
 ### Version control
 
@@ -361,6 +363,7 @@ A green build is not the claim. The claim is the thing running.
 - Test the class, not the example. Quoting, $, &&, Unicode, multiline, pipes, redirection, substitution — cover the family.
 - Red first. A test that has only ever passed has not been shown to test anything.
 - Test an owner against the real tree, not only a stand-in. Beside the fixture tests, one test asks the owner and checks the disk itself -- the crate it names exists, the directories it scans hold what it returns -- so the owner and the tree cannot disagree without a red test.
+- A doc comment never puts a placeholder in angle brackets: rustdoc reads INT-<id> as an unclosed HTML tag and d's Rust Docs check warns (10f0ccf7, fixed in 083ae016). Run cargo doc -p <crate> --no-deps before committing new doc comments.
 - After a visual change, take a screenshot. Do not call a visual change done from the config diff.
 - Check ps before any broad process kill. Never pkill -f on a loose pattern.
 
