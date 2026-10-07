@@ -1,0 +1,64 @@
+file /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs  sha256 be3f82d4edfe1be9 -> 7a22edc535088bea
+--- /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: replacing lines 1272..1289 ---
+   1270:     }
+   1271: 
+>> 1272:     // G5's red case, still today's behaviour: with exactly 3 runs the older set is empty,
+>> 1273:     // older_avg is 0, and the trend equals the recent average.
+>> 1274:     #[test]
+>> 1275:     fn three_runs_trend_is_the_recent_average_today() {
+>> 1276:         let runs = [90, 90, 90];
+>> 1277:         assert_eq!(
+>> 1278:             forecast_lines(&runs, 90, 0, 0, &[], &[]),
+>> 1279:             lines(&["📈  Forecast  24h: 100%  7d: 100%  trend: +90.0"])
+>> 1280:         );
+>> 1281:     }
+>> 1282: 
+>> 1283:     #[test]
+>> 1284:     fn under_three_runs_prints_nothing_today() {
+>> 1285:         assert!(forecast_lines(&[100, 100], 100, 0, 0, &[], &[]).is_empty());
+>> 1286:         assert!(forecast_lines(&[], 100, 0, 0, &[], &[]).is_empty());
+>> 1287:     }
+>> 1288: }
+>> 1289: 
+   1290: pub fn forecast(ctx: &AppContext) -> CoreResult<()> {
+   1291:     let conn = &ctx.runtime.db;
+++     // G5: the trend compares the newest 3 runs with the older ones, so it needs one run on
+++     // each side. With 0 to 3 runs the forecast says so, with the count, and prints no number.
+++     #[test]
+++     fn g5_under_four_runs_says_not_enough_history() {
+++         assert_eq!(
+++             forecast_lines(&[], 100, 0, 0, &[], &[]),
+++             lines(&["   Forecast  not enough history (0 runs)"])
+++         );
+++         assert_eq!(
+++             forecast_lines(&[100], 100, 0, 0, &[], &[]),
+++             lines(&["   Forecast  not enough history (1 run)"])
+++         );
+++         assert_eq!(
+++             forecast_lines(&[100, 100], 100, 0, 0, &[], &[]),
+++             lines(&["   Forecast  not enough history (2 runs)"])
+++         );
+++         assert_eq!(
+++             forecast_lines(&[90, 90, 90], 90, 0, 0, &[], &[]),
+++             lines(&["   Forecast  not enough history (3 runs)"])
+++         );
+++     }
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: replacing lines 1058..1060 ---
+   1056: ) -> Vec<String> {
+   1057:     let mut out = Vec::new();
+>> 1058:     if runs.len() < 3 {
+>> 1059:         return out;
+>> 1060:     }
+   1061:     // Compute trend slope
+   1062:     let n = runs.len() as f64;
+++     // INT-279 G5: the trend compares the newest 3 runs with the older ones, so it needs one
+++     // run on each side: at least 4. With fewer it says so, with the count, and no number.
+++     if runs.len() < 4 {
+++         let unit = if runs.len() == 1 { "run" } else { "runs" };
+++         out.push(format!("   Forecast  not enough history ({} {})", runs.len(), unit));
+++         return out;
+++     }
+/home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: 18 line(s) replaced by 23
+/home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: 1 replaced
