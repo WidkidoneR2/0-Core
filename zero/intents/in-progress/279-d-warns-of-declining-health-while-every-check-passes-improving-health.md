@@ -117,11 +117,17 @@ em dash; any fpatch anchor near it must be ASCII-only (patch_between).
   no intents counted) and shows the decline warning is produced. Output saved as evidence
   before any behaviour changes.
 <!-- evidence: commit 9d808f0f, 2026-10-07. forecast_lines(runs, health, intents) is a pure function; the inline block calls it. No behaviour change, shown two ways: the payload checked before writing that every literal (emoji, messages, format strings) already existed verbatim in mod.rs, and five characterisation tests hand-computed from the old inline code pass (cargo test forecast_tests: 5 passed, 0 failed). The red: g1_clean_run_after_a_dip_warns_today drives the 2026-10-06 shape (100, 92, 92 newest, 98s older, no intents) and the decline warning is produced. Method changed from the gate as first written: comparing d before and after was dropped, because every d run adds a reading, so two runs never read the same history. -->
-- [ ] G2: no warning on a clean run. Same fixture: no decline warning. A second fixture
+- [x] G2: no warning on a clean run. Same fixture: no decline warning. A second fixture
   whose current run has a failure that earlier runs did not still warns.
-- [ ] G3: the warning names its evidence. When it fires, the message carries the window,
-  the run count, the score from and to, and each check that moved from pass to warn or
-  fail, plus one runnable next move. A test asserts each part is present.
+<!-- evidence: commit d56f7c8c, 2026-10-07. clean = 0 warnings, 0 failures and health 100 (health is in the rule because a critical check that could not run caps it at 50 with nothing warning or failing). The trend advisories skip a clean run. g2_clean_run_after_a_dip_does_not_warn drives the 2026-10-06 history and gets the forecast line only; g2_a_failing_run_after_a_dip_still_warns (80%, one failure) still warns. Red: G1's test at 9d808f0f produced the warning on the same history. cargo test -p core forecast_tests: 6 passed, 0 failed. -->
+- [ ] G3: the warning names its evidence. When it fires, the message carries the window (the
+  run count), the averages it compared (the newest 3 runs against the older ones), the checks
+  warning or failing in this run, and one next move: the first named check's recorded
+  recovery, or a plain statement that none is recorded. A test asserts each part.
+  NARROWED 2026-10-07 (ruled by Christian) from "each check that moved from pass to warn or
+  fail": (1) the run history holds no per-check record -- doctor events carry a health number
+  and unlinked health_check_failed events, and health_patterns holds counts only; (2) a per-run
+  check snapshot would be new persistence, outside this intent.
 - [ ] G4: no implied cause, across the whole advisory chain. "with no active work",
   "expected pattern" and "recovery expected on completion" are gone; fsearch for each
   returns no live source line. A test runs every advisory branch and asserts none of

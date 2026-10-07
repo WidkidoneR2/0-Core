@@ -493,7 +493,24 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 })
                 .unwrap_or_default();
             let runs: Vec<i64> = points.iter().map(|(h, _)| *h).collect();
-            for line in forecast_lines(&runs, health, warnings, failed, &active_intents) {
+            // INT-279 G3: the checks not passing in this run, so a warning can name them.
+            let problems: Vec<Problem> = checks
+                .iter()
+                .filter_map(|c| {
+                    let status = match c.status {
+                        Status::Warn => "warn",
+                        Status::Fail => "fail",
+                        _ => return None,
+                    };
+                    Some(Problem {
+                        name: c.name.clone(),
+                        status,
+                        fix: c.fix.clone(),
+                    })
+                })
+                .collect();
+            for line in forecast_lines(&runs, health, warnings, failed, &problems, &active_intents)
+            {
                 println!("{}", line);
             }
         }
@@ -1018,6 +1035,13 @@ pub fn trend(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
+/// INT-279 G3: a check that is warning or failing in this run, as forecast_lines names it.
+pub(crate) struct Problem {
+    pub name: String,
+    pub status: &'static str,
+    pub fix: Option<String>,
+}
+
 /// INT-279: the forecast line and the advisory printed after a doctor run, as a pure function a
 /// fixture can drive. runs holds health readings newest first, exactly as the inline block reads
 /// them from the events table. Moved out of the print path with no behaviour change (G1); the
@@ -1027,6 +1051,7 @@ pub(crate) fn forecast_lines(
     health: u32,
     warnings: u32,
     failed: u32,
+    problems: &[Problem],
     active_intents: &[String],
 ) -> Vec<String> {
     let mut out = Vec::new();
@@ -1058,106 +1083,185 @@ pub(crate) fn forecast_lines(
     } else {
         "stable".to_string()
     };
-    let context_str = if !active_intents.is_empty() {
-        format!(" ({} in progress)", active_intents.join(", "))
-    } else {
-        String::new()
-    };
     out.push(format!(
-        "{}  Forecast  24h: {}%  7d: {}%  trend: {}{}",
-        trend_icon, forecast_24h, forecast_7d, trend_str, context_str,
+        "{}  Forecast  24h: {}%  7d: {}%  trend: {}",
+        trend_icon, forecast_24h, forecast_7d, trend_str,
     ));
-    // Predictive health advisory
-    let intent_count = active_intents.len();
     // INT-279 G2: a run with no warnings, no failures and full health is not declining,
     // whatever older runs said. A recovered dip is not a decline, so no trend advisory fires.
     let clean = warnings == 0 && failed == 0 && health == 100;
-    let advisory: Option<(&str, String)> = if health == 100
-        && trend.abs() <= 0.5
-        && intent_count == 0
-    {
-        Some(("💚", "Stable — no concerns".to_string()))
-    } else if !clean && trend < -1.0 && intent_count > 0 {
-        Some((
-            "💡",
-            format!(
-                "Health dip during active development — expected pattern ({} intent{} in progress)",
-                intent_count,
-                if intent_count == 1 { "" } else { "s" }
-            ),
-        ))
-    } else if !clean && trend < -1.0 && intent_count == 0 {
-        Some((
-            "⚠️ ",
-            "Declining health with no active work — investigate".to_string(),
-        ))
-    } else if !clean && forecast_7d < 90 {
-        Some((
-            "⚠️ ",
-            format!("7-day forecast shows potential concern ({forecast_7d}%) — review active work"),
-        ))
+    // INT-279 G3 and G4: every advisory states facts it can show. None names a cause the code
+    // never established, and a warning carries its evidence and one next move.
+    let intent_count = active_intents.len();
+    if clean && trend.abs() <= 0.5 {
+        out.push("  💚  Stable — no concerns".to_string());
+    } else if !clean && trend < -1.0 {
+        out.push(format!(
+            "  ⚠️   Health is falling: the newest 3 of the last {} runs average {:.0}%, the {} before them {:.0}%",
+            runs.len(),
+            recent_avg,
+            runs.len() - 3,
+            older_avg
+        ));
+        let named: Vec<String> = problems
+            .iter()
+            .map(|p| format!("{} ({})", p.name, p.status))
+            .collect();
+        if named.is_empty() {
+            out.push(
+                "       No check is warning or failing; health is below 100% this run".to_string(),
+            );
+        } else {
+            out.push(format!("       Not passing now: {}", named.join(", ")));
+        }
+        match problems.iter().find_map(|p| p.fix.as_deref()) {
+            Some(fix) => out.push(format!("       Next: {}", fix)),
+            None => {
+                out.push("       Next: no recovery step is recorded for these checks".to_string())
+            }
+        }
     } else if intent_count > 4 {
-        Some(("💡", format!(
-            "High intent load ({intent_count} active) — consider completing before opening a new intent"
-        )))
-    } else if health < 100 && intent_count > 0 {
-        Some((
-            "💡",
-            format!(
-                "Below peak health — {} intent{} in progress, recovery expected on completion",
-                intent_count,
-                if intent_count == 1 { "" } else { "s" }
-            ),
-        ))
-    } else {
-        None
-    };
-    if let Some((icon, msg)) = advisory {
-        out.push(format!("  {}  {}", icon, msg));
+        out.push(format!(
+            "  💡  High intent load ({intent_count} active) — consider completing before opening a new intent"
+        ));
+    }
+    if !active_intents.is_empty() {
+        out.push(format!("  📋  In progress: {}", active_intents.join(", ")));
     }
     out
 }
 
-/// INT-279 characterisation: what forecast_lines says TODAY, hand-computed from the inline code
-/// it replaced (doctor/mod.rs 471-569 before the move). These pin the move as behaviour-neutral;
-/// the INT-279 gates then change them one by one, red first.
+/// INT-279 characterisation and gates: what forecast_lines says. G1's red is commit 9d808f0f
+/// (the warning on the 2026-10-06 shape); the old wording these replace is pinned at d56f7c8c.
 #[cfg(test)]
 mod forecast_tests {
-    use super::forecast_lines;
+    use super::{forecast_lines, Problem};
 
     fn lines(v: &[&str]) -> Vec<String> {
         v.iter().map(|s| s.to_string()).collect()
     }
 
-    // G1 recorded the 2026-10-06 shape warning (commit 9d808f0f). G2: the same history with a
-    // clean current run -- every check passed -- prints the forecast and no advisory.
+    fn problem(name: &str, status: &'static str, fix: Option<&str>) -> Problem {
+        Problem {
+            name: name.to_string(),
+            status,
+            fix: fix.map(|f| f.to_string()),
+        }
+    }
+
+    // G2: the 2026-10-06 history with a clean current run prints the forecast and no advisory.
     #[test]
     fn g2_clean_run_after_a_dip_does_not_warn() {
         let runs = [100, 92, 92, 98, 98, 98, 98, 98, 98, 98];
         assert_eq!(
-            forecast_lines(&runs, 100, 0, 0, &[]),
+            forecast_lines(&runs, 100, 0, 0, &[], &[]),
             lines(&["📉  Forecast  24h: 98%  7d: 93%  trend: -3.3"])
         );
     }
 
-    // G2: a real decline still warns -- a failing check now, and health below the older runs.
+    // G2 and G3: a real decline warns, and names its window, the averages it compared, the
+    // check not passing now, and that check's recorded recovery as the next move.
     #[test]
-    fn g2_a_failing_run_after_a_dip_still_warns() {
+    fn g3_a_failing_run_warns_with_its_evidence() {
         let runs = [80, 92, 92, 98, 98, 98, 98, 98, 98, 98];
+        let problems = [problem(
+            "Git Repository",
+            "fail",
+            Some("commit or stash tracked changes"),
+        )];
         assert_eq!(
-            forecast_lines(&runs, 80, 0, 1, &[]),
+            forecast_lines(&runs, 80, 0, 1, &problems, &[]),
             lines(&[
                 "📉  Forecast  24h: 75%  7d: 60%  trend: -10.0",
-                "  ⚠️   Declining health with no active work — investigate",
+                "  ⚠️   Health is falling: the newest 3 of the last 10 runs average 88%, the 7 before them 98%",
+                "       Not passing now: Git Repository (fail)",
+                "       Next: commit or stash tracked changes",
             ])
         );
+    }
+
+    // G3: health capped with nothing warning or failing (a critical check that could not run)
+    // says so, and says no recovery is recorded, rather than inventing one.
+    #[test]
+    fn g3_no_named_check_and_no_recovery_say_so() {
+        let runs = [50, 50, 50, 100, 100, 100];
+        assert_eq!(
+            forecast_lines(&runs, 50, 0, 0, &[], &[]),
+            lines(&[
+                "📉  Forecast  24h: 25%  7d: 0%  trend: -50.0",
+                "  ⚠️   Health is falling: the newest 3 of the last 6 runs average 50%, the 3 before them 100%",
+                "       No check is warning or failing; health is below 100% this run",
+                "       Next: no recovery step is recorded for these checks",
+            ])
+        );
+    }
+
+    // G4: an intent in progress is a fact on its own line, never the reason for a dip.
+    #[test]
+    fn g4_an_intent_in_progress_is_a_fact_not_a_reason() {
+        let runs = [96, 96, 96, 100, 100, 100];
+        let problems = [problem("Git Repository", "warn", None)];
+        let intents = vec!["INT-279".to_string()];
+        assert_eq!(
+            forecast_lines(&runs, 96, 1, 0, &problems, &intents),
+            lines(&[
+                "📉  Forecast  24h: 94%  7d: 88%  trend: -4.0",
+                "  ⚠️   Health is falling: the newest 3 of the last 6 runs average 96%, the 3 before them 100%",
+                "       Not passing now: Git Repository (warn)",
+                "       Next: no recovery step is recorded for these checks",
+                "  📋  In progress: INT-279",
+            ])
+        );
+    }
+
+    // G4: no branch of the advisory chain asserts a cause it never established.
+    #[test]
+    fn g4_no_advisory_names_a_cause() {
+        let warn = [problem("Git Repository", "warn", None)];
+        let five: Vec<String> = (275..280).map(|i| format!("INT-{}", i)).collect();
+        let one = vec!["INT-279".to_string()];
+        let mut all: Vec<String> = Vec::new();
+        all.extend(forecast_lines(&[100, 100, 100, 100], 100, 0, 0, &[], &[]));
+        all.extend(forecast_lines(&[100, 100, 100, 100], 100, 0, 0, &[], &one));
+        all.extend(forecast_lines(
+            &[96, 96, 96, 100, 100, 100],
+            96,
+            1,
+            0,
+            &warn,
+            &[],
+        ));
+        all.extend(forecast_lines(
+            &[96, 96, 96, 100, 100, 100],
+            96,
+            1,
+            0,
+            &warn,
+            &one,
+        ));
+        all.extend(forecast_lines(&[96, 96, 96, 96], 96, 1, 0, &warn, &five));
+        all.extend(forecast_lines(&[90, 90, 90], 90, 1, 0, &warn, &one));
+        let causal = [
+            "no active work",
+            "expected pattern",
+            "recovery expected",
+            "investigate",
+        ];
+        for line in &all {
+            for phrase in causal {
+                assert!(!line.contains(phrase), "advisory asserts a cause: {}", line);
+            }
+        }
+        assert!(all
+            .iter()
+            .any(|l| l.contains("High intent load (5 active)")));
     }
 
     #[test]
     fn steady_history_is_stable() {
         let runs = [100, 100, 100, 100];
         assert_eq!(
-            forecast_lines(&runs, 100, 0, 0, &[]),
+            forecast_lines(&runs, 100, 0, 0, &[], &[]),
             lines(&[
                 "➡️   Forecast  24h: 100%  7d: 100%  trend: stable",
                 "  💚  Stable — no concerns"
@@ -1165,34 +1269,21 @@ mod forecast_tests {
         );
     }
 
-    // G5's red case: with exactly 3 runs the older set is empty, older_avg is 0, and the trend
-    // equals the recent average.
+    // G5's red case, still today's behaviour: with exactly 3 runs the older set is empty,
+    // older_avg is 0, and the trend equals the recent average.
     #[test]
     fn three_runs_trend_is_the_recent_average_today() {
         let runs = [90, 90, 90];
         assert_eq!(
-            forecast_lines(&runs, 90, 0, 0, &[]),
+            forecast_lines(&runs, 90, 0, 0, &[], &[]),
             lines(&["📈  Forecast  24h: 100%  7d: 100%  trend: +90.0"])
         );
     }
 
     #[test]
     fn under_three_runs_prints_nothing_today() {
-        assert!(forecast_lines(&[100, 100], 100, 0, 0, &[]).is_empty());
-        assert!(forecast_lines(&[], 100, 0, 0, &[]).is_empty());
-    }
-
-    #[test]
-    fn an_intent_in_progress_changes_the_advisory_today() {
-        let runs = [96, 96, 96, 100, 100, 100];
-        let intents = vec!["INT-279".to_string()];
-        assert_eq!(
-            forecast_lines(&runs, 96, 0, 0, &intents),
-            lines(&[
-                "📉  Forecast  24h: 94%  7d: 88%  trend: -4.0 (INT-279 in progress)",
-                "  💡  Health dip during active development — expected pattern (1 intent in progress)",
-            ])
-        );
+        assert!(forecast_lines(&[100, 100], 100, 0, 0, &[], &[]).is_empty());
+        assert!(forecast_lines(&[], 100, 0, 0, &[], &[]).is_empty());
     }
 }
 
