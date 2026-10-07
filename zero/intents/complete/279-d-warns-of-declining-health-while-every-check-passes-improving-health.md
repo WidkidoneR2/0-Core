@@ -3,7 +3,7 @@ id: 279
 date: 2026-10-06
 type: future
 title: "d warns of declining health while every check passes (improving health)"
-status: in-progress
+status: complete
 tags: [health, checks, doctor, forecast, messaging]
 depends_on: []
 ---
@@ -58,7 +58,7 @@ it reads (G0). Then hold the output to this contract, decided now:
   cause the code never established. Every advisory states facts only. The intents in
   progress may be printed as a plain fact, on its own line, never as a reason.
 - THE INTENT COUNT ASKS THE LEDGER. Today the doctor scans intents/future/ for
-  "status: in-progress" itself; cistart moves intents to intents/in-progress/, so the
+  "status: complete" itself; cistart moves intents to intents/in-progress/, so the
   count is always 0. The count comes from the intent domain's own loader -- one owner
   of what is in progress -- and no second scan of the ledger directories is added.
 - UNREADABLE HISTORY IS SKIPPED, NOT INVENTED. A doctor event whose health cannot be
@@ -108,7 +108,7 @@ em dash; any fpatch anchor near it must be ASCII-only (patch_between).
   owning file and function for each of: the forecast numbers, the trend, the decline
   warning, and the "no active work" test. Also recorded: where past runs are stored,
   how many are read, over what window, and the trend formula -- each with file:line.
-<!-- evidence: demonstrated 2026-10-07. Owner: zero/engine/src/domains/doctor/mod.rs, the inline forecast block 448-570. It reads the last 10 doctor events (452). trend = mean of the newest 3 minus mean of the rest (476-480); 24h = health + 0.5 x trend, 7d = health + 2 x trend (482-485). Fewer than 3 events prints nothing (471). With exactly 3, the older set is empty, older_avg is 0, and the trend equals the recent average. An event with no readable health counts as the current health (462). The intent count (504-524) scans intents/future/ for status: in-progress, but cistart moves intents to intents/in-progress/ (279 is there), so the count is always 0: the warning (546-549) fires on any trend below -1.0, and the advisories at 541 and 559 can never print. 2026-10-06 checks out: trend -4.0 gives 98 and 92. core forecast (1093) is a separate computation with its own query. forecast_cache (paths.rs:413) has one reader, reaction/mod.rs:316-343, and no writer; forecast.txt does not exist. -->
+<!-- evidence: demonstrated 2026-10-07. Owner: zero/engine/src/domains/doctor/mod.rs, the inline forecast block 448-570. It reads the last 10 doctor events (452). trend = mean of the newest 3 minus mean of the rest (476-480); 24h = health + 0.5 x trend, 7d = health + 2 x trend (482-485). Fewer than 3 events prints nothing (471). With exactly 3, the older set is empty, older_avg is 0, and the trend equals the recent average. An event with no readable health counts as the current health (462). The intent count (504-524) scans intents/future/ for status: complete, but cistart moves intents to intents/in-progress/ (279 is there), so the count is always 0: the warning (546-549) fires on any trend below -1.0, and the advisories at 541 and 559 can never print. 2026-10-06 checks out: trend -4.0 gives 98 and 92. core forecast (1093) is a separate computation with its own query. forecast_cache (paths.rs:413) has one reader, reaction/mod.rs:316-343, and no writer; forecast.txt does not exist. -->
 - [x] G1: RED FIRST, AFTER A PURE EXTRACTION. The forecast and advisory logic moves out
   of the print path into a pure function (runs, current health, warnings, failures,
   intents in progress in; lines out) with NO behaviour change, in its own commit, proven
@@ -158,9 +158,9 @@ em dash; any fpatch anchor near it must be ASCII-only (patch_between).
 <!-- evidence: ships 2026-10-07 at 9ebe0654 and 083ae016. In a new shell on the deployed nsh, the deployed d on a clean pushed tree printed HEALTHY 100%, 28/28, a forecast line with its basis (trend -2.7, last 10 runs: newest 3 vs the 7 before), In progress: INT-279, and no decline advisory. With an untracked probe file the advisory named Git Repository (warn) with its window and averages and Next: Commit and push, or stash; the probe was removed and status came back clean. The first ship exposed a rustdoc warning from 10f0ccf7 (INT-<id> in a doc comment), fixed in 083ae016. -->
 - [x] G10: the intent count asks the ledger. Red: with an intent in intents/in-progress/
   the doctor counts 0 today. Green: the count comes from the intent domain's loader and
-  matches core intent list; fsearch shows no other "status: in-progress" scan in the
+  matches core intent list; fsearch shows no other "status: complete" scan in the
   doctor.
-<!-- evidence: commit 10f0ccf7, 2026-10-07, Seal 3f15d50261f40133 intact (core intent trace). Red at 118a9d72: debug core doctor run printed no In progress line while 279 sat in intents/in-progress/ and core intent list showed it in progress. Green: the same run prints In progress: INT-279. intent::in_progress_ids filters the one loader that core intent list reads; fsearch status: in-progress in doctor finds no results. cargo test -p core: 59 passed. -->
+<!-- evidence: commit 10f0ccf7, 2026-10-07, Seal 3f15d50261f40133 intact (core intent trace). Red at 118a9d72: debug core doctor run printed no In progress line while 279 sat in intents/in-progress/ and core intent list showed it in progress. Green: the same run prints In progress: INT-279. intent::in_progress_ids filters the one loader that core intent list reads; fsearch status: complete in doctor finds no results. cargo test -p core: 59 passed. -->
 - [x] G11: unreadable history is skipped. Red: a fixture event with no readable health
   is counted as the current health today. Green: it is left out, the run count drops by
   one, and the skipped count is reported.
@@ -231,3 +231,6 @@ F-0015: forecast.declining reads ~/.cache/zero/forecast.txt, which nothing write
 
 AFTER 279. Christian's idea, its own intent: d's Update Readiness check gates Omarchy updates on the
 0-core tree, which Omarchy's updater never touches. File it with inta.
+
+## Versions
+- engine 4.3.1 -> 4.3.2 (patch)
