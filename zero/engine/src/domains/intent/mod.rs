@@ -87,7 +87,7 @@ pub fn dep_state(intents: &[Intent], dep_id: &str) -> DepState {
     }
 }
 
-/// INT-279 G10: the intents in progress, as INT-<id>, asked of the one loader that core intent
+/// INT-279 G10: the intents in progress, as INT-NNN, asked of the one loader that core intent
 /// list reads. The doctor used to scan intents/future/ for the status line itself, and cistart
 /// moves an intent to intents/in-progress/, so that scan never found one.
 pub(crate) fn in_progress_ids(ctx: &AppContext) -> Vec<String> {
