@@ -1,0 +1,73 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 796ef36ac3ba2dfe -> f329f79a38205bff
+file /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs  sha256 2557ff7c54a8ae82 -> 33fb949917e9a1e1
+file /home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md  sha256 394983c671178353 -> 5f0ef2f64724cc78
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 90..90 ---
+   88: }
+   89: 
+>> 90: fn load_all(ctx: &AppContext) -> Vec<Intent> {
+   91:     let base = intents_dir(ctx);
+   92:     let folders = [
+++ /// INT-279 G10: the intents in progress, as INT-<id>, asked of the one loader that core intent
+++ /// list reads. The doctor used to scan intents/future/ for the status line itself, and cistart
+++ /// moves an intent to intents/in-progress/, so that scan never found one.
+++ pub(crate) fn in_progress_ids(ctx: &AppContext) -> Vec<String> {
+++     load_all(ctx)
+++         .into_iter()
+++         .filter(|i| i.status == "in-progress")
+++         .map(|i| format!("INT-{}", i.id.trim_start_matches("INT-")))
+++         .collect()
+++ }
+++ 
+++ fn load_all(ctx: &AppContext) -> Vec<Intent> {
+--- /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: replacing lines 471..494 ---
+   469:             // points already bound above
+   470: 
+>> 471:             // INT-279: what this prints is decided by forecast_lines, a pure function with tests
+>> 472:             // beside it. The in-progress scan stays as it was until G10 replaces it with the intent
+>> 473:             // domain's own loader.
+>> 474:             let future_dir = zero_core::paths::intents_dir().join("future");
+>> 475:             let active_intents: Vec<String> = std::fs::read_dir(&future_dir)
+>> 476:                 .map(|entries| {
+>> 477:                     entries
+>> 478:                         .flatten()
+>> 479:                         .filter_map(|e| {
+>> 480:                             let p = e.path();
+>> 481:                             if p.extension().map(|x| x != "md").unwrap_or(true) {
+>> 482:                                 return None;
+>> 483:                             }
+>> 484:                             let content = std::fs::read_to_string(&p).ok()?;
+>> 485:                             if !content.contains("status: in-progress") {
+>> 486:                                 return None;
+>> 487:                             }
+>> 488:                             let fname = p.file_stem()?.to_string_lossy().to_string();
+>> 489:                             let id = fname.split('-').next()?;
+>> 490:                             Some(format!("INT-{}", id))
+>> 491:                         })
+>> 492:                         .collect()
+>> 493:                 })
+>> 494:                 .unwrap_or_default();
+   495:             let runs: Vec<i64> = points.iter().map(|(h, _)| *h).collect();
+   496:             // INT-279 G3: the checks not passing in this run, so a warning can name them.
+++             // INT-279 G10: the intents in progress come from the intent domain's own loader, the same
+++             // one core intent list reads. The folder scan this replaces looked only in intents/future/,
+++             // and cistart moves an intent to intents/in-progress/, so it always counted none.
+++             let active_intents: Vec<String> = crate::domains::intent::in_progress_ids(ctx);
+--- /home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md: replacing lines 147..147 ---
+   145:   the test turns it red.
+   146: <!-- evidence: demonstrated 2026-10-07. The arithmetic is pinned to the printed precision by g2 (trend -3.3, 24h 98, 7d 93), g3_a_failing_run (-10.0, 75, 60), g3_no_named_check (-50.0, 25, 0 clamped) and g4_an_intent_in_progress (-4.0, 94, 88), each hand-computed. The 24h multiplier was changed from 0.5 to 0.6 with fpatch: cargo test -p core forecast_tests exited 101, 5 passed, 2 failed, exactly the two predicted by hand (g3_a_failing_run 75 to 74, g3_no_named_check 25 to 20); g2 and g4 stayed green because their 24h rounds the same. Restored with git checkout, status clean, 7 passed. -->
+>> 147: - [ ] G7: every forecast states its basis. The forecast line shows window and run count
+   148:   for each number it prints. A test asserts it.
+   149: - [ ] G8: wired in, not configured. The new tests run in the owning crate under cargo
+++ - [x] G7: every forecast states its basis.
+--- /home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md: replacing lines 149..149 ---
+   147: - [x] G7: every forecast states its basis. The forecast line shows window and run count
+   148:   for each number it prints. A test asserts it.
+>> 149: - [ ] G8: wired in, not configured. The new tests run in the owning crate under cargo
+   150:   test, and that crate is already covered by the commit gate or nsh-test (whichever G0
+   151:   finds owns it). A deliberately broken assertion turns that run red; restored, green.
+++ <!-- evidence: commit 118a9d72, 2026-10-07, Seal 85fd226b0978fc5c intact (core intent trace). The forecast line ends with (last N runs: newest 3 vs the N-3 before), the one comparison 24h, 7d and the trend all come from; five tests assert it for 10, 6 and 4 runs. Red: 25b8dbed pinned the same fixtures without the basis. forecast_tests: 7 passed on HEAD after the rustfmt wrap. The 24h and 7d labels name time spans the code never measured: filed as F-0014, not changed here. -->
+++ - [ ] G8: wired in, not configured.
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/279-d-warns-of-declining-health-while-every-check-passes-improving-health.md: 1 replaced
