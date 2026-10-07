@@ -223,20 +223,25 @@ Edits go through fpatch (zero/scripts/dev/fpatch.py). INT-258: this rule existed
 ```text
 import sys
 sys.path.insert(0, "/home/christian/0-core/zero/scripts/dev")
-from fpatch import patch, patch_between
-patch("path/to.rs", old, new)
+from fpatch import patch, patch_between, Plan
+patch("path/to.rs", old, new)              # one edit, written now
+patch("path/to.rs", old, new, dry=True)    # shown, nothing written
+p = Plan().patch(a, old, new).between(b, start, None, lines)
+p.run(sys.argv[2:])                        # no args: show + Seal. apply SEAL: write
 ```
 
 Absolute path always. old and new stay Python string literals. The payload is one argv word.
 
-- refuse exits 1 and promises nothing was written. internal exits 2 and promises nothing.
-- Anchors match the file byte for byte. An anchor that matches three times is refused; widen it.
+- More than one edit is a Plan. show runs every check and writes nothing. apply SEAL writes every edit or none, and refuses if a target changed since show. The apply line carries the real Seal, sent after the plan has been read.
+- Writes are atomic and verified: staged beside the target, mode bits kept, symlinks followed, read back and compared byte for byte.
+- refuse exits 1 and promises nothing was written. Exit 2 is an fpatch defect or a write that did not verify: check the file before anything else.
+- Anchors match the file byte for byte. An anchor that matches three times is refused; widen it. count=N shows every site.
 - Any edit invalidates line numbers below it. Re-read before the next patch.
 - Em dash and double dash are not interchangeable.
 - One concern per patch.
-- Non-ASCII anchors: patch_between(path, start_marker, end_marker, new_lines) — two short ASCII markers, replace by index.
+- Non-ASCII anchors: patch_between(path, start_marker, end_marker, new_lines) — two short ASCII markers, replace by index. end_marker None replaces to end of file.
 - A payload defines, then acts on its last line. A cut paste must fail to parse or never call — it must not run half an edit.
-- dry prints the plan and writes nothing. Writing modes refuse unless preconditions hold.
+- fpatch changes only with zero/scripts/dev/test_fpatch.py green (python3 -m unittest test_fpatch, run in zero/scripts/dev). A new guard gets a test that fails without it.
 - Rehearse unread behaviour on a mktemp copy first.
 - An intent section that claims a commit is pushed or a path is real checks that against git and disk before it is written.
 - Never make unrequested changes. Surface them.
