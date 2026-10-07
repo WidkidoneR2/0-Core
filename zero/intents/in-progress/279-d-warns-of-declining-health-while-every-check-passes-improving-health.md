@@ -109,13 +109,14 @@ em dash; any fpatch anchor near it must be ASCII-only (patch_between).
   warning, and the "no active work" test. Also recorded: where past runs are stored,
   how many are read, over what window, and the trend formula -- each with file:line.
 <!-- evidence: demonstrated 2026-10-07. Owner: zero/engine/src/domains/doctor/mod.rs, the inline forecast block 448-570. It reads the last 10 doctor events (452). trend = mean of the newest 3 minus mean of the rest (476-480); 24h = health + 0.5 x trend, 7d = health + 2 x trend (482-485). Fewer than 3 events prints nothing (471). With exactly 3, the older set is empty, older_avg is 0, and the trend equals the recent average. An event with no readable health counts as the current health (462). The intent count (504-524) scans intents/future/ for status: in-progress, but cistart moves intents to intents/in-progress/ (279 is there), so the count is always 0: the warning (546-549) fires on any trend below -1.0, and the advisories at 541 and 559 can never print. 2026-10-06 checks out: trend -4.0 gives 98 and 92. core forecast (1093) is a separate computation with its own query. forecast_cache (paths.rs:413) has one reader, reaction/mod.rs:316-343, and no writer; forecast.txt does not exist. -->
-- [ ] G1: RED FIRST, AFTER A PURE EXTRACTION. The forecast and advisory logic moves out
+- [x] G1: RED FIRST, AFTER A PURE EXTRACTION. The forecast and advisory logic moves out
   of the print path into a pure function (runs, current health, warnings, failures,
   intents in progress in; lines out) with NO behaviour change, in its own commit, proven
   by d printing the same lines before and after. Then a test drives that function with a
   fixture shaped like 2026-10-06 (runs at 92%, then 100% with 0 warnings and 0 failures,
   no intents counted) and shows the decline warning is produced. Output saved as evidence
   before any behaviour changes.
+<!-- evidence: commit 9d808f0f, 2026-10-07. forecast_lines(runs, health, intents) is a pure function; the inline block calls it. No behaviour change, shown two ways: the payload checked before writing that every literal (emoji, messages, format strings) already existed verbatim in mod.rs, and five characterisation tests hand-computed from the old inline code pass (cargo test forecast_tests: 5 passed, 0 failed). The red: g1_clean_run_after_a_dip_warns_today drives the 2026-10-06 shape (100, 92, 92 newest, 98s older, no intents) and the decline warning is produced. Method changed from the gate as first written: comparing d before and after was dropped, because every d run adds a reading, so two runs never read the same history. -->
 - [ ] G2: no warning on a clean run. Same fixture: no decline warning. A second fixture
   whose current run has a failure that earlier runs did not still warns.
 - [ ] G3: the warning names its evidence. When it fires, the message carries the window,

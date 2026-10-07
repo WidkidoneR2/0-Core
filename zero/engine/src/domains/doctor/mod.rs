@@ -493,7 +493,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 })
                 .unwrap_or_default();
             let runs: Vec<i64> = points.iter().map(|(h, _)| *h).collect();
-            for line in forecast_lines(&runs, health, &active_intents) {
+            for line in forecast_lines(&runs, health, warnings, failed, &active_intents) {
                 println!("{}", line);
             }
         }
@@ -1022,7 +1022,13 @@ pub fn trend(ctx: &AppContext) -> CoreResult<()> {
 /// fixture can drive. runs holds health readings newest first, exactly as the inline block reads
 /// them from the events table. Moved out of the print path with no behaviour change (G1); the
 /// INT-279 gates change what it says from here, under the tests below.
-pub(crate) fn forecast_lines(runs: &[i64], health: u32, active_intents: &[String]) -> Vec<String> {
+pub(crate) fn forecast_lines(
+    runs: &[i64],
+    health: u32,
+    warnings: u32,
+    failed: u32,
+    active_intents: &[String],
+) -> Vec<String> {
     let mut out = Vec::new();
     if runs.len() < 3 {
         return out;
@@ -1063,12 +1069,15 @@ pub(crate) fn forecast_lines(runs: &[i64], health: u32, active_intents: &[String
     ));
     // Predictive health advisory
     let intent_count = active_intents.len();
+    // INT-279 G2: a run with no warnings, no failures and full health is not declining,
+    // whatever older runs said. A recovered dip is not a decline, so no trend advisory fires.
+    let clean = warnings == 0 && failed == 0 && health == 100;
     let advisory: Option<(&str, String)> = if health == 100
         && trend.abs() <= 0.5
         && intent_count == 0
     {
         Some(("💚", "Stable — no concerns".to_string()))
-    } else if trend < -1.0 && intent_count > 0 {
+    } else if !clean && trend < -1.0 && intent_count > 0 {
         Some((
             "💡",
             format!(
@@ -1077,12 +1086,12 @@ pub(crate) fn forecast_lines(runs: &[i64], health: u32, active_intents: &[String
                 if intent_count == 1 { "" } else { "s" }
             ),
         ))
-    } else if trend < -1.0 && intent_count == 0 {
+    } else if !clean && trend < -1.0 && intent_count == 0 {
         Some((
             "⚠️ ",
             "Declining health with no active work — investigate".to_string(),
         ))
-    } else if forecast_7d < 90 {
+    } else if !clean && forecast_7d < 90 {
         Some((
             "⚠️ ",
             format!("7-day forecast shows potential concern ({forecast_7d}%) — review active work"),
@@ -1120,16 +1129,25 @@ mod forecast_tests {
         v.iter().map(|s| s.to_string()).collect()
     }
 
-    // G1: the 2026-10-06 shape -- the current run at 100% among the newest three, two 92% runs
-    // beside it, older runs at 98%, no intents counted. Every check passed, and today this
-    // still produces the decline warning.
+    // G1 recorded the 2026-10-06 shape warning (commit 9d808f0f). G2: the same history with a
+    // clean current run -- every check passed -- prints the forecast and no advisory.
     #[test]
-    fn g1_clean_run_after_a_dip_warns_today() {
+    fn g2_clean_run_after_a_dip_does_not_warn() {
         let runs = [100, 92, 92, 98, 98, 98, 98, 98, 98, 98];
         assert_eq!(
-            forecast_lines(&runs, 100, &[]),
+            forecast_lines(&runs, 100, 0, 0, &[]),
+            lines(&["📉  Forecast  24h: 98%  7d: 93%  trend: -3.3"])
+        );
+    }
+
+    // G2: a real decline still warns -- a failing check now, and health below the older runs.
+    #[test]
+    fn g2_a_failing_run_after_a_dip_still_warns() {
+        let runs = [80, 92, 92, 98, 98, 98, 98, 98, 98, 98];
+        assert_eq!(
+            forecast_lines(&runs, 80, 0, 1, &[]),
             lines(&[
-                "📉  Forecast  24h: 98%  7d: 93%  trend: -3.3",
+                "📉  Forecast  24h: 75%  7d: 60%  trend: -10.0",
                 "  ⚠️   Declining health with no active work — investigate",
             ])
         );
@@ -1139,7 +1157,7 @@ mod forecast_tests {
     fn steady_history_is_stable() {
         let runs = [100, 100, 100, 100];
         assert_eq!(
-            forecast_lines(&runs, 100, &[]),
+            forecast_lines(&runs, 100, 0, 0, &[]),
             lines(&[
                 "➡️   Forecast  24h: 100%  7d: 100%  trend: stable",
                 "  💚  Stable — no concerns"
@@ -1153,15 +1171,15 @@ mod forecast_tests {
     fn three_runs_trend_is_the_recent_average_today() {
         let runs = [90, 90, 90];
         assert_eq!(
-            forecast_lines(&runs, 90, &[]),
+            forecast_lines(&runs, 90, 0, 0, &[]),
             lines(&["📈  Forecast  24h: 100%  7d: 100%  trend: +90.0"])
         );
     }
 
     #[test]
     fn under_three_runs_prints_nothing_today() {
-        assert!(forecast_lines(&[100, 100], 100, &[]).is_empty());
-        assert!(forecast_lines(&[], 100, &[]).is_empty());
+        assert!(forecast_lines(&[100, 100], 100, 0, 0, &[]).is_empty());
+        assert!(forecast_lines(&[], 100, 0, 0, &[]).is_empty());
     }
 
     #[test]
@@ -1169,7 +1187,7 @@ mod forecast_tests {
         let runs = [96, 96, 96, 100, 100, 100];
         let intents = vec!["INT-279".to_string()];
         assert_eq!(
-            forecast_lines(&runs, 96, &intents),
+            forecast_lines(&runs, 96, 0, 0, &intents),
             lines(&[
                 "📉  Forecast  24h: 94%  7d: 88%  trend: -4.0 (INT-279 in progress)",
                 "  💡  Health dip during active development — expected pattern (1 intent in progress)",
