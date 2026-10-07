@@ -1055,7 +1055,15 @@ pub(crate) fn forecast_lines(
     active_intents: &[String],
 ) -> Vec<String> {
     let mut out = Vec::new();
-    if runs.len() < 3 {
+    // INT-279 G5: the trend compares the newest 3 runs with the older ones, so it needs one
+    // run on each side: at least 4. With fewer it says so, with the count, and no number.
+    if runs.len() < 4 {
+        let unit = if runs.len() == 1 { "run" } else { "runs" };
+        out.push(format!(
+            "   Forecast  not enough history ({} {})",
+            runs.len(),
+            unit
+        ));
         return out;
     }
     // Compute trend slope
@@ -1269,21 +1277,26 @@ mod forecast_tests {
         );
     }
 
-    // G5's red case, still today's behaviour: with exactly 3 runs the older set is empty,
-    // older_avg is 0, and the trend equals the recent average.
+    // G5: the trend compares the newest 3 runs with the older ones, so it needs one run on
+    // each side. With 0 to 3 runs the forecast says so, with the count, and prints no number.
     #[test]
-    fn three_runs_trend_is_the_recent_average_today() {
-        let runs = [90, 90, 90];
+    fn g5_under_four_runs_says_not_enough_history() {
         assert_eq!(
-            forecast_lines(&runs, 90, 0, 0, &[], &[]),
-            lines(&["📈  Forecast  24h: 100%  7d: 100%  trend: +90.0"])
+            forecast_lines(&[], 100, 0, 0, &[], &[]),
+            lines(&["   Forecast  not enough history (0 runs)"])
         );
-    }
-
-    #[test]
-    fn under_three_runs_prints_nothing_today() {
-        assert!(forecast_lines(&[100, 100], 100, 0, 0, &[], &[]).is_empty());
-        assert!(forecast_lines(&[], 100, 0, 0, &[], &[]).is_empty());
+        assert_eq!(
+            forecast_lines(&[100], 100, 0, 0, &[], &[]),
+            lines(&["   Forecast  not enough history (1 run)"])
+        );
+        assert_eq!(
+            forecast_lines(&[100, 100], 100, 0, 0, &[], &[]),
+            lines(&["   Forecast  not enough history (2 runs)"])
+        );
+        assert_eq!(
+            forecast_lines(&[90, 90, 90], 90, 0, 0, &[], &[]),
+            lines(&["   Forecast  not enough history (3 runs)"])
+        );
     }
 }
 
