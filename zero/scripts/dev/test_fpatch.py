@@ -200,6 +200,20 @@ class Defect7ToEndOfFile(Base):
         self.assertEqual(self.rd(p), "---\nid: 1\n---\n\n## Vision\nnew\n")
 
 
+class SealMatchesTrace(Base):
+    def test_printed_plan_is_the_sealed_text(self):
+        import hashlib
+        a = self.mk("a.txt", "one\n")
+        plan = fpatch.Plan().patch(a, "one", "ONE")
+        code, out, _ = self.call(plan.show)
+        lines = out.rstrip("\n").split("\n")
+        self.assertTrue(lines[-1].startswith("DRY RUN -- nothing written. Seal: "))
+        text = "\n".join(lines[:-1])
+        self.assertEqual(text, plan.text())
+        seal = lines[-1].split("Seal: ")[1]
+        self.assertEqual(hashlib.sha256(text.encode("utf-8")).hexdigest()[:16], seal)
+
+
 class OldFormStillWorks(Base):
     def test_patch_as_documented(self):
         p = self.mk("a.rs", "fn a() {}\n")

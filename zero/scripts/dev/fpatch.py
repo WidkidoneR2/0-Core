@@ -18,6 +18,7 @@ SEVERAL EDITS, ALL OR NOTHING (INT-278):
     p.between("b.md", "## Start", None, new_lines)   # None = to end of file
     p.show()          # prints every edit and a Seal; writes nothing
     p.apply(SEAL)     # refuses unless the Seal matches what show printed
+    p.text()          # the exact text the Seal covers: keep it under refs/notes/seals
 
 Every check in a plan runs before the first write. Files are staged beside their
 targets (mode bits kept, symlinks followed, fsynced), renamed into place, then read
@@ -382,10 +383,18 @@ class Plan:
             summary.append((path, said))
         head = [f"file {p}  sha256 {_h16(o)} -> {_h16(c)}" for p, (o, c) in files.items()]
         plain = "\n".join(head + [t for _, t in shown] + [f"{p}: {s}" for p, s in summary])
-        return files, head, shown, summary, _h16(plain)
+        return files, head, shown, summary, _h16(plain), plain
 
     def show(self):
         return _plan_show(self)
+
+    def text(self):
+        """The exact text the Seal covers: everything show prints above the DRY RUN line.
+
+        Kept as the note under refs/notes/seals, core intent trace re-checks it: both sides take
+        the first 16 hex of sha256 over the same bytes (trace.rs seal_digest, INT-266).
+        """
+        return self._build()[5]
 
     def apply(self, seal):
         if not seal:
@@ -413,17 +422,19 @@ def _print_shown(shown):
 
 @_guard
 def _plan_show(plan):
-    files, head, shown, summary, seal = plan._build()
+    files, head, shown, summary, seal, plain = plan._build()
     for h in head:
         print(h)
     _print_shown(shown)
+    for p, said in summary:
+        print(f"{p}: {said}")
     print(f"DRY RUN -- nothing written. Seal: {seal}")
     return seal
 
 
 @_guard
 def _plan_apply(plan, seal, require_seal=True):
-    files, head, shown, summary, actual = plan._build()
+    files, head, shown, summary, actual, plain = plan._build()
     if require_seal and seal != actual:
         _refuse(
             str(plan),
