@@ -3,7 +3,7 @@ id: 282
 date: 2026-10-08
 type: future
 title: "dashboard returns its text -- dashboard | wc -l counts lines, and piped Output carries no colour codes"
-status: in-progress
+status: complete
 tags: [nsh, pipeline, builtins, dashboard, ansi, finding, fix]
 ---
 
