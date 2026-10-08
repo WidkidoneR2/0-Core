@@ -1,0 +1,10 @@
+file /home/christian/0-core/zero/intents/future/281-printing-builtins-feed-a-pipeline-nothing----dashboard--wc--l-prints-0.md  sha256 fdff34cc55957b14 -> 96292561f70dcd71
+--- /home/christian/0-core/zero/intents/future/281-printing-builtins-feed-a-pipeline-nothing----dashboard--wc--l-prints-0.md: replacing lines 7..7 ---
+   5: title: "printing builtins feed a pipeline nothing -- dashboard | wc -l prints 0"
+   6: status: planned
+>> 7: tags: [nsh, pipeline, builtins, fix]
+   8: ---
+   9:
+++ tags: [nsh, pipeline, builtins, fix]
+++ depends_on: []
+/home/christian/0-core/zero/intents/future/281-printing-builtins-feed-a-pipeline-nothing----dashboard--wc--l-prints-0.md: 1 replaced
