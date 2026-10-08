@@ -3,7 +3,7 @@ id: 243
 date: 2026-09-05
 type: fix
 title: "printing builtins panic on a broken pipe because they write to stdout directly instead of returning Output"
-status: in-progress
+status: complete
 tags: [fix, bugfix, nsh, pipeline, builtins, sigpipe]
 depends_on: []
 ---
@@ -165,3 +165,6 @@ ruling (old G2 and G3).
 Separately, a terminal window closed instantly while a child nsh received three entered
 lines. It did not reproduce typed singly at a top-level prompt, its cause is unknown, and
 it is recorded as a finding (core intent find) rather than folded in here.
+
+## Versions
+- novashell 5.1.0 -> 5.2.0 (minor)
