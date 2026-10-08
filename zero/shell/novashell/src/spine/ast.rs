@@ -6,7 +6,7 @@
 //! expansion + execution phases' job. The parser builds this; nothing else.
 //!
 //! ★ AST STABILITY CHECKPOINT (2026-07-21, after Increment 5 parser torture):
-//! CORE-FROZEN with Redirect internals RESERVED. Frozen: Span, Spanned<T>, the AstNode
+//! CORE-FROZEN with Redirect internals RESERVED. Frozen: Span, `Spanned<T>`, the AstNode
 //! sum type, the Command boundary (owns argv-like words + IO-transformations), the Word
 //! model, the WordPart ownership model (the ENUM grows -- freeze the concept, not the
 //! variant list), source-preserving semantics. Reserved: Redirect internals (fd is
@@ -318,7 +318,7 @@ pub enum SpecialParam {
     Pid,
 }
 
-/// A redirection. RESERVED -- internals designed at roadmap step 5 (fd:Option<u32>,
+/// A redirection. RESERVED -- internals designed at roadmap step 5 (fd:`Option<u32>`,
 /// target:Word-after-expansion, Write/Append/dup categories, pipeline ownership). Today
 /// an empty placeholder so `Command.redirects` is a real (always-empty) field from day
 /// one, not something bolted on later.

@@ -6,7 +6,9 @@
 //!
 //! The classifier answers one question:
 //!
+//! ```text
 //!     Given the current `shell_history`, what command LIFECYCLES can we prove?
+//! ```
 //!
 //! It deliberately does NOT answer "what exact shell mechanism produced this rewrite?" -- see the
 //! two-claims note on `CommandLifecycle`.

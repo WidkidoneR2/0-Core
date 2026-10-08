@@ -10,7 +10,7 @@
 //! commands::tokenize): the command word (first token) is LOWERCASED; the arguments are
 //! quote-aware tokenized (quotes stripped, quoted spaces kept as one token) and case-PRESERVED.
 //! So `GitHub commit -m "a b"` -> cmd "github", args ["commit","-m","a b"]. Both of those are
-//! divergences from the spine (case-fold at argv[0]; quote handling) that the comparison layer
+//! divergences from the spine (case-fold at `argv[0]`; quote handling) that the comparison layer
 //! classifies -- NOT bugs in this adapter. The adapter's job is fidelity to legacy, nothing more.
 
 use std::ffi::OsString;

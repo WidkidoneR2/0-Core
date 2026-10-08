@@ -5814,7 +5814,7 @@ fn to_cmd(args: &[&str]) -> CommandResult {
         ),
     }
 }
-/// The binary a crate builds: its [[bin]] name when it declares one, its package name when it
+/// The binary a crate builds: its `[[bin]]` name when it declares one, its package name when it
 /// has a src/main.rs, none for a library (INT-267 step 2c).
 fn crate_binary(dir: &std::path::Path, name: &str, cargo: &str) -> Option<String> {
     let mut lines = cargo.lines().skip_while(|l| l.trim() != "[[bin]]");
@@ -7279,7 +7279,7 @@ fn list_plugins(_db: &StateDb) -> CommandResult {
 /// Everything was correct -- the process group, the terminal handover, `isig`, the suspend
 /// character -- and Ctrl+Z still did nothing, because the child had inherited SIGTSTP as
 /// SIG_IGN across `exec`. The fact that ended three wrong theories was one line of
-/// /proc/<pid>/status, available from the first minute.
+/// `/proc/<pid>/status`, available from the first minute.
 ///
 /// A shell that owns process groups should be able to say what its children inherited. This is
 /// that question, in the shell's own vocabulary:
@@ -9314,7 +9314,7 @@ fn record_failure(db: &StateDb, cmd_word: &str, exit_code: i32) {
     }
 }
 
-/// INT-169: execute an ExecutionPlan by spawning argv[0] DIRECTLY. No `sh`, no re-parsing.
+/// INT-169: execute an ExecutionPlan by spawning `argv[0]` DIRECTLY. No `sh`, no re-parsing.
 ///
 /// This is the moment the spine stops being observational. `run_external` hands an unmodelled
 /// LINE to sh, which then re-parses and re-expands it -- sh is the final authority on quoting,
@@ -16982,15 +16982,19 @@ fn ade_cmd(_args: &[&str]) -> CommandResult {
 /// The first ruling chose colons because "every editor and compiler agrees on them". Then the
 /// tab-separated form was seen working and the argument collapsed:
 ///
+/// ```text
 ///     PATHS AND CODE BOTH CONTAIN COLONS. `crate::tty::wait_group_foreground` has four.
 ///     Anything splitting `file:line:text` on `:` gets garbage -- which is why `cut -d:`
 ///     on grep output is a workaround rather than a convention people enjoy.
+/// ```
 ///
 /// Tabs keep the fields fields:
 ///
+/// ```text
 ///     fsearch pgid | cut -f1 | sort -u    which files mention it
 ///     fsearch pgid | awk '$2 > 600'       by line number
 ///     fsearch pgid | cut -f3              just the code
+/// ```
 ///
 /// ⚠️ AND IT IS THE SAME CHOICE THE REST OF THIS SHELL MAKES. `ps`, `signals` and every
 /// other source return ROWS; tab-separated is the TEXT form of a table. Colon-joining is the

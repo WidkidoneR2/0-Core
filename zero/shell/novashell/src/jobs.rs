@@ -130,7 +130,7 @@ pub struct Job {
     /// state INT-188 exists to end: signalling it would signal the SHELL. Never treat None
     /// as "use the current group".
     pub pgid: Option<u32>,
-    /// Every process in this job, in stage order. members[0] is the group leader.
+    /// Every process in this job, in stage order. `members[0]` is the group leader.
     pub members: Vec<JobMember>,
     /// The last state the shell OBSERVED. Never inferred from absence.
     pub state: JobState,

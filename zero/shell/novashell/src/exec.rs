@@ -170,7 +170,7 @@ impl ExecContext {
     /// Structurally identical to `from_line` so preexec/postexec cannot tell which path built
     /// it -- except in the two places where they SHOULD differ:
     ///
-    ///   `cmd`  -- argv[0] NOT lowercased. from_line lowercases because its `cmd` doubles as a
+    ///   `cmd`  -- `argv[0]` NOT lowercased. from_line lowercases because its `cmd` doubles as a
     ///             dispatch LOOKUP key; here `cmd` is the EXECUTION IDENTITY. Those were
     ///             accidentally coupled. Consequence to expect, not a regression: postexec sites
     ///             that compare `ctx.cmd` directly against "zg" / "d" / "deploy" will not match a

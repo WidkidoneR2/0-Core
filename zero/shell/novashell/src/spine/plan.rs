@@ -6,7 +6,7 @@
 //! environment is explicit (Inherit vs Replace -- `FOO=bar cmd` and `env -i cmd` are DIFFERENT
 //! intents a map would erase); the AST does NOT execute directly. RESERVED: the IO graph
 //! (redirects, pipelines, fd wiring) -- `io: IoPlan` acknowledges the concern WITHOUT inventing
-//! its shape (naming stdin/stdout/stderr as Option<File> would bake in the wrong abstraction
+//! its shape (naming stdin/stdout/stderr as `Option<File>` would bake in the wrong abstraction
 //! level -- a pipeline's IO is a graph, not three handles).
 //!
 //! PHASE MODEL: source -> lexer -> AST -> EXPANSION -> ExecutionPlan -> executor. Expansion is

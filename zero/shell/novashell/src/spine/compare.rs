@@ -36,12 +36,12 @@ pub enum KnownDifference {
     /// what to do about it.
     BackslashPreservation,
     /// Legacy lowercases the command word; the spine preserves case. Evidence: argv elements
-    /// differ ONLY by ASCII case, and argv[0] is not an assignment. (Intended improvement.)
+    /// differ ONLY by ASCII case, and `argv[0]` is not an assignment. (Intended improvement.)
     CommandCasePreservation,
     /// MATERIALLY IMPORTANT: the first word is an environment-assignment prefix (`SHELL=...`)
     /// and legacy lowercased it. An assignment prefix is part of the shell LANGUAGE, and env
     /// var names are case-sensitive on Unix -- so legacy silently CORRUPTS the variable name.
-    /// Evidence: case-only argv difference where argv[0] contains '='. (A real bug the spine fixes.)
+    /// Evidence: case-only argv difference where `argv[0]` contains '='. (A real bug the spine fixes.)
     EnvironmentAssignmentCase,
     /// QUOTED-WORD BOUNDARY PARSING specifically: single quotes, double quotes, adjacent
     /// quoted/unquoted segments, empty quoted strings. Implemented at roadmap step 2, so a

@@ -26,7 +26,7 @@ pub enum FlowError {
 impl FlowError {
     /// The colored presentation of this error. Presentation lives WITH the type,
     /// so the two not-found call sites cannot drift from each other or from the
-    /// #[error] message. INT-171 gate 5.
+    /// `#[error]` message. INT-171 gate 5.
     pub fn display_colored(&self) -> String {
         use colored::Colorize;
         match self {
