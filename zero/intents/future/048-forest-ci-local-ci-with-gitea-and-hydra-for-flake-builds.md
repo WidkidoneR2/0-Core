@@ -4,7 +4,7 @@ date: 2026-06-09
 type: infrastructure
 title: "local CI gates are disarmed in a fresh clone -- core.hooksPath does not travel"
 status: planned
-tags: [ci, gitea, hydra, nix, flake, build, infrastructure, nixos]
+tags: [ci, git, hooks, clone, zero-gate]
 priority: low
 ---
 ## Why
@@ -93,15 +93,15 @@ Phase 4 -- Graduate to real machine
   Gate: full CI pipeline running on Framework 16
 
 ## Gates
-- [ ] Gitea running in VM as NixOS service
-- [ ] 0-Core repo mirrored to local Gitea
-- [ ] Push to local Gitea triggers build
-- [ ] Build result written to state.db
-- [ ] ci status shows pass/fail in fsh
-- [ ] ci log shows build output in fsh
-- [ ] All VM gates pass before real machine setup
-- [ ] Gitea running on real machine via flake
-- [ ] Push to real Gitea triggers build and reports to fsh
+- Gitea running in VM as NixOS service
+- 0-Core repo mirrored to local Gitea
+- Push to local Gitea triggers build
+- Build result written to state.db
+- ci status shows pass/fail in fsh
+- ci log shows build output in fsh
+- All VM gates pass before real machine setup
+- Gitea running on real machine via flake
+- Push to real Gitea triggers build and reports to fsh
 
 ## Depends On
 - INT-024 (VM graduation pipeline) -- all phases tested in VM first
@@ -136,7 +136,12 @@ because two assertions still named the old location. The mechanism works. Its
 ACTIVATION is what does not travel.
 
 SUCCESS CRITERIA
-- [ ] A fresh clone either arms its own hooks or refuses to commit until armed
+- [ ] G0: the arming point is chosen by reading, not assumed. Git never runs repository code
+      on clone and core.hooksPath is local config, so nothing inside the repo can arm a fresh
+      clone or refuse its commits. Read the Project 0 commands a working tree cannot avoid
+      (ship first) and record the choice with file:line.
+- [ ] A fresh clone is armed by that command, or the command refuses to run and prints the one
+      line that arms it.
 - [ ] Watch it fail first: clone to /tmp, commit something rustfmt would reject,
       confirm it goes through today
 - [x] The check reports which gates are active, so no output cannot mean not
@@ -165,3 +170,11 @@ SUCCESS CRITERIA
       make a fresh clone arm itself, and nothing yet refuses to commit until armed.
       That is the remaining work and it is the harder half. -->
 - [ ] Decide separately whether a runner (Gitea Actions) is wanted at all
+
+## Rewrite 2026-10-07
+
+The nine history gates under Gates lost their checkboxes, text kept, so the ledger stops
+counting a wiped plan as open work. Tags now describe the live finding. The first success
+criterion was replaced: as written it asked a fresh clone to arm itself, which git forbids by
+design; arming now comes from a Project 0 command run in the tree. The runner question stays
+open for Christian's ruling.
