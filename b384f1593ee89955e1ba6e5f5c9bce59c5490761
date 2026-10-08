@@ -1,0 +1,83 @@
+file /home/christian/0-core/zero/intents/future/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md  sha256 52be310c5b02a7e5 -> ad3733dd9241bad0
+--- /home/christian/0-core/zero/intents/future/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: replacing lines 7..7 ---
+   5: title: "printing builtins panic on a broken pipe because they write to stdout directly instead of returning Output"
+   6: status: planned
+>> 7: tags: [fix, bugfix]
+   8: ---
+   9:
+++ tags: [fix, bugfix, nsh, pipeline, builtins, sigpipe]
+++ depends_on: []
+--- /home/christian/0-core/zero/intents/future/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: replacing lines 72..74 ---
+   70:
+   71: ## Success Criteria
+>> 72: - [ ] G1 RED FIRST: the panic is captured verbatim, and the three-case control
+>> 73:       is re-run -- `yes | head -3` stops, `ls ~ | head -5` does not panic,
+>> 74:       `dash forest | head -4` panics
+   75: - [ ] G2 EVERY builtin that writes to stdout with `println!` instead of
+   76:       returning `Output` is ENUMERATED. The count decides (a) versus (b)
+++ - [ ] G1 RED FIRST, BOTH DOORS: `nsh -c "dashboard" | head -4` is run and its panic
+++       captured verbatim, and the control is re-run -- `yes | head -3` stops,
+++       `ls ~ | head -5` does not panic. Then `dashboard | head -4` is run in the
+++       interactive REPL (the door fsh-test drives, INT-173) and the result recorded as
+++       observed: by reading, a printing builtin returns Empty, which
+++       peel_builtin_first_stage pipes on as empty text (commands/mod.rs:9843), so the
+++       expected symptom there is a dropped pipe rather than a panic -- recorded, not
+++       assumed
+--- /home/christian/0-core/zero/intents/future/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: replacing lines 80..81 ---
+   78:       expected symptom there is a dropped pipe rather than a panic -- recorded, not
+   79:       assumed
+>> 80: - [ ] G2 EVERY builtin that writes to stdout with `println!` instead of
+>> 81:       returning `Output` is ENUMERATED. The count decides (a) versus (b)
+   82: - [ ] G3 THE RULING between (a) and (b) is recorded here with its reason
+   83: - [ ] G4 `dash forest | head -4` completes without panic and without killing the
+++ - [ ] G2 EVERY builtin that writes to stdout directly instead of returning Output
+++       is ENUMERATED -- println!, print!, and any write to an io::stdout() handle -- by
+++       fsearch across builtin code paths. The count decides (a) versus (b)
+--- /home/christian/0-core/zero/intents/future/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: replacing lines 84..85 ---
+   82:       fsearch across builtin code paths. The count decides (a) versus (b)
+   83: - [ ] G3 THE RULING between (a) and (b) is recorded here with its reason
+>> 84: - [ ] G4 `dash forest | head -4` completes without panic and without killing the
+>> 85:       shell, on the DEPLOYED binary
+   86: - [ ] G5 THE CONTROLS STILL HOLD: `yes | head -3` still terminates its child,
+   87:       and no process-wide SIGPIPE reset has returned. `grep` proves the second
+++ - [ ] G4 `nsh -c "dashboard" | head -4` completes without panic and without killing
+++       the shell, on the DEPLOYED binary
+--- /home/christian/0-core/zero/intents/future/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: replacing lines 90..91 ---
+   88: - [ ] G6 A NESTED-SHELL test: the failure originally took the PARENT shell down
+   89:       too, so the fix is verified from inside a child nsh
+>> 90: - [ ] G7 Regression tests in nsh-test for at least one printing builtin piped
+>> 91:       into `head`
+   92: - [ ] G8 each gate carries evidence per INT-158
+   93:
+++ - [ ] G7 Regression tests in nsh-test, beside regression_sigpipe_no_crash, for at
+++       least one printing builtin piped into head, through BOTH doors: run_fsh
+++       (nsh -c) and a Category::Repl case
+--- /home/christian/0-core/zero/intents/future/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: replacing lines 98..98 ---
+   96: - Making every builtin pipeable. That is the structured-pipeline work; this is
+   97:   about not crashing.
+>> 98: - Revisiting INT-299's original decision. It is already corrected.
+   99:
+++ - Revisiting INT-299's original decision. It is already corrected.
+++
+++ ## Revision 2026-10-08
+++
+++ Recon before cistart. `dash forest` no longer reproduces as written: forest appears
+++ nowhere in novashell after the rename, and dash would collide with any dash binary on
+++ PATH, which peel_builtin_first_stage spawns instead of the builtin
+++ (commands/mod.rs:9788). The gates now use dashboard, the canonical name
+++ (builtin_names.rs:68, dispatched at commands/mod.rs:1383).
+++
+++ The Problem section's Peeled::Finished is stale since the history fix: a printing
+++ builtin returns Empty, which is piped on as empty text (commands/mod.rs:9843), so
+++ inside a pipeline its bytes bypass the reader rather than crash. The panic needs nsh's
+++ own stdout to be the closed pipe -- the nsh -c case. G1 and G7 now cover both doors
+++ (INT-173).
+++
+++ By reading, the 2026-08-21 SIGPIPE arrangement holds: the only signal call is SIG_DFL
+++ in the per-child pre_exec (commands/mod.rs:9585). G5 still demonstrates it after the fix.
+/home/christian/0-core/zero/intents/future/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: 1 replaced
+/home/christian/0-core/zero/intents/future/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: 1 replaced
+/home/christian/0-core/zero/intents/future/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: 1 replaced
+/home/christian/0-core/zero/intents/future/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: 1 replaced
+/home/christian/0-core/zero/intents/future/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: 1 replaced
+/home/christian/0-core/zero/intents/future/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: 1 replaced
