@@ -1,0 +1,131 @@
+file /home/christian/0-core/zero/shell/nsh-test/src/main.rs  sha256 ee4a3da6d5bfcc53 -> ce34eee5f4a6dbed
+--- /home/christian/0-core/zero/shell/nsh-test/src/main.rs: replacing lines 115..139 ---
+   113: ///
+   114: /// `extra_env` is applied AFTER the harness defaults, so a case can deliberately override them.
+>> 115: fn run_fsh_env(input: &str, extra_env: &[(&str, &str)]) -> Result<String, String> {
+>> 116:     let fsh = repl::fsh_bin();
+>> 117:     let mut cmd = Command::new(&fsh);
+>> 118:     // INT-206: the same setting the REPL runner uses, so the suite drives ONE shell
+>> 119:     // configuration rather than two that differ in where they think they are.
+>> 120:     cmd.env("NSH_KEEP_CWD", "1")
+>> 121:         // INT-204: and its own database, for the same reason -- two doors that disagree about which
+>> 122:         // state they read is the shape of problem this suite keeps finding in the shell it tests.
+>> 123:         .env("ZERO_STATE_DB", repl::case_db_path());
+>> 124:     for (k, v) in extra_env {
+>> 125:         cmd.env(k, v);
+>> 126:     }
+>> 127:     let out = cmd
+>> 128:         .arg("-c")
+>> 129:         .arg(input)
+>> 130:         .stdout(Stdio::piped())
+>> 131:         .stderr(Stdio::piped())
+>> 132:         .output()
+>> 133:         .map_err(|e| e.to_string())?;
+>> 134:     if out.status.success() {
+>> 135:         Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+>> 136:     } else {
+>> 137:         Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+>> 138:     }
+>> 139: }
+   140:
+   141: fn test(name: &str, category: Category, f: impl Fn() -> Result<(), String>) -> TestResult {
+++ fn run_fsh_env(input: &str, extra_env: &[(&str, &str)]) -> Result<String, String> {
+++     let mut cmd = fsh_command(extra_env);
+++     let out = cmd
+++         .arg("-c")
+++         .arg(input)
+++         .stdout(Stdio::piped())
+++         .stderr(Stdio::piped())
+++         .output()
+++         .map_err(|e| e.to_string())?;
+++     if out.status.success() {
+++         Ok(String::from_utf8_lossy(&out.stdout).trim().to_string())
+++     } else {
+++         Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
+++     }
+++ }
+++
+++ /// INT-243: the one place a -c launch is configured, shared by every runner that uses it, so a
+++ /// new runner cannot drift from run_fsh_env in which binary, database or cwd it uses.
+++ fn fsh_command(extra_env: &[(&str, &str)]) -> Command {
+++     let mut cmd = Command::new(repl::fsh_bin());
+++     // INT-206: the same setting the REPL runner uses, so the suite drives ONE shell
+++     // configuration rather than two that differ in where they think they are.
+++     cmd.env("NSH_KEEP_CWD", "1")
+++         // INT-204: and its own database, for the same reason -- two doors that disagree about which
+++         // state they read is the shape of problem this suite keeps finding in the shell it tests.
+++         .env("ZERO_STATE_DB", repl::case_db_path());
+++     for (k, v) in extra_env {
+++         cmd.env(k, v);
+++     }
+++     cmd
+++ }
+++
+++ /// INT-243: run `nsh -c` with stdout ALREADY CLOSED -- the read end is dropped before the child
+++ /// starts, so every write meets EPIPE. `cmd | head` races: output that fits the pipe buffer never
+++ /// meets a closed pipe. This does not race. Returns (stderr, exit code).
+++ fn run_fsh_closed_stdout(input: &str) -> Result<(String, Option<i32>), String> {
+++     let (reader, writer) = std::io::pipe().map_err(|e| e.to_string())?;
+++     drop(reader);
+++     let out = fsh_command(&[])
+++         .arg("-c")
+++         .arg(input)
+++         .stdout(writer)
+++         .stderr(Stdio::piped())
+++         .output()
+++         .map_err(|e| e.to_string())?;
+++     Ok((String::from_utf8_lossy(&out.stderr).trim().to_string(), out.status.code()))
+++ }
+--- /home/christian/0-core/zero/shell/nsh-test/src/main.rs: replacing lines 767..775 ---
+   765:
+   766:     // --- REGRESSION ---
+>> 767:     results.push(test(
+>> 768:         "regression_sigpipe_no_crash",
+>> 769:         Category::Regression,
+>> 770:         || {
+>> 771:             // Pipe to head should not crash with SIGPIPE
+>> 772:             let out = run_fsh("printf 'a\\nb\\nc\\nd\\ne\\n' | head -3")?;
+>> 773:             expect_eq(&out, "a\nb\nc")
+>> 774:         },
+>> 775:     ));
+   776:     results.push(test(
+   777:         "repl_251_caret_agrees_with_exit_status",
+++     results.push(test(
+++         "regression_sigpipe_no_crash",
+++         Category::Regression,
+++         || {
+++             // Pipe to head should not crash with SIGPIPE
+++             let out = run_fsh("printf 'a\\nb\\nc\\nd\\ne\\n' | head -3")?;
+++             expect_eq(&out, "a\nb\nc")
+++         },
+++     ));
+++     results.push(test(
+++         "regression_243_closed_stdout_exits_141",
+++         Category::Regression,
+++         || {
+++             // INT-243: a builtin printing into a closed stdout must exit 141 silently, never panic.
+++             // 3e4ecfbe (the main.rs panic hook) made this true; this case is what keeps it true.
+++             let (stderr, code) = run_fsh_closed_stdout("dashboard")?;
+++             if stderr.contains("panicked") {
+++                 return Err(format!("nsh panicked on a closed stdout: {}", stderr));
+++             }
+++             expect_exit(code, 141)
+++         },
+++     ));
+++     results.push(test(
+++         "repl_243_builtin_pipe_leaves_shell_alive",
+++         Category::Repl,
+++         || {
+++             // INT-243: the REPL door. Only the LAST command's output is captured (run_repl_lines
+++             // doc), so the probe goes last: if the pipeline took the shell down, it never answers.
+++             // Matched as a whole line so the typed command text cannot satisfy it.
+++             let out = repl::run_repl_lines(&["dashboard | head -4", "echo nsh-test-alive-243"])?;
+++             if out.iter().any(|l| l.trim() == "nsh-test-alive-243") {
+++                 Ok(())
+++             } else {
+++                 Err(format!("the shell did not answer after dashboard | head -4: {:?}", out))
+++             }
+++         },
+++     ));
+/home/christian/0-core/zero/shell/nsh-test/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/main.rs: 1 replaced
