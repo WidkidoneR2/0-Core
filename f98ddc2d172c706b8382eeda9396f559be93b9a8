@@ -1,0 +1,159 @@
+file /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs  sha256 18ac55a23cb40939 -> a8d94b4add42b58b
+file /home/christian/0-core/zero/shell/novashell/src/history/model.rs  sha256 5d0b3be5b8b0569a -> 360aaa5ee8ae8a37
+file /home/christian/0-core/zero/shell/novashell/src/error.rs  sha256 4beee96413500c08 -> 4744b050171c883e
+file /home/christian/0-core/zero/shell/novashell/src/exec.rs  sha256 3e41702bc890e363 -> 1668a097ce6c80c1
+file /home/christian/0-core/zero/shell/novashell/src/jobs.rs  sha256 388e8d487c38f172 -> 1763e7e643e180f1
+file /home/christian/0-core/zero/shell/novashell/src/spine/compare.rs  sha256 ae71f43a5c98d077 -> 3fb81ed89a1ba224
+file /home/christian/0-core/zero/shell/novashell/src/spine/migrate.rs  sha256 4f24d8fa9344df02 -> c7748979cbdd025b
+file /home/christian/0-core/zero/shell/novashell/src/spine/ast.rs  sha256 bafbc3c16b7937f9 -> 882d42e08515455d
+file /home/christian/0-core/zero/shell/novashell/src/spine/plan.rs  sha256 5e1839aa35baaeb1 -> b299344480d240f2
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 5817..5817 ---
+   5815:     }
+   5816: }
+>> 5817: /// The binary a crate builds: its [[bin]] name when it declares one, its package name when it
+   5818: /// has a src/main.rs, none for a library (INT-267 step 2c).
+   5819: fn crate_binary(dir: &std::path::Path, name: &str, cargo: &str) -> Option<String> {
+++ its `[[bin]]` name when
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 9317..9317 ---
+   9315: }
+   9316: 
+>> 9317: /// INT-169: execute an ExecutionPlan by spawning argv[0] DIRECTLY. No `sh`, no re-parsing.
+   9318: ///
+   9319: /// This is the moment the spine stops being observational. `run_external` hands an unmodelled
+++ by spawning `argv[0]` DIRECTLY
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 7282..7282 ---
+   7280: /// character -- and Ctrl+Z still did nothing, because the child had inherited SIGTSTP as
+   7281: /// SIG_IGN across `exec`. The fact that ended three wrong theories was one line of
+>> 7282: /// /proc/<pid>/status, available from the first minute.
+   7283: ///
+   7284: /// A shell that owns process groups should be able to say what its children inherited. This is
+++ /// `/proc/<pid>/status`, available
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 16985..16985 ---
+   16983: /// tab-separated form was seen working and the argument collapsed:
+   16984: ///
+>> 16985: ///     PATHS AND CODE BOTH CONTAIN COLONS. `crate::tty::wait_group_foreground` has four.
+   16986: ///     Anything splitting `file:line:text` on `:` gets garbage -- which is why `cut -d:`
+   16987: ///     on grep output is a workaround rather than a convention people enjoy.
+++ /// ```text
+++ ///     PATHS AND CODE BOTH CONTAIN COLONS.
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 16988..16988 ---
+   16986: ///     PATHS AND CODE BOTH CONTAIN COLONS. `crate::tty::wait_group_foreground` has four.
+   16987: ///     Anything splitting `file:line:text` on `:` gets garbage -- which is why `cut -d:`
+>> 16988: ///     on grep output is a workaround rather than a convention people enjoy.
+   16989: ///
+   16990: /// Tabs keep the fields fields:
+++ convention people enjoy.
+++ /// ```
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 16993..16993 ---
+   16991: /// Tabs keep the fields fields:
+   16992: ///
+>> 16993: ///     fsearch pgid | cut -f1 | sort -u    which files mention it
+   16994: ///     fsearch pgid | awk '$2 > 600'       by line number
+   16995: ///     fsearch pgid | cut -f3              just the code
+++ /// ```text
+++ ///     fsearch pgid | cut -f1 | sort -u
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 16996..16996 ---
+   16994: ///     fsearch pgid | cut -f1 | sort -u    which files mention it
+   16995: ///     fsearch pgid | awk '$2 > 600'       by line number
+>> 16996: ///     fsearch pgid | cut -f3              just the code
+   16997: ///
+   16998: /// ⚠️ AND IT IS THE SAME CHOICE THE REST OF THIS SHELL MAKES. `ps`, `signals` and every
+++ just the code
+++ /// ```
+--- /home/christian/0-core/zero/shell/novashell/src/history/model.rs: replacing lines 9..9 ---
+   7: //! The classifier answers one question:
+   8: //!
+>> 9: //!     Given the current `shell_history`, what command LIFECYCLES can we prove?
+   10: //!
+   11: //! It deliberately does NOT answer "what exact shell mechanism produced this rewrite?" -- see the
+++ //! ```text
+++ //!     Given the current
+--- /home/christian/0-core/zero/shell/novashell/src/history/model.rs: replacing lines 10..10 ---
+   8: //!
+   9: //! ```text
+>> 10: //!     Given the current `shell_history`, what command LIFECYCLES can we prove?
+   11: //!
+   12: //! It deliberately does NOT answer "what exact shell mechanism produced this rewrite?" -- see the
+++ LIFECYCLES can we prove?
+++ //! ```
+--- /home/christian/0-core/zero/shell/novashell/src/error.rs: replacing lines 29..29 ---
+   27:     /// The colored presentation of this error. Presentation lives WITH the type,
+   28:     /// so the two not-found call sites cannot drift from each other or from the
+>> 29:     /// #[error] message. INT-171 gate 5.
+   30:     pub fn display_colored(&self) -> String {
+   31:         use colored::Colorize;
+++ /// `#[error]` message.
+--- /home/christian/0-core/zero/shell/novashell/src/exec.rs: replacing lines 173..173 ---
+   171:     /// it -- except in the two places where they SHOULD differ:
+   172:     ///
+>> 173:     ///   `cmd`  -- argv[0] NOT lowercased. from_line lowercases because its `cmd` doubles as a
+   174:     ///             dispatch LOOKUP key; here `cmd` is the EXECUTION IDENTITY. Those were
+   175:     ///             accidentally coupled. Consequence to expect, not a regression: postexec sites
+++ -- `argv[0]` NOT lowercased
+--- /home/christian/0-core/zero/shell/novashell/src/jobs.rs: replacing lines 133..133 ---
+   131:     /// as "use the current group".
+   132:     pub pgid: Option<u32>,
+>> 133:     /// Every process in this job, in stage order. members[0] is the group leader.
+   134:     pub members: Vec<JobMember>,
+   135:     /// The last state the shell OBSERVED. Never inferred from absence.
+++ `members[0]` is the group leader
+--- /home/christian/0-core/zero/shell/novashell/src/spine/compare.rs: replacing lines 39..39 ---
+   37:     BackslashPreservation,
+   38:     /// Legacy lowercases the command word; the spine preserves case. Evidence: argv elements
+>> 39:     /// differ ONLY by ASCII case, and argv[0] is not an assignment. (Intended improvement.)
+   40:     CommandCasePreservation,
+   41:     /// MATERIALLY IMPORTANT: the first word is an environment-assignment prefix (`SHELL=...`)
+++ and `argv[0]` is not an assignment
+--- /home/christian/0-core/zero/shell/novashell/src/spine/compare.rs: replacing lines 44..44 ---
+   42:     /// and legacy lowercased it. An assignment prefix is part of the shell LANGUAGE, and env
+   43:     /// var names are case-sensitive on Unix -- so legacy silently CORRUPTS the variable name.
+>> 44:     /// Evidence: case-only argv difference where argv[0] contains '='. (A real bug the spine fixes.)
+   45:     EnvironmentAssignmentCase,
+   46:     /// QUOTED-WORD BOUNDARY PARSING specifically: single quotes, double quotes, adjacent
+++ where `argv[0]` contains
+--- /home/christian/0-core/zero/shell/novashell/src/spine/migrate.rs: replacing lines 13..13 ---
+   11: //! quote-aware tokenized (quotes stripped, quoted spaces kept as one token) and case-PRESERVED.
+   12: //! So `GitHub commit -m "a b"` -> cmd "github", args ["commit","-m","a b"]. Both of those are
+>> 13: //! divergences from the spine (case-fold at argv[0]; quote handling) that the comparison layer
+   14: //! classifies -- NOT bugs in this adapter. The adapter's job is fidelity to legacy, nothing more.
+   15: 
+++ case-fold at `argv[0]`;
+--- /home/christian/0-core/zero/shell/novashell/src/spine/ast.rs: replacing lines 9..9 ---
+   7: //!
+   8: //! ★ AST STABILITY CHECKPOINT (2026-07-21, after Increment 5 parser torture):
+>> 9: //! CORE-FROZEN with Redirect internals RESERVED. Frozen: Span, Spanned<T>, the AstNode
+   10: //! sum type, the Command boundary (owns argv-like words + IO-transformations), the Word
+   11: //! model, the WordPart ownership model (the ENUM grows -- freeze the concept, not the
+++ Frozen: Span, `Spanned<T>`, the
+--- /home/christian/0-core/zero/shell/novashell/src/spine/ast.rs: replacing lines 321..321 ---
+   319: }
+   320: 
+>> 321: /// A redirection. RESERVED -- internals designed at roadmap step 5 (fd:Option<u32>,
+   322: /// target:Word-after-expansion, Write/Append/dup categories, pipeline ownership). Today
+   323: /// an empty placeholder so `Command.redirects` is a real (always-empty) field from day
+++ (fd:`Option<u32>`,
+--- /home/christian/0-core/zero/shell/novashell/src/spine/plan.rs: replacing lines 9..9 ---
+   7: //! intents a map would erase); the AST does NOT execute directly. RESERVED: the IO graph
+   8: //! (redirects, pipelines, fd wiring) -- `io: IoPlan` acknowledges the concern WITHOUT inventing
+>> 9: //! its shape (naming stdin/stdout/stderr as Option<File> would bake in the wrong abstraction
+   10: //! level -- a pipeline's IO is a graph, not three handles).
+   11: //!
+++ as `Option<File>` would
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/history/model.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/history/model.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/error.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/exec.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/jobs.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/spine/compare.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/spine/compare.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/spine/migrate.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/spine/ast.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/spine/ast.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/spine/plan.rs: 1 replaced
