@@ -3,7 +3,7 @@ id: 243
 date: 2026-09-05
 type: fix
 title: "printing builtins panic on a broken pipe because they write to stdout directly instead of returning Output"
-status: planned
+status: in-progress
 tags: [fix, bugfix, nsh, pipeline, builtins, sigpipe]
 depends_on: []
 ---
@@ -69,7 +69,7 @@ be handled) while children get `SIG_DFL` restored in `pre_exec`. Both halves are
 load-bearing: without the per-child restore, `yes | head -3` spins forever.
 
 ## Success Criteria
-- [ ] G1 RED FIRST, BOTH DOORS: `nsh -c "dashboard" | head -4` is run and its panic
+- [x] G1 RED FIRST, BOTH DOORS: `nsh -c "dashboard" | head -4` is run and its panic
       captured verbatim, and the control is re-run -- `yes | head -3` stops,
       `ls ~ | head -5` does not panic. Then `dashboard | head -4` is run in the
       interactive REPL (the door fsh-test drives, INT-173) and the result recorded as
@@ -77,14 +77,33 @@ load-bearing: without the per-child restore, `yes | head -3` spins forever.
       peel_builtin_first_stage pipes on as empty text (commands/mod.rs:9843), so the
       expected symptom there is a dropped pipe rather than a panic -- recorded, not
       assumed
-- [ ] G2 EVERY builtin that writes to stdout directly instead of returning Output
+      <!-- DISCHARGED BY EXPLANATION 2026-10-07 (the INT-213 G1 precedent). The panic did not
+      reproduce: nsh -c "dashboard" | head -4 exited 141 with nothing on stderr, and so did the
+      deterministic variant (nsh -c "dashboard" with its stdout already closed). Cause: commit
+      3e4ecfbe (2026-09-15) added a panic hook that turns the EPIPE print panic into a silent
+      exit(141) (novashell main.rs:840-849), ten days after this intent was filed. Controls:
+      yes | head -3 printed three lines and exited 0; ls ~ | head -5 printed five, no panic.
+      REPL door, typed one line at a time at a top-level prompt: dashboard | wc -l printed the
+      whole dashboard to the terminal and then 0 -- the pipe is dropped, not crashed. That
+      defect moved to INT-281. -->
+- G2 EVERY builtin that writes to stdout directly instead of returning Output
       is ENUMERATED -- println!, print!, and any write to an io::stdout() handle -- by
       fsearch across builtin code paths. The count decides (a) versus (b)
-- [ ] G3 THE RULING between (a) and (b) is recorded here with its reason
-- [ ] G4 `nsh -c "dashboard" | head -4` completes without panic and without killing
+      MOVED to INT-281 under the 2026-10-07 re-scope -- not a gate here.
+- G3 THE RULING between (a) and (b) is recorded here with its reason
+      MOVED to INT-281 under the 2026-10-07 re-scope -- not a gate here.
+- [x] G4 `nsh -c "dashboard" | head -4` completes without panic and without killing
       the shell, on the DEPLOYED binary
-- [ ] G5 THE CONTROLS STILL HOLD: `yes | head -3` still terminates its child,
+      <!-- DEMONSTRATED 2026-10-07 on the deployed binary (~/.local/bin/nsh): exit 141, no
+      stderr, and the calling shell kept running. The fix (3e4ecfbe, 2026-09-15) predates this
+      gate, so its failure could not be watched first; G7's regression test keeps it fixed. -->
+- [x] G5 THE CONTROLS STILL HOLD: `yes | head -3` still terminates its child,
       and no process-wide SIGPIPE reset has returned. `grep` proves the second
+      <!-- DEMONSTRATED 2026-10-07: nsh -c "yes | head -3" printed y three times and exited 0,
+      inside a 10-second timeout that never fired. Read across zero/shell: the only SIGPIPE
+      signal call that is code rather than comment is libc::signal(libc::SIGPIPE,
+      libc::SIG_DFL) inside the per-child pre_exec at commands/mod.rs:9585. The search was
+      python over the source, standing in for grep. -->
 - [ ] G6 A NESTED-SHELL test: the failure originally took the PARENT shell down
       too, so the fix is verified from inside a child nsh
 - [ ] G7 Regression tests in nsh-test, beside regression_sigpipe_no_crash, for at
@@ -97,7 +116,7 @@ load-bearing: without the per-child restore, `yes | head -3` spins forever.
   about not crashing.
 - Revisiting INT-299's original decision. It is already corrected.
 
-## Revision 2026-10-08
+## Revision 2026-10-07
 
 Recon before cistart. `dash forest` no longer reproduces as written: forest appears
 nowhere in novashell after the rename, and dash would collide with any dash binary on
@@ -113,3 +132,17 @@ own stdout to be the closed pipe -- the nsh -c case. G1 and G7 now cover both do
 
 By reading, the 2026-08-21 SIGPIPE arrangement holds: the only signal call is SIG_DFL
 in the per-child pre_exec (commands/mod.rs:9585). G5 still demonstrates it after the fix.
+
+## Re-scope 2026-10-07 -- scope (a), ruled by Christian
+
+G1 found the panic already gone: commit 3e4ecfbe (2026-09-15) made nsh exit 141 silently
+on a broken pipe. What remains is keeping it gone, so this intent now locks that behaviour
+in: the nested-shell check (G6) and regression tests through both doors (G7).
+
+The dropped pipe G1 observed in the REPL (dashboard | wc -l prints 0) is a different
+defect. It moved to INT-281 together with the census and the return-text-versus-guard
+ruling (old G2 and G3).
+
+Separately, a terminal window closed instantly while a child nsh received three entered
+lines. It did not reproduce typed singly at a top-level prompt, its cause is unknown, and
+it is recorded as a finding (core intent find) rather than folded in here.
