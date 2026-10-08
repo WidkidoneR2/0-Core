@@ -9840,7 +9840,21 @@ fn peel_builtin_first_stage<'a>(
     match execute_impl(&argv, &source, db, &core_root, ExecutionMode::Spine) {
         CommandResult::NotBuiltin => Peeled::Spawn(plans),
         CommandResult::Output(text) => Peeled::Piped(&plans[1..], text),
-        CommandResult::Empty { suspension: _ } => Peeled::Piped(&plans[1..], String::new()),
+        // INT-281: EMPTY IS NOT EMPTY TEXT. Every builtin the census found printing to the
+        // terminal returns Empty (25 arms that can lead a pipeline: 12 print, 9 mixed), so
+        // piping an empty string on made dashboard | wc -l print the dashboard and then 0 --
+        // a wrong answer with no signal. Whether this builtin printed or produced nothing
+        // cannot be told from here, so the message says both, and the rest of the pipeline
+        // does not run. Output and Value above and below are untouched.
+        CommandResult::Empty { suspension: _ } => Peeled::Finished(CommandResult::Error(
+            format!(
+                "  {}: the rest of the pipeline did not run -- {} gave it no text \
+                 (it writes to the terminal, or produces nothing)",
+                program, program
+            )
+            .into(),
+            1,
+        )),
         // THIS ARM WAS THE SILENT DROP. A structured result fell into the
         // catch-all below and Peeled::Finished abandoned the pipeline, so
         // history piped to head printed the entire history and ignored head:

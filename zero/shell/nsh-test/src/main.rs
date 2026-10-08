@@ -808,6 +808,49 @@ fn all_tests() -> Vec<TestResult> {
         },
     ));
     results.push(test(
+        "regression_281_printing_builtin_pipe_refuses",
+        Category::Regression,
+        || {
+            // INT-281: a builtin that prints to the terminal and returns Empty fed the pipe
+            // nothing, so dashboard | wc -l printed the dashboard and then 0 -- a wrong answer
+            // with no signal. The rest of the pipeline must not run, and nsh must say so.
+            // stdout and stderr are checked together so the order of the tuple cannot matter.
+            let (a, b, code) = run_fsh_status("dashboard | wc -l")?;
+            let both = format!("{}\n{}", a, b);
+            if both.lines().any(|l| l.trim() == "0") {
+                return Err(format!(
+                    "wc -l ran on an empty pipe and printed 0: {:?}",
+                    both
+                ));
+            }
+            expect_contains(&both, "the rest of the pipeline did not run")?;
+            expect_exit(code, 1)
+        },
+    ));
+    results.push(test(
+        "repl_281_printing_builtin_pipe_refuses",
+        Category::Repl,
+        || {
+            // INT-281: the REPL door. Whole-line and phrase matches, so the typed command
+            // text cannot satisfy either check.
+            let out = repl::run_repl_lines(&["dashboard | wc -l"])?;
+            if out.iter().any(|l| l.trim() == "0") {
+                return Err(format!(
+                    "wc -l ran on an empty pipe and printed 0: {:?}",
+                    out
+                ));
+            }
+            if out
+                .iter()
+                .any(|l| l.contains("the rest of the pipeline did not run"))
+            {
+                Ok(())
+            } else {
+                Err(format!("no refusal after dashboard | wc -l: {:?}", out))
+            }
+        },
+    ));
+    results.push(test(
         "repl_251_caret_agrees_with_exit_status",
         Category::Repl,
         || {
