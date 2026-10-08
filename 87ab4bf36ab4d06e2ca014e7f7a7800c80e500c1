@@ -1,0 +1,445 @@
+file /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs  sha256 df108d5a65ff8174 -> ad9b5a96a5b8e0a6
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 15387..15598 ---
+   15385: // dashboard system  — CPU, memory, network, top processes
+   15386: 
+>> 15387: fn dashboard_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
+>> 15388:     let mode = args.first().copied().unwrap_or("full");
+>> 15389:     match mode {
+>> 15390:         "system" => dashboard_system(),
+>> 15391:         "overview" => dashboard_overview(db, core_root),
+>> 15392:         _ => {
+>> 15393:             dashboard_system();
+>> 15394:             println!();
+>> 15395:             dashboard_overview(db, core_root);
+>> 15396:             CommandResult::Empty { suspension: None }
+>> 15397:         }
+>> 15398:     }
+>> 15399: }
+>> 15400: 
+>> 15401: fn dashboard_system() -> CommandResult {
+>> 15402:     use colored::*;
+>> 15403: 
+>> 15404:     println!();
+>> 15405:     println!("{}", "┌─ 🖥  System".bright_cyan().bold());
+>> 15406: 
+>> 15407:     // Load average
+>> 15408:     let load = std::fs::read_to_string("/proc/loadavg")
+>> 15409:         .map(|s| s.split_whitespace().take(3).collect::<Vec<_>>().join(" "))
+>> 15410:         .unwrap_or_else(|_| "?".to_string());
+>> 15411:     println!("  {}  {}", "Load avg:".dimmed(), load.bright_white());
+>> 15412: 
+>> 15413:     // Memory from /proc/meminfo
+>> 15414:     if let Ok(mem) = std::fs::read_to_string("/proc/meminfo") {
+>> 15415:         let mut total = 0u64;
+>> 15416:         let mut available = 0u64;
+>> 15417:         for line in mem.lines() {
+>> 15418:             if line.starts_with("MemTotal:") {
+>> 15419:                 total = line
+>> 15420:                     .split_whitespace()
+>> 15421:                     .nth(1)
+>> 15422:                     .and_then(|v| v.parse().ok())
+>> 15423:                     .unwrap_or(0);
+>> 15424:             }
+>> 15425:             if line.starts_with("MemAvailable:") {
+>> 15426:                 available = line
+>> 15427:                     .split_whitespace()
+>> 15428:                     .nth(1)
+>> 15429:                     .and_then(|v| v.parse().ok())
+>> 15430:                     .unwrap_or(0);
+>> 15431:             }
+>> 15432:         }
+>> 15433:         if total > 0 {
+>> 15434:             let used = total - available;
+>> 15435:             let pct = (used * 100) / total;
+>> 15436:             let bar_len = (pct / 5) as usize;
+>> 15437:             let bar = format!(
+>> 15438:                 "{}{}",
+>> 15439:                 "█".repeat(bar_len).bright_green(),
+>> 15440:                 "░".repeat(20 - bar_len.min(20)).dimmed()
+>> 15441:             );
+>> 15442:             println!(
+>> 15443:                 "  {}  {} [{bar}] {}%",
+>> 15444:                 "Memory:".dimmed(),
+>> 15445:                 format!("{}/{}MB", used / 1024, total / 1024).bright_white(),
+>> 15446:                 pct
+>> 15447:             );
+>> 15448:         }
+>> 15449:     }
+>> 15450: 
+>> 15451:     // Top 5 CPU processes
+>> 15452:     let top = std::process::Command::new("ps")
+>> 15453:         .args(["aux", "--no-headers", "--sort=-pcpu"])
+>> 15454:         .output()
+>> 15455:         .ok()
+>> 15456:         .and_then(|o| String::from_utf8(o.stdout).ok())
+>> 15457:         .unwrap_or_default();
+>> 15458: 
+>> 15459:     println!("  {}", "Top processes:".dimmed());
+>> 15460:     for line in top.lines().take(5) {
+>> 15461:         let parts: Vec<&str> = line.split_whitespace().collect();
+>> 15462:         if parts.len() > 10 {
+>> 15463:             let name = parts[10..].join(" ").chars().take(28).collect::<String>();
+>> 15464:             let cpu = parts[2];
+>> 15465:             let mem = parts[3];
+>> 15466:             println!(
+>> 15467:                 "    {} {} cpu:{} mem:{}",
+>> 15468:                 "·".dimmed(),
+>> 15469:                 name.bright_white(),
+>> 15470:                 cpu.yellow(),
+>> 15471:                 mem.dimmed()
+>> 15472:             );
+>> 15473:         }
+>> 15474:     }
+>> 15475: 
+>> 15476:     // Disk usage
+>> 15477:     let disk = std::process::Command::new("df")
+>> 15478:         .args(["-h", "/"])
+>> 15479:         .output()
+>> 15480:         .ok()
+>> 15481:         .and_then(|o| String::from_utf8(o.stdout).ok())
+>> 15482:         .unwrap_or_default();
+>> 15483: 
+>> 15484:     if let Some(line) = disk.lines().nth(1) {
+>> 15485:         let parts: Vec<&str> = line.split_whitespace().collect();
+>> 15486:         if parts.len() >= 5 {
+>> 15487:             println!(
+>> 15488:                 "  {}  used:{} available:{} ({})",
+>> 15489:                 "Disk /:".dimmed(),
+>> 15490:                 parts[2].bright_white(),
+>> 15491:                 parts[3].bright_green(),
+>> 15492:                 parts[4].yellow()
+>> 15493:             );
+>> 15494:         }
+>> 15495:     }
+>> 15496: 
+>> 15497:     println!("{}", "└────────────────────────────────────".dimmed());
+>> 15498:     CommandResult::Empty { suspension: None }
+>> 15499: }
+>> 15500: 
+>> 15501: fn dashboard_overview(db: &StateDb, core_root: &str) -> CommandResult {
+>> 15502:     use colored::*;
+>> 15503: 
+>> 15504:     println!("{}", "┌─ Project 0".bright_cyan().bold());
+>> 15505: 
+>> 15506:     // Health
+>> 15507:     // INT-230 G4: was unwrap_or(0) -- 0% rendered red as though measured.
+>> 15508:     let health = db.health_score();
+>> 15509:     let health_color = match health {
+>> 15510:         Some(h) if h >= 95 => format!("{}%", h).bright_green(),
+>> 15511:         Some(h) if h >= 80 => format!("{}%", h).yellow(),
+>> 15512:         Some(h) => format!("{}%", h).bright_red(),
+>> 15513:         // The percent sign moves INSIDE, so absence does not render as
+>> 15514:         // the string "unknown%".
+>> 15515:         None => "unknown".dimmed(),
+>> 15516:     };
+>> 15517:     println!("  {}  {}", "Health:".dimmed(), health_color);
+>> 15518: 
+>> 15519:     // Commit count
+>> 15520:     let commits: i64 = std::process::Command::new("git")
+>> 15521:         .args(["-C", core_root, "rev-list", "--count", "HEAD"])
+>> 15522:         .output()
+>> 15523:         .ok()
+>> 15524:         .and_then(|o| String::from_utf8(o.stdout).ok())
+>> 15525:         .and_then(|s| s.trim().parse().ok())
+>> 15526:         .unwrap_or(0);
+>> 15527:     println!(
+>> 15528:         "  {}  {}",
+>> 15529:         "Commits:".dimmed(),
+>> 15530:         commits.to_string().bright_white()
+>> 15531:     );
+>> 15532: 
+>> 15533:     // Active triggers
+>> 15534:     let trigger_count: i64 = db
+>> 15535:         .conn
+>> 15536:         .query_row(
+>> 15537:             "SELECT COUNT(*) FROM shell_triggers WHERE enabled = 1",
+>> 15538:             [],
+>> 15539:             |r| r.get(0),
+>> 15540:         )
+>> 15541:         .unwrap_or(0);
+>> 15542:     println!(
+>> 15543:         "  {}  {}",
+>> 15544:         "Active triggers:".dimmed(),
+>> 15545:         trigger_count.to_string().bright_cyan()
+>> 15546:     );
+>> 15547: 
+>> 15548:     // Recent events
+>> 15549:     let events = db.query_events(None, true, 5);
+>> 15550:     if !events.is_empty() {
+>> 15551:         println!("  {}", "Recent events:".dimmed());
+>> 15552:         for (domain, action, _ts) in events.iter().take(3) {
+>> 15553:             println!(
+>> 15554:                 "    {} {}.{}",
+>> 15555:                 "·".dimmed(),
+>> 15556:                 domain.bright_cyan(),
+>> 15557:                 action.dimmed()
+>> 15558:             );
+>> 15559:         }
+>> 15560:     }
+>> 15561: 
+>> 15562:     // Latest snapshot if exists
+>> 15563:     // INT-230 G4: health is nullable. This annotation is what made `sh` an
+>> 15564:     // i64 below, so fixing it here also fixes the render at the println.
+>> 15565:     let snap: Option<(String, Option<i64>, i64)> = db
+>> 15566:         .conn
+>> 15567:         .query_row(
+>> 15568:             "SELECT name, health, commits FROM shell_snapshots ORDER BY timestamp DESC LIMIT 1",
+>> 15569:             [],
+>> 15570:             |r| {
+>> 15571:                 Ok((
+>> 15572:                     r.get::<_, String>(0)?,
+>> 15573:                     // INT-230 G4: nullable.
+>> 15574:                     r.get::<_, Option<i64>>(1)?,
+>> 15575:                     r.get::<_, i64>(2)?,
+>> 15576:                 ))
+>> 15577:             },
+>> 15578:         )
+>> 15579:         .ok();
+>> 15580:     if let Some((name, sh, sc)) = snap {
+>> 15581:         let commit_diff = commits - sc;
+>> 15582:         println!(
+>> 15583:             "  {}  '{}' — health:{} commits:+{}",
+>> 15584:             "Last snapshot:".dimmed(),
+>> 15585:             name.bright_white(),
+>> 15586:             sh.map(|h| h.to_string())
+>> 15587:                 .unwrap_or_else(|| "unknown".to_string())
+>> 15588:                 .dimmed(),
+>> 15589:             commit_diff.to_string().bright_green()
+>> 15590:         );
+>> 15591:     }
+>> 15592: 
+>> 15593:     println!("{}", "└────────────────────────────────────".dimmed());
+>> 15594:     CommandResult::Empty { suspension: None }
+>> 15595: }
+>> 15596: 
+>> 15597: // ── Phase 6 — .fsh Scripting ──────────────────────────────────────────────────
+>> 15598: 
+   15599: fn scripting_let_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
+   15600:     // let name = expr  (from REPL)
+++ fn dashboard_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
+++     // INT-282: the dashboard RETURNS its text, so it can lead a pipeline (F-0022). Each part is
+++     // built with writeln!, so it ends in a newline; the very last one is taken off because every
+++     // place an Output reaches the terminal println!s it and puts it back. The full view keeps
+++     // the blank line that separated the two parts, so the terminal shows what it showed before.
+++     let mode = args.first().copied().unwrap_or("full");
+++     let mut text = match mode {
+++         "system" => dashboard_system(),
+++         "overview" => dashboard_overview(db, core_root),
+++         _ => format!("{}\n{}", dashboard_system(), dashboard_overview(db, core_root)),
+++     };
+++     if text.ends_with('\n') {
+++         text.pop();
+++     }
+++     CommandResult::Output(text)
+++ }
+++ 
+++ fn dashboard_system() -> String {
+++     use colored::*;
+++     use std::fmt::Write;
+++     let mut out = String::new();
+++ 
+++     let _ = writeln!(out);
+++     let _ = writeln!(out, "{}", "┌─ 🖥  System".bright_cyan().bold());
+++ 
+++     // Load average
+++     let load = std::fs::read_to_string("/proc/loadavg")
+++         .map(|s| s.split_whitespace().take(3).collect::<Vec<_>>().join(" "))
+++         .unwrap_or_else(|_| "?".to_string());
+++     let _ = writeln!(out, "  {}  {}", "Load avg:".dimmed(), load.bright_white());
+++ 
+++     // Memory from /proc/meminfo
+++     if let Ok(mem) = std::fs::read_to_string("/proc/meminfo") {
+++         let mut total = 0u64;
+++         let mut available = 0u64;
+++         for line in mem.lines() {
+++             if line.starts_with("MemTotal:") {
+++                 total = line
+++                     .split_whitespace()
+++                     .nth(1)
+++                     .and_then(|v| v.parse().ok())
+++                     .unwrap_or(0);
+++             }
+++             if line.starts_with("MemAvailable:") {
+++                 available = line
+++                     .split_whitespace()
+++                     .nth(1)
+++                     .and_then(|v| v.parse().ok())
+++                     .unwrap_or(0);
+++             }
+++         }
+++         if total > 0 {
+++             let used = total - available;
+++             let pct = (used * 100) / total;
+++             let bar_len = (pct / 5) as usize;
+++             let bar = format!(
+++                 "{}{}",
+++                 "█".repeat(bar_len).bright_green(),
+++                 "░".repeat(20 - bar_len.min(20)).dimmed()
+++             );
+++             let _ = writeln!(
+++                 out,
+++                 "  {}  {} [{bar}] {}%",
+++                 "Memory:".dimmed(),
+++                 format!("{}/{}MB", used / 1024, total / 1024).bright_white(),
+++                 pct
+++             );
+++         }
+++     }
+++ 
+++     // Top 5 CPU processes
+++     let top = std::process::Command::new("ps")
+++         .args(["aux", "--no-headers", "--sort=-pcpu"])
+++         .output()
+++         .ok()
+++         .and_then(|o| String::from_utf8(o.stdout).ok())
+++         .unwrap_or_default();
+++ 
+++     let _ = writeln!(out, "  {}", "Top processes:".dimmed());
+++     for line in top.lines().take(5) {
+++         let parts: Vec<&str> = line.split_whitespace().collect();
+++         if parts.len() > 10 {
+++             let name = parts[10..].join(" ").chars().take(28).collect::<String>();
+++             let cpu = parts[2];
+++             let mem = parts[3];
+++             let _ = writeln!(
+++                 out,
+++                 "    {} {} cpu:{} mem:{}",
+++                 "·".dimmed(),
+++                 name.bright_white(),
+++                 cpu.yellow(),
+++                 mem.dimmed()
+++             );
+++         }
+++     }
+++ 
+++     // Disk usage
+++     let disk = std::process::Command::new("df")
+++         .args(["-h", "/"])
+++         .output()
+++         .ok()
+++         .and_then(|o| String::from_utf8(o.stdout).ok())
+++         .unwrap_or_default();
+++ 
+++     if let Some(line) = disk.lines().nth(1) {
+++         let parts: Vec<&str> = line.split_whitespace().collect();
+++         if parts.len() >= 5 {
+++             let _ = writeln!(
+++                 out,
+++                 "  {}  used:{} available:{} ({})",
+++                 "Disk /:".dimmed(),
+++                 parts[2].bright_white(),
+++                 parts[3].bright_green(),
+++                 parts[4].yellow()
+++             );
+++         }
+++     }
+++ 
+++     let _ = writeln!(out, "{}", "└────────────────────────────────────".dimmed());
+++     out
+++ }
+++ 
+++ fn dashboard_overview(db: &StateDb, core_root: &str) -> String {
+++     use colored::*;
+++     use std::fmt::Write;
+++     let mut out = String::new();
+++ 
+++     let _ = writeln!(out, "{}", "┌─ Project 0".bright_cyan().bold());
+++ 
+++     // Health
+++     // INT-230 G4: was unwrap_or(0) -- 0% rendered red as though measured.
+++     let health = db.health_score();
+++     let health_color = match health {
+++         Some(h) if h >= 95 => format!("{}%", h).bright_green(),
+++         Some(h) if h >= 80 => format!("{}%", h).yellow(),
+++         Some(h) => format!("{}%", h).bright_red(),
+++         // The percent sign moves INSIDE, so absence does not render as
+++         // the string "unknown%".
+++         None => "unknown".dimmed(),
+++     };
+++     let _ = writeln!(out, "  {}  {}", "Health:".dimmed(), health_color);
+++ 
+++     // Commit count
+++     let commits: i64 = std::process::Command::new("git")
+++         .args(["-C", core_root, "rev-list", "--count", "HEAD"])
+++         .output()
+++         .ok()
+++         .and_then(|o| String::from_utf8(o.stdout).ok())
+++         .and_then(|s| s.trim().parse().ok())
+++         .unwrap_or(0);
+++     let _ = writeln!(
+++         out,
+++         "  {}  {}",
+++         "Commits:".dimmed(),
+++         commits.to_string().bright_white()
+++     );
+++ 
+++     // Active triggers
+++     let trigger_count: i64 = db
+++         .conn
+++         .query_row(
+++             "SELECT COUNT(*) FROM shell_triggers WHERE enabled = 1",
+++             [],
+++             |r| r.get(0),
+++         )
+++         .unwrap_or(0);
+++     let _ = writeln!(
+++         out,
+++         "  {}  {}",
+++         "Active triggers:".dimmed(),
+++         trigger_count.to_string().bright_cyan()
+++     );
+++ 
+++     // Recent events
+++     let events = db.query_events(None, true, 5);
+++     if !events.is_empty() {
+++         let _ = writeln!(out, "  {}", "Recent events:".dimmed());
+++         for (domain, action, _ts) in events.iter().take(3) {
+++             let _ = writeln!(
+++                 out,
+++                 "    {} {}.{}",
+++                 "·".dimmed(),
+++                 domain.bright_cyan(),
+++                 action.dimmed()
+++             );
+++         }
+++     }
+++ 
+++     // Latest snapshot if exists
+++     // INT-230 G4: health is nullable. This annotation is what made `sh` an
+++     // i64 below, so fixing it here also fixes the render at the println.
+++     let snap: Option<(String, Option<i64>, i64)> = db
+++         .conn
+++         .query_row(
+++             "SELECT name, health, commits FROM shell_snapshots ORDER BY timestamp DESC LIMIT 1",
+++             [],
+++             |r| {
+++                 Ok((
+++                     r.get::<_, String>(0)?,
+++                     // INT-230 G4: nullable.
+++                     r.get::<_, Option<i64>>(1)?,
+++                     r.get::<_, i64>(2)?,
+++                 ))
+++             },
+++         )
+++         .ok();
+++     if let Some((name, sh, sc)) = snap {
+++         let commit_diff = commits - sc;
+++         let _ = writeln!(
+++             out,
+++             "  {}  '{}' — health:{} commits:+{}",
+++             "Last snapshot:".dimmed(),
+++             name.bright_white(),
+++             sh.map(|h| h.to_string())
+++                 .unwrap_or_else(|| "unknown".to_string())
+++                 .dimmed(),
+++             commit_diff.to_string().bright_green()
+++         );
+++     }
+++ 
+++     let _ = writeln!(out, "{}", "└────────────────────────────────────".dimmed());
+++     out
+++ }
+++ 
+++ // ── Phase 6 — .fsh Scripting ──────────────────────────────────────────────────
+++ 
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 212 line(s) replaced by 226
