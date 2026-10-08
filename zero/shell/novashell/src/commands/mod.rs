@@ -9839,7 +9839,18 @@ fn peel_builtin_first_stage<'a>(
     let core_root = db.core_root();
     match execute_impl(&argv, &source, db, &core_root, ExecutionMode::Spine) {
         CommandResult::NotBuiltin => Peeled::Spawn(plans),
-        CommandResult::Output(text) => Peeled::Piped(&plans[1..], text),
+        CommandResult::Output(text) => {
+            // INT-282: what crosses a pipe is plain text ending in a newline -- the convention
+            // to_pipe_text keeps for Value. An Output is written for the terminal: colored adds
+            // escape codes whenever the shell's own stdout is a terminal (so the REPL piped them
+            // and nsh -c did not), and the display sites println! it, so it carries no final
+            // newline and wc -l counted one line short (alias: 244 lines, alias | wc -l said 243).
+            let mut text = crate::value::strip_ansi(&text);
+            if !text.is_empty() && !text.ends_with('\n') {
+                text.push('\n');
+            }
+            Peeled::Piped(&plans[1..], text)
+        }
         // INT-281: EMPTY IS NOT EMPTY TEXT. Every builtin the census found printing to the
         // terminal returns Empty (25 arms that can lead a pipeline: 12 print, 9 mixed), so
         // piping an empty string on made dashboard | wc -l print the dashboard and then 0 --
@@ -15385,30 +15396,39 @@ fn parse_sql_query(line: &str) -> Result<SqlQuery, String> {
 // dashboard system  — CPU, memory, network, top processes
 
 fn dashboard_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
+    // INT-282: the dashboard RETURNS its text, so it can lead a pipeline (F-0022). Each part is
+    // built with writeln!, so it ends in a newline; the very last one is taken off because every
+    // place an Output reaches the terminal println!s it and puts it back. The full view keeps
+    // the blank line that separated the two parts, so the terminal shows what it showed before.
     let mode = args.first().copied().unwrap_or("full");
-    match mode {
+    let mut text = match mode {
         "system" => dashboard_system(),
         "overview" => dashboard_overview(db, core_root),
-        _ => {
-            dashboard_system();
-            println!();
-            dashboard_overview(db, core_root);
-            CommandResult::Empty { suspension: None }
-        }
+        _ => format!(
+            "{}\n{}",
+            dashboard_system(),
+            dashboard_overview(db, core_root)
+        ),
+    };
+    if text.ends_with('\n') {
+        text.pop();
     }
+    CommandResult::Output(text)
 }
 
-fn dashboard_system() -> CommandResult {
+fn dashboard_system() -> String {
     use colored::*;
+    use std::fmt::Write;
+    let mut out = String::new();
 
-    println!();
-    println!("{}", "┌─ 🖥  System".bright_cyan().bold());
+    let _ = writeln!(out);
+    let _ = writeln!(out, "{}", "┌─ 🖥  System".bright_cyan().bold());
 
     // Load average
     let load = std::fs::read_to_string("/proc/loadavg")
         .map(|s| s.split_whitespace().take(3).collect::<Vec<_>>().join(" "))
         .unwrap_or_else(|_| "?".to_string());
-    println!("  {}  {}", "Load avg:".dimmed(), load.bright_white());
+    let _ = writeln!(out, "  {}  {}", "Load avg:".dimmed(), load.bright_white());
 
     // Memory from /proc/meminfo
     if let Ok(mem) = std::fs::read_to_string("/proc/meminfo") {
@@ -15439,7 +15459,8 @@ fn dashboard_system() -> CommandResult {
                 "█".repeat(bar_len).bright_green(),
                 "░".repeat(20 - bar_len.min(20)).dimmed()
             );
-            println!(
+            let _ = writeln!(
+                out,
                 "  {}  {} [{bar}] {}%",
                 "Memory:".dimmed(),
                 format!("{}/{}MB", used / 1024, total / 1024).bright_white(),
@@ -15456,14 +15477,15 @@ fn dashboard_system() -> CommandResult {
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .unwrap_or_default();
 
-    println!("  {}", "Top processes:".dimmed());
+    let _ = writeln!(out, "  {}", "Top processes:".dimmed());
     for line in top.lines().take(5) {
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() > 10 {
             let name = parts[10..].join(" ").chars().take(28).collect::<String>();
             let cpu = parts[2];
             let mem = parts[3];
-            println!(
+            let _ = writeln!(
+                out,
                 "    {} {} cpu:{} mem:{}",
                 "·".dimmed(),
                 name.bright_white(),
@@ -15484,7 +15506,8 @@ fn dashboard_system() -> CommandResult {
     if let Some(line) = disk.lines().nth(1) {
         let parts: Vec<&str> = line.split_whitespace().collect();
         if parts.len() >= 5 {
-            println!(
+            let _ = writeln!(
+                out,
                 "  {}  used:{} available:{} ({})",
                 "Disk /:".dimmed(),
                 parts[2].bright_white(),
@@ -15494,14 +15517,16 @@ fn dashboard_system() -> CommandResult {
         }
     }
 
-    println!("{}", "└────────────────────────────────────".dimmed());
-    CommandResult::Empty { suspension: None }
+    let _ = writeln!(out, "{}", "└────────────────────────────────────".dimmed());
+    out
 }
 
-fn dashboard_overview(db: &StateDb, core_root: &str) -> CommandResult {
+fn dashboard_overview(db: &StateDb, core_root: &str) -> String {
     use colored::*;
+    use std::fmt::Write;
+    let mut out = String::new();
 
-    println!("{}", "┌─ Project 0".bright_cyan().bold());
+    let _ = writeln!(out, "{}", "┌─ Project 0".bright_cyan().bold());
 
     // Health
     // INT-230 G4: was unwrap_or(0) -- 0% rendered red as though measured.
@@ -15514,7 +15539,7 @@ fn dashboard_overview(db: &StateDb, core_root: &str) -> CommandResult {
         // the string "unknown%".
         None => "unknown".dimmed(),
     };
-    println!("  {}  {}", "Health:".dimmed(), health_color);
+    let _ = writeln!(out, "  {}  {}", "Health:".dimmed(), health_color);
 
     // Commit count
     let commits: i64 = std::process::Command::new("git")
@@ -15524,7 +15549,8 @@ fn dashboard_overview(db: &StateDb, core_root: &str) -> CommandResult {
         .and_then(|o| String::from_utf8(o.stdout).ok())
         .and_then(|s| s.trim().parse().ok())
         .unwrap_or(0);
-    println!(
+    let _ = writeln!(
+        out,
         "  {}  {}",
         "Commits:".dimmed(),
         commits.to_string().bright_white()
@@ -15539,7 +15565,8 @@ fn dashboard_overview(db: &StateDb, core_root: &str) -> CommandResult {
             |r| r.get(0),
         )
         .unwrap_or(0);
-    println!(
+    let _ = writeln!(
+        out,
         "  {}  {}",
         "Active triggers:".dimmed(),
         trigger_count.to_string().bright_cyan()
@@ -15548,9 +15575,10 @@ fn dashboard_overview(db: &StateDb, core_root: &str) -> CommandResult {
     // Recent events
     let events = db.query_events(None, true, 5);
     if !events.is_empty() {
-        println!("  {}", "Recent events:".dimmed());
+        let _ = writeln!(out, "  {}", "Recent events:".dimmed());
         for (domain, action, _ts) in events.iter().take(3) {
-            println!(
+            let _ = writeln!(
+                out,
                 "    {} {}.{}",
                 "·".dimmed(),
                 domain.bright_cyan(),
@@ -15579,7 +15607,8 @@ fn dashboard_overview(db: &StateDb, core_root: &str) -> CommandResult {
         .ok();
     if let Some((name, sh, sc)) = snap {
         let commit_diff = commits - sc;
-        println!(
+        let _ = writeln!(
+            out,
             "  {}  '{}' — health:{} commits:+{}",
             "Last snapshot:".dimmed(),
             name.bright_white(),
@@ -15590,8 +15619,8 @@ fn dashboard_overview(db: &StateDb, core_root: &str) -> CommandResult {
         );
     }
 
-    println!("{}", "└────────────────────────────────────".dimmed());
-    CommandResult::Empty { suspension: None }
+    let _ = writeln!(out, "{}", "└────────────────────────────────────".dimmed());
+    out
 }
 
 // ── Phase 6 — .fsh Scripting ──────────────────────────────────────────────────

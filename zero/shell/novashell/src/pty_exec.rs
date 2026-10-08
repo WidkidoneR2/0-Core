@@ -107,19 +107,6 @@ fn is_heredoc_leak(s: &str) -> bool {
 /// Strip ANSI escape sequences from a string (for clean leak-pattern matching).
 /// Keeps the original string in the output stream — this is only for scanning.
 fn strip_ansi(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    let mut chars = s.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '\x1b' {
-            // skip until we hit a letter (end of CSI) or run out
-            for nc in chars.by_ref() {
-                if nc.is_ascii_alphabetic() {
-                    break;
-                }
-            }
-        } else {
-            out.push(c);
-        }
-    }
-    out
+    // INT-282: one owner. This file's own copy moved to crate::value::strip_ansi.
+    crate::value::strip_ansi(s)
 }

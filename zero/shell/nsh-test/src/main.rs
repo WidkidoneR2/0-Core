@@ -815,7 +815,8 @@ fn all_tests() -> Vec<TestResult> {
             // nothing, so dashboard | wc -l printed the dashboard and then 0 -- a wrong answer
             // with no signal. The rest of the pipeline must not run, and nsh must say so.
             // stdout and stderr are checked together so the order of the tuple cannot matter.
-            let (a, b, code) = run_fsh_status("dashboard | wc -l")?;
+            // INT-282: run --list stands in for dashboard, which now returns its text.
+            let (a, b, code) = run_fsh_status("run --list | wc -l")?;
             let both = format!("{}\n{}", a, b);
             if both.lines().any(|l| l.trim() == "0") {
                 return Err(format!(
@@ -833,7 +834,8 @@ fn all_tests() -> Vec<TestResult> {
         || {
             // INT-281: the REPL door. Whole-line and phrase matches, so the typed command
             // text cannot satisfy either check.
-            let out = repl::run_repl_lines(&["dashboard | wc -l"])?;
+            // INT-282: run --list stands in for dashboard, which now returns its text.
+            let out = repl::run_repl_lines(&["run --list | wc -l"])?;
             if out.iter().any(|l| l.trim() == "0") {
                 return Err(format!(
                     "wc -l ran on an empty pipe and printed 0: {:?}",
@@ -846,8 +848,106 @@ fn all_tests() -> Vec<TestResult> {
             {
                 Ok(())
             } else {
-                Err(format!("no refusal after dashboard | wc -l: {:?}", out))
+                Err(format!("no refusal after run --list | wc -l: {:?}", out))
             }
+        },
+    ));
+    results.push(test(
+        "regression_282_dashboard_feeds_wc",
+        Category::Regression,
+        || {
+            // INT-282: dashboard returns its text, so it feeds the pipe: wc -l prints one
+            // count, nothing else reaches stdout or stderr, and nothing refuses.
+            let (a, b, code) = run_fsh_status("dashboard | wc -l")?;
+            let both = format!("{}\n{}", a, b);
+            if both.contains("the rest of the pipeline did not run") {
+                return Err(format!(
+                    "dashboard still refuses to lead a pipeline: {:?}",
+                    both
+                ));
+            }
+            let lines: Vec<&str> = both
+                .lines()
+                .map(|l| l.trim())
+                .filter(|l| !l.is_empty())
+                .collect();
+            match lines.as_slice() {
+                [n] => match n.parse::<u32>() {
+                    Ok(c) if (10..=60).contains(&c) => expect_exit(code, 0),
+                    _ => Err(format!("expected a line count of 10 to 60, got {:?}", n)),
+                },
+                _ => Err(format!(
+                    "expected exactly one line, the count, got {:?}",
+                    lines
+                )),
+            }
+        },
+    ));
+    results.push(test("repl_282_dashboard_feeds_wc", Category::Repl, || {
+        // INT-282: the REPL door. The count is matched as a whole line, so the typed
+        // command text cannot satisfy it.
+        let out = repl::run_repl_lines(&["dashboard | wc -l"])?;
+        if out
+            .iter()
+            .any(|l| l.contains("the rest of the pipeline did not run"))
+        {
+            return Err(format!(
+                "dashboard still refuses to lead a pipeline: {:?}",
+                out
+            ));
+        }
+        if out
+            .iter()
+            .any(|l| matches!(l.trim().parse::<u32>(), Ok(c) if (10..=60).contains(&c)))
+        {
+            Ok(())
+        } else {
+            Err(format!(
+                "no line count of 10 to 60 after dashboard | wc -l: {:?}",
+                out
+            ))
+        }
+    }));
+    results.push(test(
+        "regression_282_piped_output_ends_with_newline",
+        Category::Regression,
+        || {
+            // INT-282: the peel wrote Output text as returned, and Output text has no final
+            // newline (the display sites println! it), so wc -l counted one line short:
+            // alias printed 244 lines and alias | wc -l said 243 (2026-10-08).
+            // The first version counted run_fsh("alias") lines against alias | wc -l. run_fsh
+            // trims, and alias opens with a blank line, so the trim hid the missing newline and
+            // the test passed on the unfixed build. It now asserts the fact itself: the last byte
+            // through the pipe. help is static text, so the case database cannot change it.
+            let last = run_fsh("help | tail -c 1 | od -An -c")?;
+            expect_eq(last.trim(), "\\n")
+        },
+    ));
+    results.push(test(
+        "regression_282_piped_output_carries_no_escape",
+        Category::Regression,
+        || {
+            // INT-282: colored colours whenever stdout is a terminal, so in the REPL an Output
+            // carried escape codes into the pipe. CLICOLOR_FORCE=1 makes the -c door colour too,
+            // so this sees what the REPL sees. Plain dashboard must carry codes, or the test
+            // proves nothing; piped through od -c it must carry none.
+            let force = [("CLICOLOR_FORCE", "1")];
+            let plain = run_fsh_env("dashboard", &force)?;
+            if !plain.contains('\x1b') {
+                return Err(
+                    "CLICOLOR_FORCE=1 did not colour dashboard; this test cannot see a strip"
+                        .to_string(),
+                );
+            }
+            let dumped = run_fsh_env("dashboard | od -An -c", &force)?;
+            if dumped.trim().is_empty() {
+                return Err("dashboard | od -An -c printed nothing".to_string());
+            }
+            if dumped.contains("033") {
+                let head: Vec<&str> = dumped.lines().take(3).collect();
+                return Err(format!("an escape byte crossed the pipe: {:?}", head));
+            }
+            Ok(())
         },
     ));
     results.push(test(

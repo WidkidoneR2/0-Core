@@ -192,22 +192,8 @@ fn parse_section_header(s: &str) -> (String, String) {
     ("•".to_string(), s.to_string())
 }
 fn strip_ansi(s: &str) -> String {
-    let mut out = String::new();
-    let mut in_escape = false;
-    for c in s.chars() {
-        if c == '\x1b' {
-            in_escape = true;
-            continue;
-        }
-        if in_escape {
-            if c == 'm' {
-                in_escape = false;
-            }
-            continue;
-        }
-        out.push(c);
-    }
-    out
+    // INT-282: one owner. This file's own copy moved to crate::value::strip_ansi.
+    crate::value::strip_ansi(s)
 }
 fn extract_number(s: &str) -> Option<i64> {
     let digits: String = s.chars().filter(|c| c.is_ascii_digit()).take(3).collect();

@@ -910,6 +910,28 @@ pub const VALUE_SOURCES: &[&str] = &[
     "events",
 ];
 
+/// INT-282: ONE OWNER for taking terminal escape codes out of text. An ESC starts a sequence
+/// that runs to the first ASCII letter -- the final byte of a CSI sequence, which is what the
+/// SGR colour codes colored writes are (ESC, then [, then parameters, then m). This is the
+/// pty_exec.rs form; health_tui.rs kept a narrower copy that stopped only at m, and both now
+/// ask here. Text that crosses a pipe is plain, whichever door it came through.
+pub fn strip_ansi(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    let mut chars = s.chars();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            for nc in chars.by_ref() {
+                if nc.is_ascii_alphabetic() {
+                    break;
+                }
+            }
+        } else {
+            out.push(c);
+        }
+    }
+    out
+}
+
 /// Does this word begin a value PIPELINE? Pure, and first-word only.
 pub fn is_value_source(first: &str) -> bool {
     VALUE_SOURCES.contains(&first)
