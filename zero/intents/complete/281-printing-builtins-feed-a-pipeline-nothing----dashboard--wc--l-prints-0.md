@@ -3,7 +3,7 @@ id: 281
 date: 2026-10-07
 type: future
 title: "printing builtins feed a pipeline nothing -- dashboard | wc -l prints 0"
-status: in-progress
+status: complete
 tags: [nsh, pipeline, builtins, fix]
 depends_on: []
 ---
@@ -101,3 +101,6 @@ Each gate is watched failing before it is watched passing. Anchors stay ASCII-on
 <!-- evidence: zero/shell/nsh-test/src/main.rs, regression_281_printing_builtin_pipe_refuses (run_fsh_status) and repl_281_printing_builtin_pipe_refuses (Category::Repl, run_repl_lines), inserted beside the INT-243 cases by fpatch Seal 052965131657e9b7. Watched failing first: 229/231 on the unfixed debug build with exactly these two red (/tmp/suite-281-red.txt); then 231/231 after the fix, debug and deployed. -->
 - [x] G7 each gate carries evidence per INT-158.
 <!-- evidence: G0 to G6 each carry an evidence comment in INT-158 form, naming the scripts by sha256, the fpatch seals (red 052965131657e9b7, fix e1dea7b79115b8af) and the suite files. -->
+
+## Versions
+- novashell 5.2.0 -> 5.3.0 (minor)
