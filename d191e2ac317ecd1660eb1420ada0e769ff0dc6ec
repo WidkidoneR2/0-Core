@@ -1,0 +1,25 @@
+file /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs  sha256 d1a57dd332db6b35 -> df108d5a65ff8174
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 9843..9844 ---
+   9841:         CommandResult::NotBuiltin => Peeled::Spawn(plans),
+   9842:         CommandResult::Output(text) => Peeled::Piped(&plans[1..], text),
+>> 9843:         CommandResult::Empty { suspension: _ } => Peeled::Piped(&plans[1..], String::new()),
+>> 9844:         // THIS ARM WAS THE SILENT DROP. A structured result fell into the
+   9845:         // catch-all below and Peeled::Finished abandoned the pipeline, so
+   9846:         // history piped to head printed the entire history and ignored head:
+++ // INT-281: EMPTY IS NOT EMPTY TEXT. Every builtin the census found printing to the
+++         // terminal returns Empty (25 arms that can lead a pipeline: 12 print, 9 mixed), so
+++         // piping an empty string on made dashboard | wc -l print the dashboard and then 0 --
+++         // a wrong answer with no signal. Whether this builtin printed or produced nothing
+++         // cannot be told from here, so the message says both, and the rest of the pipeline
+++         // does not run. Output and Value above and below are untouched.
+++         CommandResult::Empty { suspension: _ } => Peeled::Finished(CommandResult::Error(
+++             format!(
+++                 "  {}: the rest of the pipeline did not run -- {} gave it no text \
+++                  (it writes to the terminal, or produces nothing)",
+++                 program, program
+++             )
+++             .into(),
+++             1,
+++         )),
+++
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
