@@ -1,0 +1,34 @@
+file /home/christian/0-core/zero/intents/in-progress/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md  sha256 e8add0efbd5248e7 -> ddbe7b748d4888b4
+--- /home/christian/0-core/zero/intents/in-progress/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: replacing lines 115..117 ---
+   113:       parent, where echo level $SHLVL printed level 1. The grandchild's exit 141 took
+   114:       neither shell down. -->
+>> 115: - [ ] G7 Regression tests in nsh-test, beside regression_sigpipe_no_crash, for at
+>> 116:       least one printing builtin piped into head, through BOTH doors: run_fsh
+>> 117:       (nsh -c) and a Category::Repl case
+   118: - [ ] G8 each gate carries evidence per INT-158
+   119:
+++ - [x] G7 Regression tests in nsh-test, beside regression_sigpipe_no_crash, for at
+++       least one printing builtin piped into head, through BOTH doors: run_fsh
+++       (nsh -c) and a Category::Repl case
+++       <!-- DEMONSTRATED 2026-10-07. Two cases beside regression_sigpipe_no_crash, both through the
+++       one launch path (harness plan seal 0579b5006b92b9a7): regression_243_closed_stdout_exits_141
+++       runs nsh -c dashboard with stdout already closed (run_fsh_closed_stdout, on the new shared
+++       fsh_command); repl_243_builtin_pipe_leaves_shell_alive needs a probe line to answer after
+++       dashboard | head -4 (run_repl_lines). Green: 229/229 against target/debug/nsh. Watched
+++       failing first on a debug build: exit(141) -> exit(140) failed the case with "expected exit
+++       141 got 140"; the hook's exit removed failed it with "nsh panicked on a closed stdout" --
+++       the regression it exists for. Source restored byte-exact, git diff on zero/shell/novashell
+++       empty, green again 80/80 (regression). The REPL case could not be made red honestly:
+++       nothing currently kills the shell on that line. -->
+--- /home/christian/0-core/zero/intents/in-progress/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: replacing lines 128..128 ---
+   126:       empty, green again 80/80 (regression). The REPL case could not be made red honestly:
+   127:       nothing currently kills the shell on that line. -->
+>> 128: - [ ] G8 each gate carries evidence per INT-158
+   129:
+   130: ## Non-goals
+++ - [x] G8 each gate carries evidence per INT-158
+++       <!-- DEMONSTRATED 2026-10-07: every ticked gate (G1, G4, G5, G6, G7) is followed by an
+++       evidence comment, checked mechanically by the plan that ticked this one; G2 and G3 moved
+++       to INT-281 and are not gates here. -->
+/home/christian/0-core/zero/intents/in-progress/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/243-printing-builtins-panic-on-a-broken-pipe-because-they-write-to-stdout-directly-instead-of-returning-output.md: 1 replaced
