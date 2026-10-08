@@ -1,0 +1,61 @@
+file /home/christian/0-core/zero/intents/future/048-forest-ci-local-ci-with-gitea-and-hydra-for-flake-builds.md  sha256 30cefeb342634065 -> f7d1ab7d977aa368
+--- /home/christian/0-core/zero/intents/future/048-forest-ci-local-ci-with-gitea-and-hydra-for-flake-builds.md: replacing lines 7..7 ---
+   5: title: "local CI gates are disarmed in a fresh clone -- core.hooksPath does not travel"
+   6: status: planned
+>> 7: tags: [ci, gitea, hydra, nix, flake, build, infrastructure, nixos]
+   8: priority: low
+   9: ---
+++ tags: [ci, git, hooks, clone, zero-gate]
+--- /home/christian/0-core/zero/intents/future/048-forest-ci-local-ci-with-gitea-and-hydra-for-flake-builds.md: replacing lines 96..104 ---
+   94:
+   95: ## Gates
+>> 96: - [ ] Gitea running in VM as NixOS service
+>> 97: - [ ] 0-Core repo mirrored to local Gitea
+>> 98: - [ ] Push to local Gitea triggers build
+>> 99: - [ ] Build result written to state.db
+>> 100: - [ ] ci status shows pass/fail in fsh
+>> 101: - [ ] ci log shows build output in fsh
+>> 102: - [ ] All VM gates pass before real machine setup
+>> 103: - [ ] Gitea running on real machine via flake
+>> 104: - [ ] Push to real Gitea triggers build and reports to fsh
+   105:
+   106: ## Depends On
+++ - Gitea running in VM as NixOS service
+++ - 0-Core repo mirrored to local Gitea
+++ - Push to local Gitea triggers build
+++ - Build result written to state.db
+++ - ci status shows pass/fail in fsh
+++ - ci log shows build output in fsh
+++ - All VM gates pass before real machine setup
+++ - Gitea running on real machine via flake
+++ - Push to real Gitea triggers build and reports to fsh
+--- /home/christian/0-core/zero/intents/future/048-forest-ci-local-ci-with-gitea-and-hydra-for-flake-builds.md: replacing lines 139..139 ---
+   137:
+   138: SUCCESS CRITERIA
+>> 139: - [ ] A fresh clone either arms its own hooks or refuses to commit until armed
+   140: - [ ] Watch it fail first: clone to /tmp, commit something rustfmt would reject,
+   141:       confirm it goes through today
+++ - [ ] G0: the arming point is chosen by reading, not assumed. Git never runs repository code
+++       on clone and core.hooksPath is local config, so nothing inside the repo can arm a fresh
+++       clone or refuse its commits. Read the Project 0 commands a working tree cannot avoid
+++       (ship first) and record the choice with file:line.
+++ - [ ] A fresh clone is armed by that command, or the command refuses to run and prints the one
+++       line that arms it.
+--- /home/christian/0-core/zero/intents/future/048-forest-ci-local-ci-with-gitea-and-hydra-for-flake-builds.md: replacing lines 172..172 ---
+   170:       make a fresh clone arm itself, and nothing yet refuses to commit until armed.
+   171:       That is the remaining work and it is the harder half. -->
+>> 172: - [ ] Decide separately whether a runner (Gitea Actions) is wanted at all
+   173:
+++ - [ ] Decide separately whether a runner (Gitea Actions) is wanted at all
+++
+++ ## Rewrite 2026-10-07
+++
+++ The nine history gates under Gates lost their checkboxes, text kept, so the ledger stops
+++ counting a wiped plan as open work. Tags now describe the live finding. The first success
+++ criterion was replaced: as written it asked a fresh clone to arm itself, which git forbids by
+++ design; arming now comes from a Project 0 command run in the tree. The runner question stays
+++ open for Christian's ruling.
+/home/christian/0-core/zero/intents/future/048-forest-ci-local-ci-with-gitea-and-hydra-for-flake-builds.md: 1 replaced
+/home/christian/0-core/zero/intents/future/048-forest-ci-local-ci-with-gitea-and-hydra-for-flake-builds.md: 1 replaced
+/home/christian/0-core/zero/intents/future/048-forest-ci-local-ci-with-gitea-and-hydra-for-flake-builds.md: 1 replaced
+/home/christian/0-core/zero/intents/future/048-forest-ci-local-ci-with-gitea-and-hydra-for-flake-builds.md: 1 replaced
