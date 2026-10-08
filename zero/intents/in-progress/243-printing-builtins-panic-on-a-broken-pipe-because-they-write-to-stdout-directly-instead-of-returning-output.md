@@ -104,8 +104,14 @@ load-bearing: without the per-child restore, `yes | head -3` spins forever.
       signal call that is code rather than comment is libc::signal(libc::SIGPIPE,
       libc::SIG_DFL) inside the per-child pre_exec at commands/mod.rs:9585. The search was
       python over the source, standing in for grep. -->
-- [ ] G6 A NESTED-SHELL test: the failure originally took the PARENT shell down
+- [x] G6 A NESTED-SHELL test: the failure originally took the PARENT shell down
       too, so the fix is verified from inside a child nsh
+      <!-- DEMONSTRATED 2026-10-07 in a sacrificial window, typed one line at a time: nsh
+      started a child shell (echo level $SHLVL printed level 2); inside it
+      nsh -c "dashboard" | head -4 printed four lines and the child's prompt returned;
+      echo child still here answered; exit printed the session summary and returned to the
+      parent, where echo level $SHLVL printed level 1. The grandchild's exit 141 took
+      neither shell down. -->
 - [ ] G7 Regression tests in nsh-test, beside regression_sigpipe_no_crash, for at
       least one printing builtin piped into head, through BOTH doors: run_fsh
       (nsh -c) and a Category::Repl case
