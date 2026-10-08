@@ -113,17 +113,7 @@ fn run_fsh(input: &str) -> Result<String, String> {
 ///
 /// `extra_env` is applied AFTER the harness defaults, so a case can deliberately override them.
 fn run_fsh_env(input: &str, extra_env: &[(&str, &str)]) -> Result<String, String> {
-    let fsh = repl::fsh_bin();
-    let mut cmd = Command::new(&fsh);
-    // INT-206: the same setting the REPL runner uses, so the suite drives ONE shell
-    // configuration rather than two that differ in where they think they are.
-    cmd.env("NSH_KEEP_CWD", "1")
-        // INT-204: and its own database, for the same reason -- two doors that disagree about which
-        // state they read is the shape of problem this suite keeps finding in the shell it tests.
-        .env("ZERO_STATE_DB", repl::case_db_path());
-    for (k, v) in extra_env {
-        cmd.env(k, v);
-    }
+    let mut cmd = fsh_command(extra_env);
     let out = cmd
         .arg("-c")
         .arg(input)
@@ -136,6 +126,41 @@ fn run_fsh_env(input: &str, extra_env: &[(&str, &str)]) -> Result<String, String
     } else {
         Err(String::from_utf8_lossy(&out.stderr).trim().to_string())
     }
+}
+
+/// INT-243: the one place a -c launch is configured, shared by every runner that uses it, so a
+/// new runner cannot drift from run_fsh_env in which binary, database or cwd it uses.
+fn fsh_command(extra_env: &[(&str, &str)]) -> Command {
+    let mut cmd = Command::new(repl::fsh_bin());
+    // INT-206: the same setting the REPL runner uses, so the suite drives ONE shell
+    // configuration rather than two that differ in where they think they are.
+    cmd.env("NSH_KEEP_CWD", "1")
+        // INT-204: and its own database, for the same reason -- two doors that disagree about which
+        // state they read is the shape of problem this suite keeps finding in the shell it tests.
+        .env("ZERO_STATE_DB", repl::case_db_path());
+    for (k, v) in extra_env {
+        cmd.env(k, v);
+    }
+    cmd
+}
+
+/// INT-243: run `nsh -c` with stdout ALREADY CLOSED -- the read end is dropped before the child
+/// starts, so every write meets EPIPE. `cmd | head` races: output that fits the pipe buffer never
+/// meets a closed pipe. This does not race. Returns (stderr, exit code).
+fn run_fsh_closed_stdout(input: &str) -> Result<(String, Option<i32>), String> {
+    let (reader, writer) = std::io::pipe().map_err(|e| e.to_string())?;
+    drop(reader);
+    let out = fsh_command(&[])
+        .arg("-c")
+        .arg(input)
+        .stdout(writer)
+        .stderr(Stdio::piped())
+        .output()
+        .map_err(|e| e.to_string())?;
+    Ok((
+        String::from_utf8_lossy(&out.stderr).trim().to_string(),
+        out.status.code(),
+    ))
 }
 
 fn test(name: &str, category: Category, f: impl Fn() -> Result<(), String>) -> TestResult {
@@ -749,6 +774,37 @@ fn all_tests() -> Vec<TestResult> {
             // Pipe to head should not crash with SIGPIPE
             let out = run_fsh("printf 'a\\nb\\nc\\nd\\ne\\n' | head -3")?;
             expect_eq(&out, "a\nb\nc")
+        },
+    ));
+    results.push(test(
+        "regression_243_closed_stdout_exits_141",
+        Category::Regression,
+        || {
+            // INT-243: a builtin printing into a closed stdout must exit 141 silently, never panic.
+            // 3e4ecfbe (the main.rs panic hook) made this true; this case is what keeps it true.
+            let (stderr, code) = run_fsh_closed_stdout("dashboard")?;
+            if stderr.contains("panicked") {
+                return Err(format!("nsh panicked on a closed stdout: {}", stderr));
+            }
+            expect_exit(code, 141)
+        },
+    ));
+    results.push(test(
+        "repl_243_builtin_pipe_leaves_shell_alive",
+        Category::Repl,
+        || {
+            // INT-243: the REPL door. Only the LAST command's output is captured (run_repl_lines
+            // doc), so the probe goes last: if the pipeline took the shell down, it never answers.
+            // Matched as a whole line so the typed command text cannot satisfy it.
+            let out = repl::run_repl_lines(&["dashboard | head -4", "echo nsh-test-alive-243"])?;
+            if out.iter().any(|l| l.trim() == "nsh-test-alive-243") {
+                Ok(())
+            } else {
+                Err(format!(
+                    "the shell did not answer after dashboard | head -4: {:?}",
+                    out
+                ))
+            }
         },
     ));
     results.push(test(
