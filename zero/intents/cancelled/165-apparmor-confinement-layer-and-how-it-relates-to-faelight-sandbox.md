@@ -3,7 +3,7 @@ id: 165
 date: 2026-07-16
 type: feature
 title: "AppArmor: confinement layer, and how it relates to faelight-sandbox"
-status: planned
+status: cancelled
 tags: [feature, rust, faelight]
 ---
 
@@ -48,3 +48,6 @@ that ship in nixpkgs, add our own only where measured.
 - [ ] The health dashboard's Security section reports AppArmor honestly -- it must read real
       state, not the fact that we enabled an option. See INT-164 for why that distinction
       matters
+
+## Gate Check
+🚫 165 -- cancelled: AppArmor is not needed. The running kernel's LSM list (lockdown,capability,landlock,yama,bpf, read at cancellation) has no AppArmor; enabling it needs a kernel command-line change in Omarchy's boot setup, the apparmor package, and root to load every profile -- three things Project 0 rules out. zero-sandbox already confines with one mechanism per domain: unshare for namespaces, bwrap for the filesystem, seccomp for syscalls, cgroups for resources (zero-sandbox main.rs:879). If kernel-enforced limits are ever wanted, Landlock is already active and needs no root; that is a zero-sandbox question, not this intent. -- approved by: christian 2026-10-07

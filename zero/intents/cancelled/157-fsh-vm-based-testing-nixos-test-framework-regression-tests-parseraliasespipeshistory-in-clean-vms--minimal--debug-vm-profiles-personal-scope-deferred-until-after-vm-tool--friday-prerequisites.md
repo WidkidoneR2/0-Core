@@ -3,7 +3,7 @@ id: 157
 date: 2026-07-13
 type: future
 title: "fsh regression tests in clean VMs -- parser, aliases, pipes, history"
-status: planned
+status: cancelled
 tags: [fsh, testing, vm, nixos, regression, 027, friday]
 ---
 
@@ -145,3 +145,6 @@ satisfied -- but it was built against Nix and needs its own check.
 NOTE: FAELIGHT_STATE_DIR and FAELIGHT_STATE_DB already exist as isolation
 overrides (INT-204). A clean HOME plus those two may deliver most of the
 isolation without a VM at all, and that is the cheaper experiment to run first.
+
+## Gate Check
+🚫 157 -- cancelled: overtaken by the migration. Its method was NixOS VM tests gated on the VM tool (INT-027). NixOS was wiped 2026-08-26 and zero-vm retired 2026-09-28, so no part of the premise survives. Regression coverage lives in nsh-test against the deployed binaries, run as a door on every intent. A clean-environment run on Omarchy, if wanted, is a new intent, not this one. -- approved by: christian 2026-10-07

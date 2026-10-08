@@ -3,7 +3,7 @@ id: 029
 date: 2026-06-04
 type: feature
 title: "Autonomous sandboxes: sandbox create orchestrates VM + branch + intent"
-status: planned
+status: cancelled
 tags: [sandbox, vm, intent, experiment, isolation]
 priority: medium
 ---
@@ -39,3 +39,6 @@ The sandbox command orchestrates them all in one gesture.
 - [ ] sandbox list shows active sandboxes with status
 - [ ] sandbox graduate <name> promotes to labs/graduated/
 - [ ] Sandbox tied to intent for tracking
+
+## Gate Check
+🚫 029 -- cancelled: false premise after the migration. sandbox create was to orchestrate a VM + branch + intent. zero-vm retired 2026-09-28; a future VM comes from the Omarchy plugin site or a new build. zero-sandbox (7 policies) owns confinement today. A branch + intent sandbox without a VM would be a new intent. -- approved by: christian 2026-10-07
