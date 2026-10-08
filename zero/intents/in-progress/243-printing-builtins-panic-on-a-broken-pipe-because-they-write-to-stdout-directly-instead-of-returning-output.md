@@ -112,10 +112,23 @@ load-bearing: without the per-child restore, `yes | head -3` spins forever.
       echo child still here answered; exit printed the session summary and returned to the
       parent, where echo level $SHLVL printed level 1. The grandchild's exit 141 took
       neither shell down. -->
-- [ ] G7 Regression tests in nsh-test, beside regression_sigpipe_no_crash, for at
+- [x] G7 Regression tests in nsh-test, beside regression_sigpipe_no_crash, for at
       least one printing builtin piped into head, through BOTH doors: run_fsh
       (nsh -c) and a Category::Repl case
-- [ ] G8 each gate carries evidence per INT-158
+      <!-- DEMONSTRATED 2026-10-07. Two cases beside regression_sigpipe_no_crash, both through the
+      one launch path (harness plan seal 0579b5006b92b9a7): regression_243_closed_stdout_exits_141
+      runs nsh -c dashboard with stdout already closed (run_fsh_closed_stdout, on the new shared
+      fsh_command); repl_243_builtin_pipe_leaves_shell_alive needs a probe line to answer after
+      dashboard | head -4 (run_repl_lines). Green: 229/229 against target/debug/nsh. Watched
+      failing first on a debug build: exit(141) -> exit(140) failed the case with "expected exit
+      141 got 140"; the hook's exit removed failed it with "nsh panicked on a closed stdout" --
+      the regression it exists for. Source restored byte-exact, git diff on zero/shell/novashell
+      empty, green again 80/80 (regression). The REPL case could not be made red honestly:
+      nothing currently kills the shell on that line. -->
+- [x] G8 each gate carries evidence per INT-158
+      <!-- DEMONSTRATED 2026-10-07: every ticked gate (G1, G4, G5, G6, G7) is followed by an
+      evidence comment, checked mechanically by the plan that ticked this one; G2 and G3 moved
+      to INT-281 and are not gates here. -->
 
 ## Non-goals
 - Making every builtin pipeable. That is the structured-pipeline work; this is
