@@ -4,7 +4,8 @@ date: 2026-09-05
 type: fix
 title: "printing builtins panic on a broken pipe because they write to stdout directly instead of returning Output"
 status: planned
-tags: [fix, bugfix]
+tags: [fix, bugfix, nsh, pipeline, builtins, sigpipe]
+depends_on: []
 ---
 
 ## Vision
@@ -68,23 +69,47 @@ be handled) while children get `SIG_DFL` restored in `pre_exec`. Both halves are
 load-bearing: without the per-child restore, `yes | head -3` spins forever.
 
 ## Success Criteria
-- [ ] G1 RED FIRST: the panic is captured verbatim, and the three-case control
-      is re-run -- `yes | head -3` stops, `ls ~ | head -5` does not panic,
-      `dash forest | head -4` panics
-- [ ] G2 EVERY builtin that writes to stdout with `println!` instead of
-      returning `Output` is ENUMERATED. The count decides (a) versus (b)
+- [ ] G1 RED FIRST, BOTH DOORS: `nsh -c "dashboard" | head -4` is run and its panic
+      captured verbatim, and the control is re-run -- `yes | head -3` stops,
+      `ls ~ | head -5` does not panic. Then `dashboard | head -4` is run in the
+      interactive REPL (the door fsh-test drives, INT-173) and the result recorded as
+      observed: by reading, a printing builtin returns Empty, which
+      peel_builtin_first_stage pipes on as empty text (commands/mod.rs:9843), so the
+      expected symptom there is a dropped pipe rather than a panic -- recorded, not
+      assumed
+- [ ] G2 EVERY builtin that writes to stdout directly instead of returning Output
+      is ENUMERATED -- println!, print!, and any write to an io::stdout() handle -- by
+      fsearch across builtin code paths. The count decides (a) versus (b)
 - [ ] G3 THE RULING between (a) and (b) is recorded here with its reason
-- [ ] G4 `dash forest | head -4` completes without panic and without killing the
-      shell, on the DEPLOYED binary
+- [ ] G4 `nsh -c "dashboard" | head -4` completes without panic and without killing
+      the shell, on the DEPLOYED binary
 - [ ] G5 THE CONTROLS STILL HOLD: `yes | head -3` still terminates its child,
       and no process-wide SIGPIPE reset has returned. `grep` proves the second
 - [ ] G6 A NESTED-SHELL test: the failure originally took the PARENT shell down
       too, so the fix is verified from inside a child nsh
-- [ ] G7 Regression tests in nsh-test for at least one printing builtin piped
-      into `head`
+- [ ] G7 Regression tests in nsh-test, beside regression_sigpipe_no_crash, for at
+      least one printing builtin piped into head, through BOTH doors: run_fsh
+      (nsh -c) and a Category::Repl case
 - [ ] G8 each gate carries evidence per INT-158
 
 ## Non-goals
 - Making every builtin pipeable. That is the structured-pipeline work; this is
   about not crashing.
 - Revisiting INT-299's original decision. It is already corrected.
+
+## Revision 2026-10-08
+
+Recon before cistart. `dash forest` no longer reproduces as written: forest appears
+nowhere in novashell after the rename, and dash would collide with any dash binary on
+PATH, which peel_builtin_first_stage spawns instead of the builtin
+(commands/mod.rs:9788). The gates now use dashboard, the canonical name
+(builtin_names.rs:68, dispatched at commands/mod.rs:1383).
+
+The Problem section's Peeled::Finished is stale since the history fix: a printing
+builtin returns Empty, which is piped on as empty text (commands/mod.rs:9843), so
+inside a pipeline its bytes bypass the reader rather than crash. The panic needs nsh's
+own stdout to be the closed pipe -- the nsh -c case. G1 and G7 now cover both doors
+(INT-173).
+
+By reading, the 2026-08-21 SIGPIPE arrangement holds: the only signal call is SIG_DFL
+in the per-child pre_exec (commands/mod.rs:9585). G5 still demonstrates it after the fix.
