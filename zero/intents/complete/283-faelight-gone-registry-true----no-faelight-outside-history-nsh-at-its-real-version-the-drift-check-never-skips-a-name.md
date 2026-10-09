@@ -3,7 +3,7 @@ id: 283
 date: 2026-10-08
 type: future
 title: "faelight gone, registry true -- no faelight outside history, nsh at its real version, the drift check never skips a name"
-status: in-progress
+status: complete
 tags: [registry, faelight, cleanup, integrity, rename, finding]
 ---
 
@@ -181,3 +181,6 @@ Each gate is watched failing before it is watched passing. Anchors stay ASCII-on
 <!-- evidence: 2026-10-08: no_live_retired_name_in_any_tracked_file (nsh-test main.rs) red on the 20 registry lines before Plan B; a_row_with_no_crate_is_reported_not_skipped red before Plan A; every_live_row_of_the_real_registry_is_compared (both integrity/mod.rs tests) red on nsh before Plan B. cargo test -p core 63/63 after. -->
 - [x] G8 each gate carries evidence per INT-158.
 <!-- evidence: 2026-10-08: G0 to G7 each carry an evidence comment naming what was run and what came back. -->
+
+## Versions
+- engine 4.3.2 -> 4.4.0 (minor)
