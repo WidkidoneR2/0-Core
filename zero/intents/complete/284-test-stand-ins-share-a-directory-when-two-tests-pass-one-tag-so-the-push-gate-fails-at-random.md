@@ -3,19 +3,13 @@ id: 284
 date: 2026-10-08
 type: future
 title: "test stand-ins share a directory when two tests pass one tag, so the push gate fails at random"
-status: in-progress
+status: complete
 tags: [tests, integrity, flaky, push-gate, core, finding]
 ---
 
 ## START HERE
 
-G0 to G4 demonstrated 2026-10-08. Next: the G5 commit with the fix plan Seal 137fcb49e69f56b0
-(G0 29ade6fe2687b24a, red 8ab9ee40716f5eec and this ledger plan cited in its body), then G6: push
-main and refs/notes/seals, which carries the note for 2bb11c7b, then cicomplete 284 --skip-bumps.
-
-Superseded 2026-10-08 (the filing note):
-Begin at G0, read-only. Filed 2026-10-08 from F-0026 (found by INT-283). The seal note for
-2bb11c7b stays local until G6: its push was refused by this race.
+Complete 2026-10-08: G0 to G7 demonstrated, F-0026 fixed by e8679d19 and pushed. Nothing remains.
 
 ## Vision
 
@@ -98,11 +92,17 @@ passed; cargo fmt --all -- --check exit 0. -->
 failed; nsh-test 235 / 235 passed (nsh 5.3.1); d 0 failed (26 passed, 2 warnings: uncommitted
 changes and unpushed commits, which G5 and G6 clear). No ship: every change is under
 #[cfg(test)], so no deployed binary changes. -->
-- [ ] G5 commit. Intent: INT-284, Fixes: F-0026, and the plan Seal with its note under
+- [x] G5 commit. Intent: INT-284, Fixes: F-0026, and the plan Seal with its note under
       refs/notes/seals.
-- [ ] G6 the push. The pre-push hook passes; main and refs/notes/seals reach GitHub, the note
+<!-- demonstrated 2026-10-08: e8679d19 carries Intent: INT-284, Fixes: F-0026, Finding: F-0027 and
+Seal: 137fcb49e69f56b0; core intent trace e8679d19 reads fixes F-0026 and the seal intact. -->
+- [x] G6 the push. The pre-push hook passes; main and refs/notes/seals reach GitHub, the note
       for 2bb11c7b included; trace reads the seal intact on 2bb11c7b and on the G5 commit.
-- [ ] G7 each gate carries evidence per INT-158.
+<!-- demonstrated 2026-10-08: both pushes passed the pre-push hook (main 2bb11c7b..e8679d19,
+refs/notes/seals f73684ba..13e7df73); the remote seals ref matches the local one at 13e7df73bfef;
+trace reads seal 55175509f0a5097d intact on 2bb11c7b and 137fcb49e69f56b0 intact on e8679d19. -->
+- [x] G7 each gate carries evidence per INT-158.
+<!-- demonstrated 2026-10-08: G0 to G6 each carry an evidence comment. -->
 
 ## Non-goals
 
@@ -112,3 +112,6 @@ changes and unpushed commits, which G5 and G6 clear). No ship: every change is u
 - No retry or flaky allowance in the pre-push hook: a gate that passes on a second try is not
   a gate.
 - No version bump: the change is test-only, under #[cfg(test)] (cicomplete 284 --skip-bumps).
+
+## Versions
+- engine skipped
