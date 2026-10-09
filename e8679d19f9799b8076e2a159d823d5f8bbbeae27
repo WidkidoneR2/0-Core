@@ -1,0 +1,101 @@
+file /home/christian/0-core/zero/engine/src/domains/integrity/mod.rs  sha256 1a0b0e208463d54a -> cd24293d7ab68b3b
+file /home/christian/0-core/zero/engine/src/domains/intent/findings.rs  sha256 93ccf9b56127b6f7 -> 8607e5f5aacb5bb3
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 bc265a41d0da8615 -> c09d488439d52e54
+file /home/christian/0-core/zero/tools/zero-deadwood/src/main.rs  sha256 515c811f979dd9f3 -> 4247bc78a5d6b7fa
+--- /home/christian/0-core/zero/engine/src/domains/integrity/mod.rs: replacing lines 1823..1825 ---
+   1821:     /// and the engine, each a version ahead of the registry, over an in-memory database.
+   1822:     fn stand_in(tag: &str) -> (AppContext, PathBuf) {
+>> 1823:         let root =
+>> 1824:             std::env::temp_dir().join(format!("integrity-int267-{}-{}", tag, std::process::id()));
+>> 1825:         let _ = std::fs::remove_dir_all(&root);
+   1826:         let tool = root.join(zero_core::paths::CRATE_PARENTS[0]).join("alpha");
+   1827:         let engine = root.join(zero_core::paths::SINGLE_CRATES[0]);
+++         // A per-call number as well as the process id (INT-284, F-0026): cargo runs a crate's
+++         // tests as threads of one process, so the tag and the process id alone gave two callers
+++         // one tree.
+++         static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+++         let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+++         let root = std::env::temp_dir().join(format!(
+++             "integrity-int267-{tag}-{}-{call}",
+++             std::process::id()
+++         ));
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 231..232 ---
+   229:     #[test]
+   230:     fn a_second_write_of_the_same_id_is_refused_and_the_first_survives() {
+>> 231:         let dir = std::env::temp_dir().join("core_finding_collision_test");
+>> 232:         let _ = std::fs::remove_dir_all(&dir);
+   233:         std::fs::create_dir_all(&dir).expect("temp dir");
+   234:         let first = super::write_record(&dir, "F-0001", "first\n");
+++         let dir = std::env::temp_dir().join(format!(
+++             "core_finding_collision_test-{}",
+++             std::process::id()
+++         ));
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 342..343 ---
+   340:     #[test]
+   341:     fn the_highest_number_counts_only_finding_names() {
+>> 342:         let dir = std::env::temp_dir().join("core_finding_highest_test");
+>> 343:         let _ = std::fs::remove_dir_all(&dir);
+   344:         assert_eq!(
+   345:             super::highest_number(&dir),
+++         let dir =
+++             std::env::temp_dir().join(format!("core_finding_highest_test-{}", std::process::id()));
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3854..3855 ---
+   3852:     #[test]
+   3853:     fn an_absent_ledger_is_an_issue_not_a_clean_bill() {
+>> 3854:         let dir = std::env::temp_dir().join("core_absent_ledger_test");
+>> 3855:         let _ = std::fs::remove_dir_all(&dir);
+   3856:         std::fs::create_dir_all(&dir).expect("temp home");
+   3857:         // Shares the lock with the doctor's registry tests -- see its comment. Both mutate HOME,
+++         let dir =
+++             std::env::temp_dir().join(format!("core_absent_ledger_test-{}", std::process::id()));
+++ 
+--- /home/christian/0-core/zero/tools/zero-deadwood/src/main.rs: replacing lines 1421..1422 ---
+   1419:             "fixture name must be [A-Za-z0-9_]"
+   1420:         );
+>> 1421:         let root = std::env::temp_dir().join(format!("deadwood_cmdword_{name}"));
+>> 1422:         let _ = std::fs::remove_dir_all(&root);
+   1423:         let src = root
+   1424:             .join(zero_core::paths::SHELL_PARENT)
+++         let root =
+++             std::env::temp_dir().join(format!("deadwood_cmdword_{name}-{}", std::process::id()));
+++ 
+--- /home/christian/0-core/zero/tools/zero-deadwood/src/main.rs: replacing lines 1438..1439 ---
+   1436:             "fixture name must be [A-Za-z0-9_]"
+   1437:         );
+>> 1438:         let root = std::env::temp_dir().join(format!("deadwood_cmdword_{name}"));
+>> 1439:         let _ = std::fs::remove_dir_all(&root);
+   1440:         let src = root
+   1441:             .join(zero_core::paths::SHELL_PARENT)
+++         let root =
+++             std::env::temp_dir().join(format!("deadwood_cmdword_{name}-{}", std::process::id()));
+++ 
+--- /home/christian/0-core/zero/tools/zero-deadwood/src/main.rs: replacing lines 1552..1553 ---
+   1550:             "fixture name must be [A-Za-z0-9_]"
+   1551:         );
+>> 1552:         let root = std::env::temp_dir().join(format!("deadwood_cite_{name}"));
+>> 1553:         let _ = std::fs::remove_dir_all(&root);
+   1554:         let intents = root.join("zero/intents/complete");
+   1555:         std::fs::create_dir_all(&intents).expect("fixture intents");
+++         let root =
+++             std::env::temp_dir().join(format!("deadwood_cite_{name}-{}", std::process::id()));
+++ 
+--- /home/christian/0-core/zero/tools/zero-deadwood/src/main.rs: replacing lines 1608..1609 ---
+   1606:     #[test]
+   1607:     fn an_unreadable_ledger_says_so_rather_than_flagging_everything() {
+>> 1608:         let root = std::env::temp_dir().join("deadwood_cite_noledger");
+>> 1609:         let _ = std::fs::remove_dir_all(&root);
+   1610:         let src = root
+   1611:             .join(zero_core::paths::SHELL_PARENT)
+++         let root =
+++             std::env::temp_dir().join(format!("deadwood_cite_noledger-{}", std::process::id()));
+++ 
+/home/christian/0-core/zero/engine/src/domains/integrity/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/tools/zero-deadwood/src/main.rs: 2 replaced
+/home/christian/0-core/zero/tools/zero-deadwood/src/main.rs: 1 replaced
+/home/christian/0-core/zero/tools/zero-deadwood/src/main.rs: 1 replaced
