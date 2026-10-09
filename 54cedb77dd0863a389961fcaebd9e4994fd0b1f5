@@ -1,0 +1,357 @@
+file /home/christian/0-core/zero/registry/tools.toml  sha256 66289950b76f051b -> d824cd0aef81b2f7
+--- /home/christian/0-core/zero/registry/tools.toml: replacing lines 25..76 ---
+   23: retired = true
+   24:
+>> 25: [[tool]]
+>> 26: name = "faelight-diff"
+>> 27: version = "1.0.0"
+>> 28: category = "tools"
+>> 29: description = "Diff viewer -- RETIRED: nvd replaces this on NixOS"
+>> 30: expected_usage = "none"
+>> 31: type = "rust"
+>> 32: deployable = false
+>> 33: retired = true
+>> 34: [[tool]]
+>> 35: name = "faelight"
+>> 36: version = "2.1.0"
+>> 37: category = "core"
+>> 38: description = "Core launcher and entry point"
+>> 39: expected_usage = "high"
+>> 40: type = "rust"
+>> 41: deployable = false
+>> 42: # RETIRED 2026-09-15 (INT-247 Layer 2). Four invocations since the migration.
+>> 43: # Every verb existed elsewhere: health -> `core doctor` (alias `d`), intent ->
+>> 44: # `core intent` (`ints`, `inta`, `intl`), profile -> `core profile`. `launch`
+>> 45: # shimmed to omarchy-menu and named faelight-launcher, already retired. `config`
+>> 46: # managed ~/.config/faelight/cli.toml -- a file for itself, which never existed.
+>> 47: # No Hyprland bind, no systemd unit, no desktop file. Alias `f` removed.
+>> 48: retired = true
+>> 49: [[tool]]
+>> 50: name = "faelight-bootstrap"
+>> 51: version = "2.1.0"
+>> 52: category = "system"
+>> 53: description = "System bootstrap and provisioning"
+>> 54: expected_usage = "rare"
+>> 55: type = "rust"
+>> 56: deployable = true
+>> 57: retired = true
+>> 58: [[tool]]
+>> 59: name = "faelight-browser"
+>> 60: version = "0.4.0"
+>> 61: category = "tools"
+>> 62: description = "TUI web browser with w3m-style navigation -- RETIRED: Brave is the forest browser"
+>> 63: expected_usage = "none"
+>> 64: type = "rust"
+>> 65: deployable = false
+>> 66: retired = true
+>> 67: [[tool]]
+>> 68: name = "faelight-cleanup"
+>> 69: version = "1.0.0"
+>> 70: category = "system"
+>> 71: description = "System cleanup and temp file management"
+>> 72: expected_usage = "rare"
+>> 73: type = "rust"
+>> 74: deployable = true
+>> 75: retired = true
+>> 76: [[tool]]
+   77: name = "zero-daemon"
+   78: version = "4.0.0"
+++
+--- /home/christian/0-core/zero/registry/tools.toml: replacing lines 34..60 ---
+   32: deployable = true
+   33: retired = false
+>> 34: [[tool]]
+>> 35: name = "faelight-fm"
+>> 36: version = "4.0.0"
+>> 37: category = "tools"
+>> 38: description = "Terminal file manager with daemon integration"
+>> 39: expected_usage = "medium"
+>> 40: type = "rust"
+>> 41: # RETIRED 2026-09-15 (INT-247 Layer 2, evidence from the INT-249 census).
+>> 42: # The deferral above said "rebuild on NixOS" -- the machine has not been NixOS
+>> 43: # since 2026-08-26. Yazi and Flea do this job, 0 invocations through `fm` or
+>> 44: # `fmd` since the migration, and ROADMAP.md already recorded yazi as the
+>> 45: # replacement. Crate deleted; git history keeps it.
+>> 46: deployable = false
+>> 47: retired = true
+>> 48: [[tool]]
+>> 49: name = "faelight-glog"
+>> 50: version = "0.1.0"
+>> 51: category = "tools"
+>> 52: description = "TUI git-log reader -- filter by INT-number/author/date/keyword, candy-neon, Arch/NixOS era disambiguation (INT-139)"
+>> 53: expected_usage = "medium"
+>> 54: type = "rust"
+>> 55: # RETIRED 2026-09-15 (INT-247 Layer 2). `git log --oneline -10` does this,
+>> 56: # which is what the `glog` alias actually ran -- it never pointed at this tool.
+>> 57: # 0 invocations through `fgl` since the migration. Crate deleted.
+>> 58: deployable = false
+>> 59: retired = true
+>> 60: [[tool]]
+   61: name = "zero-git"
+   62: version = "5.1.2"
+++
+--- /home/christian/0-core/zero/registry/tools.toml: replacing lines 43..61 ---
+   41: deployable = true
+   42: retired = false
+>> 43: [[tool]]
+>> 44: name = "faelight-menu"
+>> 45: version = "4.0.0"
+>> 46: category = "ui"
+>> 47: description = "Power management and system menu"
+>> 48: expected_usage = "medium"
+>> 49: type = "rust"
+>> 50: deployable = true
+>> 51: retired = true
+>> 52: [[tool]]
+>> 53: name = "faelight-notify"
+>> 54: version = "4.0.0"
+>> 55: category = "ui"
+>> 56: description = "Notification system -- RETIRED 2026-09-02, Quickshell owns the bus"
+>> 57: expected_usage = "none"
+>> 58: type = "rust"
+>> 59: deployable = false
+>> 60: retired = true
+>> 61: [[tool]]
+   62: name = "zero-sandbox"
+   63: version = "3.0.0"
+++
+--- /home/christian/0-core/zero/registry/tools.toml: replacing lines 62..71 ---
+   60: retired = false
+   61: depends_on = ["zero-git"]
+>> 62: [[tool]]
+>> 63: name = "faelight-term"
+>> 64: version = "3.1.0"
+>> 65: category = "ui"
+>> 66: description = "Terminal emulator -- RETIRED 2026-09-02, Alacritty on Omarchy"
+>> 67: expected_usage = "none"
+>> 68: type = "rust"
+>> 69: deployable = false
+>> 70: retired = true
+>> 71: [[tool]]
+   72: # retired 2026-10-03 (INT-265): Omarchy updates the system; the crate is removed
+   73: name = "zero-update"
+++
+--- /home/christian/0-core/zero/registry/tools.toml: replacing lines 120..146 ---
+   118: retired = false
+   119: [[tool]]
+>> 120: name = "faelight-clipboard"
+>> 121: version = "0.2.0"
+>> 122: category = "desktop"
+>> 123: description = "Rust clipboard manager — wlr-data-control, history, fzf picker"
+>> 124: expected_usage = "medium"
+>> 125: type = "rust"
+>> 126: deployable = false
+>> 127: retired = true
+>> 128: [[tool]]
+>> 129: name = "zero-release"
+>> 130: version = "1.0.3"
+>> 131: category = "release"
+>> 132: description = "Intelligent release and generation manager — the forest publishes itself"
+>> 133: expected_usage = "medium"
+>> 134: type = "rust"
+>> 135: deployable = false
+>> 136: retired = true
+>> 137: [[tool]]
+>> 138: name = "faelight-wallpaper"
+>> 139: version = "0.1.0"
+>> 140: category = "desktop"
+>> 141: description = "Rust wallpaper daemon — health-reactive, replaces swaybg"
+>> 142: expected_usage = "rare"
+>> 143: type = "rust"
+>> 144: deployable = false
+>> 145: retired = true
+>> 146: [[tool]]
+   147: name = "zero-gen"
+   148: version = "1.0.0"
+++ name = "zero-release"
+++ version = "1.0.3"
+++ category = "release"
+++ description = "Intelligent release and generation manager"
+++ expected_usage = "medium"
+++ type = "rust"
+++ deployable = false
+++ retired = true
+++ [[tool]]
+--- /home/christian/0-core/zero/registry/tools.toml: replacing lines 138..155 ---
+   136: retired = false
+   137: [[tool]]
+>> 138: name = "faelight-vault"
+>> 139: version = "1.0.0"
+>> 140: category = "security"
+>> 141: description = "Forest-native credential manager — Argon2id encryption, health scores, audit, zero-gen integration"
+>> 142: expected_usage = "medium"
+>> 143: type = "rust"
+>> 144: deployable = false
+>> 145: retired = true
+>> 146: [[tool]]
+>> 147: name = "zero-docs"
+>> 148: version = "2.0.0"
+>> 149: category = "documentation"
+>> 150: description = "Living documentation engine — syncs README and welcome message with Project 0 state"
+>> 151: expected_usage = "low"
+>> 152: type = "rust"
+>> 153: deployable = true
+>> 154: retired = false
+>> 155: [[tool]]
+   156: name = "security-audit"
+   157: version = "1.0.0"
+++ name = "zero-docs"
+++ version = "2.0.0"
+++ category = "documentation"
+++ description = "Living documentation engine — syncs README and welcome message with Project 0 state"
+++ expected_usage = "low"
+++ type = "rust"
+++ deployable = true
+++ retired = false
+++ [[tool]]
+--- /home/christian/0-core/zero/registry/tools.toml: replacing lines 156..174 ---
+   154: retired = true
+   155: [[tool]]
+>> 156: name = "faelight-notifyctl"
+>> 157: version = "1.0.0"
+>> 158: category = "notification"
+>> 159: description = "IPC controller for faelight-notify — set modes, dismiss notifications"
+>> 160: expected_usage = "none"
+>> 161: type = "script"
+>> 162: deployable = false
+>> 163: retired = true
+>> 164: [[tool]]
+>> 165: name = "verify-bootstrap"
+>> 166: version = "2.0.0"
+>> 167: category = "system"
+>> 168: description = "Bootstrap verification — validates 0-Core installation completed successfully"
+>> 169: expected_usage = "low"
+>> 170: type = "rust"
+>> 171: deployable = true
+>> 172: retired = true
+>> 173:
+>> 174: [[tool]]
+   175: name = "zero-context"
+   176: version = "1.0.0"
+++ name = "verify-bootstrap"
+++ version = "2.0.0"
+++ category = "system"
+++ description = "Bootstrap verification — validates 0-Core installation completed successfully"
+++ expected_usage = "low"
+++ type = "rust"
+++ deployable = false
+++ retired = true
+++
+++ [[tool]]
+--- /home/christian/0-core/zero/registry/tools.toml: replacing lines 16..23 ---
+   14: retired = false
+   15: [[tool]]
+>> 16: name = "core-diff"
+>> 17: version = "3.1.0"
+>> 18: category = "development"
+>> 19: description = "Diff system state across versions"
+>> 20: expected_usage = "low"
+>> 21: type = "rust"
+>> 22: deployable = true
+>> 23: retired = true
+   24:
+   25: [[tool]]
+++ name = "core-diff"
+++ version = "3.1.0"
+++ category = "development"
+++ description = "Diff system state across versions"
+++ expected_usage = "low"
+++ type = "rust"
+++ deployable = false
+++
+--- /home/christian/0-core/zero/registry/tools.toml: replacing lines 93..100 ---
+   91: retired = true
+   92: [[tool]]
+>> 93: name = "keyscan"
+>> 94: version = "3.0.0"
+>> 95: category = "security"
+>> 96: description = "SSH key scanner and audit"
+>> 97: expected_usage = "rare"
+>> 98: type = "rust"
+>> 99: deployable = true
+>> 100: retired = true
+   101: [[tool]]
+   102: name = "latest-update"
+++ name = "keyscan"
+++ version = "3.0.0"
+++ category = "security"
+++ description = "SSH key scanner and audit"
+++ expected_usage = "rare"
+++ type = "rust"
+++ deployable = false
+++
+--- /home/christian/0-core/zero/registry/tools.toml: replacing lines 102..109 ---
+   100: retired = true
+   101: [[tool]]
+>> 102: name = "latest-update"
+>> 103: version = "4.0.0"
+>> 104: category = "system"
+>> 105: description = "Latest update tracker"
+>> 106: expected_usage = "low"
+>> 107: type = "rust"
+>> 108: deployable = true
+>> 109: retired = true
+   110: [[tool]]
+   111: name = "teach"
+++ name = "latest-update"
+++ version = "4.0.0"
+++ category = "system"
+++ description = "Latest update tracker"
+++ expected_usage = "low"
+++ type = "rust"
+++ deployable = false
+++
+--- /home/christian/0-core/zero/registry/tools.toml: replacing lines 53..59 ---
+   51: retired = false
+   52: [[tool]]
+>> 53: name = "nsh"
+>> 54: version = "3.9.0"
+>> 55: category = "shell"
+>> 56: description = "NovaShell -- the structured shell of Project 0. Package: novashell."
+>> 57: expected_usage = "high"
+>> 58: type = "rust"
+>> 59: deployable = true
+   60: retired = false
+   61: depends_on = ["zero-git"]
+++ name = "nsh"
+++ version = "3.9.0"
+++ category = "shell"
+++ description = "NovaShell -- the structured shell of Project 0. Package: novashell."
+++ expected_usage = "high"
+++ type = "rust"
+++ crate = "novashell"
+++
+--- /home/christian/0-core/zero/registry/tools.toml: replacing lines 325..332 ---
+   323: retired = false
+   324: [[tool]]
+>> 325: name = "nsh-test"
+>> 326: version = "2.0.1"
+>> 327: category = "development"
+>> 328: description = "fsh regression and bash-conformance suite -- gates every push"
+>> 329: expected_usage = "medium"
+>> 330: type = "rust"
+>> 331: deployable = true
+>> 332: [[tool]]
+   333: name = "ship"
+   334: version = "1.0.0"
+++ name = "nsh-test"
+++ version = "2.0.1"
+++ category = "development"
+++ description = "fsh regression and bash-conformance suite -- gates every push"
+++ expected_usage = "medium"
+++ type = "rust"
+++ deployable = true
+++ retired = false
+++
+/home/christian/0-core/zero/registry/tools.toml: 1 replaced
+/home/christian/0-core/zero/registry/tools.toml: 1 replaced
+/home/christian/0-core/zero/registry/tools.toml: 1 replaced
+/home/christian/0-core/zero/registry/tools.toml: 1 replaced
+/home/christian/0-core/zero/registry/tools.toml: 27 line(s) replaced by 9
+/home/christian/0-core/zero/registry/tools.toml: 18 line(s) replaced by 9
+/home/christian/0-core/zero/registry/tools.toml: 19 line(s) replaced by 10
+/home/christian/0-core/zero/registry/tools.toml: 1 replaced
+/home/christian/0-core/zero/registry/tools.toml: 1 replaced
+/home/christian/0-core/zero/registry/tools.toml: 1 replaced
+/home/christian/0-core/zero/registry/tools.toml: 1 replaced
+/home/christian/0-core/zero/registry/tools.toml: 1 replaced
