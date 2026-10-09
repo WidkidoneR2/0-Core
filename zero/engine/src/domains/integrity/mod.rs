@@ -1057,55 +1057,136 @@ pub mod checks {
             let registry_path = ctx.ctx.fpath("registry/tools.toml");
             let registry = match std::fs::read_to_string(&registry_path) {
                 Ok(r) => r,
-                Err(_) => return issues,
+                Err(e) => {
+                    // INT-283: an unreadable registry is a finding, not a clean run.
+                    issues.push(IntegrityIssue::alert(
+                        Category::Registry,
+                        "registry_version_drift",
+                        &format!(
+                            "registry/tools.toml: unreadable ({}) -- no row was compared",
+                            e
+                        ),
+                        3,
+                    ));
+                    return issues;
+                }
             };
 
             // Parse registry name→version pairs
-            let mut reg_versions: std::collections::HashMap<String, String> =
-                std::collections::HashMap::new();
-            let mut current_name = String::new();
+            // INT-283: one record per [[tool]] block. A row is skipped only by a stated rule --
+            // retired (its crate is gone by design) or a type other than rust (built elsewhere)
+            // -- and every other row is compared or reported. Before INT-283 a name that
+            // resolved to no crate was skipped in silence, so nsh read as clean at 3.9.0.
+            struct Row {
+                name: String,
+                version: Option<String>,
+                kind: Option<String>,
+                krate: Option<String>,
+                retired: bool,
+            }
+            let mut rows: Vec<Row> = Vec::new();
             for line in registry.lines() {
                 let line = line.trim();
-                if let Some(v) = line.strip_prefix("name = \"") {
-                    current_name = v.trim_end_matches('"').to_string();
-                } else if let Some(v) = line.strip_prefix("version = \"") {
-                    let ver = v.trim_end_matches('"').to_string();
-                    if !current_name.is_empty() {
-                        reg_versions.insert(current_name.clone(), ver);
-                    }
+                if line == "[[tool]]" {
+                    rows.push(Row {
+                        name: String::new(),
+                        version: None,
+                        kind: None,
+                        krate: None,
+                        retired: false,
+                    });
+                    continue;
+                }
+                let Some(row) = rows.last_mut() else {
+                    continue;
+                };
+                let Some((key, value)) = line.split_once('=') else {
+                    continue;
+                };
+                let value = value
+                    .split('#')
+                    .next()
+                    .unwrap_or("")
+                    .trim()
+                    .trim_matches('"');
+                match key.trim() {
+                    "name" => row.name = value.to_string(),
+                    "version" => row.version = Some(value.to_string()),
+                    "type" => row.kind = Some(value.to_string()),
+                    "crate" => row.krate = Some(value.to_string()),
+                    "retired" => row.retired = value == "true",
+                    _ => {}
                 }
             }
 
-            // Each registered crate's Cargo.toml, found through the owner (INT-267 L2).
-            // Registry name "core" is the engine, whose directory is named for its role.
-            for (name, reg_ver) in &reg_versions {
-                let dir = if name == "core" {
-                    "engine"
-                } else {
-                    name.as_str()
+            for row in &rows {
+                // The two stated rules (INT-283 R6). Nothing else is skipped.
+                if row.name.is_empty() || row.retired {
+                    continue;
+                }
+                if row.kind.as_deref().is_some_and(|k| k != "rust") {
+                    continue;
+                }
+                let name = &row.name;
+                let alert = |what: String| {
+                    IntegrityIssue::alert(
+                        Category::Registry,
+                        "registry_version_drift",
+                        &format!("{}: {} -- not compared", name, what),
+                        3,
+                    )
+                };
+                let Some(reg_ver) = row.version.as_deref() else {
+                    issues.push(alert("no version in the registry".to_string()));
+                    continue;
+                };
+                // Each registered crate's Cargo.toml, found through the owner (INT-267 L2).
+                // Registry name "core" is the engine, whose directory is named for its role.
+                // A row whose crate directory is not its binary name says so: crate = "dir".
+                let dir = match row.krate.as_deref() {
+                    Some(dir) => dir,
+                    None if name == "core" => "engine",
+                    None => name.as_str(),
                 };
                 let cargo_path = match zero_core::paths::crate_rel_dir_in(&ctx.core_root, dir) {
                     Some(rel) => ctx.core_root.join(rel).join("Cargo.toml"),
-                    None => continue,
-                };
-                if let Ok(cargo) = std::fs::read_to_string(&cargo_path) {
-                    if let Some(line) = cargo.lines().find(|l| l.starts_with("version = \"")) {
-                        let cargo_ver = line
-                            .trim_start_matches("version = \"")
-                            .trim_end_matches('"');
-                        if cargo_ver != reg_ver {
-                            issues.push(IntegrityIssue::propose(
-                                Category::Registry,
-                                "registry_version_drift",
-                                &format!("{}: registry={} cargo={}", name, reg_ver, cargo_ver),
-                                FixAction::UpdateRegistryVersion {
-                                    tool: name.clone(),
-                                    version: cargo_ver.to_string(),
-                                },
-                                2,
-                            ));
-                        }
+                    None => {
+                        issues.push(alert(format!("no crate directory named {}", dir)));
+                        continue;
                     }
+                };
+                let cargo = match std::fs::read_to_string(&cargo_path) {
+                    Ok(c) => c,
+                    Err(e) => {
+                        issues.push(alert(format!(
+                            "{} unreadable ({})",
+                            cargo_path.display(),
+                            e
+                        )));
+                        continue;
+                    }
+                };
+                let Some(line) = cargo.lines().find(|l| l.starts_with("version = \"")) else {
+                    issues.push(alert(format!(
+                        "{} has no version line",
+                        cargo_path.display()
+                    )));
+                    continue;
+                };
+                let cargo_ver = line
+                    .trim_start_matches("version = \"")
+                    .trim_end_matches('"');
+                if cargo_ver != reg_ver {
+                    issues.push(IntegrityIssue::propose(
+                        Category::Registry,
+                        "registry_version_drift",
+                        &format!("{}: registry={} cargo={}", name, reg_ver, cargo_ver),
+                        FixAction::UpdateRegistryVersion {
+                            tool: name.clone(),
+                            version: cargo_ver.to_string(),
+                        },
+                        2,
+                    ));
                 }
             }
             issues
@@ -2025,6 +2106,58 @@ mod tests {
         let _ = std::fs::remove_dir_all(&root);
         let names: Vec<&str> = found.iter().map(|i| i.description.as_str()).collect();
         assert_eq!(found.len(), 2, "both drifts found: {names:?}");
+    }
+
+    /// INT-283 G2: a row that resolves to no crate is reported, never skipped in silence.
+    /// Before INT-283 the check met None and continued, so a renamed crate read as clean.
+    #[test]
+    fn a_row_with_no_crate_is_reported_not_skipped() {
+        let (ctx, root) = stand_in("ghost");
+        let path = root.join("zero/registry/tools.toml");
+        let mut reg = std::fs::read_to_string(&path).unwrap();
+        reg.push_str("\n[[tool]]\nname = \"ghost\"\nversion = \"1.0.0\"\n");
+        std::fs::write(&path, reg).unwrap();
+        let found = checks::RegistryVersionDriftCheck.run(&IntegrityContext::new(&ctx));
+        let _ = std::fs::remove_dir_all(&root);
+        let names: Vec<&str> = found.iter().map(|i| i.description.as_str()).collect();
+        assert!(
+            found.iter().any(|i| i.description.starts_with("ghost:")),
+            "a row with no crate was skipped in silence: {names:?}"
+        );
+    }
+
+    /// INT-283 G4: on the real tree, every live rust row of the registry is compared. A row the
+    /// check cannot compare is an alert, and this names it. Red on nsh until its row says which
+    /// crate directory it is built from.
+    #[test]
+    fn every_live_row_of_the_real_registry_is_compared() {
+        let root = zero_core::paths::core_dir();
+        let scratch =
+            std::env::temp_dir().join(format!("integrity-int283-real-{}", std::process::id()));
+        let ctx = AppContext {
+            runtime: crate::runtime::Runtime {
+                root: scratch.clone(),
+                logs: scratch.join("logs"),
+                cache: scratch.join("cache"),
+                snapshots: scratch.join("snapshots"),
+                locks: scratch.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: std::env::var("HOME").unwrap_or_default(),
+            core_root: root.display().to_string(),
+            source_root: root.join("zero").display().to_string(),
+        };
+        let found = checks::RegistryVersionDriftCheck.run(&IntegrityContext::new(&ctx));
+        let alerts: Vec<&str> = found
+            .iter()
+            .filter(|i| i.severity == Severity::Alert)
+            .map(|i| i.description.as_str())
+            .collect();
+        assert!(
+            alerts.is_empty(),
+            "registry rows the drift check cannot compare: {alerts:?}"
+        );
     }
 
     /// INT-267 batch 1b: a scan proposes drift and records every one; it never edits the registry.

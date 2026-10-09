@@ -158,19 +158,26 @@ Each gate is watched failing before it is watched passing. Anchors stay ASCII-on
       or given a package field; where the faelight guard lives (d Zero Paths, deadwood, or
       nsh-test).
 <!-- evidence: 2026-10-08, R1-R6 in the G1 Rulings section, each with reasons, accepted by Christian in session. -->
-- [ ] G2 RED FIRST: the faelight guard names every remnant on the current tree and fails;
+- [x] G2 RED FIRST: the faelight guard names every remnant on the current tree and fails;
       a drift test fails because a row that resolves to no crate is skipped in silence.
-- [ ] G3 FAELIGHT GONE: zero occurrences outside the G1 exemptions; zero faelight rows in
+<!-- evidence: 2026-10-08, demonstrated: red plan Seal 84c939a02ed74d39. The guard without its retired-block exemption: debug nsh-test 234/235, no_live_retired_name_in_any_tracked_file named exactly the 20 predicted lines, all zero/registry/tools.toml. The drift test: a_row_with_no_crate_is_reported_not_skipped panicked at integrity/mod.rs:2042; the check found only the alpha and core drifts and said nothing of ghost. -->
+- [x] G3 FAELIGHT GONE: zero occurrences outside the G1 exemptions; zero faelight rows in
       tools.toml; the guard green.
-- [ ] G4 REGISTRY TRUE: the nsh row records 5.3.1 and is compared; an unresolvable row
+<!-- evidence: 2026-10-08, demonstrated: Plan B Seal 175030cddbfaf384 removed the 14 faelight rows; tools.toml re-read with tomllib: 37 rows, 0 hits for either guard word. no_live_retired_name_in_any_tracked_file green without the registry exemption: debug nsh-test 235/235, deployed nsh-test 235/235 after ship. -->
+- [x] G4 REGISTRY TRUE: the nsh row records 5.3.1 and is compared; an unresolvable row
       raises an integrity issue; nsh-test has retired = false; no retired row is deployable;
       zero-zone matches its ruling. The audit re-run shows no row marked differs.
-- [ ] G5 OUTSIDE THE REPO: the G0(b) sweep re-run finds no faelight caller, or each one is
+<!-- evidence: 2026-10-08, demonstrated: Plan A Seal 0a56ec2e1ebb0933 -- the drift check skips only retired rows and rows whose type is not rust, and every other skip is an alert. every_live_row_of_the_real_registry_is_compared failed on exactly nsh, then passed once the row said crate = novashell (Plan B). Integrity proposal 24 applied: nsh 3.9.0 to 5.3.1; core integrity run 100 percent, no issues, debug and deployed. tomllib: 10 retired, none deployable, nsh-test retired = false; zero-zone unchanged per R3. -->
+- [x] G5 OUTSIDE THE REPO: the G0(b) sweep re-run finds no faelight caller, or each one is
       listed with what was done to it. Omarchy files untouched.
-- [ ] G6 NO REGRESSION, on the deployed binaries: d 0 failed with Integrity 100 and Schema
+<!-- evidence: 2026-10-08, demonstrated: the G0(b) sweep re-run after ship over the same 73 files: hits only in ~/.local/bin/core (2) and ~/.local/bin/nsh-test (2), the concat! guard and Zero Paths strings listed in the G0 Census, not callers; no link target carries the word; crontab is not installed. Nothing outside the repo was edited; no Omarchy file touched. -->
+- [x] G6 NO REGRESSION, on the deployed binaries: d 0 failed with Integrity 100 and Schema
       Validation clean; core integrity run opens no new proposal; ship 0 failed with Path
       Resilience unchanged; nsh-test all passing; alias coverage and tool installation
       unchanged.
-- [ ] G7 regression tests kept beside their code: the faelight guard and the drift test,
+<!-- evidence: 2026-10-08, demonstrated on the deployed binaries after ship (2 shipped, 15 unchanged, 0 failed): d 0 failed, Integrity 100, Schema Validation clean, Path Resilience 17/17, Alias Coverage 13 tools 240 aliases, Tool Installation 13 -- each equal to the run before INT-283; nsh-test 235/235; core integrity run 100 percent, no proposal. -->
+- [x] G7 regression tests kept beside their code: the faelight guard and the drift test,
       each watched failing before its fix landed.
-- [ ] G8 each gate carries evidence per INT-158.
+<!-- evidence: 2026-10-08: no_live_retired_name_in_any_tracked_file (nsh-test main.rs) red on the 20 registry lines before Plan B; a_row_with_no_crate_is_reported_not_skipped red before Plan A; every_live_row_of_the_real_registry_is_compared (both integrity/mod.rs tests) red on nsh before Plan B. cargo test -p core 63/63 after. -->
+- [x] G8 each gate carries evidence per INT-158.
+<!-- evidence: 2026-10-08: G0 to G7 each carry an evidence comment naming what was run and what came back. -->

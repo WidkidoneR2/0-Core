@@ -19,60 +19,9 @@ category = "development"
 description = "Diff system state across versions"
 expected_usage = "low"
 type = "rust"
-deployable = true
+deployable = false
 retired = true
 
-[[tool]]
-name = "faelight-diff"
-version = "1.0.0"
-category = "tools"
-description = "Diff viewer -- RETIRED: nvd replaces this on NixOS"
-expected_usage = "none"
-type = "rust"
-deployable = false
-retired = true
-[[tool]]
-name = "faelight"
-version = "2.1.0"
-category = "core"
-description = "Core launcher and entry point"
-expected_usage = "high"
-type = "rust"
-deployable = false
-# RETIRED 2026-09-15 (INT-247 Layer 2). Four invocations since the migration.
-# Every verb existed elsewhere: health -> `core doctor` (alias `d`), intent ->
-# `core intent` (`ints`, `inta`, `intl`), profile -> `core profile`. `launch`
-# shimmed to omarchy-menu and named faelight-launcher, already retired. `config`
-# managed ~/.config/faelight/cli.toml -- a file for itself, which never existed.
-# No Hyprland bind, no systemd unit, no desktop file. Alias `f` removed.
-retired = true
-[[tool]]
-name = "faelight-bootstrap"
-version = "2.1.0"
-category = "system"
-description = "System bootstrap and provisioning"
-expected_usage = "rare"
-type = "rust"
-deployable = true
-retired = true
-[[tool]]
-name = "faelight-browser"
-version = "0.4.0"
-category = "tools"
-description = "TUI web browser with w3m-style navigation -- RETIRED: Brave is the forest browser"
-expected_usage = "none"
-type = "rust"
-deployable = false
-retired = true
-[[tool]]
-name = "faelight-cleanup"
-version = "1.0.0"
-category = "system"
-description = "System cleanup and temp file management"
-expected_usage = "rare"
-type = "rust"
-deployable = true
-retired = true
 [[tool]]
 name = "zero-daemon"
 version = "4.0.0"
@@ -83,32 +32,6 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-fm"
-version = "4.0.0"
-category = "tools"
-description = "Terminal file manager with daemon integration"
-expected_usage = "medium"
-type = "rust"
-# RETIRED 2026-09-15 (INT-247 Layer 2, evidence from the INT-249 census).
-# The deferral above said "rebuild on NixOS" -- the machine has not been NixOS
-# since 2026-08-26. Yazi and Flea do this job, 0 invocations through `fm` or
-# `fmd` since the migration, and ROADMAP.md already recorded yazi as the
-# replacement. Crate deleted; git history keeps it.
-deployable = false
-retired = true
-[[tool]]
-name = "faelight-glog"
-version = "0.1.0"
-category = "tools"
-description = "TUI git-log reader -- filter by INT-number/author/date/keyword, candy-neon, Arch/NixOS era disambiguation (INT-139)"
-expected_usage = "medium"
-type = "rust"
-# RETIRED 2026-09-15 (INT-247 Layer 2). `git log --oneline -10` does this,
-# which is what the `glog` alias actually ran -- it never pointed at this tool.
-# 0 invocations through `fgl` since the migration. Crate deleted.
-deployable = false
-retired = true
-[[tool]]
 name = "zero-git"
 version = "5.1.2"
 category = "development"
@@ -117,24 +40,6 @@ expected_usage = "high"
 type = "rust"
 deployable = true
 retired = false
-[[tool]]
-name = "faelight-menu"
-version = "4.0.0"
-category = "ui"
-description = "Power management and system menu"
-expected_usage = "medium"
-type = "rust"
-deployable = true
-retired = true
-[[tool]]
-name = "faelight-notify"
-version = "4.0.0"
-category = "ui"
-description = "Notification system -- RETIRED 2026-09-02, Quickshell owns the bus"
-expected_usage = "none"
-type = "rust"
-deployable = false
-retired = true
 [[tool]]
 name = "zero-sandbox"
 version = "3.0.0"
@@ -146,23 +51,15 @@ deployable = true
 retired = false
 [[tool]]
 name = "nsh"
-version = "3.9.0"
+version = "5.3.1"
 category = "shell"
 description = "NovaShell -- the structured shell of Project 0. Package: novashell."
 expected_usage = "high"
 type = "rust"
+crate = "novashell"
 deployable = true
 retired = false
 depends_on = ["zero-git"]
-[[tool]]
-name = "faelight-term"
-version = "3.1.0"
-category = "ui"
-description = "Terminal emulator -- RETIRED 2026-09-02, Alacritty on Omarchy"
-expected_usage = "none"
-type = "rust"
-deployable = false
-retired = true
 [[tool]]
 # retired 2026-10-03 (INT-265): Omarchy updates the system; the crate is removed
 name = "zero-update"
@@ -200,7 +97,7 @@ category = "security"
 description = "SSH key scanner and audit"
 expected_usage = "rare"
 type = "rust"
-deployable = true
+deployable = false
 retired = true
 [[tool]]
 name = "latest-update"
@@ -209,7 +106,7 @@ category = "system"
 description = "Latest update tracker"
 expected_usage = "low"
 type = "rust"
-deployable = true
+deployable = false
 retired = true
 [[tool]]
 name = "teach"
@@ -221,29 +118,11 @@ type = "rust"
 deployable = true
 retired = false
 [[tool]]
-name = "faelight-clipboard"
-version = "0.2.0"
-category = "desktop"
-description = "Rust clipboard manager — wlr-data-control, history, fzf picker"
-expected_usage = "medium"
-type = "rust"
-deployable = false
-retired = true
-[[tool]]
 name = "zero-release"
 version = "1.0.3"
 category = "release"
-description = "Intelligent release and generation manager — the forest publishes itself"
+description = "Intelligent release and generation manager"
 expected_usage = "medium"
-type = "rust"
-deployable = false
-retired = true
-[[tool]]
-name = "faelight-wallpaper"
-version = "0.1.0"
-category = "desktop"
-description = "Rust wallpaper daemon — health-reactive, replaces swaybg"
-expected_usage = "rare"
 type = "rust"
 deployable = false
 retired = true
@@ -256,15 +135,6 @@ expected_usage = "medium"
 type = "rust"
 deployable = true
 retired = false
-[[tool]]
-name = "faelight-vault"
-version = "1.0.0"
-category = "security"
-description = "Forest-native credential manager — Argon2id encryption, health scores, audit, zero-gen integration"
-expected_usage = "medium"
-type = "rust"
-deployable = false
-retired = true
 [[tool]]
 name = "zero-docs"
 version = "2.0.0"
@@ -284,22 +154,13 @@ type = "script"
 deployable = false
 retired = true
 [[tool]]
-name = "faelight-notifyctl"
-version = "1.0.0"
-category = "notification"
-description = "IPC controller for faelight-notify — set modes, dismiss notifications"
-expected_usage = "none"
-type = "script"
-deployable = false
-retired = true
-[[tool]]
 name = "verify-bootstrap"
 version = "2.0.0"
 category = "system"
 description = "Bootstrap verification — validates 0-Core installation completed successfully"
 expected_usage = "low"
 type = "rust"
-deployable = true
+deployable = false
 retired = true
 
 [[tool]]
@@ -468,6 +329,7 @@ description = "fsh regression and bash-conformance suite -- gates every push"
 expected_usage = "medium"
 type = "rust"
 deployable = true
+retired = false
 [[tool]]
 name = "ship"
 version = "1.0.0"

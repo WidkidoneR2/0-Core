@@ -1976,34 +1976,9 @@ print('CLASS-DONE')"##;
                         continue;
                     }
                 };
-                // Registry entries with retired = true are the registry's own history.
-                let mut retired_lines: Vec<usize> = Vec::new();
-                if path == "zero/registry/tools.toml" {
-                    let mut block: Vec<usize> = Vec::new();
-                    let mut retired = false;
-                    for (n, line) in text.lines().enumerate() {
-                        if line.trim() == "[[tool]]" {
-                            if retired {
-                                retired_lines.extend(block.drain(..));
-                            }
-                            block.clear();
-                            retired = false;
-                        }
-                        block.push(n);
-                        if line.split_whitespace().collect::<String>() == "retired=true" {
-                            retired = true;
-                        }
-                    }
-                    if retired {
-                        retired_lines.extend(block.drain(..));
-                    }
-                }
                 // zero-gen's wordlist uses the second word as a word, not the brand (ruling E).
                 let dictionary = format!("\"{}\"", words[1]);
                 for (n, line) in text.lines().enumerate() {
-                    if retired_lines.contains(&n) {
-                        continue;
-                    }
                     let mut low = line.to_lowercase();
                     if path.ends_with("zero-gen/src/main.rs") {
                         low = low.replace(&dictionary, "");
