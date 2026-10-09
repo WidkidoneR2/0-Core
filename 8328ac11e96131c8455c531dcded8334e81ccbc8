@@ -1,0 +1,57 @@
+file /home/christian/0-core/zero/intents/in-progress/284-test-stand-ins-share-a-directory-when-two-tests-pass-one-tag-so-the-push-gate-fails-at-random.md  sha256 e2ec470bc56eea60 -> 8874a2bddb7457ba
+--- /home/christian/0-core/zero/intents/in-progress/284-test-stand-ins-share-a-directory-when-two-tests-pass-one-tag-so-the-push-gate-fails-at-random.md: replacing lines 12..19 ---
+   10: ## START HERE
+   11: 
+>> 12: G0 to G4 demonstrated 2026-10-08. Next: the G5 commit with the fix plan Seal 137fcb49e69f56b0
+>> 13: (G0 29ade6fe2687b24a, red 8ab9ee40716f5eec and this ledger plan cited in its body), then G6: push
+>> 14: main and refs/notes/seals, which carries the note for 2bb11c7b, then cicomplete 284 --skip-bumps.
+>> 15: 
+>> 16: Superseded 2026-10-08 (the filing note):
+>> 17: Begin at G0, read-only. Filed 2026-10-08 from F-0026 (found by INT-283). The seal note for
+>> 18: 2bb11c7b stays local until G6: its push was refused by this race.
+>> 19: 
+   20: ## Vision
+   21: 
+++ Complete 2026-10-08: G0 to G7 demonstrated, F-0026 fixed by e8679d19 and pushed. Nothing remains.
+++ 
+--- /home/christian/0-core/zero/intents/in-progress/284-test-stand-ins-share-a-directory-when-two-tests-pass-one-tag-so-the-push-gate-fails-at-random.md: replacing lines 95..97 ---
+   93: changes and unpushed commits, which G5 and G6 clear). No ship: every change is under
+   94: #[cfg(test)], so no deployed binary changes. -->
+>> 95: - [ ] G5 commit. Intent: INT-284, Fixes: F-0026, and the plan Seal with its note under
+>> 96:       refs/notes/seals.
+>> 97: - [ ] G6 the push. The pre-push hook passes; main and refs/notes/seals reach GitHub, the note
+   98:       for 2bb11c7b included; trace reads the seal intact on 2bb11c7b and on the G5 commit.
+   99: - [ ] G7 each gate carries evidence per INT-158.
+++ - [x] G5 commit. Intent: INT-284, Fixes: F-0026, and the plan Seal with its note under
+++       refs/notes/seals.
+++ <!-- demonstrated 2026-10-08: e8679d19 carries Intent: INT-284, Fixes: F-0026, Finding: F-0027 and
+++ Seal: 137fcb49e69f56b0; core intent trace e8679d19 reads fixes F-0026 and the seal intact. -->
+++ 
+--- /home/christian/0-core/zero/intents/in-progress/284-test-stand-ins-share-a-directory-when-two-tests-pass-one-tag-so-the-push-gate-fails-at-random.md: replacing lines 99..101 ---
+   97: <!-- demonstrated 2026-10-08: e8679d19 carries Intent: INT-284, Fixes: F-0026, Finding: F-0027 and
+   98: Seal: 137fcb49e69f56b0; core intent trace e8679d19 reads fixes F-0026 and the seal intact. -->
+>> 99: - [ ] G6 the push. The pre-push hook passes; main and refs/notes/seals reach GitHub, the note
+>> 100:       for 2bb11c7b included; trace reads the seal intact on 2bb11c7b and on the G5 commit.
+>> 101: - [ ] G7 each gate carries evidence per INT-158.
+   102: 
+   103: ## Non-goals
+++ - [x] G6 the push. The pre-push hook passes; main and refs/notes/seals reach GitHub, the note
+++       for 2bb11c7b included; trace reads the seal intact on 2bb11c7b and on the G5 commit.
+++ <!-- demonstrated 2026-10-08: both pushes passed the pre-push hook (main 2bb11c7b..e8679d19,
+++ refs/notes/seals f73684ba..13e7df73); the remote seals ref matches the local one at 13e7df73bfef;
+++ trace reads seal 55175509f0a5097d intact on 2bb11c7b and 137fcb49e69f56b0 intact on e8679d19. -->
+++ 
+--- /home/christian/0-core/zero/intents/in-progress/284-test-stand-ins-share-a-directory-when-two-tests-pass-one-tag-so-the-push-gate-fails-at-random.md: replacing lines 104..105 ---
+   102: refs/notes/seals f73684ba..13e7df73); the remote seals ref matches the local one at 13e7df73bfef;
+   103: trace reads seal 55175509f0a5097d intact on 2bb11c7b and 137fcb49e69f56b0 intact on e8679d19. -->
+>> 104: - [ ] G7 each gate carries evidence per INT-158.
+>> 105: 
+   106: ## Non-goals
+   107: 
+++ - [x] G7 each gate carries evidence per INT-158.
+++ <!-- demonstrated 2026-10-08: G0 to G6 each carry an evidence comment. -->
+++ 
+/home/christian/0-core/zero/intents/in-progress/284-test-stand-ins-share-a-directory-when-two-tests-pass-one-tag-so-the-push-gate-fails-at-random.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/284-test-stand-ins-share-a-directory-when-two-tests-pass-one-tag-so-the-push-gate-fails-at-random.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/284-test-stand-ins-share-a-directory-when-two-tests-pass-one-tag-so-the-push-gate-fails-at-random.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/284-test-stand-ins-share-a-directory-when-two-tests-pass-one-tag-so-the-push-gate-fails-at-random.md: 1 replaced
