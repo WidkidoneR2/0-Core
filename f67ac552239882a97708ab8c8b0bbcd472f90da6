@@ -1,0 +1,187 @@
+file /home/christian/0-core/zero/intents/future/285-nsh-test-falls-back-to-the-deployed-nsh-in-silence-when-nshbin-is-unset-so-a-red-first-run-can-test-the-wrong-binary.md  sha256 e70147e5fbb57f5c -> ebac559e268bf294
+file /home/christian/0-core/zero/intents/future/286-nsh-ends-on-any-readline-error-with-a-message-the-closing-window-never-shows-so-a-lost-terminal-is-a-silent-death.md  sha256 92c6204fc3cce68f -> 8a86a60f5ca7abbc
+--- /home/christian/0-core/zero/intents/future/285-nsh-test-falls-back-to-the-deployed-nsh-in-silence-when-nshbin-is-unset-so-a-red-first-run-can-test-the-wrong-binary.md: replacing lines 7..30 ---
+   5: title: "nsh-test falls back to the deployed nsh in silence when NSH_BIN is unset, so a red-first run can test the wrong binary"
+   6: status: planned
+>> 7: tags: [nsh-test, tests, nsh, red-first, integrity, finding]
+>> 8: ---
+>> 9: 
+>> 10: ## Vision
+>> 11: [Describe the goal and desired outcome]
+>> 12: 
+>> 13: ## The Problem
+>> 14: [What problem does this solve?]
+>> 15: 
+>> 16: ## The Solution
+>> 17: [High-level approach]
+>> 18: 
+>> 19: ## Success Criteria
+>> 20: - [ ] ...
+>> 21: 
+>> 22: <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
+>> 23: When you tick a gate, put the proof in an HTML comment on the line after it: a commit
+>> 24: hash, a file:line, a log or artifact path, or "demonstrated: what + how". Prose counts.
+>> 25: FORWARD-ONLY (never retrofit old intents -- busywork, no payoff).
+>> 26: SOFT (a discipline, not gate-police; nothing enforces this).
+>> 27: LIGHT (trivial self-evident gates need no artifact).
+>> 28: Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
+>> 29: See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+>> 30: 
+++ tags: [nsh-test, tests, nsh, red-first, integrity, finding]
+++ ---
+++ 
+++ ## START HERE
+++ 
+++ Begin at G0, read-only. Filed 2026-10-08 from F-0020 (found by INT-243). Measured the same night:
+++ the second site F-0020 records at main.rs:2646 is now main.rs:2764.
+++ 
+++ ## Vision
+++ 
+++ nsh-test runs the shell it says it runs. Every case spawns the binary that one owner resolved, so
+++ NSH_BIN means the same thing at every door, a missing NSH_BIN target is refused everywhere, and a
+++ red-first run proves what was built rather than what was deployed.
+++ 
+++ ## The Problem
+++ 
+++ zero/shell/nsh-test/src/repl.rs:43 fsh_bin() is the owner of the shell under test. Its doc names
+++ the disease: a dropped NSH_BIN quietly tested the deployed shell and the suite reported green
+++ (INT-110, again 2026-08-21). It refuses an NSH_BIN that names a missing binary (exit 2), and with
+++ NSH_BIN unset it uses paths::bin_dir()/nsh and refuses if that is missing.
+++ 
+++ Two doors bypass it (read 2026-10-08):
+++ - main.rs:325, run_fsh_status: std::env::var("NSH_BIN").unwrap_or_else(|_| "nsh".to_string())
+++ - main.rs:2764, the dashc_missing_operand_is_a_usage_error case: the same line.
+++ 
+++ At both, an unset NSH_BIN runs whatever "nsh" PATH finds, not the owner's bin_dir path, and an
+++ NSH_BIN naming a missing file is not refused. Every case built on run_fsh_status can therefore
+++ measure a different binary from the rest of the suite while the banner names the owner's.
+++ 
+++ ## The Solution
+++ 
+++ Both doors ask repl::fsh_bin(). A suite case guards the class: NSH_BIN is read by one function, so
+++ a third door goes red the day it is written. G0 confirms every other launch path already goes
+++ through the owner before anything changes.
+++ 
+++ ## Success Criteria
+++ 
+++ - [ ] G0 census, read-only. Every place nsh-test starts a shell or reads NSH_BIN (fsh_command,
+++       fsh_bin, the two doors, any other Command::new of the shell): file:line, and what each
+++       resolves with NSH_BIN unset, set, and set to a missing path. Also how nsh-test is built
+++       and deployed. Recorded here before any edit.
+++ - [ ] G1 red. A suite case, nsh_bin_is_read_in_one_place, counts env::var("NSH_BIN") reads in
+++       nsh-test source and requires exactly one, inside fsh_bin. Shown FAILING on the current code,
+++       naming main.rs:325 and :2764, output quoted.
+++ - [ ] G2 fix. Both doors call repl::fsh_bin(). G1 green; the cases built on run_fsh_status and
+++       the dashc no-operand case still pass.
+++ - [ ] G3 doors. nsh-test built and deployed the way G0 found, all passing, with the case count up
+++       by one; d 0 failed.
+++ - [ ] G4 commit. Intent: INT-285, Fixes: F-0020, and the plan Seal with its note under
+++       refs/notes/seals.
+++ - [ ] G5 the push. The pre-push hook passes; main and refs/notes/seals reach GitHub; trace reads
+++       the seal intact.
+++ - [ ] G6 each gate carries evidence per INT-158.
+++ 
+++ ## Non-goals
+++ 
+++ - The default with NSH_BIN unset stays the deployed shell: fsh_bin already rules that, and the
+++   banner compares version and bytes against the build. This intent makes every door obey it.
+++ - No change to novashell; the shell is not the subject here.
+++ - The dashc no-operand case keeps spawning directly, because it needs no operand; only the binary
+++   it names changes.
+++ - No new crates.
+++ 
+--- /home/christian/0-core/zero/intents/future/286-nsh-ends-on-any-readline-error-with-a-message-the-closing-window-never-shows-so-a-lost-terminal-is-a-silent-death.md: replacing lines 7..30 ---
+   5: title: "nsh ends on any readline error with a message the closing window never shows, so a lost terminal is a silent death"
+   6: status: planned
+>> 7: tags: [nsh, repl, readline, resilience, login, finding]
+>> 8: ---
+>> 9: 
+>> 10: ## Vision
+>> 11: [Describe the goal and desired outcome]
+>> 12: 
+>> 13: ## The Problem
+>> 14: [What problem does this solve?]
+>> 15: 
+>> 16: ## The Solution
+>> 17: [High-level approach]
+>> 18: 
+>> 19: ## Success Criteria
+>> 20: - [ ] ...
+>> 21: 
+>> 22: <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
+>> 23: When you tick a gate, put the proof in an HTML comment on the line after it: a commit
+>> 24: hash, a file:line, a log or artifact path, or "demonstrated: what + how". Prose counts.
+>> 25: FORWARD-ONLY (never retrofit old intents -- busywork, no payoff).
+>> 26: SOFT (a discipline, not gate-police; nothing enforces this).
+>> 27: LIGHT (trivial self-evident gates need no artifact).
+>> 28: Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
+>> 29: See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+>> 30: 
+++ tags: [nsh, repl, readline, resilience, login, finding]
+++ ---
+++ 
+++ ## START HERE
+++ 
+++ Begin at G0. Filed 2026-10-08 from F-0025 (found by INT-243), which carries the one live fact
+++ F-0018 held when it closed not reproduced. Bears directly on INT-277.
+++ 
+++ ## Vision
+++ 
+++ When nsh cannot read its terminal it recovers if it can, and if it cannot it leaves a reason that
+++ outlives the window and an exit status that says it failed. A shell that is about to become the
+++ login shell never dies without a word.
+++ 
+++ ## The Problem
+++ 
+++ By reading (zero/shell/novashell/src/main.rs, 2026-10-08), the REPL matches rustyline 17.0.2:
+++ - Err(ReadlineError::Interrupted) (Ctrl+C) clears the line and continues (:3071-3075).
+++ - Err(ReadlineError::Eof) breaks (:3076-3078).
+++ - Err(e), every other error, prints "Error: {e}" to stderr and breaks (:3079-3081).
+++ 
+++ After the break the shell writes its journal summary and exits (:3086). In a terminal that closes
+++ with the shell, that stderr line is never seen, so any read error looks like the window dying.
+++ 
+++ tty.rs:69-74 ignores SIGTTIN, so a read from a terminal the shell does not own fails with an I/O
+++ error instead of stopping the shell, and lands in that same arm. A foreground child that leaves
+++ the terminal elsewhere is therefore a silent exit, not a recoverable state.
+++ 
+++ For INT-277: .bashrc execs nsh, so this arm ending the shell ends the terminal or the tty login.
+++ Not yet measured: the exit status the shell returns after this arm, and a reproducible way to
+++ reach it.
+++ 
+++ ## The Solution
+++ 
+++ Ruled in G1 from G0's evidence. Candidates:
+++ (a) Recover first: on an I/O error, take the terminal back (tty::take_terminal) and read again,
+++     a bounded number of times, before giving up.
+++ (b) When giving up, write the reason to a durable log owned by zero-core paths before exiting,
+++     and exit non-zero, so 277's fallback and a person both have something to read.
+++ (a) and (b) are not exclusive.
+++ 
+++ ## Success Criteria
+++ 
+++ - [ ] G0 census and trigger. Every readline call site and error arm in novashell; what follows
+++       the break; the exit status after the Err(e) arm, measured; and a reproducible way to drive
+++       the REPL into that arm (in the nsh-test pty harness or a sacrificial window), shown.
+++ - [ ] G1 rulings recorded here: which errors are retried and how often, where the durable record
+++       goes and which paths accessor owns it, and the exit status on giving up.
+++ - [ ] G2 red. A test driving the REPL into the Err(e) arm, shown FAILING on the current code
+++       against the G1 rulings, output quoted.
+++ - [ ] G3 fix. G2 green; Ctrl+C and Ctrl+D behave exactly as before, shown.
+++ - [ ] G4 doors. One ship at the end; the deployed nsh tested in a new shell; nsh-test all passing;
+++       d 0 failed.
+++ - [ ] G5 commit. Intent: INT-286, Fixes: F-0025, and the plan Seal with its note under
+++       refs/notes/seals.
+++ - [ ] G6 the push. The pre-push hook passes; main and refs/notes/seals reach GitHub; trace reads
+++       the seal intact.
+++ - [ ] G7 each gate carries evidence per INT-158.
+++ 
+++ ## Non-goals
+++ 
+++ - No change to .bashrc or the bash-to-nsh handoff; INT-277 owns that and its crash fallback.
+++ - Ctrl+C and end-of-input keep their current meaning.
+++ - No new crates, no sudo, no chsh.
+++ - Not a general terminal-recovery layer: only the read error that ends the REPL.
+++ 
+/home/christian/0-core/zero/intents/future/285-nsh-test-falls-back-to-the-deployed-nsh-in-silence-when-nshbin-is-unset-so-a-red-first-run-can-test-the-wrong-binary.md: 1 replaced
+/home/christian/0-core/zero/intents/future/286-nsh-ends-on-any-readline-error-with-a-message-the-closing-window-never-shows-so-a-lost-terminal-is-a-silent-death.md: 1 replaced
