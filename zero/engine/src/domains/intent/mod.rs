@@ -3851,7 +3851,8 @@ mod absent_ledger_tests {
     /// INT-227, and it needs no second machine.
     #[test]
     fn an_absent_ledger_is_an_issue_not_a_clean_bill() {
-        let dir = std::env::temp_dir().join("core_absent_ledger_test");
+        let dir =
+            std::env::temp_dir().join(format!("core_absent_ledger_test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("temp home");
         // Shares the lock with the doctor's registry tests -- see its comment. Both mutate HOME,

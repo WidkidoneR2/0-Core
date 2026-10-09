@@ -1184,6 +1184,107 @@ pub fn sway_config() -> PathBuf {
 }
 #[cfg(test)]
 mod tests {
+    /// INT-284 G1: every scratch path a test builds under temp_dir() carries the process id, so
+    /// two overlapping runs of one test binary never share a tree (F-0026's class across runs).
+    /// A path that may stand without it is named in ALLOWED with its reason, and an entry that
+    /// no longer matches any site fails too: an exception cannot outlive its site.
+    #[test]
+    fn every_temp_dir_path_carries_the_process_id() {
+        const ALLOWED: [(&str, &str, &str); 2] = [
+            (
+                "shell/novashell/src/main.rs",
+                "nsh-cwd.tmp",
+                "F-0027: production code, ruled out of INT-284",
+            ),
+            (
+                "shell/novashell/src/commands/guards.rs",
+                "int267-no-such-directory",
+                "planted as absent, never created",
+            ),
+        ];
+        let zero = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(2)
+            .expect("zero-core sits at zero/tools/zero-core")
+            .to_path_buf();
+        let mut files = Vec::new();
+        let mut stack = vec![zero.clone()];
+        while let Some(dir) = stack.pop() {
+            let entries = std::fs::read_dir(&dir)
+                .unwrap_or_else(|e| panic!("cannot read {}: {e}", dir.display()));
+            for entry in entries {
+                let path = entry.unwrap().path();
+                if path.is_dir() {
+                    if path
+                        .file_name()
+                        .is_some_and(|n| n != "target" && n != ".git")
+                    {
+                        stack.push(path);
+                    }
+                } else if path.extension().is_some_and(|x| x == "rs") {
+                    files.push(path);
+                }
+            }
+        }
+        assert!(
+            files
+                .iter()
+                .any(|f| f.ends_with("tools/zero-core/src/paths.rs")),
+            "the scan of {} did not find paths.rs itself",
+            zero.display()
+        );
+        let needle = concat!("temp_dir", "()");
+        let mut bare = Vec::new();
+        let mut used = [false; 2];
+        for f in &files {
+            let rel = f.strip_prefix(&zero).unwrap().to_string_lossy().to_string();
+            let text = std::fs::read_to_string(f).unwrap_or_default();
+            let lines: Vec<&str> = text.lines().collect();
+            for (i, line) in lines.iter().enumerate() {
+                let t = line.trim_start();
+                if t.starts_with("//") || !t.contains(needle) {
+                    continue;
+                }
+                // The statement may run onto the next two lines, but never past the start of
+                // another item, so a neighbour's process id cannot vouch for this path.
+                let mut window = String::from(t);
+                for next in lines.iter().skip(i + 1).take(2) {
+                    let n = next.trim_start();
+                    if n.starts_with("fn ") || n.starts_with("pub fn ") || n.starts_with("#[") {
+                        break;
+                    }
+                    window.push(' ');
+                    window.push_str(n);
+                }
+                if window.contains("process::id") {
+                    continue;
+                }
+                match ALLOWED
+                    .iter()
+                    .position(|(file, name, _)| rel == *file && window.contains(name))
+                {
+                    Some(k) => used[k] = true,
+                    None => bare.push(format!("{}:{}: {}", rel, i + 1, t)),
+                }
+            }
+        }
+        let stale: Vec<String> = ALLOWED
+            .iter()
+            .zip(used)
+            .filter(|(_, u)| !u)
+            .map(|((f, n, why), _)| format!("{f} {n} ({why})"))
+            .collect();
+        assert!(
+            stale.is_empty(),
+            "exceptions that match no site any more: {stale:?}"
+        );
+        assert!(
+            bare.is_empty(),
+            "temp_dir paths without the process id, shared by overlapping runs:\n{}",
+            bare.join("\n")
+        );
+    }
+
     /// INT-247 item 4: every cache file sits directly under zero_cache_dir().
     #[test]
     fn cache_files_live_under_zero_cache_dir() {

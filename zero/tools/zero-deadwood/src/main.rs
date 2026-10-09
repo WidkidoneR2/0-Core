@@ -1418,7 +1418,8 @@ mod cmdword_check_tests {
             name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'),
             "fixture name must be [A-Za-z0-9_]"
         );
-        let root = std::env::temp_dir().join(format!("deadwood_cmdword_{name}"));
+        let root =
+            std::env::temp_dir().join(format!("deadwood_cmdword_{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let src = root
             .join(zero_core::paths::SHELL_PARENT)
@@ -1435,7 +1436,8 @@ mod cmdword_check_tests {
             name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'),
             "fixture name must be [A-Za-z0-9_]"
         );
-        let root = std::env::temp_dir().join(format!("deadwood_cmdword_{name}"));
+        let root =
+            std::env::temp_dir().join(format!("deadwood_cmdword_{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let src = root
             .join(zero_core::paths::SHELL_PARENT)
@@ -1547,7 +1549,8 @@ mod citation_check_tests {
             name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_'),
             "fixture name must be [A-Za-z0-9_]"
         );
-        let root = std::env::temp_dir().join(format!("deadwood_cite_{name}"));
+        let root =
+            std::env::temp_dir().join(format!("deadwood_cite_{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let intents = root.join("zero/intents/complete");
         std::fs::create_dir_all(&intents).expect("fixture intents");
@@ -1602,7 +1605,8 @@ mod citation_check_tests {
     /// not be presented as an answer. With no ledger, every citation would look dangling.
     #[test]
     fn an_unreadable_ledger_says_so_rather_than_flagging_everything() {
-        let root = std::env::temp_dir().join("deadwood_cite_noledger");
+        let root =
+            std::env::temp_dir().join(format!("deadwood_cite_noledger-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
         let src = root
             .join(zero_core::paths::SHELL_PARENT)

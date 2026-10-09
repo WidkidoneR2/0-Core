@@ -1820,8 +1820,15 @@ mod tests {
     /// A stand-in repo, laid out where the owner says crates live (INT-267 L2): one tool crate
     /// and the engine, each a version ahead of the registry, over an in-memory database.
     fn stand_in(tag: &str) -> (AppContext, PathBuf) {
-        let root =
-            std::env::temp_dir().join(format!("integrity-int267-{}-{}", tag, std::process::id()));
+        // A per-call number as well as the process id (INT-284, F-0026): cargo runs a crate's
+        // tests as threads of one process, so the tag and the process id alone gave two callers
+        // one tree.
+        static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+        let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+        let root = std::env::temp_dir().join(format!(
+            "integrity-int267-{tag}-{}-{call}",
+            std::process::id()
+        ));
         let _ = std::fs::remove_dir_all(&root);
         let tool = root.join(zero_core::paths::CRATE_PARENTS[0]).join("alpha");
         let engine = root.join(zero_core::paths::SINGLE_CRATES[0]);
@@ -1850,6 +1857,23 @@ mod tests {
         };
         assert!(ensure_tables(&ctx).is_ok());
         (ctx, root)
+    }
+
+    /// INT-284 G1: two calls with one tag must never share a tree. Cargo runs a crate's tests
+    /// as threads of one process, so a root named from the tag and the process id alone is
+    /// shared, and one test's clear-and-rebuild erases the other's tree (F-0026).
+    #[test]
+    fn two_stand_ins_with_one_tag_never_share_a_directory() {
+        let (_first_ctx, first) = stand_in("same-tag");
+        let (_second_ctx, second) = stand_in("same-tag");
+        let _ = std::fs::remove_dir_all(&first);
+        let _ = std::fs::remove_dir_all(&second);
+        assert_ne!(
+            first,
+            second,
+            "two stand_in calls with one tag were given one directory: {}",
+            first.display()
+        );
     }
 
     fn drift_only() -> Vec<Box<dyn IntegrityCheck>> {

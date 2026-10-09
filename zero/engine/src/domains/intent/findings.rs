@@ -228,7 +228,10 @@ mod collision_tests {
     /// filings that race cannot both win.
     #[test]
     fn a_second_write_of_the_same_id_is_refused_and_the_first_survives() {
-        let dir = std::env::temp_dir().join("core_finding_collision_test");
+        let dir = std::env::temp_dir().join(format!(
+            "core_finding_collision_test-{}",
+            std::process::id()
+        ));
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).expect("temp dir");
         let first = super::write_record(&dir, "F-0001", "first\n");
@@ -336,7 +339,8 @@ mod record_tests {
     /// The allocator counts F-NNNN.md and nothing else, and an absent folder holds none.
     #[test]
     fn the_highest_number_counts_only_finding_names() {
-        let dir = std::env::temp_dir().join("core_finding_highest_test");
+        let dir =
+            std::env::temp_dir().join(format!("core_finding_highest_test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
         assert_eq!(
             super::highest_number(&dir),
