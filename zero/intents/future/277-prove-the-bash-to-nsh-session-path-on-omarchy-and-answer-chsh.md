@@ -185,6 +185,8 @@ answer it in writing.
 - SafeShell or any wrapper binary in /etc/passwd (the login chain never
   needs one; the off switch and the always-bash door cover the wish
   behind it)
+- SafeShell itself: INT-288, which runs only if G8's written answer opens chsh,
+  and reads G2's off switch
 - nsh reading /etc/profile or Omarchy's bash scripts
 - modifying Omarchy's own files (/usr/share/omarchy, /etc,
   /usr/local/share/wayland-sessions)
