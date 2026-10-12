@@ -3,7 +3,7 @@ id: 285
 date: 2026-10-08
 type: future
 title: "nsh-test falls back to the deployed nsh in silence when NSH_BIN is unset, so a red-first run can test the wrong binary"
-status: in-progress
+status: complete
 tags: [nsh-test, tests, nsh, red-first, integrity, finding]
 ---
 
@@ -114,11 +114,26 @@ deployed nsh was installed 2026-10-08 16:04, before e8679d19 (2026-10-08 23:03, 
 commit touching novashell or zero-core, which was not shipped; ship's workspace build rebuilt the
 release nsh at 2026-10-12 08:36. Why those bytes differ is not established here, and the shell is
 outside this intent (Non-goals). -->
-- [ ] G4 commit. Intent: INT-285, Fixes: F-0020, and the plan Seal with its note under
+- [x] G4 commit. Intent: INT-285, Fixes: F-0020, and the plan Seal with its note under
       refs/notes/seals.
-- [ ] G5 the push. The pre-push hook passes; main and refs/notes/seals reach GitHub; trace reads
+<!-- demonstrated 2026-10-12: e1a19f83 carries Intent: INT-285, Fixes: F-0020 and Seal:
+27ef7706bd393260. It holds three paths -- the intent moved from future/ to in-progress/, and
+nsh-test src/main.rs -- staged only after a check that the tree held exactly those. Its note under
+refs/notes/seals is the fix plan text written byte-exact (blob be902f74cc4d) and reads back equal.
+core intent trace e1a19f83 reads intent INT-285, fixes F-0020 and seal 27ef7706bd393260 intact,
+exit 0. -->
+- [x] G5 the push. The pre-push hook passes; main and refs/notes/seals reach GitHub; trace reads
       the seal intact.
-- [ ] G6 each gate carries evidence per INT-158.
+<!-- demonstrated 2026-10-12: git push origin main refs/notes/seals, one push, so the pre-push gate
+(zero-gate pre-push, which builds novashell and nsh-test and runs the suite with NSH_BIN at
+target/debug/nsh) ran once, and git sent both refs only after it exited 0 -- 43.0s, long enough for
+that build and suite; the gate's own lines were not shown in the terminal. main f67ac552..e1a19f83
+and refs/notes/seals 8769ec57..93389739. git ls-remote then matched the local refs: main
+e1a19f83e549, refs/notes/seals 933897392ead. core intent trace e1a19f83 after the push reads fixes
+F-0020 and seal 27ef7706bd393260 intact. -->
+- [x] G6 each gate carries evidence per INT-158.
+<!-- demonstrated 2026-10-12: G0 to G5 each carry a demonstrated comment, counted by the plan
+that writes this one (five present before it, G5's written beside it). -->
 
 ## Non-goals
 
@@ -128,3 +143,6 @@ outside this intent (Non-goals). -->
 - The dashc no-operand case keeps spawning directly, because it needs no operand; only the binary
   it names changes.
 - No new crates.
+
+## Versions
+- nsh-test 2.0.1 -> 2.0.2 (patch)
