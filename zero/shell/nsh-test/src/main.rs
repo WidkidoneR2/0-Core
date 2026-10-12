@@ -322,7 +322,7 @@ fn repo_test(
 /// manufacturing a number there would make a comparison look performed when it was not. A caller
 /// that wants the signal convention asks for it; this reports what it saw.
 fn run_fsh_status(input: &str) -> Result<(String, String, Option<i32>), String> {
-    let fsh = std::env::var("NSH_BIN").unwrap_or_else(|_| "nsh".to_string());
+    let fsh = repl::fsh_bin();
     let out = Command::new(&fsh)
         .env("NSH_KEEP_CWD", "1")
         .env("ZERO_STATE_DB", repl::case_db_path())
@@ -2761,7 +2761,7 @@ print('CLASS-DONE')"##;
             // ⚠️ SPAWNS DIRECTLY RATHER THAN THROUGH THE HELPER, because run_fsh_status always passes
             // an operand and this case is about there being none. `-c ""` is a present-but-empty
             // operand and exits 0, which is a different thing entirely.
-            let fsh = std::env::var("NSH_BIN").unwrap_or_else(|_| "nsh".to_string());
+            let fsh = repl::fsh_bin();
             let out = Command::new(&fsh)
                 .env("NSH_KEEP_CWD", "1")
                 .env("ZERO_STATE_DB", repl::case_db_path())
@@ -2775,6 +2775,81 @@ print('CLASS-DONE')"##;
                 &String::from_utf8_lossy(&out.stderr),
                 "requires an argument",
             )
+        },
+    ));
+    // INT-285: THE SHELL UNDER TEST IS NAMED BY ONE READER. The owner in repl.rs answers which
+    // shell is under test, and a second reader is a second answer: run_fsh_status and the dashc
+    // no-operand case each kept one, resolving a bare "nsh" on PATH where the owner uses
+    // bin_dir(). The case WALKS this crate on disk, located by zero_core::paths, rather than
+    // naming files, so a reader added in a new file goes red the day it is written, tracked or
+    // not. The one read must be in src/repl.rs, the owner's file (ruled 2026-10-12); no function
+    // is named, because the owner still carries a retired name. The needles are assembled from
+    // pieces, or the case would count itself.
+    results.push(repo_test(
+        "nsh_bin_is_read_in_one_place",
+        Category::Regression,
+        "needs a real 0-Core: it reads nsh-test's own source, which only a checkout has",
+        || {
+            let base = zero_core::paths::crate_dir("nsh-test")
+                .ok_or("zero_core::paths::crate_dir found no nsh-test crate")?;
+            let name = ["NSH", "BIN"].join("_");
+            let needles = [
+                format!("env::var(\"{}\")", name),
+                format!("env::var_os(\"{}\")", name),
+            ];
+            let mut stack = vec![base.clone()];
+            let mut files = 0usize;
+            let mut in_owner_file = 0usize;
+            let mut hits: Vec<String> = Vec::new();
+            while let Some(dir) = stack.pop() {
+                let entries = std::fs::read_dir(&dir)
+                    .map_err(|e| format!("cannot read {}: {}", dir.display(), e))?;
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        if path.file_name().map(|n| n != "target").unwrap_or(false) {
+                            stack.push(path);
+                        }
+                        continue;
+                    }
+                    if path.extension().map(|x| x != "rs").unwrap_or(true) {
+                        continue;
+                    }
+                    files += 1;
+                    let text = std::fs::read_to_string(&path)
+                        .map_err(|e| format!("cannot read {}: {}", path.display(), e))?;
+                    let shown = path
+                        .strip_prefix(&base)
+                        .unwrap_or(&path)
+                        .display()
+                        .to_string();
+                    for (n, line) in text.lines().enumerate() {
+                        if line.trim_start().starts_with("//") {
+                            continue;
+                        }
+                        if needles.iter().any(|nd| line.contains(nd.as_str())) {
+                            if shown == "src/repl.rs" {
+                                in_owner_file += 1;
+                            }
+                            hits.push(format!("{}:{}", shown, n + 1));
+                        }
+                    }
+                }
+            }
+            // AN EMPTY TREE IS NOT A CLEAN ONE. Reading nothing must not pass as finding one.
+            if files == 0 {
+                return Err(format!("read no .rs files under {}", base.display()));
+            }
+            hits.sort();
+            if hits.len() == 1 && in_owner_file == 1 {
+                return Ok(());
+            }
+            Err(format!(
+                "{} is read {} times, expected once, in src/repl.rs: {}",
+                name,
+                hits.len(),
+                hits.join(" | ")
+            ))
         },
     ));
     // A FIXTURE CANNOT FIX THIS ONE EITHER. It asserts that the ordinary shell starts in the
