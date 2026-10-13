@@ -15,6 +15,8 @@ pub mod fingerprint;
 #[cfg(feature = "ui")]
 pub mod glyph;
 pub mod paths;
+#[cfg(feature = "registry")]
+pub mod registry;
 #[cfg(feature = "db")]
 pub mod state_db;
 pub mod theme;

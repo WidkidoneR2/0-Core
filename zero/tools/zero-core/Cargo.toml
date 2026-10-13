@@ -15,12 +15,17 @@ ui = ["dep:fontdue", "dep:wayland-client"]
 # INT-247: the ledger opener (src/state_db.rs). Off by default; a crate that opens
 # state.db enables it, and nothing else pays for rusqlite.
 db = ["dep:rusqlite"]
+# INT-287 G2: the tool registry reader (src/registry.rs). Off by default; the close and
+# bump-versions enable it, and nothing else pays for serde and toml.
+registry = ["dep:serde", "dep:toml"]
 
 [dependencies]
 libc = { workspace = true }
 fontdue = { version = "0.9", optional = true }
 thiserror = "1.0"
 rusqlite = { version = "0.31", features = ["bundled"], optional = true }
+serde = { workspace = true, optional = true }
+toml = { workspace = true, optional = true }
 wayland-client = { version = "0.31", optional = true }
 
 [dev-dependencies]

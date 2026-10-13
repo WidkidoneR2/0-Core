@@ -1,0 +1,352 @@
+//! The tool registry, read once and typed: the owner Decision 149 names (INT-287 G2).
+//!
+//! zero/registry/tools.toml says which tools exist, which are retired and which carry a
+//! version. The close and bump-versions each kept their own copy of five versioned crates
+//! (F-0028), so a sixth crate that changed was never offered a version. This module is the
+//! one place that answers which workspace crates the registry versions.
+//!
+//! AN UNREADABLE REGISTRY IS NOT AN EMPTY ONE. A missing or invalid file is an error, never
+//! an empty list: an empty list has nothing to offer and nothing missing, so a broken file
+//! would close an intent silently (zero-doctor probes/tools.rs, measured 2026-09-19).
+
+use serde::Deserialize;
+use std::collections::BTreeMap;
+use std::path::Path;
+
+#[derive(Debug, Deserialize)]
+struct RegistryFile {
+    #[serde(default)]
+    tool: Vec<Row>,
+}
+
+/// One `[[tool]]` row. Fields no reader here needs (category, description, ...) are ignored.
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+pub struct Row {
+    pub name: String,
+    pub version: String,
+    /// The row's type field. A row without one counts as rust (INT-287 ruling 1, as integrity
+    /// already rules), so the close and integrity agree on which rows are versioned.
+    #[serde(rename = "type", default)]
+    pub kind: Option<String>,
+    /// The package this row versions when it differs from the row's name (nsh is novashell).
+    /// Integrity reads this field as a folder name instead; on every row today the package
+    /// and its folder carry the same name, so the two readings agree.
+    #[serde(rename = "crate", default)]
+    pub krate: Option<String>,
+    #[serde(default)]
+    pub deployable: bool,
+    #[serde(default)]
+    pub retired: bool,
+}
+
+impl Row {
+    /// Whether the close offers this row a version: rust (or no type) and not retired.
+    pub fn is_versioned(&self) -> bool {
+        !self.retired && self.kind.as_deref().is_none_or(|k| k == "rust")
+    }
+
+    /// The workspace package this row versions: its crate field, else its name.
+    pub fn package(&self) -> &str {
+        self.krate.as_deref().unwrap_or(&self.name)
+    }
+}
+
+/// Every row of a registry's text, in file order.
+pub fn parse(text: &str) -> Result<Vec<Row>, String> {
+    toml::from_str::<RegistryFile>(text)
+        .map(|f| f.tool)
+        .map_err(|e| format!("the tool registry is not valid TOML -- {}", e))
+}
+
+/// Every row of the registry at `path`. A missing or unreadable file is an error.
+pub fn read_in(path: &Path) -> Result<Vec<Row>, String> {
+    if !path.is_file() {
+        return Err(format!("tool registry not found at {}", path.display()));
+    }
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| format!("cannot read {} -- {}", path.display(), e))?;
+    parse(&text).map_err(|e| format!("{}: {}", path.display(), e))
+}
+
+/// Every row of this checkout's registry.
+pub fn read() -> Result<Vec<Row>, String> {
+    read_in(&crate::paths::tools_registry())
+}
+
+/// A workspace crate, as the resolver sees it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Crate {
+    /// The `[package]` name in its Cargo.toml (the engine's is core).
+    pub package: String,
+    /// Its directory, relative to the repo root (zero/engine).
+    pub dir: String,
+}
+
+impl Crate {
+    /// The last segment of its directory: engine, novashell.
+    pub fn folder(&self) -> &str {
+        self.dir.rsplit('/').next().unwrap_or(&self.dir)
+    }
+}
+
+/// A workspace crate with the registry row that versions it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Versioned {
+    pub krate: Crate,
+    pub row: Row,
+}
+
+/// Which workspace crates the registry versions, and what does not match.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct Workspace {
+    /// Crates with a versioned row, in directory order. The close offers each one it touched.
+    pub versioned: Vec<Versioned>,
+    /// Crates with no versioned row. A close that touches one refuses and names it.
+    pub unversioned: Vec<Crate>,
+    /// Versioned rows whose package is no workspace crate: a typo or a stale row.
+    pub orphans: Vec<Row>,
+}
+
+impl Workspace {
+    /// The versioned crate a name means: its row's name first, then its package, then its
+    /// folder, so core, engine, nsh and novashell all answer (INT-287 G2, NAMES).
+    pub fn find(&self, name: &str) -> Option<&Versioned> {
+        let v = &self.versioned;
+        v.iter()
+            .find(|c| c.row.name == name)
+            .or_else(|| v.iter().find(|c| c.krate.package == name))
+            .or_else(|| v.iter().find(|c| c.krate.folder() == name))
+    }
+}
+
+/// Match registry rows to workspace crates by package name. Pure: no files are read.
+/// Two versioned rows claiming one package is an error, never a silent pick.
+pub fn match_rows(rows: &[Row], crates: &[Crate]) -> Result<Workspace, String> {
+    let mut wanted: BTreeMap<&str, &Row> = BTreeMap::new();
+    for row in rows.iter().filter(|r| r.is_versioned()) {
+        if let Some(prev) = wanted.insert(row.package(), row) {
+            return Err(format!(
+                "registry rows {} and {} both version the package {}",
+                prev.name,
+                row.name,
+                row.package()
+            ));
+        }
+    }
+    let mut ws = Workspace::default();
+    for c in crates {
+        match wanted.remove(c.package.as_str()) {
+            Some(row) => ws.versioned.push(Versioned {
+                krate: c.clone(),
+                row: row.clone(),
+            }),
+            None => ws.unversioned.push(c.clone()),
+        }
+    }
+    ws.orphans = wanted.into_values().cloned().collect();
+    Ok(ws)
+}
+
+/// The `[package]` name in the Cargo.toml at `path`.
+pub fn package_name(path: &Path) -> Result<String, String> {
+    #[derive(Deserialize)]
+    struct Manifest {
+        package: Option<Package>,
+    }
+    #[derive(Deserialize)]
+    struct Package {
+        name: String,
+    }
+    let text = std::fs::read_to_string(path)
+        .map_err(|e| format!("cannot read {} -- {}", path.display(), e))?;
+    let m: Manifest = toml::from_str(&text)
+        .map_err(|e| format!("{} is not valid TOML -- {}", path.display(), e))?;
+    m.package
+        .map(|p| p.name)
+        .ok_or_else(|| format!("{} has no [package]", path.display()))
+}
+
+/// Every workspace crate under the repo root `root`, through paths::crate_dirs_in.
+pub fn crates_in(root: &Path) -> Result<Vec<Crate>, String> {
+    let dirs = crate::paths::crate_dirs_in(root)
+        .map_err(|e| format!("cannot list the crates under {} -- {}", root.display(), e))?;
+    let mut out = Vec::new();
+    for dir in dirs {
+        let package = package_name(&dir.join("Cargo.toml"))?;
+        let rel = dir
+            .strip_prefix(root)
+            .map_err(|_| format!("{} is not under {}", dir.display(), root.display()))?;
+        out.push(Crate {
+            package,
+            dir: rel.to_string_lossy().into_owned(),
+        });
+    }
+    Ok(out)
+}
+
+/// The registry at `registry` matched to the workspace under `root`.
+pub fn resolve_in(root: &Path, registry: &Path) -> Result<Workspace, String> {
+    match_rows(&read_in(registry)?, &crates_in(root)?)
+}
+
+/// This checkout's registry matched to its workspace.
+pub fn resolve() -> Result<Workspace, String> {
+    resolve_in(&crate::paths::core_dir(), &crate::paths::tools_registry())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn row(name: &str, kind: Option<&str>, krate: Option<&str>, retired: bool) -> Row {
+        Row {
+            name: name.into(),
+            version: "1.0.0".into(),
+            kind: kind.map(Into::into),
+            krate: krate.map(Into::into),
+            deployable: true,
+            retired,
+        }
+    }
+
+    fn krate(package: &str, dir: &str) -> Crate {
+        Crate {
+            package: package.into(),
+            dir: dir.into(),
+        }
+    }
+
+    #[test]
+    fn parse_reads_rows_and_their_defaults() {
+        let rows = parse(concat!(
+            "# a comment\n",
+            "[[tool]]\nname = \"nsh\"\nversion = \"5.3.2\"\ntype = \"rust\"\n",
+            "crate = \"novashell\"\ndeployable = true\nretired = false\n",
+            "category = \"shell\"\n\n",
+            "[[tool]]\nname = \"bare\"\nversion = \"0.1.0\"\n",
+        ))
+        .unwrap();
+        assert_eq!(rows.len(), 2);
+        assert_eq!(rows[0].package(), "novashell");
+        assert!(rows[0].deployable && !rows[0].retired);
+        assert_eq!(rows[1].kind, None);
+        assert_eq!(rows[1].package(), "bare");
+        assert!(!rows[1].deployable && !rows[1].retired);
+    }
+
+    #[test]
+    fn invalid_or_missing_registry_is_an_error_not_an_empty_list() {
+        let dup = "[[tool]]\nname = \"a\"\nversion = \"1\"\nretired = false\nretired = false\n";
+        assert!(parse(dup).is_err(), "a duplicate key must refuse");
+        assert!(
+            parse("[[tool]]\nversion = \"1\"\n").is_err(),
+            "a row needs a name"
+        );
+        let missing = Path::new(env!("CARGO_MANIFEST_DIR")).join("no-such-registry.toml");
+        let err = read_in(&missing).unwrap_err();
+        assert!(err.contains("not found"), "{err}");
+    }
+
+    #[test]
+    fn versioned_means_rust_or_no_type_and_not_retired() {
+        assert!(row("a", Some("rust"), None, false).is_versioned());
+        assert!(row("a", None, None, false).is_versioned());
+        assert!(!row("a", Some("rust"), None, true).is_versioned());
+        assert!(!row("a", Some("script"), None, false).is_versioned());
+    }
+
+    #[test]
+    fn match_offers_each_versioned_crate_and_names_the_rest() {
+        let rows = [
+            row("core", Some("rust"), None, false),
+            row("nsh", Some("rust"), Some("novashell"), false),
+            row("old", Some("rust"), None, true),
+            row("ghost", None, None, false),
+        ];
+        let crates = [
+            krate("core", "x/engine"),
+            krate("novashell", "y/novashell"),
+            krate("old", "y/old"),
+            krate("zero-doctor", "y/zero-doctor"),
+        ];
+        let ws = match_rows(&rows, &crates).unwrap();
+        let names: Vec<&str> = ws.versioned.iter().map(|v| v.row.name.as_str()).collect();
+        assert_eq!(names, ["core", "nsh"]);
+        let rest: Vec<&str> = ws.unversioned.iter().map(|c| c.package.as_str()).collect();
+        assert_eq!(
+            rest,
+            ["old", "zero-doctor"],
+            "a retired row versions nothing"
+        );
+        assert_eq!(ws.orphans.len(), 1);
+        assert_eq!(ws.orphans[0].name, "ghost");
+    }
+
+    #[test]
+    fn two_rows_for_one_package_refuse() {
+        let rows = [
+            row("nsh", Some("rust"), Some("novashell"), false),
+            row("novashell", Some("rust"), None, false),
+        ];
+        let err = match_rows(&rows, &[krate("novashell", "y/novashell")]).unwrap_err();
+        assert!(err.contains("nsh") && err.contains("novashell"), "{err}");
+    }
+
+    #[test]
+    fn find_accepts_a_row_name_a_package_or_a_folder() {
+        let rows = [
+            row("core", Some("rust"), None, false),
+            row("nsh", Some("rust"), Some("novashell"), false),
+        ];
+        let crates = [krate("core", "x/engine"), krate("novashell", "y/novashell")];
+        let ws = match_rows(&rows, &crates).unwrap();
+        for (asked, row) in [
+            ("core", "core"),
+            ("engine", "core"),
+            ("nsh", "nsh"),
+            ("novashell", "nsh"),
+        ] {
+            assert_eq!(
+                ws.find(asked).map(|v| v.row.name.as_str()),
+                Some(row),
+                "{asked}"
+            );
+        }
+        assert!(ws.find("zero-doctor").is_none());
+    }
+
+    /// G2's rule on this checkout: every workspace crate has a versioned row, and every
+    /// versioned row has a crate. A crate added without a row fails here, by name.
+    #[test]
+    fn the_registry_versions_every_workspace_crate() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(3)
+            .expect("zero-core sits three folders below the repo root");
+        let registry = crate::paths::tools_registry();
+        let rel = registry
+            .strip_prefix(crate::paths::core_dir())
+            .expect("the registry lives in the checkout");
+        let ws = resolve_in(root, &root.join(rel)).unwrap();
+        let none: Vec<&str> = ws.unversioned.iter().map(|c| c.package.as_str()).collect();
+        assert!(
+            none.is_empty(),
+            "workspace crates with no versioned row: {none:?}"
+        );
+        let orphans: Vec<&str> = ws.orphans.iter().map(|r| r.name.as_str()).collect();
+        assert!(
+            orphans.is_empty(),
+            "versioned rows with no workspace crate: {orphans:?}"
+        );
+        let core = ws.find("engine").expect("the engine is versioned");
+        assert_eq!(
+            (core.row.name.as_str(), core.krate.package.as_str()),
+            ("core", "core")
+        );
+        let nsh = ws.find("nsh").expect("the shell is versioned");
+        assert_eq!(
+            Some(nsh.krate.dir.clone()),
+            crate::paths::crate_rel_dir_in(root, "novashell")
+        );
+    }
+}

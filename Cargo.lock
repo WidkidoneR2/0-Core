@@ -3627,7 +3627,9 @@ dependencies = [
  "fontdue",
  "libc",
  "rusqlite",
+ "serde",
  "thiserror",
+ "toml",
  "wayland-client",
 ]
 
