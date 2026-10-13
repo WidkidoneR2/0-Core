@@ -1097,6 +1097,53 @@ fn main() -> Result<()> {
     result
 }
 
+/// INT-286: is this read error the kernel saying the terminal is no longer this shell's?
+/// rustyline reports EIO as Io (an io::Error) or as Errno (a nix errno). Both are checked by
+/// number, so the test does not depend on which nix version rustyline links.
+fn is_eio(e: &ReadlineError) -> bool {
+    match e {
+        ReadlineError::Io(err) => err.raw_os_error() == Some(libc::EIO),
+        ReadlineError::Errno(errno) => *errno as i32 == libc::EIO,
+        _ => false,
+    }
+}
+
+/// INT-286: one line in nsh_exit_log() saying why this shell stopped reading its terminal.
+/// Best effort: a record that cannot be written is said on stderr, and the shell still exits 74.
+fn record_gave_up(e: &ReadlineError, eio_retries: u32) {
+    use std::io::Write;
+    let path = zero_core::paths::nsh_exit_log();
+    let tty = std::fs::read_link("/proc/self/fd/0")
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|_| "?".to_string());
+    let line = format!(
+        "{} pid={} tty={} eio_retries={} error={}\n",
+        chrono::Local::now().to_rfc3339(),
+        std::process::id(),
+        tty,
+        eio_retries,
+        e
+    );
+    let written = path
+        .parent()
+        .map(std::fs::create_dir_all)
+        .unwrap_or(Ok(()))
+        .and_then(|_| {
+            std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&path)
+        })
+        .and_then(|mut f| f.write_all(line.as_bytes()));
+    if let Err(err) = written {
+        eprintln!(
+            "nsh: could not record why it stopped in {}: {}",
+            path.display(),
+            err
+        );
+    }
+}
+
 /// Everything the fsh LANGUAGE needs in order to execute correctly, and nothing an interactive
 /// session wants. INT-200.
 ///
@@ -2569,6 +2616,11 @@ fn repl_main() -> Result<()> {
     // REPL loop
     // INT-099: queue for multi-command paste blocks (run each as if typed)
     let mut pending: VecDeque<String> = VecDeque::new();
+    // INT-286: whether this shell owned its terminal when the REPL began (G1: only such a shell
+    // takes it back after an EIO), the run of EIOs so far, and the exit code once it gives up.
+    let owned_at_start = crate::tty::is_interactive();
+    let mut eio_retries: u32 = 0;
+    let mut gave_up: Option<i32> = None;
     'repl: loop {
         // INT-250: backfill completion data for the prior command.
         // Compute duration from start time captured at submit.
@@ -2649,6 +2701,8 @@ fn repl_main() -> Result<()> {
                     };
                     match rl.readline(p) {
                         Ok(line) => {
+                            // INT-286: a good read ends any run of EIOs.
+                            eio_retries = 0;
                             // INT-250: check Ctrl+R flag set by HSearchHandler
                             if hsearch_triggered.swap(false, Ordering::SeqCst) {
                                 // line contains whatever user had typed before Ctrl+R - use as initial query
@@ -2693,6 +2747,15 @@ fn repl_main() -> Result<()> {
                                 heredoc_delim = find_heredoc_delimiter(&buffer);
                             }
                             first = false;
+                        }
+                        // INT-286: a read from a terminal this shell owned at startup and has
+                        // since lost fails with EIO. Take it back and read again, at most three
+                        // times in a row; anything else ends the read as it always did.
+                        Err(e) if owned_at_start && is_eio(&e) && eio_retries < 3 => {
+                            eio_retries += 1;
+                            if !crate::tty::take_terminal() {
+                                break Err(e);
+                            }
                         }
                         Err(e) => break Err(e),
                     }
@@ -3077,7 +3140,12 @@ fn repl_main() -> Result<()> {
                 break;
             }
             Err(e) => {
+                // INT-286: the REPL gives up. Today's stderr line stays; the reason also goes to a
+                // record that outlives the window, and the shell exits 74 after its exit path --
+                // never 0, which told a person and INT-277's fallback that nothing went wrong.
                 eprintln!("Error: {}", e);
+                record_gave_up(&e, eio_retries);
+                gave_up = Some(74);
                 break;
             }
         }
@@ -3174,6 +3242,11 @@ fn repl_main() -> Result<()> {
     }
     println!("{}", colored::Colorize::dimmed("  Project 0 remembers."));
     mark("EXIT: main returning");
+    // INT-286: a REPL that gave up on its terminal exits 74, never 0. main() does nothing after
+    // this thread returns, so exiting here skips nothing but the line editor's drop.
+    if let Some(code) = gave_up {
+        std::process::exit(code);
+    }
     Ok(())
 }
 

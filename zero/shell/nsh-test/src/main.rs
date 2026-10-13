@@ -2852,6 +2852,85 @@ print('CLASS-DONE')"##;
             ))
         },
     ));
+    // INT-286 G2: A SHELL THAT OWNED ITS TERMINAL AND LOST IT TAKES IT BACK. A background job takes
+    // the foreground and prints STOLEN; the next line is sent only after that, so nsh's next read
+    // meets a terminal it no longer owns. On 5.3.1 that read fails with EIO, the Err(e) arm prints
+    // to stderr and the shell exits 0 -- so ALIVE never comes back. Ruled 2026-10-12 (G1): an
+    // owned shell takes the terminal back and reads again.
+    results.push(test(
+        "repl_286_lost_terminal_is_taken_back",
+        Category::Repl,
+        || {
+            let dir = repl::case_db_dir();
+            std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+            // A BACKGROUND JOB'S STDIN IS /dev/null IN nsh -- measured 2026-10-12 in an owned pty:
+            // fd 0 -> /dev/null, fds 1 and 2 -> the pty -- so the helper takes the terminal through
+            // fd 1. Through fd 0 the steal failed with ENOTTY and STOLEN was never printed.
+            let helper = format!("{}/int286-steal.py", dir);
+            std::fs::write(
+                &helper,
+                "import os, signal, sys, time\n\
+                 signal.signal(signal.SIGTTOU, signal.SIG_IGN)\n\
+                 os.setpgid(0, 0)\n\
+                 os.tcsetpgrp(1, os.getpgrp())\n\
+                 sys.stdout.write('STOLEN' + chr(10))\n\
+                 sys.stdout.flush()\n\
+                 for fd in (0, 1, 2):\n    os.close(fd)\n\
+                 time.sleep(3)\n",
+            )
+            .map_err(|e| e.to_string())?;
+            let bg = format!("python3 {} &", helper);
+            let end = repl::run_repl_gated(
+                &[bg.as_str(), "echo ONE", "echo ALIVE"],
+                &[],
+                repl::Terminal::Owned,
+                Some((1, "STOLEN")),
+            )?;
+            // THE ANSWER CAN FOLLOW THE PROMPT THE HARNESS WAITED FOR: nsh prompts again when it
+            // takes the terminal back, before it reads ALIVE, so the case reads the whole
+            // transcript rather than the last window. The terminal's own echo of the pasted line
+            // is not "ALIVE" on its own; only the command's output is.
+            if end.transcript.iter().any(|l| l == "ALIVE") {
+                Ok(())
+            } else {
+                let tail = &end.transcript[end.transcript.len().saturating_sub(8)..];
+                Err(format!(
+                    "nsh did not answer after losing its terminal: prompted {}, exit {:?}, last lines {:?}",
+                    end.prompted, end.exit, tail
+                ))
+            }
+        },
+    ));
+    // INT-286 G2: A SHELL THAT NEVER OWNED ITS TERMINAL GIVES UP LOUDLY. Started where a background
+    // job of another shell would be, nsh's first read fails with EIO. On 5.3.1 it exits 0 with the
+    // reason on stderr only. Ruled (G1): it does not take a terminal it never owned; it exits 74
+    // and appends one line naming the error to nsh-exit.log under zero_state_dir().
+    results.push(test(
+        "repl_286_terminal_never_owned_exits_74_with_a_record",
+        Category::Repl,
+        || {
+            let state = format!("{}/int286-state", repl::case_db_dir());
+            let _ = std::fs::remove_dir_all(&state);
+            std::fs::create_dir_all(&state).map_err(|e| e.to_string())?;
+            let end = repl::run_repl_gated(
+                &[],
+                &[("XDG_STATE_HOME", state.as_str())],
+                repl::Terminal::NotOwned,
+                None,
+            )?;
+            let record = std::fs::read_to_string(format!("{}/0-core/nsh-exit.log", state))
+                .unwrap_or_default();
+            if end.exit == Some(74) && record.contains("Input/output error") {
+                Ok(())
+            } else {
+                Err(format!(
+                    "want exit 74 and a record naming the I/O error; got exit {:?}, record {:?}",
+                    end.exit,
+                    record.trim()
+                ))
+            }
+        },
+    ));
     // A FIXTURE CANNOT FIX THIS ONE EITHER. It asserts that the ordinary shell starts in the
     // REPO HOME -- a default that only exists when the repo does. Pointed at a fixture it would
     // pass against three stub files and prove nothing about the behaviour it guards.

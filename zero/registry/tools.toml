@@ -51,7 +51,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "nsh"
-version = "5.3.1"
+version = "5.3.2"
 category = "shell"
 description = "NovaShell -- the structured shell of Project 0. Package: novashell."
 expected_usage = "high"
@@ -323,7 +323,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "nsh-test"
-version = "2.0.2"
+version = "2.0.3"
 category = "development"
 description = "fsh regression and bash-conformance suite -- gates every push"
 expected_usage = "medium"

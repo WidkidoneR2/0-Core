@@ -346,6 +346,97 @@ pub fn run_repl_answered_after(
         .map(|(lines, _)| lines)
 }
 
+/// INT-286: WHO OWNS THE PTY. Measured 2026-10-12 on nsh 5.3.1: as the harness has always spawned
+/// it, the pty is nsh's stdio but NOT its controlling terminal -- tcgetpgrp fails with ENOTTY,
+/// tty::is_interactive() is false, and nsh runs every REPL case without job control. Started as a
+/// session leader on the same pty it owns the foreground and hands it to its children. Inherited
+/// keeps the old spawn byte for byte, so no existing case changes.
+#[derive(Clone, Copy, PartialEq, Debug)]
+pub enum Terminal {
+    /// The spawn every case has always had: no session, no controlling terminal.
+    Inherited,
+    /// nsh is a session leader with the pty as its controlling terminal, and owns the foreground.
+    Owned,
+    /// As Owned, but a holder process has the foreground before nsh runs, so the shell starts on
+    /// a terminal it does not own -- where a background job of another shell would be.
+    NotOwned,
+}
+
+/// What one session ended with. `exit` is nsh's OWN process status, which no command's 133;D
+/// mark can report: a shell that ends with 0 after losing its terminal looks like success there.
+pub struct SessionEnd {
+    pub lines: Vec<String>,
+    pub status: Option<i32>,
+    pub banner: String,
+    /// None when nsh was ended by a signal, including the harness's own kill.
+    pub exit: Option<i32>,
+    /// false when nsh ended before its first prompt.
+    pub prompted: bool,
+    /// Owned modes only (empty for Inherited): every line nsh printed after its first prompt
+    /// until it exited, the harness's own teardown included.
+    pub transcript: Vec<String>,
+}
+
+/// Submit lines to nsh on a pty it owns or does not own, and say how the session ended.
+///
+/// `gate` is (line index, marker): the line at that index is not sent until the marker has been
+/// printed. A case whose next line must follow an event the shell does not report -- a background
+/// job taking the terminal -- synchronises on the event, never on a sleep.
+pub fn run_repl_gated(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+    terminal: Terminal,
+    gate: Option<(usize, &str)>,
+) -> Result<SessionEnd, String> {
+    run_session_full(cmds, env, None, InputDelivery::Incremental, terminal, gate)
+}
+
+/// Give the spawn the terminal arrangement asked for. Inherited touches nothing.
+///
+/// Runs in the forked child before exec, after stdio is in place, so fd 0 is the pty. Only
+/// async-signal-safe calls: setsid, ioctl, fork, setpgid, signal, tcsetpgrp, close, alarm, pause.
+/// The holder ignores nothing and outlives no one: it is in the foreground group, so the kernel
+/// sends it SIGHUP when nsh, the controlling process, exits; alarm(20) ends it regardless.
+fn own_terminal(cmd: &mut Command, terminal: Terminal) {
+    use nix::libc;
+    use std::os::unix::process::CommandExt;
+    if terminal == Terminal::Inherited {
+        return;
+    }
+    let not_owned = terminal == Terminal::NotOwned;
+    unsafe {
+        cmd.pre_exec(move || {
+            if libc::setsid() < 0 || libc::ioctl(0, libc::TIOCSCTTY, 0) < 0 {
+                return Err(std::io::Error::last_os_error());
+            }
+            if not_owned {
+                let holder = libc::fork();
+                if holder < 0 {
+                    return Err(std::io::Error::last_os_error());
+                }
+                if holder == 0 {
+                    libc::setpgid(0, 0);
+                    libc::close(0);
+                    libc::close(1);
+                    libc::close(2);
+                    libc::alarm(20);
+                    loop {
+                        libc::pause();
+                    }
+                }
+                libc::setpgid(holder, holder);
+                libc::signal(libc::SIGTTOU, libc::SIG_IGN);
+                let rc = libc::tcsetpgrp(0, holder);
+                libc::signal(libc::SIGTTOU, libc::SIG_DFL);
+                if rc < 0 {
+                    return Err(std::io::Error::last_os_error());
+                }
+            }
+            Ok(())
+        });
+    }
+}
+
 /// THE ONE OWNER OF THE SESSION PROTOCOL: spawn, reader thread, submit, capture, teardown.
 ///
 /// `answer` exists for exactly ONE situation, and it is a genuine state transition rather than a
@@ -389,13 +480,29 @@ fn run_session_banner(
     answer: Option<(&str, &str)>,
     delivery: InputDelivery,
 ) -> Result<(Vec<String>, Option<i32>, String), String> {
+    run_session_full(cmds, env, answer, delivery, Terminal::Inherited, None)
+        .map(|end| (end.lines, end.status, end.banner))
+}
+
+/// INT-286: the session protocol, with the terminal arrangement and a gate. Every runner above
+/// reaches nsh through here, so the shell is still started in exactly one place.
+fn run_session_full(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+    answer: Option<(&str, &str)>,
+    delivery: InputDelivery,
+    terminal: Terminal,
+    gate: Option<(usize, &str)>,
+) -> Result<SessionEnd, String> {
     let pty = openpty(None, None).map_err(|e| format!("openpty: {}", e))?;
 
     let s_in = pty.slave.try_clone().map_err(|e| e.to_string())?;
     let s_out = pty.slave.try_clone().map_err(|e| e.to_string())?;
     let s_err = pty.slave.try_clone().map_err(|e| e.to_string())?;
 
-    let mut child = Command::new(fsh_bin())
+    let mut cmd = Command::new(fsh_bin());
+    own_terminal(&mut cmd, terminal);
+    let mut child = cmd
         // INT-206: the harness default goes FIRST so a case can override it. fsh starts in the
         // repo home deliberately (it once also restored its last directory), so the current_dir below
         // was silently ignored for months and conformance cases wrote their files into the
@@ -449,8 +556,13 @@ fn run_session_banner(
     // ⚠️ A TIMEOUT IS A FAILURE, not an empty capture.
     const READY: &[u8] = b"\x1b[?2004h";
     let mut raw: Vec<u8> = Vec::new();
-    wait_for(&rx, &mut raw, READY, 0, Duration::from_secs(20))
-        .ok_or_else(|| "nsh never reached its first prompt".to_string())?;
+    // INT-286: on a terminal it does not own nsh may end before any prompt, and that ending is
+    // what such a case asserts on -- an error here would hide it. Inherited keeps the error.
+    let prompted = wait_for(&rx, &mut raw, READY, 0, Duration::from_secs(20)).is_some();
+    if !prompted && terminal == Terminal::Inherited {
+        return Err("nsh never reached its first prompt".to_string());
+    }
+    let cmds: &[&str] = if prompted { cmds } else { &[] };
     // The banner belongs to no command, so it is in no line's capture. INT-262: it is returned
     // on its own instead of dropped, because nsh's startup reports print there.
     let banner = strip_ansi(&raw);
@@ -474,6 +586,16 @@ fn run_session_banner(
         //
         // SETUP LINES SUBMIT NORMALLY and wait for READY like any other line. Only the final line
         // synchronises on the guard prompt, because that is the line under test.
+        // INT-286: in an owned mode a shell that has already ended is the result; stop sending.
+        if terminal != Terminal::Inherited && matches!(child.try_wait(), Ok(Some(_))) {
+            break;
+        }
+        if let Some((at, needle)) = gate {
+            if idx == at {
+                wait_for(&rx, &mut raw, needle.as_bytes(), 0, Duration::from_secs(20))
+                    .ok_or_else(|| format!("never saw {needle:?} before line {at}"))?;
+            }
+        }
         let answer = if idx + 1 == cmds.len() { answer } else { None };
         let mark = raw.len();
         // PASTE THE LINE, DO NOT TYPE IT. fsh's highlighter repaints the whole line for every
@@ -527,8 +649,14 @@ fn run_session_banner(
         if delivery == InputDelivery::Buffered && idx + 1 < cmds.len() {
             continue;
         }
-        wait_for(&rx, &mut raw, READY, mark, Duration::from_secs(30))
-            .ok_or_else(|| format!("timed out waiting for the prompt after: {cmd}"))?;
+        if wait_for(&rx, &mut raw, READY, mark, Duration::from_secs(30)).is_none() {
+            // INT-286: in an owned mode a shell that ended mid-session is the result, not a
+            // harness failure. Inherited keeps the error it always gave.
+            if terminal == Terminal::Inherited {
+                return Err(format!("timed out waiting for the prompt after: {cmd}"));
+            }
+            break;
+        }
     }
 
     // ASK, THEN WAIT FOR THE ANSWER. This was a flat 300ms sleep before killing the child,
@@ -550,7 +678,23 @@ fn run_session_banner(
             }
         }
     }
-    let _ = child.wait();
+    let exit = child.wait().ok().and_then(|s| s.code());
+    // INT-286: AN OWNED-MODE CASE READS PAST THE LAST PROMPT. A shell that takes its terminal back
+    // prompts again BEFORE it answers the line it was sent, so the prompt the loop above waited for
+    // can arrive first and the answer after it, during teardown (measured 2026-10-12: ALIVE came
+    // 1ms after that prompt). What nsh printed until it exited becomes `transcript`; the reader is
+    // drained until it has been quiet for 200ms, 2s at most. Inherited skips this, so its cost and
+    // its lines are unchanged.
+    let mut late: Vec<u8> = Vec::new();
+    if terminal != Terminal::Inherited {
+        let until = Instant::now() + Duration::from_secs(2);
+        while let Ok(chunk) = rx.recv_timeout(Duration::from_millis(200)) {
+            late.extend_from_slice(&chunk);
+            if Instant::now() >= until {
+                break;
+            }
+        }
+    }
 
     // THE WINDOW IS BOUNDED BY TWO MARKERS, NOT BY A TIMEOUT. It runs from `?2004l`, which the
     // line editor emits when the line is submitted, to `133;A`, which fsh emits when it starts
@@ -603,5 +747,23 @@ fn run_session_banner(
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect();
-    Ok((lines, status, banner))
+    let transcript: Vec<String> = if terminal == Terminal::Inherited {
+        Vec::new()
+    } else {
+        let mut all = raw.clone();
+        all.extend_from_slice(&late);
+        strip_ansi(&all)
+            .split('\n')
+            .map(|s| s.trim().to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
+    };
+    Ok(SessionEnd {
+        lines,
+        status,
+        banner,
+        exit,
+        prompted,
+        transcript,
+    })
 }

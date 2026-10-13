@@ -974,6 +974,12 @@ pub fn profile_log() -> PathBuf {
     zero_state_dir().join("profile.log")
 }
 
+/// INT-286: why nsh gave up on its terminal -- one line per giving-up, written just before it
+/// exits 74, so the reason outlives the window that closed with it.
+pub fn nsh_exit_log() -> PathBuf {
+    zero_state_dir().join("nsh-exit.log")
+}
+
 /// The daemon control socket. FULL PATH, not a directory: every caller joined daemon.sock
 /// onto it immediately and none used it for anything else, so the directory was an
 /// abstraction that existed only to be discarded.
