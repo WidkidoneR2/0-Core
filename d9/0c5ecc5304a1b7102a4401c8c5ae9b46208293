@@ -1,0 +1,81 @@
+file zero/engine/Cargo.toml  sha256 63c5aeec1e7958b8 -> 01223e849b50f0df
+file zero/engine/src/domains/intent/mod.rs  sha256 c09d488439d52e54 -> 5d9d5d6c9d04a021
+--- zero/engine/Cargo.toml: replacing lines 20..21 ---
+   18: serde_json = "1"
+   19: flate2 = "1"
+>> 20: zero-core = { path = "../tools/zero-core", features = ["db"] }
+>> 21: zero-doctor = { path = "../tools/zero-doctor" }
+   22: chrono = { version = "0.4", features = ["serde"] }
+   23: rusqlite = { version = "0.31", features = ["bundled"] }
+++ zero-core = { path = "../tools/zero-core", features = ["db", "registry"] }
+++ 
+--- zero/engine/src/domains/intent/mod.rs: replacing lines 1108..1109 ---
+   1106: /// INT-326 found the touched crates this way. INT-271 keeps the detection and names each crate
+   1107: /// by the id bump-versions accepts: `engine`, never the label `core (engine)`.
+>> 1108: fn touched_crates(ctx: &AppContext, id: &str) -> Vec<TouchedCrate> {
+>> 1109:     let touched = std::process::Command::new("git")
+   1110:         .args([
+   1111:             "-C",
+++ fn touched_crates(ctx: &AppContext, id: &str) -> Result<Vec<TouchedCrate>, String> {
+++ 
+--- zero/engine/src/domains/intent/mod.rs: replacing lines 1124..1135 ---
+   1122:     // INT-273: one rule for which crate a path is in, shared with the evidence at the question.
+   1123:     let paths: Vec<&str> = touched.lines().collect();
+>> 1124:     TRACKED_CRATES
+>> 1125:         .iter()
+>> 1126:         .filter(|tool| paths.iter().any(|p| path_in_crate(p, tool)))
+>> 1127:         .filter_map(|tool| {
+>> 1128:             zero_core::paths::crate_rel_dir(tool).map(|d| TouchedCrate {
+>> 1129:                 tool: *tool,
+>> 1130:                 rel: format!("{}/Cargo.toml", d),
+>> 1131:             })
+>> 1132:         })
+>> 1133:         .collect()
+>> 1134: }
+>> 1135: 
+   1136: /// Check every --bump before anything is asked or written: the `tool=level` shape, a crate this
+   1137: /// intent touched, a known level, no crate named twice. `core` is accepted for `engine`.
+++     // INT-287 G2: the registry is read here, and an unreadable one stops the close: it is not
+++     // an empty one (Decision 149).
+++     let ws = zero_core::registry::resolve().map_err(|e| {
+++         format!(
+++             "the tool registry could not be read, so no version can be offered: {}",
+++             e
+++         )
+++     })?;
+++     crates_touched(&paths, &ws)
+++ }
+++ 
+++ /// INT-287 G2: the crates a set of repo paths touches, in the order the close asks about them.
+++ /// Pure: the paths and the workspace come in and nothing is read, so a test can call it.
+++ /// TRACKED_CRATES and path_in_crate still decide (F-0028); each crate's Cargo.toml comes from
+++ /// the registry's workspace, the same file crate_rel_dir gave for all five.
+++ fn crates_touched(
+++     paths: &[&str],
+++     ws: &zero_core::registry::Workspace,
+++ ) -> Result<Vec<TouchedCrate>, String> {
+++     Ok(TRACKED_CRATES
+++         .iter()
+++         .filter(|tool| paths.iter().any(|p| path_in_crate(p, tool)))
+++         .filter_map(|tool| {
+++             ws.find(tool).map(|v| TouchedCrate {
+++                 tool,
+++                 rel: format!("{}/Cargo.toml", v.krate.dir),
+++             })
+++         })
+++         .collect())
+++ }
+++ 
+--- zero/engine/src/domains/intent/mod.rs: replacing lines 1526..1527 ---
+   1524: ) -> Result<Vec<VersionPlan>, String> {
+   1525:     use std::io::IsTerminal;
+>> 1526:     let touched = touched_crates(ctx, id);
+>> 1527:     let ids: Vec<&'static str> = touched.iter().map(|t| t.tool).collect();
+   1528:     let explicit = parse_bump_flags(&flags.bumps, &ids)?;
+   1529:     let interactive = std::io::stdin().is_terminal();
+++     let touched = touched_crates(ctx, id)?;
+++ 
+zero/engine/Cargo.toml: 1 replaced
+zero/engine/src/domains/intent/mod.rs: 1 replaced
+zero/engine/src/domains/intent/mod.rs: 1 replaced
+zero/engine/src/domains/intent/mod.rs: 1 replaced
