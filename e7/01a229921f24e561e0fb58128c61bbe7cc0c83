@@ -1,0 +1,570 @@
+file zero/engine/src/domains/audit/mod.rs  sha256 53df9c5a9b6a6cde -> 0d8d1256ffa423e8
+file zero/engine/src/domains/decisions/mod.rs  sha256 e2f35c0b217b0599 -> 762ccc6191d726ae
+file zero/engine/src/domains/evolution/mod.rs  sha256 c7256b9b10fe0425 -> cde7a0cb257b6db4
+file zero/engine/src/domains/friday/doc_steward.rs  sha256 253a1de3074d17f9 -> a4435b872fc2ac87
+file zero/engine/src/domains/friday/mod.rs  sha256 82dfde8a788f9648 -> 53d7b0f1f0f21cc0
+file zero/engine/src/domains/friday/phase2.rs  sha256 ab6b73da32335b71 -> 8d47cf72f782f9a4
+file zero/engine/src/domains/friday_arch/mod.rs  sha256 5495639c3de22d5e -> 47b0b77ed7faae35
+file zero/engine/src/domains/integrity/mod.rs  sha256 cd24293d7ab68b3b -> 1920c52cd82b3832
+file zero/engine/src/domains/intent/mod.rs  sha256 5d9d5d6c9d04a021 -> c782ea1d4de22325
+file zero/engine/src/domains/release/mod.rs  sha256 415c63388bd59aaa -> cb3b631abde37809
+file zero/engine/src/domains/simulate/mod.rs  sha256 0ffaf703771d456c -> d1864bddb85605f6
+file zero/engine/src/domains/strategy/mod.rs  sha256 41e547e262a8d6e6 -> e55c861159a2d645
+file zero/engine/src/domains/synthesis/mod.rs  sha256 c249f7db86a0df32 -> 3e5d2950991ad10e
+file zero/shell/nsh-test/src/main.rs  sha256 1071b348d08050f6 -> 5b33c983fab3eaae
+file zero/tools/teach/src/main.rs  sha256 8b96796de1745372 -> f7bb17d84c1b6adb
+file zero/tools/zero-ade/src/main.rs  sha256 3d17beb5cd24c97a -> 337c8ae3dd63dc34
+file zero/tools/zero-daemon/src/dbus.rs  sha256 d49c47e83ba8faec -> 36851e816d4a1827
+file zero/tools/zero-deadwood/src/main.rs  sha256 4247bc78a5d6b7fa -> 1a4ae05f443023a0
+file zero/tools/zero-docs/src/toolgen.rs  sha256 f7b1c013b0e079a5 -> 7103e4a8759c59a3
+file zero/tools/zero-doctor/src/probes/internals.rs  sha256 bee3c026ee7630c7 -> 43281d22a731358c
+file zero/tools/zero-git/src/commands/commit.rs  sha256 d38d49dd7ee815f6 -> 4ebf6a031d7eac2a
+file zero/tools/zero-sandbox/src/cgroup.rs  sha256 19cc88dbf95f34d4 -> d38a42f576380286
+file zero/tools/zero-sandbox/src/main.rs  sha256 8258254df6d289cd -> 5d65c048ca7b0a9d
+--- zero/engine/src/domains/audit/mod.rs: replacing lines 144..146 ---
+   142:                 "--format=%ct",
+   143:                 "--",
+>> 144:             ])
+>> 145:             .args(zero_core::paths::crate_history_pathspecs(name.as_ref()))
+>> 146:             .output()
+   147:             .ok()
+   148:             .and_then(|o| String::from_utf8(o.stdout).ok());
+++ 
+++             .args(zero_core::paths::crate_history_pathspecs(name))
+++ 
+--- zero/engine/src/domains/audit/mod.rs: replacing lines 213..215 ---
+   211:                 "--",
+   212:             ])
+>> 213:             .args(
+>> 214:                 zero_core::paths::crate_history_pathspecs(name.as_ref())
+>> 215:                     .iter()
+   216:                     .map(|p| format!("{}Cargo.toml", p)),
+   217:             )
+++ 
+++                 zero_core::paths::crate_history_pathspecs(name)
+++ 
+--- zero/engine/src/domains/decisions/mod.rs: replacing lines 997..999 ---
+   995:         println!(
+   996:             "    Found {} decisions in context {}xx",
+>> 997:             total_similar.to_string().bright_white(),
+>> 998:             &fingerprint[..6].bright_yellow()
+>> 999:         );
+   1000:         println!(
+   1001:             "    {} success  {} partial  {} failure",
+++ 
+++             fingerprint[..6].bright_yellow()
+++ 
+--- zero/engine/src/domains/evolution/mod.rs: replacing lines 989..991 ---
+   987:         .and_then(|v| v["detail"]["health"].as_i64())
+   988:         .map(|h| h as u32);
+>> 989: 
+>> 990:     if health.map_or(true, |h| h < 95) {
+>> 991:         factors.push((
+   992:             format!(
+   993:                 "Health at {} — elevated baseline risk",
+++ 
+++     if health.is_none_or(|h| h < 95) {
+++ 
+--- zero/engine/src/domains/friday/doc_steward.rs: replacing lines 26..28 ---
+   24:         return Ok(());
+   25:     }
+>> 26:     let parts: Vec<&str> = git_output.trim().splitn(3, '|').collect();
+>> 27:     let hash = parts.get(0).unwrap_or(&"").trim();
+>> 28:     let subject = parts.get(1).unwrap_or(&"").trim();
+   29:     let body = parts.get(2).unwrap_or(&"").trim();
+   30:     // Skip if already analyzed this commit
+++ 
+++     let hash = parts.first().unwrap_or(&"").trim();
+++ 
+--- zero/engine/src/domains/friday/mod.rs: replacing lines 885..887 ---
+   883:         .ok()
+   884:         .and_then(|s| s.parse().ok());
+>> 885:     let mut suggestions: Vec<String> = Vec::new();
+>> 886:     if health.map_or(true, |h| h < 95) {
+>> 887:         suggestions.push(format!(
+   888:             "Health is at {} -- run d and investigate before continuing.",
+   889:             health
+++ 
+++     if health.is_none_or(|h| h < 95) {
+++ 
+--- zero/engine/src/domains/friday/phase2.rs: replacing lines 913..915 ---
+   911:         0.1
+   912:     } else {
+>> 913:         0.0
+>> 914:     }) + (if avg_health.map_or(true, |a| a < 98.0) {
+>> 915:         0.2
+   916:     } else {
+   917:         0.0
+++ 
+++     }) + (if avg_health.is_none_or(|a| a < 98.0) {
+++ 
+--- zero/engine/src/domains/friday/phase2.rs: replacing lines 965..967 ---
+   963:                 active_intents
+   964:             );
+>> 965:         }
+>> 966:         if avg_health.map_or(true, |a| a < 98.0) {
+>> 967:             println!(
+   968:                 "    {} {}",
+   969:                 "·".dimmed(),
+++ 
+++         if avg_health.is_none_or(|a| a < 98.0) {
+++ 
+--- zero/engine/src/domains/friday_arch/mod.rs: replacing lines 892..894 ---
+   890:         )
+   891:         .unwrap_or(0);
+>> 892:     let (description, action, confidence, rationale) =
+>> 893:         if recent_deploys > 0 && health.map_or(true, |h| h < 95) {
+>> 894:             (
+   895:                 "Health check after recent deploys -- verify nothing degraded".to_string(),
+   896:                 "core doctor run".to_string(),
+++ 
+++         if recent_deploys > 0 && health.is_none_or(|h| h < 95) {
+++ 
+--- zero/engine/src/domains/integrity/mod.rs: replacing lines 417..420 ---
+   415:     let mut newest: std::collections::HashMap<(String, String), i64> =
+   416:         std::collections::HashMap::new();
+>> 417:     for (id, check, subject) in &rows {
+>> 418:         let ran_now = ran.iter().any(|c| *c == check.as_str());
+>> 419:         let reason = if !suite.iter().any(|c| *c == check.as_str()) {
+>> 420:             Some("check removed".to_string())
+   421:         } else if subject.is_none() {
+   422:             Some("pre-275 row".to_string())
+++ 
+++         let ran_now = ran.contains(&check.as_str());
+++         let reason = if !suite.contains(&check.as_str()) {
+++ 
+--- zero/engine/src/domains/intent/mod.rs: replacing lines 346..348 ---
+   344:     } else {
+   345:         0
+>> 346:     };
+>> 347:     let bar_filled = (pct / 5) as usize;
+>> 348:     let bar = format!(
+   349:         "{}{}",
+   350:         "█".repeat(bar_filled).bright_green(),
+++ 
+++     let bar_filled = pct / 5;
+++ 
+--- zero/engine/src/domains/intent/mod.rs: replacing lines 540..543 ---
+   538:                 fm.lines()
+   539:                     .find(|l| l.trim_start().starts_with(&format!("{}:", k)))
+>> 540:                     .map(|l| {
+>> 541:                         l.splitn(2, ':')
+>> 542:                             .nth(1)
+>> 543:                             .unwrap_or("")
+   544:                             .trim()
+   545:                             .trim_matches('"')
+++ 
+++                         l.split_once(':')
+++                             .map(|x| x.1)
+++ 
+--- zero/engine/src/domains/release/mod.rs: replacing lines 26..29 ---
+   24:         }
+   25:         Some(pkg) => {
+>> 26:             // Read version from Cargo.toml
+>> 27:             let cargo_toml = zero_core::paths::crate_dir(&pkg)
+>> 28:                 .unwrap_or_else(|| tools_dir.join(&pkg))
+>> 29:                 .join("Cargo.toml");
+   30:             if !cargo_toml.exists() {
+   31:                 println!("unknown");
+++ 
+++             let cargo_toml = zero_core::paths::crate_dir(pkg)
+++                 .unwrap_or_else(|| tools_dir.join(pkg))
+++ 
+--- zero/engine/src/domains/simulate/mod.rs: replacing lines 106..108 ---
+   104:         println!(
+   105:             "    {} decisions in context {}xx",
+>> 106:             total.to_string().bright_white(),
+>> 107:             &fingerprint[..6].bright_yellow()
+>> 108:         );
+   109:         println!(
+   110:             "    {} success  {} partial  {} failure",
+++ 
+++             fingerprint[..6].bright_yellow()
+++ 
+--- zero/engine/src/domains/strategy/mod.rs: replacing lines 161..164 ---
+   159:     );
+   160:     println!();
+>> 161: 
+>> 162:     // Health signal
+>> 163:     if health.map_or(true, |h| h < 80) {
+>> 164:         println!(
+   165:             "  {} {} Health is at {} — address before new work",
+   166:             "⚠".bright_yellow(),
+++ 
+++     // Health signal
+++     if health.is_none_or(|h| h < 80) {
+++ 
+--- zero/engine/src/domains/strategy/mod.rs: replacing lines 170..172 ---
+   168:             health_pct(health)
+   169:         );
+>> 170:         println!();
+>> 171:     } else if health.map_or(true, |h| h < 95) {
+>> 172:         println!(
+   173:             "  {} Health at {} — run d to investigate warnings",
+   174:             "·".dimmed(),
+++ 
+++     } else if health.is_none_or(|h| h < 95) {
+++ 
+--- zero/engine/src/domains/strategy/mod.rs: replacing lines 686..689 ---
+   684: 
+   685:     let mut blockers: Vec<(u8, String, String)> = Vec::new(); // (priority, blocker, action)
+>> 686: 
+>> 687:     // Health blocker
+>> 688:     if health.map_or(true, |h| h < 80) {
+>> 689:         blockers.push((
+   690:             10,
+   691:             format!("Health at {} — system needs attention", health_pct(health)),
+++ 
+++     // Health blocker
+++     if health.is_none_or(|h| h < 80) {
+++ 
+--- zero/engine/src/domains/strategy/mod.rs: replacing lines 855..858 ---
+   853:         "  {} {}",
+   854:         "▶".bright_cyan(),
+>> 855:         "Risk assessment:".bright_white().bold()
+>> 856:     );
+>> 857:     if health.map_or(true, |h| h < 95) {
+>> 858:         println!(
+   859:             "    {} Health at {} — adding work increases risk",
+   860:             "⚠".bright_yellow(),
+++ 
+++     );
+++     if health.is_none_or(|h| h < 95) {
+++ 
+--- zero/engine/src/domains/strategy/mod.rs: replacing lines 1171..1174 ---
+   1169:     let mut score = 100i32;
+   1170:     let mut issues: Vec<String> = Vec::new();
+>> 1171: 
+>> 1172:     // Factor 1: Health
+>> 1173:     if health.map_or(true, |h| h < 95) {
+>> 1174:         score -= 10;
+   1175:         issues.push(format!("Health at {} (target ≥ 95%)", health_pct(health)));
+   1176:     }
+++ 
+++     // Factor 1: Health
+++     if health.is_none_or(|h| h < 95) {
+++ 
+--- zero/engine/src/domains/strategy/mod.rs: replacing lines 2496..2498 ---
+   2494:             .to_string();
+   2495:         let is_infra =
+>> 2496:             tags.contains("security") || tags.contains("health") || tags.contains("integrity");
+>> 2497:         let health_score = if health.map_or(true, |h| h < 90) && is_infra {
+>> 2498:             1.0
+   2499:         } else {
+   2500:             0.5
+++ 
+++         let health_score = if health.is_none_or(|h| h < 90) && is_infra {
+++ 
+--- zero/engine/src/domains/strategy/mod.rs: replacing lines 2557..2559 ---
+   2555:                 dep_refs.join(", ")
+   2556:             ));
+>> 2557:         }
+>> 2558:         if is_infra && health.map_or(true, |h| h < 90) {
+>> 2559:             reasons.push(format!(
+   2560:                 "Health at {} — infra work needed",
+   2561:                 health_pct(health)
+++ 
+++         if is_infra && health.is_none_or(|h| h < 90) {
+++ 
+--- zero/engine/src/domains/synthesis/mod.rs: replacing lines 129..131 ---
+   127:         ));
+   128:     }
+>> 129:     // Health vs momentum
+>> 130:     if health.map_or(true, |h| h < 95) && session_commits > 10 {
+>> 131:         contradictions.push(format!(
+   132:             "High commit velocity ({} today) while health is at {}",
+   133:             session_commits,
+++ 
+++     if health.is_none_or(|h| h < 95) && session_commits > 10 {
+++ 
+--- zero/engine/src/domains/synthesis/mod.rs: replacing lines 225..227 ---
+   223:     // Health and alignment
+   224:     if health == Some(100) && alignment >= 0.99 {
+>> 225:         parts.push("Project 0 is healthy and aligned. No concerns.".to_string());
+>> 226:     } else if health.map_or(true, |h| h < 95) {
+>> 227:         parts.push(format!(
+   228:             "Health at {} -- investigate before continuing.",
+   229:             health_text(health)
+++ 
+++     } else if health.is_none_or(|h| h < 95) {
+++ 
+--- zero/shell/nsh-test/src/main.rs: replacing lines 5618..5620 ---
+   5616:                 bar.green()
+   5617:             );
+>> 5618:         }
+>> 5619:         println!("");
+>> 5620:         println!("  Vocabulary words tested: delete, find, list, gt, fsearch, where");
+   5621:         println!("  Untested paths: parallel blocks, signal handling, fd leak detection");
+   5622:     }
+++ 
+++         println!();
+++ 
+--- zero/tools/teach/src/main.rs: replacing lines 659..664 ---
+   657: }
+   658: 
+>> 659: fn show_tool_detail(name: &str, snap: &SystemSnapshot) {
+>> 660:     let tool = snap.tools.iter().find(|t| t.name.contains(name));
+>> 661:     match tool {
+>> 662:         Some(t) => {
+>> 663:             println!("{}", format!("{}", t.name).cyan().bold());
+>> 664:             println!("{}", "━".repeat(52).dimmed());
+   665:             println!("  {} v{}", "version".dimmed(), t.version.cyan());
+   666:             if let Some(ref r) = t.replaces {
+++ 
+++     let tool = snap.tools.iter().find(|t| t.name.contains(name));
+++     match tool {
+++         Some(t) => {
+++             println!("{}", t.name.to_string().cyan().bold());
+++ 
+--- zero/tools/teach/src/main.rs: replacing lines 1083..1088 ---
+   1081: }
+   1082: 
+>> 1083: fn show_tool_lesson(tool: Option<&ToolInfo>, name: &str) {
+>> 1084:     clear();
+>> 1085:     match tool {
+>> 1086:         Some(t) => {
+>> 1087:             println!("{}", format!("{}", t.name).cyan().bold());
+>> 1088:             println!("{}", "━".repeat(52).dimmed());
+   1089:             println!();
+   1090:             println!("  {}", t.description.white());
+++ 
+++     clear();
+++     match tool {
+++         Some(t) => {
+++             println!("{}", t.name.to_string().cyan().bold());
+++ 
+--- zero/tools/zero-ade/src/main.rs: replacing lines 360..362 ---
+   358:         15 => Color::White,
+   359:         n => {
+>> 360:             // 6x6x6 color cube
+>> 361:             if n >= 16 && n <= 231 {
+>> 362:                 let n = n - 16;
+   363:                 let b = (n % 6) * 51;
+   364:                 let g = ((n / 6) % 6) * 51;
+++ 
+++             if (16..=231).contains(&n) {
+++ 
+--- zero/tools/zero-daemon/src/dbus.rs: replacing lines 6..8 ---
+   4: //! Any tool on the system can subscribe -- bar, FM, compositor, external scripts.
+   5: 
+>> 6: use futures_util::StreamExt as _;
+>> 7: use rusqlite;
+>> 8: use std::sync::Arc;
+   9: use tokio::sync::Mutex;
+   10: use zbus::{connection, interface, SignalContext};
+++ 
+++ 
+--- zero/tools/zero-deadwood/src/main.rs: replacing lines 903..905 ---
+   901:             // defect either. The pairing is what INT-172 was.
+   902:             let recv = render(&m.receiver);
+>> 903:             let base = recv.trim_start_matches(38u8 as char).trim();
+>> 904:             if !SHELL_LINE_NAMES.iter().any(|n| *n == base) {
+>> 905:                 return None;
+   906:             }
+   907:             let needle = m.args.first().map(render).unwrap_or_default();
+++ 
+++             if !SHELL_LINE_NAMES.contains(&base) {
+++ 
+--- zero/tools/zero-deadwood/src/main.rs: replacing lines 1109..1111 ---
+   1107:     ];
+   1108:     let mut findings = Vec::new();
+>> 1109:     let mut exempted = 0usize;
+>> 1110:     let src = zero_core::paths::crate_rel_dir_in(&root, "novashell")
+>> 1111:         .map(|rel| root.join(rel).join("src"))
+   1112:         .unwrap_or_else(|| {
+   1113:             root.join(zero_core::paths::SHELL_PARENT)
+++ 
+++     let src = zero_core::paths::crate_rel_dir_in(root, "novashell")
+++ 
+--- zero/tools/zero-docs/src/toolgen.rs: replacing lines 369..373 ---
+   367:     if !m.depends_on.is_empty() {
+   368:         out.push_str("## Project 0 dependencies\n\n");
+>> 369:         for d in &m.depends_on {
+>> 370:             out.push_str(&format!("- `{}`\n", d));
+>> 371:         }
+>> 372:         out.push_str("\n");
+>> 373:     }
+   374: 
+   375:     // Footer
+++ 
+++             out.push_str(&format!("- `{}`\n", d));
+++         }
+++         out.push('\n');
+++ 
+--- zero/tools/zero-docs/src/toolgen.rs: replacing lines 494..498 ---
+   492:                     &m.version
+   493:                 },
+>> 494:                 desc,
+>> 495:             ));
+>> 496:         }
+>> 497:         out.push_str("\n");
+>> 498:     }
+   499: 
+   500:     if !retired.is_empty() {
+++ 
+++             ));
+++         }
+++         out.push('\n');
+++ 
+--- zero/tools/zero-docs/src/toolgen.rs: replacing lines 502..506 ---
+   500:     if !retired.is_empty() {
+   501:         out.push_str("## Retired\n\n");
+>> 502:         for m in &retired {
+>> 503:             out.push_str(&format!("- `{}` (v{})\n", m.name, m.version));
+>> 504:         }
+>> 505:         out.push_str("\n");
+>> 506:     }
+   507: 
+   508:     out.push_str("---\n\n");
+++ 
+++             out.push_str(&format!("- `{}` (v{})\n", m.name, m.version));
+++         }
+++         out.push('\n');
+++ 
+--- zero/tools/zero-docs/src/toolgen.rs: replacing lines 717..721 ---
+   715:     if !hist.is_empty() {
+   716:         out.push_str("## Recent history\n\n");
+>> 717:         for (hash, subj) in &hist {
+>> 718:             out.push_str(&format!("- `{}` {}\n", hash, subj));
+>> 719:         }
+>> 720:         out.push_str("\n");
+>> 721:     }
+   722: 
+   723:     out.push_str("---\n\n");
+++ 
+++             out.push_str(&format!("- `{}` {}\n", hash, subj));
+++         }
+++         out.push('\n');
+++ 
+--- zero/tools/zero-doctor/src/probes/internals.rs: replacing lines 39..41 ---
+   37:             .lines()
+   38:             .map(str::trim)
+>> 39:             .filter(|l| l.chars().any(|c| c.is_alphanumeric()))
+>> 40:             .last()
+>> 41:             .unwrap_or("validated");
+   42:         // The validator prefixes its own tick. The render states the status itself, so
+   43:         // carrying it here would put a tick inside a tick.
+++ 
+++             .next_back()
+++ 
+--- zero/tools/zero-git/src/commands/commit.rs: replacing lines 366..369 ---
+   364:         let prefix = format!("INT-{}", intent_id.trim_start_matches("INT-"));
+   365:         if !message.starts_with(&prefix) && !message.starts_with("INT-") {
+>> 366:             println!(
+>> 367:                 "  {} message does not reference intent {} -- suggested: {}: {}",
+>> 368:                 "\u{1F4A1}", intent_id, prefix, message
+>> 369:             );
+   370:         }
+   371:     }
+++ 
+++                 "  \u{1F4A1} message does not reference intent {} -- suggested: {}: {}",
+++                 intent_id, prefix, message
+++ 
+--- zero/tools/zero-sandbox/src/cgroup.rs: replacing lines 59..61 ---
+   57:                 }
+   58:             }
+>> 59:         }
+>> 60:         if !here.pop() || here == PathBuf::from("/sys/fs/cgroup") {
+>> 61:             return None;
+   62:         }
+   63:     }
+++ 
+++         if !here.pop() || here == *"/sys/fs/cgroup" {
+++ 
+--- zero/tools/zero-sandbox/src/main.rs: replacing lines 931..933 ---
+   929:                              -- writes are only detected afterwards"
+   930:                                 .to_string(),
+>> 931:                         );
+>> 932:                         cmd.iter().cloned().collect()
+>> 933:                     }
+   934:                 }
+   935:             } else {
+++ 
+++                         cmd.to_vec()
+++ 
+--- zero/tools/zero-sandbox/src/main.rs: replacing lines 935..937 ---
+   933:                     }
+   934:                 }
+>> 935:             } else {
+>> 936:                 cmd.iter().cloned().collect()
+>> 937:             };
+   938: 
+   939:             // The refusal gate runs once more: fs is only now known to have failed, for the same
+++ 
+++                 cmd.to_vec()
+++ 
+--- zero/tools/zero-sandbox/src/main.rs: replacing lines 1704..1706 ---
+   1702:         } else {
+   1703:             fail.to_string()
+>> 1704:         },
+>> 1705:         undet.to_string()
+>> 1706:     );
+   1707: 
+   1708:     // ⭐ AN UNASKABLE QUESTION DOES NOT PASS SILENTLY. --allow-undetermined is how a caller says
+++ 
+++         undet
+++ 
+zero/engine/src/domains/audit/mod.rs: 1 replaced
+zero/engine/src/domains/audit/mod.rs: 1 replaced
+zero/engine/src/domains/decisions/mod.rs: 1 replaced
+zero/engine/src/domains/evolution/mod.rs: 1 replaced
+zero/engine/src/domains/friday/doc_steward.rs: 1 replaced
+zero/engine/src/domains/friday/mod.rs: 1 replaced
+zero/engine/src/domains/friday/phase2.rs: 1 replaced
+zero/engine/src/domains/friday/phase2.rs: 1 replaced
+zero/engine/src/domains/friday_arch/mod.rs: 1 replaced
+zero/engine/src/domains/integrity/mod.rs: 1 replaced
+zero/engine/src/domains/intent/mod.rs: 1 replaced
+zero/engine/src/domains/intent/mod.rs: 1 replaced
+zero/engine/src/domains/release/mod.rs: 1 replaced
+zero/engine/src/domains/simulate/mod.rs: 1 replaced
+zero/engine/src/domains/strategy/mod.rs: 1 replaced
+zero/engine/src/domains/strategy/mod.rs: 1 replaced
+zero/engine/src/domains/strategy/mod.rs: 1 replaced
+zero/engine/src/domains/strategy/mod.rs: 1 replaced
+zero/engine/src/domains/strategy/mod.rs: 1 replaced
+zero/engine/src/domains/strategy/mod.rs: 1 replaced
+zero/engine/src/domains/strategy/mod.rs: 1 replaced
+zero/engine/src/domains/synthesis/mod.rs: 1 replaced
+zero/engine/src/domains/synthesis/mod.rs: 1 replaced
+zero/shell/nsh-test/src/main.rs: 1 replaced
+zero/tools/teach/src/main.rs: 1 replaced
+zero/tools/teach/src/main.rs: 1 replaced
+zero/tools/zero-ade/src/main.rs: 1 replaced
+zero/tools/zero-daemon/src/dbus.rs: 1 replaced
+zero/tools/zero-deadwood/src/main.rs: 1 replaced
+zero/tools/zero-deadwood/src/main.rs: 1 replaced
+zero/tools/zero-docs/src/toolgen.rs: 1 replaced
+zero/tools/zero-docs/src/toolgen.rs: 1 replaced
+zero/tools/zero-docs/src/toolgen.rs: 1 replaced
+zero/tools/zero-docs/src/toolgen.rs: 1 replaced
+zero/tools/zero-doctor/src/probes/internals.rs: 1 replaced
+zero/tools/zero-git/src/commands/commit.rs: 1 replaced
+zero/tools/zero-sandbox/src/cgroup.rs: 1 replaced
+zero/tools/zero-sandbox/src/main.rs: 1 replaced
+zero/tools/zero-sandbox/src/main.rs: 1 replaced
+zero/tools/zero-sandbox/src/main.rs: 1 replaced
+
+applied by lint:
+   cmp_owned                            1
+   double_ended_iterator_last           1
+   get_first                            1
+   iter_cloned_collect                  2
+   manual_contains                      3
+   manual_range_contains                1
+   manual_split_once                    1
+   needless_borrow                      2
+   needless_borrows_for_generic_args    1
+   print_literal                        1
+   println_empty_string                 1
+   single_char_add_str                  4
+   single_component_path_imports        1
+   to_string_in_format_args             1
+   unnecessary_cast                     1
+   unnecessary_map_or                   14
+   useless_asref                        2
+   useless_borrows_in_formatting        2
+   useless_format                       2
+
+left out (1):
+   useless_format                       zero/engine/src/domains/snapshot/mod.rs:211 -- no unique ASCII anchor for one of its edits
