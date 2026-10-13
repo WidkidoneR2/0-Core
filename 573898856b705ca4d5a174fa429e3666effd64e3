@@ -1,0 +1,161 @@
+file /home/christian/0-core/zero/tools/zero-core/src/paths.rs  sha256 8da81d035a759f28 -> 1fe6e1150b1b9592
+file /home/christian/0-core/zero/shell/novashell/src/main.rs  sha256 616bdee8eb6373a4 -> 57f5ea5dac87fa38
+--- /home/christian/0-core/zero/tools/zero-core/src/paths.rs: replacing lines 973..976 ---
+   971: 
+   972: /// The profile switch log.
+>> 973: pub fn profile_log() -> PathBuf {
+>> 974:     zero_state_dir().join("profile.log")
+>> 975: }
+>> 976: 
+   977: /// The daemon control socket. FULL PATH, not a directory: every caller joined daemon.sock
+   978: /// onto it immediately and none used it for anything else, so the directory was an
+++ pub fn profile_log() -> PathBuf {
+++     zero_state_dir().join("profile.log")
+++ }
+++ 
+++ /// INT-286: why nsh gave up on its terminal -- one line per giving-up, written just before it
+++ /// exits 74, so the reason outlives the window that closed with it.
+++ pub fn nsh_exit_log() -> PathBuf {
+++     zero_state_dir().join("nsh-exit.log")
+++ }
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 1100..1101 ---
+   1098: }
+   1099: 
+>> 1100: /// Everything the fsh LANGUAGE needs in order to execute correctly, and nothing an interactive
+>> 1101: /// session wants. INT-200.
+   1102: ///
+   1103: /// ★ THE BOUNDARY THIS ENCODES: a shell start used to mean "begin an interactive session", with no
+++ /// INT-286: is this read error the kernel saying the terminal is no longer this shell's?
+++ /// rustyline reports EIO as Io (an io::Error) or as Errno (a nix errno). Both are checked by
+++ /// number, so the test does not depend on which nix version rustyline links.
+++ fn is_eio(e: &ReadlineError) -> bool {
+++     match e {
+++         ReadlineError::Io(err) => err.raw_os_error() == Some(libc::EIO),
+++         ReadlineError::Errno(errno) => *errno as i32 == libc::EIO,
+++         _ => false,
+++     }
+++ }
+++ 
+++ /// INT-286: one line in nsh_exit_log() saying why this shell stopped reading its terminal.
+++ /// Best effort: a record that cannot be written is said on stderr, and the shell still exits 74.
+++ fn record_gave_up(e: &ReadlineError, eio_retries: u32) {
+++     use std::io::Write;
+++     let path = zero_core::paths::nsh_exit_log();
+++     let tty = std::fs::read_link("/proc/self/fd/0")
+++         .map(|p| p.display().to_string())
+++         .unwrap_or_else(|_| "?".to_string());
+++     let line = format!(
+++         "{} pid={} tty={} eio_retries={} error={}\n",
+++         chrono::Local::now().to_rfc3339(),
+++         std::process::id(),
+++         tty,
+++         eio_retries,
+++         e
+++     );
+++     let written = path
+++         .parent()
+++         .map(std::fs::create_dir_all)
+++         .unwrap_or(Ok(()))
+++         .and_then(|_| {
+++             std::fs::OpenOptions::new()
+++                 .create(true)
+++                 .append(true)
+++                 .open(&path)
+++         })
+++         .and_then(|mut f| f.write_all(line.as_bytes()));
+++     if let Err(err) = written {
+++         eprintln!(
+++             "nsh: could not record why it stopped in {}: {}",
+++             path.display(),
+++             err
+++         );
+++     }
+++ }
+++ 
+++ /// Everything the fsh LANGUAGE needs in order to execute correctly, and nothing an interactive
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 2618..2619 ---
+   2616:     // REPL loop
+   2617:     // INT-099: queue for multi-command paste blocks (run each as if typed)
+>> 2618:     let mut pending: VecDeque<String> = VecDeque::new();
+>> 2619:     'repl: loop {
+   2620:         // INT-250: backfill completion data for the prior command.
+   2621:         // Compute duration from start time captured at submit.
+++ let mut pending: VecDeque<String> = VecDeque::new();
+++     // INT-286: whether this shell owned its terminal when the REPL began (G1: only such a shell
+++     // takes it back after an EIO), the run of EIOs so far, and the exit code once it gives up.
+++     let owned_at_start = crate::tty::is_interactive();
+++     let mut eio_retries: u32 = 0;
+++     let mut gave_up: Option<i32> = None;
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 2704..2705 ---
+   2702:                     match rl.readline(p) {
+   2703:                         Ok(line) => {
+>> 2704:                             // INT-250: check Ctrl+R flag set by HSearchHandler
+>> 2705:                             if hsearch_triggered.swap(false, Ordering::SeqCst) {
+   2706:                                 // line contains whatever user had typed before Ctrl+R - use as initial query
+   2707:                                 if let Some(selected) = history_tui::run_history_search(&line) {
+++ // INT-286: a good read ends any run of EIOs.
+++                             eio_retries = 0;
+++                             // INT-250: check Ctrl+R flag set by HSearchHandler
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 2751..2752 ---
+   2749:                             first = false;
+   2750:                         }
+>> 2751:                         Err(e) => break Err(e),
+>> 2752:                     }
+   2753:                 }
+   2754:             }
+++ // INT-286: a read from a terminal this shell owned at startup and has
+++                         // since lost fails with EIO. Take it back and read again, at most three
+++                         // times in a row; anything else ends the read as it always did.
+++                         Err(e) if owned_at_start && is_eio(&e) && eio_retries < 3 => {
+++                             eio_retries += 1;
+++                             if !crate::tty::take_terminal() {
+++                                 break Err(e);
+++                             }
+++                         }
+++                         Err(e) => break Err(e),
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 3142..3145 ---
+   3140:                 break;
+   3141:             }
+>> 3142:             Err(e) => {
+>> 3143:                 eprintln!("Error: {}", e);
+>> 3144:                 break;
+>> 3145:             }
+   3146:         }
+   3147:     }
+++ Err(e) => {
+++                 // INT-286: the REPL gives up. Today's stderr line stays; the reason also goes to a
+++                 // record that outlives the window, and the shell exits 74 after its exit path --
+++                 // never 0, which told a person and INT-277's fallback that nothing went wrong.
+++                 eprintln!("Error: {}", e);
+++                 record_gave_up(&e, eio_retries);
+++                 gave_up = Some(74);
+++                 break;
+++             }
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 3244..3246 ---
+   3242:     }
+   3243:     println!("{}", colored::Colorize::dimmed("  Project 0 remembers."));
+>> 3244:     mark("EXIT: main returning");
+>> 3245:     Ok(())
+>> 3246: }
+   3247: 
+   3248: // Truecolor helpers -- neon candy palette
+++ mark("EXIT: main returning");
+++     // INT-286: a REPL that gave up on its terminal exits 74, never 0. main() does nothing after
+++     // this thread returns, so exiting here skips nothing but the line editor's drop.
+++     if let Some(code) = gave_up {
+++         std::process::exit(code);
+++     }
+++     Ok(())
+++ }
+/home/christian/0-core/zero/tools/zero-core/src/paths.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
