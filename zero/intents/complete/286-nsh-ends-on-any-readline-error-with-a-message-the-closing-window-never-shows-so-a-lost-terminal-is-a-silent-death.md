@@ -3,7 +3,7 @@ id: 286
 date: 2026-10-08
 type: future
 title: "nsh ends on any readline error with a message the closing window never shows, so a lost terminal is a silent death"
-status: in-progress
+status: complete
 tags: [nsh, repl, readline, resilience, login, finding]
 ---
 
@@ -154,11 +154,28 @@ Failed 0.
 NEW SHELL: a new terminal opened the shipped nsh; echo new shell ok answered; nsh-exit.log absent
 -- no nsh has given up on this machine.
 -->
-- [ ] G5 commit. Intent: INT-286, Fixes: F-0025, and the plan Seal with its note under
+- [x] G5 commit. Intent: INT-286, Fixes: F-0025, and the plan Seal with its note under
       refs/notes/seals.
-- [ ] G6 the push. The pre-push hook passes; main and refs/notes/seals reach GitHub; trace reads
+<!-- demonstrated 2026-10-12: commit 57389885 (int286-g5, commit mode). Its checks ran first: note
+digest 6e6b87a04a32fea4 == Seal, G0 to G4 ticked, the tree exactly the ten expected changes. Then
+exactly those ten paths staged: 10 files changed, 501 insertions, 84 deletions. Trailers Intent:
+INT-286, Fixes: F-0025, Seal: 6e6b87a04a32fea4. The fix plan's text, rebuilt byte for byte from
+its show output, went to refs/notes/seals by hash-object -w and notes add -C (blob 3dfd7d4d971e);
+read back, note matches plan text: True. core intent trace 57389885: intent INT-286, fixes F-0025,
+seal 6e6b87a04a32fea4 intact. -->
+- [x] G6 the push. The pre-push hook passes; main and refs/notes/seals reach GitHub; trace reads
       the seal intact.
-- [ ] G7 each gate carries evidence per INT-158.
+<!-- demonstrated 2026-10-12: git push origin main refs/notes/seals, one push, so the pre-push gate
+(zero-gate pre-push: builds novashell and nsh-test, runs the suite with NSH_BIN at the absolute
+target/debug/nsh) ran once, and git sent both refs only after it exited 0 -- 50.6s; the gate's
+own lines were not shown in the terminal. main bd936309..57389885 and refs/notes/seals
+93389739..ea269852. git ls-remote then matched the local refs: main 573898856b70,
+refs/notes/seals ea2698526ee9. core intent trace 57389885 after the push reads fixes F-0025 and
+seal 6e6b87a04a32fea4 intact. -->
+- [x] G7 each gate carries evidence per INT-158.
+<!-- demonstrated 2026-10-12: G0 to G6 each carry an evidence comment (G1's is the ruling, the
+others demonstrated) -- G0 to G4 checked by the plan that writes this one, G5's and G6's written
+beside it. -->
 
 ## Non-goals
 
@@ -166,3 +183,6 @@ NEW SHELL: a new terminal opened the shipped nsh; echo new shell ok answered; ns
 - Ctrl+C and end-of-input keep their current meaning.
 - No new crates, no sudo, no chsh.
 - Not a general terminal-recovery layer: only the read error that ends the REPL.
+
+## Versions
+- novashell skipped
