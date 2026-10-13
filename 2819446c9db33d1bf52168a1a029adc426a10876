@@ -1,0 +1,128 @@
+file zero/engine/src/domains/doctor/aliases.rs  sha256 0ee9252deed19e86 -> c68ffdf5511bffa2
+file zero/engine/Cargo.toml  sha256 08c218bbe0ca6bec -> 63c5aeec1e7958b8
+file zero/registry/tools.toml  sha256 081399a96842b882 -> e133cbde167dbac8
+file zero/tools/ship/src/main.rs  sha256 34a7994c48aeaa3f -> 5b57eeb63463ba38
+file zero/engine/src/domains/zone/mod.rs  sha256 a9518c5ac1a49bbd -> 5bf58d6bb65d55d0
+file docs/inventory.md  sha256 1fbd4650ed20c83a -> 932883faa8f633d2
+file zero/tools/README.md  sha256 89dece89b84ada6e -> 0074b70b731abfeb
+file zero/intents/in-progress/287-silent-defaults-ints-285-found-he-close-never-offers-a-bump-outside-five-tools-deadwood-falls-back-by-name-and-four-smaller-defects.md  sha256 cbaa57e91e854810 -> 8ceefe13d3181f0f
+--- zero/engine/src/domains/doctor/aliases.rs: replacing lines 236..239 ---
+   234: 
+   235: fn run_default(aliases: &HashMap<String, String>) -> CoreResult<()> {
+>> 236:     let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
+>> 237:     let home = PathBuf::from(std::env::var("HOME").unwrap_or_default());
+>> 238:     let (zone_enum, _) = zero_zone::current_zone(&cwd, &home);
+>> 239:     println!("╭─────────────────────────────────────────────────╮");
+   240:     println!("│ 🔍 Alias Audit - Full Check                    │");
+   241:     println!("╰─────────────────────────────────────────────────╯");
+++ 
+--- zero/engine/src/domains/doctor/aliases.rs: replacing lines 239..244 ---
+   237:     println!("│ 🔍 Alias Audit - Full Check                    │");
+   238:     println!("╰─────────────────────────────────────────────────╯");
+>> 239:     println!(
+>> 240:         "  Current Zone: {} {}",
+>> 241:         zone_enum.icon(),
+>> 242:         zone_enum.short_label()
+>> 243:     );
+>> 244:     println!();
+   245:     println!("{}", "📋 Checking for duplicates...".bold());
+   246:     check_duplicates(aliases)?;
+++ 
+--- zero/engine/Cargo.toml: replacing lines 22..23 ---
+   20: zero-core = { path = "../tools/zero-core", features = ["db"] }
+   21: zero-doctor = { path = "../tools/zero-doctor" }
+>> 22: zero-zone = { path = "../tools/zero-zone" }
+>> 23: chrono = { version = "0.4", features = ["serde"] }
+   24: rusqlite = { version = "0.31", features = ["bundled"] }
+   25: tracing = "0.1"
+++ 
+--- zero/registry/tools.toml: replacing lines 73..84 ---
+   71: deployable = false
+   72: retired = true
+>> 73: [[tool]]
+>> 74: # binary retired 2026-09-23; the CRATE STAYS -- engine dispatcher, fetch and the
+>> 75: # doctor import zero_zone as a LIBRARY. Retiring the command is not deleting it.
+>> 76: name = "zero-zone"
+>> 77: version = "2.1.0"
+>> 78: category = "system"
+>> 79: description = "Zone management and context switching"
+>> 80: expected_usage = "medium"
+>> 81: type = "rust"
+>> 82: deployable = false
+>> 83: retired = true
+>> 84: [[tool]]
+   85: name = "intent-guard"
+   86: version = "2.1.0"
+++ 
+--- zero/tools/ship/src/main.rs: replacing lines 11..13 ---
+   9: //      CONSTRUCTION, not by an exclusion list that could go stale.
+   10: //   2. It asks cargo for the target list rather than reading the directory.
+>> 11: //      target/release also holds libzero_core, libzero_git and
+>> 12: //      libzero_zone -- rlibs that must never be shipped, and no naming rule
+>> 13: //      could tell them apart reliably. The compiler knows; ask it.
+   14: //   3. It replaces a running binary by rename, never by overwrite. A copy onto
+   15: //      a live executable gives Text file busy; a rename leaves the running
+++ //      target/release also holds libzero_core and libzero_git -- rlibs that
+++ //      must never be shipped, and no naming rule
+++ 
+--- zero/engine/src/domains/zone/mod.rs: replacing lines 139..140 ---
+   137:     }
+   138: 
+>> 139:     // Default: icon + path (matches zero-zone output)
+>> 140:     println!("{} {}", zone.icon, zone.path);
+   141:     Ok(())
+   142: }
+++     // Default: icon + path
+++ 
+--- docs/inventory.md: replacing lines 101..102 ---
+   99: | `zero-core` | 18 crates: core, db-browse, friday-chat, novashell, nsh-test, ship, teach and every zero-* crate |
+   100: | `zero-doctor` | core |
+>> 101: | `zero-zone` | core -- its binary retired 2026-09-30; the library stays |
+>> 102: 
+   103: ## Findings, each with its owner
+   104: 
+++ 
+--- zero/tools/README.md: replacing lines 58..59 ---
+   56: ## Retired
+   57: 
+>> 58: - `zero-zone` (v2.1.0)
+>> 59: 
+   60: ---
+   61: 
+++ - `zero-zone` (v2.1.0) -- crate removed 2026-10-13 (INT-287)
+++ 
+--- zero/intents/in-progress/287-silent-defaults-ints-285-found-he-close-never-offers-a-bump-outside-five-tools-deadwood-falls-back-by-name-and-four-smaller-defects.md: replacing lines 157..158 ---
+   155: about it; skip stays the answer for zero-core while its versioning is unsettled.
+   156: MEASURED: 20 workspace crates, 19 with a matching row whose version equals Cargo.toml, and
+>> 157: zero-doctor the one without. -->
+>> 158: - [ ] G3 the close writes the registry. Red: a bump test whose registry row
+   159:       stays old. Fix: write_versions updates the row in the same plan, and
+   160:       refuses before any write if the row is missing. Green, plus the drift
+++ zero-doctor the one without.
+++ CORRECTED 2026-10-13: that count matched rows by name alone. With type and retired honoured,
+++ zero-zone had no versioned row either: its row was retired while the engine still built it.
+++ RULED 2026-10-13 by Christian: (1) a row with no type field counts as rust, as integrity
+++ rules (integrity mod.rs:1124-1129); (2) any file under a crate's folder counts as touching it;
+++ (3) zero-zone is removed here as step 0, with no intent of its own. Its one user was the alias
+++ audit's Current Zone header (doctor/aliases.rs:238), a remnant of the old file manager's
+++ numbered folders; the header line, the engine's dependency, the row and the crate go. -->
+++ 
+zero/engine/src/domains/doctor/aliases.rs: 1 replaced
+zero/engine/src/domains/doctor/aliases.rs: 1 replaced
+zero/engine/Cargo.toml: 1 replaced
+zero/registry/tools.toml: 1 replaced
+zero/tools/ship/src/main.rs: 1 replaced
+zero/engine/src/domains/zone/mod.rs: 1 replaced
+docs/inventory.md: 1 replaced
+zero/tools/README.md: 1 replaced
+zero/intents/in-progress/287-silent-defaults-ints-285-found-he-close-never-offers-a-bump-outside-five-tools-deadwood-falls-back-by-name-and-four-smaller-defects.md: 1 replaced
+
+then: git rm -r -q zero/tools/zero-zone  (6 tracked files)
+   zero/tools/zero-zone/Cargo.toml  sha256 2ba6d46385356574
+   zero/tools/zero-zone/README.md  sha256 535a076d267e7547
+   zero/tools/zero-zone/src/detect.rs  sha256 c7e78d186a48a28e
+   zero/tools/zero-zone/src/lib.rs  sha256 c62783de3c963e19
+   zero/tools/zero-zone/src/model.rs  sha256 47abf15c56aa5ca4
+   zero/tools/zero-zone/test-zone.rs  sha256 0ffd9d93eeb5eb71
+
+zero-core's users measured: 17 before, 16 after; the inventory line does not say 17, LEFT AS IS: | `zero-core` | 18 crates: core, db-browse, friday-chat, nov
