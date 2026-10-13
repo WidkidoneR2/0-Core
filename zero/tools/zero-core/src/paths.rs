@@ -240,11 +240,13 @@ pub fn find_on_path_in(name: &str, path: Option<&std::ffi::OsStr>) -> Option<Pat
 /// HISTFILE, YSH YSH_HISTFILE) makes the location overridable.
 ///
 /// RESOLUTION ORDER, chosen so the code can ship before the data moves:
+/// ```text
 ///   1. $ZERO_STATE_DIR           -- explicit override; also lets fsh-test
 ///                                   isolate per-case state off the live db
 ///   2. state_home()/zero         -- if it already exists, it wins
-///   3. source_dir()/runtime    -- legacy, only while it still exists
+///   3. source_dir()/runtime      -- legacy, only while it still exists
 ///   4. state_home()/zero         -- fresh install, no repo required
+/// ```
 ///
 /// There is deliberately no window where the code points somewhere the data is
 /// not: today (3) holds and nothing changes; after the move (2) takes over on
