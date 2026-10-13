@@ -1105,7 +1105,7 @@ struct VersionPlan {
 
 /// INT-326 found the touched crates this way. INT-271 keeps the detection and names each crate
 /// by the id bump-versions accepts: `engine`, never the label `core (engine)`.
-fn touched_crates(ctx: &AppContext, id: &str) -> Vec<TouchedCrate> {
+fn touched_crates(ctx: &AppContext, id: &str) -> Result<Vec<TouchedCrate>, String> {
     let touched = std::process::Command::new("git")
         .args([
             "-C",
@@ -1121,16 +1121,35 @@ fn touched_crates(ctx: &AppContext, id: &str) -> Vec<TouchedCrate> {
         .unwrap_or_default();
     // INT-273: one rule for which crate a path is in, shared with the evidence at the question.
     let paths: Vec<&str> = touched.lines().collect();
-    TRACKED_CRATES
+    // INT-287 G2: the registry is read here, and an unreadable one stops the close: it is not
+    // an empty one (Decision 149).
+    let ws = zero_core::registry::resolve().map_err(|e| {
+        format!(
+            "the tool registry could not be read, so no version can be offered: {}",
+            e
+        )
+    })?;
+    crates_touched(&paths, &ws)
+}
+
+/// INT-287 G2: the crates a set of repo paths touches, in the order the close asks about them.
+/// Pure: the paths and the workspace come in and nothing is read, so a test can call it.
+/// TRACKED_CRATES and path_in_crate still decide (F-0028); each crate's Cargo.toml comes from
+/// the registry's workspace, the same file crate_rel_dir gave for all five.
+fn crates_touched(
+    paths: &[&str],
+    ws: &zero_core::registry::Workspace,
+) -> Result<Vec<TouchedCrate>, String> {
+    Ok(TRACKED_CRATES
         .iter()
         .filter(|tool| paths.iter().any(|p| path_in_crate(p, tool)))
         .filter_map(|tool| {
-            zero_core::paths::crate_rel_dir(tool).map(|d| TouchedCrate {
-                tool: *tool,
-                rel: format!("{}/Cargo.toml", d),
+            ws.find(tool).map(|v| TouchedCrate {
+                tool,
+                rel: format!("{}/Cargo.toml", v.krate.dir),
             })
         })
-        .collect()
+        .collect())
 }
 
 /// Check every --bump before anything is asked or written: the `tool=level` shape, a crate this
@@ -1504,7 +1523,7 @@ fn decide_versions(
     flags: &BumpFlags,
 ) -> Result<Vec<VersionPlan>, String> {
     use std::io::IsTerminal;
-    let touched = touched_crates(ctx, id);
+    let touched = touched_crates(ctx, id)?;
     let ids: Vec<&'static str> = touched.iter().map(|t| t.tool).collect();
     let explicit = parse_bump_flags(&flags.bumps, &ids)?;
     let interactive = std::io::stdin().is_terminal();
