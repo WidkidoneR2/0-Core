@@ -660,7 +660,7 @@ fn show_tool_detail(name: &str, snap: &SystemSnapshot) {
     let tool = snap.tools.iter().find(|t| t.name.contains(name));
     match tool {
         Some(t) => {
-            println!("{}", format!("{}", t.name).cyan().bold());
+            println!("{}", t.name.to_string().cyan().bold());
             println!("{}", "━".repeat(52).dimmed());
             println!("  {} v{}", "version".dimmed(), t.version.cyan());
             if let Some(ref r) = t.replaces {
@@ -1084,7 +1084,7 @@ fn show_tool_lesson(tool: Option<&ToolInfo>, name: &str) {
     clear();
     match tool {
         Some(t) => {
-            println!("{}", format!("{}", t.name).cyan().bold());
+            println!("{}", t.name.to_string().cyan().bold());
             println!("{}", "━".repeat(52).dimmed());
             println!();
             println!("  {}", t.description.white());

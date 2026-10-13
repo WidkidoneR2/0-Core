@@ -415,8 +415,8 @@ fn reconcile(ctx: &IntegrityContext, ran: &[&'static str], found: &[&IntegrityIs
     let mut newest: std::collections::HashMap<(String, String), i64> =
         std::collections::HashMap::new();
     for (id, check, subject) in &rows {
-        let ran_now = ran.iter().any(|c| *c == check.as_str());
-        let reason = if !suite.iter().any(|c| *c == check.as_str()) {
+        let ran_now = ran.contains(&check.as_str());
+        let reason = if !suite.contains(&check.as_str()) {
             Some("check removed".to_string())
         } else if subject.is_none() {
             Some("pre-275 row".to_string())

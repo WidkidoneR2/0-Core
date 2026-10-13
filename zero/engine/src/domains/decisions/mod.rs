@@ -995,7 +995,7 @@ pub fn advise(ctx: &AppContext, planned_decision: Option<&str>) -> CoreResult<()
         println!(
             "    Found {} decisions in context {}xx",
             total_similar.to_string().bright_white(),
-            &fingerprint[..6].bright_yellow()
+            fingerprint[..6].bright_yellow()
         );
         println!(
             "    {} success  {} partial  {} failure",

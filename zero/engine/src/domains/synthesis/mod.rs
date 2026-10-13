@@ -127,7 +127,7 @@ pub fn synthesize_now(ctx: &AppContext) -> CoreResult<SynthesisResult> {
         ));
     }
     // Health vs momentum
-    if health.map_or(true, |h| h < 95) && session_commits > 10 {
+    if health.is_none_or(|h| h < 95) && session_commits > 10 {
         contradictions.push(format!(
             "High commit velocity ({} today) while health is at {}",
             session_commits,
@@ -223,7 +223,7 @@ fn generate_brief(
     // Health and alignment
     if health == Some(100) && alignment >= 0.99 {
         parts.push("Project 0 is healthy and aligned. No concerns.".to_string());
-    } else if health.map_or(true, |h| h < 95) {
+    } else if health.is_none_or(|h| h < 95) {
         parts.push(format!(
             "Health at {} -- investigate before continuing.",
             health_text(health)

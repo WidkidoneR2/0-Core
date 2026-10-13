@@ -358,7 +358,7 @@ fn ansi256_to_color(n: u8) -> Color {
         15 => Color::White,
         n => {
             // 6x6x6 color cube
-            if n >= 16 && n <= 231 {
+            if (16..=231).contains(&n) {
                 let n = n - 16;
                 let b = (n % 6) * 51;
                 let g = ((n / 6) % 6) * 51;

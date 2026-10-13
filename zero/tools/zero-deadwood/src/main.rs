@@ -901,7 +901,7 @@ fn search_receiver(e: &syn::Expr) -> Option<String> {
             // defect either. The pairing is what INT-172 was.
             let recv = render(&m.receiver);
             let base = recv.trim_start_matches(38u8 as char).trim();
-            if !SHELL_LINE_NAMES.iter().any(|n| *n == base) {
+            if !SHELL_LINE_NAMES.contains(&base) {
                 return None;
             }
             let needle = m.args.first().map(render).unwrap_or_default();
@@ -1107,7 +1107,7 @@ fn check_command_word_derivations(root: &Path) -> (Vec<Finding>, usize) {
     ];
     let mut findings = Vec::new();
     let mut exempted = 0usize;
-    let src = zero_core::paths::crate_rel_dir_in(&root, "novashell")
+    let src = zero_core::paths::crate_rel_dir_in(root, "novashell")
         .map(|rel| root.join(rel).join("src"))
         .unwrap_or_else(|| {
             root.join(zero_core::paths::SHELL_PARENT)

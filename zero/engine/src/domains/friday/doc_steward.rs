@@ -24,7 +24,7 @@ pub fn analyze_commit(ctx: &AppContext) -> CoreResult<()> {
         return Ok(());
     }
     let parts: Vec<&str> = git_output.trim().splitn(3, '|').collect();
-    let hash = parts.get(0).unwrap_or(&"").trim();
+    let hash = parts.first().unwrap_or(&"").trim();
     let subject = parts.get(1).unwrap_or(&"").trim();
     let body = parts.get(2).unwrap_or(&"").trim();
     // Skip if already analyzed this commit

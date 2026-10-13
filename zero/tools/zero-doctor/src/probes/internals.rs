@@ -37,7 +37,7 @@ pub fn intent_ledger() -> Measurement {
             .lines()
             .map(str::trim)
             .filter(|l| l.chars().any(|c| c.is_alphanumeric()))
-            .last()
+            .next_back()
             .unwrap_or("validated");
         // The validator prefixes its own tick. The render states the status itself, so
         // carrying it here would put a tick inside a tick.

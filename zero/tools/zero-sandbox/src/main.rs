@@ -929,11 +929,11 @@ fn main() -> Result<()> {
                              -- writes are only detected afterwards"
                                 .to_string(),
                         );
-                        cmd.iter().cloned().collect()
+                        cmd.to_vec()
                     }
                 }
             } else {
-                cmd.iter().cloned().collect()
+                cmd.to_vec()
             };
 
             // The refusal gate runs once more: fs is only now known to have failed, for the same
@@ -1702,7 +1702,7 @@ fn run_verify(dir: &str, allow_undetermined: bool) -> Result<()> {
         } else {
             fail.to_string()
         },
-        undet.to_string()
+        undet
     );
 
     // ⭐ AN UNASKABLE QUESTION DOES NOT PASS SILENTLY. --allow-undetermined is how a caller says

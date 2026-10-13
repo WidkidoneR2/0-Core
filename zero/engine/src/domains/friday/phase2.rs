@@ -911,7 +911,7 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
         0.1
     } else {
         0.0
-    }) + (if avg_health.map_or(true, |a| a < 98.0) {
+    }) + (if avg_health.is_none_or(|a| a < 98.0) {
         0.2
     } else {
         0.0
@@ -963,7 +963,7 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
                 active_intents
             );
         }
-        if avg_health.map_or(true, |a| a < 98.0) {
+        if avg_health.is_none_or(|a| a < 98.0) {
             println!(
                 "    {} {}",
                 "·".dimmed(),

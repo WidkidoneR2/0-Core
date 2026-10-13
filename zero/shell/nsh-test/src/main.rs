@@ -5616,7 +5616,7 @@ fn main() {
                 bar.green()
             );
         }
-        println!("");
+        println!();
         println!("  Vocabulary words tested: delete, find, list, gt, fsearch, where");
         println!("  Untested paths: parallel blocks, signal handling, fd leak detection");
     }

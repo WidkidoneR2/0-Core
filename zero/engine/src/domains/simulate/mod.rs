@@ -104,7 +104,7 @@ pub fn scenario(ctx: &AppContext, description: &str) -> CoreResult<()> {
         println!(
             "    {} decisions in context {}xx",
             total.to_string().bright_white(),
-            &fingerprint[..6].bright_yellow()
+            fingerprint[..6].bright_yellow()
         );
         println!(
             "    {} success  {} partial  {} failure",

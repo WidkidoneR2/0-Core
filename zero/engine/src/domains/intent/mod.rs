@@ -344,7 +344,7 @@ pub fn stats(ctx: &AppContext) -> CoreResult<()> {
     } else {
         0
     };
-    let bar_filled = (pct / 5) as usize;
+    let bar_filled = pct / 5;
     let bar = format!(
         "{}{}",
         "█".repeat(bar_filled).bright_green(),
@@ -538,8 +538,8 @@ pub fn validate_issues() -> (usize, Vec<String>) {
                 fm.lines()
                     .find(|l| l.trim_start().starts_with(&format!("{}:", k)))
                     .map(|l| {
-                        l.splitn(2, ':')
-                            .nth(1)
+                        l.split_once(':')
+                            .map(|x| x.1)
                             .unwrap_or("")
                             .trim()
                             .trim_matches('"')

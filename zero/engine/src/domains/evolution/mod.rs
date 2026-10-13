@@ -987,7 +987,7 @@ pub fn future_risk(ctx: &AppContext, change: &str) -> CoreResult<()> {
         .and_then(|v| v["detail"]["health"].as_i64())
         .map(|h| h as u32);
 
-    if health.map_or(true, |h| h < 95) {
+    if health.is_none_or(|h| h < 95) {
         factors.push((
             format!(
                 "Health at {} — elevated baseline risk",

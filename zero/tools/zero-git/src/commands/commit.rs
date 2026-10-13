@@ -364,8 +364,8 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
         let prefix = format!("INT-{}", intent_id.trim_start_matches("INT-"));
         if !message.starts_with(&prefix) && !message.starts_with("INT-") {
             println!(
-                "  {} message does not reference intent {} -- suggested: {}: {}",
-                "\u{1F4A1}", intent_id, prefix, message
+                "  \u{1F4A1} message does not reference intent {} -- suggested: {}: {}",
+                intent_id, prefix, message
             );
         }
     }

@@ -883,7 +883,7 @@ pub fn suggest(ctx: &AppContext) -> CoreResult<()> {
         .ok()
         .and_then(|s| s.parse().ok());
     let mut suggestions: Vec<String> = Vec::new();
-    if health.map_or(true, |h| h < 95) {
+    if health.is_none_or(|h| h < 95) {
         suggestions.push(format!(
             "Health is at {} -- run d and investigate before continuing.",
             health

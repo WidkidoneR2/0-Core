@@ -142,7 +142,7 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
                 "--format=%ct",
                 "--",
             ])
-            .args(zero_core::paths::crate_history_pathspecs(name.as_ref()))
+            .args(zero_core::paths::crate_history_pathspecs(name))
             .output()
             .ok()
             .and_then(|o| String::from_utf8(o.stdout).ok());
@@ -211,7 +211,7 @@ fn score_tool(ctx: &AppContext, name: &str, core_root: &str) -> ToolScore {
                 "--",
             ])
             .args(
-                zero_core::paths::crate_history_pathspecs(name.as_ref())
+                zero_core::paths::crate_history_pathspecs(name)
                     .iter()
                     .map(|p| format!("{}Cargo.toml", p)),
             )

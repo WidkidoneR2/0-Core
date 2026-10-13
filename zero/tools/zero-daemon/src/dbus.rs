@@ -4,7 +4,6 @@
 //! Any tool on the system can subscribe -- bar, FM, compositor, external scripts.
 
 use futures_util::StreamExt as _;
-use rusqlite;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use zbus::{connection, interface, SignalContext};

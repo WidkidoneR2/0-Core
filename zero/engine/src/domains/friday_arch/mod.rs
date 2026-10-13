@@ -890,7 +890,7 @@ pub fn generate_proposal(ctx: &AppContext) -> CoreResult<()> {
         )
         .unwrap_or(0);
     let (description, action, confidence, rationale) =
-        if recent_deploys > 0 && health.map_or(true, |h| h < 95) {
+        if recent_deploys > 0 && health.is_none_or(|h| h < 95) {
             (
                 "Health check after recent deploys -- verify nothing degraded".to_string(),
                 "core doctor run".to_string(),

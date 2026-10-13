@@ -160,7 +160,7 @@ pub fn now(ctx: &AppContext) -> CoreResult<()> {
     println!();
 
     // Health signal
-    if health.map_or(true, |h| h < 80) {
+    if health.is_none_or(|h| h < 80) {
         println!(
             "  {} {} Health is at {} — address before new work",
             "⚠".bright_yellow(),
@@ -168,7 +168,7 @@ pub fn now(ctx: &AppContext) -> CoreResult<()> {
             health_pct(health)
         );
         println!();
-    } else if health.map_or(true, |h| h < 95) {
+    } else if health.is_none_or(|h| h < 95) {
         println!(
             "  {} Health at {} — run d to investigate warnings",
             "·".dimmed(),
@@ -685,7 +685,7 @@ pub fn unblock(ctx: &AppContext) -> CoreResult<()> {
     let mut blockers: Vec<(u8, String, String)> = Vec::new(); // (priority, blocker, action)
 
     // Health blocker
-    if health.map_or(true, |h| h < 80) {
+    if health.is_none_or(|h| h < 80) {
         blockers.push((
             10,
             format!("Health at {} — system needs attention", health_pct(health)),
@@ -854,7 +854,7 @@ pub fn tradeoff(ctx: &AppContext, action: &str) -> CoreResult<()> {
         "▶".bright_cyan(),
         "Risk assessment:".bright_white().bold()
     );
-    if health.map_or(true, |h| h < 95) {
+    if health.is_none_or(|h| h < 95) {
         println!(
             "    {} Health at {} — adding work increases risk",
             "⚠".bright_yellow(),
@@ -1170,7 +1170,7 @@ pub fn coherence(ctx: &AppContext) -> CoreResult<()> {
     let mut issues: Vec<String> = Vec::new();
 
     // Factor 1: Health
-    if health.map_or(true, |h| h < 95) {
+    if health.is_none_or(|h| h < 95) {
         score -= 10;
         issues.push(format!("Health at {} (target ≥ 95%)", health_pct(health)));
     }
@@ -2494,7 +2494,7 @@ fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
             .to_string();
         let is_infra =
             tags.contains("security") || tags.contains("health") || tags.contains("integrity");
-        let health_score = if health.map_or(true, |h| h < 90) && is_infra {
+        let health_score = if health.is_none_or(|h| h < 90) && is_infra {
             1.0
         } else {
             0.5
@@ -2555,7 +2555,7 @@ fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
                 dep_refs.join(", ")
             ));
         }
-        if is_infra && health.map_or(true, |h| h < 90) {
+        if is_infra && health.is_none_or(|h| h < 90) {
             reasons.push(format!(
                 "Health at {} — infra work needed",
                 health_pct(health)

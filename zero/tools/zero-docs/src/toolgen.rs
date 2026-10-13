@@ -369,7 +369,7 @@ pub fn render_readme(m: &ToolMeta) -> String {
         for d in &m.depends_on {
             out.push_str(&format!("- `{}`\n", d));
         }
-        out.push_str("\n");
+        out.push('\n');
     }
 
     // Footer
@@ -494,7 +494,7 @@ pub fn render_index(metas: &[ToolMeta]) -> String {
                 desc,
             ));
         }
-        out.push_str("\n");
+        out.push('\n');
     }
 
     if !retired.is_empty() {
@@ -502,7 +502,7 @@ pub fn render_index(metas: &[ToolMeta]) -> String {
         for m in &retired {
             out.push_str(&format!("- `{}` (v{})\n", m.name, m.version));
         }
-        out.push_str("\n");
+        out.push('\n');
     }
 
     out.push_str("---\n\n");
@@ -717,7 +717,7 @@ pub fn render_changelog(m: &ToolMeta) -> String {
         for (hash, subj) in &hist {
             out.push_str(&format!("- `{}` {}\n", hash, subj));
         }
-        out.push_str("\n");
+        out.push('\n');
     }
 
     out.push_str("---\n\n");

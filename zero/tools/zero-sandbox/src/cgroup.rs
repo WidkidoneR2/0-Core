@@ -57,7 +57,7 @@ fn delegated_root() -> Option<PathBuf> {
                 }
             }
         }
-        if !here.pop() || here == PathBuf::from("/sys/fs/cgroup") {
+        if !here.pop() || here == *"/sys/fs/cgroup" {
             return None;
         }
     }
