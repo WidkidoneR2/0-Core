@@ -5,7 +5,7 @@ type: future
 title: "Prove the bash-to-nsh session path on Omarchy and answer chsh"
 status: planned
 tags: [nsh, omarchy, login, session, resilience, bashrc, handoff, chsh, sddm, uwsm, ghostty, mise, recovery]
-depends_on: [286, 287]
+depends_on: [286, 287, 289, 290]
 ---
 
 ## Vision
