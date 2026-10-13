@@ -136,7 +136,7 @@ pub fn run(ctx: &AppContext, icon: bool, label: bool, json: bool, health: bool) 
         return Ok(());
     }
 
-    // Default: icon + path (matches zero-zone output)
+    // Default: icon + path
     println!("{} {}", zone.icon, zone.path);
     Ok(())
 }

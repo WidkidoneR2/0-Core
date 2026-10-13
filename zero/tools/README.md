@@ -55,7 +55,7 @@ Project 0's tool ecosystem: 17 active tools (plus 1 retired), each a purpose-bui
 
 ## Retired
 
-- `zero-zone` (v2.1.0)
+- `zero-zone` (v2.1.0) -- crate removed 2026-10-13 (INT-287)
 
 ---
 

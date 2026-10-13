@@ -524,7 +524,6 @@ dependencies = [
  "walkdir",
  "zero-core",
  "zero-doctor",
- "zero-zone",
 ]
 
 [[package]]
@@ -3753,14 +3752,6 @@ dependencies = [
  "serde_json",
  "toml",
  "walkdir",
- "zero-core",
-]
-
-[[package]]
-name = "zero-zone"
-version = "2.1.0"
-dependencies = [
- "clap",
  "zero-core",
 ]
 

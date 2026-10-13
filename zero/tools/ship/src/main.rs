@@ -8,8 +8,8 @@
 //      tools in the bin directory (and both cargo symlinks) are safe BY
 //      CONSTRUCTION, not by an exclusion list that could go stale.
 //   2. It asks cargo for the target list rather than reading the directory.
-//      target/release also holds libzero_core, libzero_git and
-//      libzero_zone -- rlibs that must never be shipped, and no naming rule
+//      target/release also holds libzero_core and libzero_git -- rlibs that
+//      must never be shipped, and no naming rule
 //      could tell them apart reliably. The compiler knows; ask it.
 //   3. It replaces a running binary by rename, never by overwrite. A copy onto
 //      a live executable gives Text file busy; a rename leaves the running

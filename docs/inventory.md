@@ -98,7 +98,6 @@ this file says so.
 |---|---|
 | `zero-core` | 18 crates: core, db-browse, friday-chat, novashell, nsh-test, ship, teach and every zero-* crate |
 | `zero-doctor` | core |
-| `zero-zone` | core -- its binary retired 2026-09-30; the library stays |
 
 ## Findings, each with its owner
 

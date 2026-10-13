@@ -154,7 +154,14 @@ ZERO-DOCTOR: gets a registry row, type rust, deployable false, retired false, ve
 library the engine uses, the same shape as zero-core's row. A close that touches either one asks
 about it; skip stays the answer for zero-core while its versioning is unsettled.
 MEASURED: 20 workspace crates, 19 with a matching row whose version equals Cargo.toml, and
-zero-doctor the one without. -->
+zero-doctor the one without.
+CORRECTED 2026-10-13: that count matched rows by name alone. With type and retired honoured,
+zero-zone had no versioned row either: its row was retired while the engine still built it.
+RULED 2026-10-13 by Christian: (1) a row with no type field counts as rust, as integrity
+rules (integrity mod.rs:1124-1129); (2) any file under a crate's folder counts as touching it;
+(3) zero-zone is removed here as step 0, with no intent of its own. Its one user was the alias
+audit's Current Zone header (doctor/aliases.rs:238), a remnant of the old file manager's
+numbered folders; the header line, the engine's dependency, the row and the crate go. -->
 - [ ] G3 the close writes the registry. Red: a bump test whose registry row
       stays old. Fix: write_versions updates the row in the same plan, and
       refuses before any write if the row is missing. Green, plus the drift

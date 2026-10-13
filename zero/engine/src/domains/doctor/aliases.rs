@@ -233,17 +233,9 @@ fn show_tools(aliases: &HashMap<String, String>) -> CoreResult<()> {
 }
 
 fn run_default(aliases: &HashMap<String, String>) -> CoreResult<()> {
-    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
-    let home = PathBuf::from(std::env::var("HOME").unwrap_or_default());
-    let (zone_enum, _) = zero_zone::current_zone(&cwd, &home);
     println!("╭─────────────────────────────────────────────────╮");
     println!("│ 🔍 Alias Audit - Full Check                    │");
     println!("╰─────────────────────────────────────────────────╯");
-    println!(
-        "  Current Zone: {} {}",
-        zone_enum.icon(),
-        zone_enum.short_label()
-    );
     println!();
     println!("{}", "📋 Checking for duplicates...".bold());
     check_duplicates(aliases)?;
