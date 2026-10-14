@@ -1,0 +1,148 @@
+file /home/christian/0-core/zero/engine/src/domains/deploy/mod.rs  sha256 11400e85f0e0ab57 -> bab59155bbb3b639
+file /home/christian/0-core/zero/engine/src/domains/deps/mod.rs  sha256 de517877613a6ac5 -> 59fcc3b769cbfc7e
+file /home/christian/0-core/zero/engine/src/domains/events/mod.rs  sha256 a726232cb65e51cf -> 1bc2dd7c7b75dc2d
+file /home/christian/0-core/zero/engine/src/domains/evolution/mod.rs  sha256 cde7a0cb257b6db4 -> d43f3344f1b88716
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 c782ea1d4de22325 -> d4dd83dcc92d5141
+file /home/christian/0-core/zero/engine/src/domains/predict/mod.rs  sha256 1cd7c5e5b176a430 -> f77f846e258997d9
+file /home/christian/0-core/zero/engine/src/domains/security/mod.rs  sha256 19bb6034fd890715 -> ebdea35c15a56ea8
+file /home/christian/0-core/zero/engine/src/domains/snapshot/mod.rs  sha256 35ffd2670039680c -> e6e064e25674fba4
+file /home/christian/0-core/zero/engine/src/domains/workspace/mod.rs  sha256 99310b5887525c82 -> 546e51d6f5e213db
+file /home/christian/0-core/zero/shell/nsh-test/src/main.rs  sha256 5b33c983fab3eaae -> 4a84000c1b529d57
+file /home/christian/0-core/zero/tools/ship/src/main.rs  sha256 5b57eeb63463ba38 -> 463d969fd5a1b770
+file /home/christian/0-core/zero/tools/zero-context/src/main.rs  sha256 5569e20b1cbab583 -> 427fb5c7a7e34627
+--- /home/christian/0-core/zero/engine/src/domains/deploy/mod.rs: replacing lines 341..341 ---
+   339:     }
+   340: 
+>> 341:     found.sort_by(|a, b| b.1.cmp(&a.1));
+   342: 
+   343:     if tool.is_none() {
+++     found.sort_by_key(|a| std::cmp::Reverse(a.1));
+--- /home/christian/0-core/zero/engine/src/domains/deps/mod.rs: replacing lines 144..144 ---
+   142:         .collect();
+   143: 
+>> 144:     risk_list.sort_by(|a, b| b.1.cmp(&a.1));
+   145: 
+   146:     println!(
+++     risk_list.sort_by_key(|a| std::cmp::Reverse(a.1));
+--- /home/christian/0-core/zero/engine/src/domains/events/mod.rs: replacing lines 865..867 ---
+   863:     if !app_time.is_empty() {
+   864:         println!("  {}", "Time by app (estimated):".dimmed());
+>> 865:         let mut apps: Vec<(String, u32)> = app_time.into_iter().collect();
+>> 866:         apps.sort_by(|a, b| b.1.cmp(&a.1));
+>> 867:         for (app, secs) in apps.iter().take(5) {
+   868:             let mins = secs / 60;
+   869:             let bar_len = (mins.min(30)) as usize;
+++         let mut apps: Vec<(String, u32)> = app_time.into_iter().collect();
+++         apps.sort_by_key(|a| std::cmp::Reverse(a.1));
+++         for (app, secs) in apps.iter().take(5) {
+--- /home/christian/0-core/zero/engine/src/domains/events/mod.rs: replacing lines 1949..1951 ---
+   1947:     if !app_focus.is_empty() {
+   1948:         println!("  {}", "Most focused apps (7 days):".dimmed());
+>> 1949:         let mut apps: Vec<(String, u32)> = app_focus.into_iter().collect();
+>> 1950:         apps.sort_by(|a, b| b.1.cmp(&a.1));
+>> 1951:         let max = apps.first().map(|a| a.1).unwrap_or(1);
+   1952:         for (app, count) in apps.iter().take(6) {
+   1953:             let bar_len = (count * 20 / max) as usize;
+++         let mut apps: Vec<(String, u32)> = app_focus.into_iter().collect();
+++         apps.sort_by_key(|a| std::cmp::Reverse(a.1));
+++         let max = apps.first().map(|a| a.1).unwrap_or(1);
+--- /home/christian/0-core/zero/engine/src/domains/evolution/mod.rs: replacing lines 82..82 ---
+   80: 
+   81:     let mut sorted = domains.clone();
+>> 82:     sorted.sort_by(|a, b| b.2.cmp(&a.2)); // sort by coupling desc
+   83: 
+   84:     for (name, files, coupling) in &sorted {
+++     sorted.sort_by_key(|a| std::cmp::Reverse(a.2)); // sort by coupling desc
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 2575..2575 ---
+   2573:     }
+   2574:     let mut by_type_vec: Vec<(String, usize)> = by_type.into_iter().collect();
+>> 2575:     by_type_vec.sort_by(|a, b| b.1.cmp(&a.1));
+   2576:     for (t, count) in &by_type_vec {
+   2577:         println!(
+++     by_type_vec.sort_by_key(|a| std::cmp::Reverse(a.1));
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 2974..2974 ---
+   2972:         }
+   2973:     }
+>> 2974:     related.sort_by(|a, b| b.2.cmp(&a.2));
+   2975:     println!();
+   2976:     println!("  {} Auto-Link Analysis: INT-{}", "🔗".normal(), id);
+++     related.sort_by_key(|a| std::cmp::Reverse(a.2));
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3471..3471 ---
+   3469:         scored.push((intent, score, reasons));
+   3470:     }
+>> 3471:     scored.sort_by(|a, b| b.1.cmp(&a.1));
+   3472:     println!("{}", "Next Intent Recommendation".bold());
+   3473:     println!("{}", "━".repeat(60).dimmed());
+++     scored.sort_by_key(|a| std::cmp::Reverse(a.1));
+--- /home/christian/0-core/zero/engine/src/domains/predict/mod.rs: replacing lines 1065..1065 ---
+   1063:             }
+   1064: 
+>> 1065:             domains.sort_by(|a, b| b.1.cmp(&a.1));
+   1066: 
+   1067:             println!("  {} High coupling domains", "▶".bright_cyan());
+++             domains.sort_by_key(|a| std::cmp::Reverse(a.1));
+--- /home/christian/0-core/zero/engine/src/domains/predict/mod.rs: replacing lines 1162..1162 ---
+   1160: 
+   1161:             let mut files: Vec<(String, u32)> = counts.into_iter().collect();
+>> 1162:             files.sort_by(|a, b| b.1.cmp(&a.1));
+   1163: 
+   1164:             println!(
+++             files.sort_by_key(|a| std::cmp::Reverse(a.1));
+--- /home/christian/0-core/zero/engine/src/domains/security/mod.rs: replacing lines 623..623 ---
+   621:         .collect();
+   622: 
+>> 623:     findings_with_age.sort_by(|a, b| b.1.cmp(&a.1));
+   624: 
+   625:     let total_debt: i64 = findings_with_age.iter().map(|(_, age)| age).sum();
+++     findings_with_age.sort_by_key(|a| std::cmp::Reverse(a.1));
+--- /home/christian/0-core/zero/engine/src/domains/snapshot/mod.rs: replacing lines 232..232 ---
+   230:     ));
+   231:     let mut sorted = d.tools.clone();
+>> 232:     sorted.sort_by(|a, b| b.2.cmp(&a.2));
+   233:     out.push_str(
+   234:         "  │  Top performers:
+++     sorted.sort_by_key(|a| std::cmp::Reverse(a.2));
+--- /home/christian/0-core/zero/engine/src/domains/workspace/mod.rs: replacing lines 179..179 ---
+   177:                 continue;
+   178:             }
+>> 179:             files.sort_by(|a, b| b.modified.cmp(&a.modified));
+   180:             let count = files.len();
+   181:             println!(
+++             files.sort_by_key(|a| std::cmp::Reverse(a.modified));
+--- /home/christian/0-core/zero/shell/nsh-test/src/main.rs: replacing lines 5639..5639 ---
+   5637:         }
+   5638:         let mut cats: Vec<_> = by_cat.iter().collect();
+>> 5639:         cats.sort_by(|(a, _), (b, _)| a.cmp(b));
+   5640:         for (cat, times) in &cats {
+   5641:             let avg = times.iter().sum::<u64>() / times.len() as u64;
+++         cats.sort_by_key(|(a, _)| *a);
+--- /home/christian/0-core/zero/tools/ship/src/main.rs: replacing lines 131..131 ---
+   129:         return;
+   130:     }
+>> 131:     found.sort_by(|a, b| b.0.cmp(&a.0));
+   132:     for (_, path) in found.iter().skip(KEEP) {
+   133:         let _ = std::fs::remove_file(path);
+++     found.sort_by_key(|a| std::cmp::Reverse(a.0));
+--- /home/christian/0-core/zero/tools/zero-context/src/main.rs: replacing lines 168..168 ---
+   166:         .map(|f| (f.path.clone(), f.lines))
+   167:         .collect();
+>> 168:     by_lines.sort_by(|a, b| b.1.cmp(&a.1));
+   169:     stats.largest_files = by_lines.into_iter().take(10).collect();
+   170:     stats
+++     by_lines.sort_by_key(|a| std::cmp::Reverse(a.1));
+/home/christian/0-core/zero/engine/src/domains/deploy/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/deps/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/events/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/events/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/evolution/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/predict/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/predict/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/security/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/snapshot/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/workspace/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/main.rs: 1 replaced
+/home/christian/0-core/zero/tools/ship/src/main.rs: 1 replaced
+/home/christian/0-core/zero/tools/zero-context/src/main.rs: 1 replaced
