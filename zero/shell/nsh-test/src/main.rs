@@ -5636,7 +5636,7 @@ fn main() {
                 .push(r.duration_ms);
         }
         let mut cats: Vec<_> = by_cat.iter().collect();
-        cats.sort_by(|(a, _), (b, _)| a.cmp(b));
+        cats.sort_by_key(|(a, _)| *a);
         for (cat, times) in &cats {
             let avg = times.iter().sum::<u64>() / times.len() as u64;
             let max = times.iter().max().unwrap_or(&0);

@@ -176,7 +176,7 @@ pub fn recent(_ctx: &AppContext, range: &str, limit: u32, full_paths: bool) -> C
             if files.is_empty() {
                 continue;
             }
-            files.sort_by(|a, b| b.modified.cmp(&a.modified));
+            files.sort_by_key(|a| std::cmp::Reverse(a.modified));
             let count = files.len();
             println!(
                 "{} {} ({})",

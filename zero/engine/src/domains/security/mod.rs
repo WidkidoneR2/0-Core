@@ -620,7 +620,7 @@ pub fn debt(ctx: &AppContext) -> CoreResult<()> {
         })
         .collect();
 
-    findings_with_age.sort_by(|a, b| b.1.cmp(&a.1));
+    findings_with_age.sort_by_key(|a| std::cmp::Reverse(a.1));
 
     let total_debt: i64 = findings_with_age.iter().map(|(_, age)| age).sum();
 

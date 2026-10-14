@@ -863,7 +863,7 @@ pub fn why_visual(ctx: &AppContext) -> CoreResult<()> {
     if !app_time.is_empty() {
         println!("  {}", "Time by app (estimated):".dimmed());
         let mut apps: Vec<(String, u32)> = app_time.into_iter().collect();
-        apps.sort_by(|a, b| b.1.cmp(&a.1));
+        apps.sort_by_key(|a| std::cmp::Reverse(a.1));
         for (app, secs) in apps.iter().take(5) {
             let mins = secs / 60;
             let bar_len = (mins.min(30)) as usize;
@@ -1947,7 +1947,7 @@ pub fn why_workspace(ctx: &AppContext) -> CoreResult<()> {
     if !app_focus.is_empty() {
         println!("  {}", "Most focused apps (7 days):".dimmed());
         let mut apps: Vec<(String, u32)> = app_focus.into_iter().collect();
-        apps.sort_by(|a, b| b.1.cmp(&a.1));
+        apps.sort_by_key(|a| std::cmp::Reverse(a.1));
         let max = apps.first().map(|a| a.1).unwrap_or(1);
         for (app, count) in apps.iter().take(6) {
             let bar_len = (count * 20 / max) as usize;

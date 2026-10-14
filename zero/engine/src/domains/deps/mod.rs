@@ -141,7 +141,7 @@ pub fn risk(ctx: &AppContext) -> CoreResult<()> {
         })
         .collect();
 
-    risk_list.sort_by(|a, b| b.1.cmp(&a.1));
+    risk_list.sort_by_key(|a| std::cmp::Reverse(a.1));
 
     println!(
         "  │  {} High-coupling dependencies (used by 2+ tools):",

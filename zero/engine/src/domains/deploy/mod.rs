@@ -338,7 +338,7 @@ pub fn rollback(ctx: &AppContext, tool: Option<&str>, dry_run: bool) -> CoreResu
         return Ok(());
     }
 
-    found.sort_by(|a, b| b.1.cmp(&a.1));
+    found.sort_by_key(|a| std::cmp::Reverse(a.1));
 
     if tool.is_none() {
         // No tool named: SHOW what could be restored, restore nothing. Guessing

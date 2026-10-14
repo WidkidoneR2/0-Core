@@ -1062,7 +1062,7 @@ pub fn coupling(ctx: &AppContext) -> CoreResult<()> {
                 }
             }
 
-            domains.sort_by(|a, b| b.1.cmp(&a.1));
+            domains.sort_by_key(|a| std::cmp::Reverse(a.1));
 
             println!("  {} High coupling domains", "▶".bright_cyan());
             if domains.is_empty() {
@@ -1159,7 +1159,7 @@ pub fn churn(ctx: &AppContext) -> CoreResult<()> {
             }
 
             let mut files: Vec<(String, u32)> = counts.into_iter().collect();
-            files.sort_by(|a, b| b.1.cmp(&a.1));
+            files.sort_by_key(|a| std::cmp::Reverse(a.1));
 
             println!(
                 "  {} Most changed files (last 100 commits)",

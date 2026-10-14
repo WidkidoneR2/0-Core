@@ -2572,7 +2572,7 @@ pub fn velocity(ctx: &AppContext) -> CoreResult<()> {
         *by_type.entry(intent.intent_type.clone()).or_insert(0) += 1;
     }
     let mut by_type_vec: Vec<(String, usize)> = by_type.into_iter().collect();
-    by_type_vec.sort_by(|a, b| b.1.cmp(&a.1));
+    by_type_vec.sort_by_key(|a| std::cmp::Reverse(a.1));
     for (t, count) in &by_type_vec {
         println!(
             "    {} {:<15} {}",
@@ -2971,7 +2971,7 @@ pub fn auto_link(ctx: &AppContext, id: &str) -> CoreResult<()> {
             }
         }
     }
-    related.sort_by(|a, b| b.2.cmp(&a.2));
+    related.sort_by_key(|a| std::cmp::Reverse(a.2));
     println!();
     println!("  {} Auto-Link Analysis: INT-{}", "🔗".normal(), id);
     println!("  {}", "─".repeat(56).dimmed());
@@ -3468,7 +3468,7 @@ pub fn next_intent(ctx: &AppContext) -> CoreResult<()> {
         reasons.push("no blocking dependencies".to_string());
         scored.push((intent, score, reasons));
     }
-    scored.sort_by(|a, b| b.1.cmp(&a.1));
+    scored.sort_by_key(|a| std::cmp::Reverse(a.1));
     println!("{}", "Next Intent Recommendation".bold());
     println!("{}", "━".repeat(60).dimmed());
     if scored.is_empty() {

@@ -165,7 +165,7 @@ fn scan_directory(root: &str, lang_filter: Option<&str>) -> CodebaseStats {
         .filter(|f| f.language == "Rust")
         .map(|f| (f.path.clone(), f.lines))
         .collect();
-    by_lines.sort_by(|a, b| b.1.cmp(&a.1));
+    by_lines.sort_by_key(|a| std::cmp::Reverse(a.1));
     stats.largest_files = by_lines.into_iter().take(10).collect();
     stats
 }

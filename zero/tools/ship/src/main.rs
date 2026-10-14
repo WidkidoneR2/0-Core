@@ -128,7 +128,7 @@ fn prune_backups(backup_dir: &Path, tool: &str) {
     if found.len() <= KEEP {
         return;
     }
-    found.sort_by(|a, b| b.0.cmp(&a.0));
+    found.sort_by_key(|a| std::cmp::Reverse(a.0));
     for (_, path) in found.iter().skip(KEEP) {
         let _ = std::fs::remove_file(path);
     }

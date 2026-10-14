@@ -79,7 +79,7 @@ pub fn map(ctx: &AppContext) -> CoreResult<()> {
     println!("  {}", "─".repeat(44).dimmed());
 
     let mut sorted = domains.clone();
-    sorted.sort_by(|a, b| b.2.cmp(&a.2)); // sort by coupling desc
+    sorted.sort_by_key(|a| std::cmp::Reverse(a.2)); // sort by coupling desc
 
     for (name, files, coupling) in &sorted {
         let coupling_str = if *coupling > 8 {

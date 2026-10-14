@@ -229,7 +229,7 @@ fn render_markdown(d: &SnapshotData) -> String {
         "Tool Ecosystem".bright_white().bold()
     ));
     let mut sorted = d.tools.clone();
-    sorted.sort_by(|a, b| b.2.cmp(&a.2));
+    sorted.sort_by_key(|a| std::cmp::Reverse(a.2));
     out.push_str(
         "  │  Top performers:
 ",
