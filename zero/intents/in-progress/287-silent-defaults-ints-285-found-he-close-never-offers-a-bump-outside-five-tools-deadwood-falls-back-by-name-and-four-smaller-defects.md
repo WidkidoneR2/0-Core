@@ -9,74 +9,57 @@ tags: [285, deadwood, cicomplete, ship, nsh]
 
 ## START HERE
 
-Written 2026-10-13 at a break; it supersedes the START HERE written earlier the same day. Open a
-new chat with `ints 287` and this section pasted. The tree is clean, and this record is pushed with
-the commits it lists.
+Written 2026-10-13 at a break, after G2; it supersedes the START HERE written earlier the same day.
+Open a new chat with `ints 287` and this section pasted. The tree is clean and this record is pushed
+with every commit it names.
 
-STATE: G0 and G1 ticked. G2 in progress, steps 0 to 2 done, plus a warnings cleanup Christian added:
-- 2819446c step 0: zero-zone removed (ruling 3). Its one user, the alias audit's Current Zone
-  header (engine doctor/aliases.rs), is gone; the crate, its row and the engine dependency too.
-- 43e8705b step 1: zero_core::registry behind the off-by-default feature "registry": parse,
-  read_in, read, match_rows, crates_in, resolve_in, resolve, Workspace::find (row name, then
-  package, then folder). zero-doctor gained its registry row. 7 tests; one runs against this
-  checkout: every workspace crate has a versioned row and every versioned row has a crate.
-- 9c93a774: paths.rs runtime_dir's resolution-order table moved into a text block (clippy).
-- d90c5ecc step 2: touched_crates (engine intent/mod.rs:1108) reads the registry and stops the
-  close when it cannot (ruling 4); its decision moved, unchanged, into crates_touched(paths, ws)
-  just below it. The engine enables zero-core's registry feature.
-- e701a229 warnings batch 1: clippy's own fixes, 42 sites in 23 files (75 warnings to 34).
-Deployed binaries are unchanged: nsh 5.3.2, nsh-test 2.0.3. One ship at the end of 287.
-
-RULED 2026-10-13, recorded under G2: (1) a registry row with no type counts as rust; (2) any file
-under a crate's folder counts as touching it; (3) zero-zone is removed inside 287, no intent of
-its own; (4) an unreadable registry stops the close; (5) every clippy warning in the workspace is
-cleaned up inside 287.
+STATE: G0, G1 and G2 ticked. Since the last START HERE (50289ff4):
+- 7925d0e8, 0bc0b95d, 3ba9648b: ruling 5 finished. clippy went 75 -> 0 across the workspace in four
+  sealed batches (e701a229 was batch 1). Two orphaned doc comments in doctor/mod.rs were handled by
+  Christian's clean-up ruling: the INT-094 lines removed, the INT-222 note moved onto from_engine.
+- 36b6d7c8 G2 step 3, Fixes: F-0028. crates_touched decides from zero_core::registry; path_in_crate is
+  the one rule (ruling 2, whole segments, CRATE_PARENTS_HISTORY for old git paths); TRACKED_CRATES is
+  gone; a touched crate with no versioned row refuses the close and is named; crates are named by
+  their registry row (core, nsh, nsh-test) and --bump accepts row, package or folder; bump-versions
+  resolves through Workspace::find and lists every versioned row (19). Red plan 75758fa4e0f9569b, fix
+  plan ca71b9068867f964, doc plan c9e69e5f05795868. 442 tests, clippy 0, nsh-test 238/238.
+Deployed binaries are unchanged: nsh 5.3.2, nsh-test 2.0.3. One ship at the end of 287; the deployed
+nsh still has the old bump-versions until then.
 
 NEXT, in order:
-1. The 34 warnings left: unnecessary_sort_by 16, manual_checked_ops 9, items_after_test_module 2,
-   and one each of collapsible_if (friday/doc_steward.rs:51), collapsible_match (predict/mod.rs:971;
-   the guard would fall through to later arms, so read them first), let_unit_value
-   (friday/attention.rs:270), empty_line_after_doc_comments (doctor/mod.rs:1594), type_complexity
-   (zero-docs toolgen.rs:105), useless_format (snapshot/mod.rs:211, a non-ASCII line) and
-   filter_next (new after batch 1, likely zero-doctor probes/internals.rs:40, where
-   .filter().next_back() wants .rfind()). Batch 2: sort_by to sort_by_key with Reverse, the
-   compiler checking each key is Copy. Batch 3: checked_div by hand, each site's types read first,
-   because a signed total changes the meaning. Batch 4: the rest.
-2. G2 step 3, red first. The red: in the engine's intent tests, crates_touched given a path under
-   nsh-test and a workspace where nsh-test has a versioned row must offer nsh-test; rehearsed on
-   step 2's code it fails left [] right ["nsh-test"]. Shown failing on the tree, then the fix:
-   crates_touched decides from the workspace, every versioned crate whose folder a path lies under
-   (ruling 2; paths::crate_of knows CRATE_PARENTS only, not CRATE_PARENTS_HISTORY, so settle
-   whether the rule needs the history); a touched crate with no versioned row is an Err that names
-   it; TouchedCrate.tool and VersionPlan.tool become String, named by the registry row (core, nsh,
-   nsh-test), and --bump accepts a row, package or folder name through Workspace::find. The
-   substring match path_in_crate uses for zero-git, friday-chat and db-browse (:1223) goes, and
-   one_rule_places_a_path_in_a_crate flips for zero/engine/README.md. bump-versions (novashell
-   commands/mod.rs: tool_cargo_path :16819, bump_versions_table :16923) reads the registry, and
-   novashell's Cargo.toml:22 turns the registry feature on. The commit carries Fixes: F-0028.
-   Then G2's tick with its record.
-3. G3 to G12 as listed under them, then cicomplete. The cleanup touches about 13 crates, so the
-   close will ask about each one (patch or skip).
+1. G3, the close writes the registry. Red: a bump test whose registry row stays old. Fix:
+   write_versions writes the row through integrity's FixAction::UpdateRegistryVersion writer
+   (integrity/mod.rs, found at G0) in the same plan, refusing before any write if the row is missing.
+   G0's hardcoded copies come with it: teach main.rs VERSION "4.0.0" (env!), zero-context clap
+   version "1.0.0" (bare version), engines/mod.rs seed_registry ("core", "3.0.0") needs a ruling
+   (INSERT OR IGNORE leaves the old row), teach build_tool_registry is F-0035, ruled in or out at G3.
+   Read every site again first: G2 moved lines in intent/mod.rs.
+2. G4 deadwood has one reader (nsh-test DEADWOOD_BIN, the repl::fsh_bin shape), G5 the nsh bytes
+   ruling, G6 ship --dry-run wording, G7 repo_present's doc, G8 absolute NSH_BIN, G9 the F-0020
+   ruling, G10-G12 doors, ship, commits, push, evidence.
+3. cicomplete 287. The close now asks every versioned crate the commits touched: 13 measured before
+   36b6d7c8, nsh joins with it. Names are registry rows; zero-core answers skip while its versioning
+   is unsettled. Decide with --bump row=level or answer in the terminal.
 
-AFTER G2, unchanged: G3 the close writes registry rows through integrity's UpdateRegistryVersion
-writer, plus the hardcoded version copies; G4 deadwood's reader; G5 the nsh bytes ruling; G6
-dry-run wording; G7 the repo_present doc comment; G8 absolute NSH_BIN; G9 F-0020; G10 to G12
-doors, ship, commits, push, evidence.
+TOOLS kept in ~/.cache/zero while 287 is open, deleted at its end: int287-doors-95ebceb056a0.py (build,
+tests, clippy JSON count, rustfmt, nsh-test, status; it cannot run d, so commit payloads run core
+doctor run themselves as a gate), int287-clippy.json, the seal-int287-*.txt plan texts, and the
+int287-*.py generators.
 
-TOOLS kept in ~/.cache/zero while 287 is open, deleted at its end: int287-doors-95ebceb056a0.py
-measures the doors in python (build, workspace tests, clippy's JSON count, rustfmt on changed
-files, nsh-test, status). It cannot run d, which is an nsh alias, so d runs by hand until the
-script reads the alias. int287-clippy.json is the last clippy run, written by the doors.
-int287-warn-b1v2-c59c0e359e7b.py is batch 1's generator: clippy's byte-range suggestions,
-rustfmt, whole-line anchors that grow until unique. The seal-*.txt notes are the plans.
-
-LEARNED: nsh drops 2>&1 on a pipeline's first command (F-0036), so no door pipes cargo through
-the shell. Every payload is checked as the exact line sent, parsed and decoded, not only as the
-file it came from: one copy carried a mistyped character and zlib refused it. The argv puts the
-hash before the data, so a cut paste fails to decode instead of running half.
-
-ALSO NOTED, no action yet: docs/inventory.md says zero-core has 18 users; measured 17 before
-zero-zone left, 16 now.
+LEARNED this session:
+- A paste block never carries an angle-bracket placeholder: nsh reads <SEAL> as a redirect.
+- git notes add -F runs stripspace and breaks a seal note; store the exact blob with git hash-object
+  -w and attach it with git notes add -C, then read it back and hash it (trace hashes the raw blob).
+- Generators keep themselves at ~/.cache/zero/<name>-<hash>.py at show, so an apply is one short
+  line and no long payload is pasted twice. A commit payload can run the doors and core doctor run
+  and refuse unless green.
+- Plans that move non-ASCII text use between edits whose new lines are read from disk; markers stay
+  ASCII. A model of every file's final bytes, checked against fpatch's own hashes, plus rustfmt on
+  the modelled bytes, catches a wrong plan before show.
+ALSO NOTED, to recon and file at the start of the next session (cause not measured): the first d
+of the session printed "command not found: d" and the next d ran; recalling a long show line with
+the up arrow and appending apply ran the show again.
+docs/inventory.md says zero-core has 18 users; 16 measured after zero-zone left.
 
 After 287 the order is 289 -> 290 -> 277 -> 288. reedline stays deferred.
 
@@ -157,7 +140,7 @@ Seal 04037c99d7e6cedd over the exact argv), each exit 0: F-0028 item 1, F-0029 i
 item 3, F-0031 item 4 (at: unknown, it was never a line of code), F-0032 item 5, F-0033 item 6,
 F-0034 item 8, and F-0035 the teach tool list G0 found under G3. Item 7 is F-0020 itself, ruled at
 G9. core intent validate: all 326 intents valid. No fix was made before these were filed. -->
-- [ ] G2 one list of versioned crates. Ruling first: the source of truth
+- [x] G2 one list of versioned crates. Ruling first: the source of truth
       (registry deployable rows, workspace members, or one shared list
       cicomplete and bump-versions both read). Red: a test where a touched
       crate outside today's five is not offered, shown failing. Fix: both
@@ -196,6 +179,16 @@ numbered folders; the header line, the engine's dependency, the row and the crat
 RULED 2026-10-13 by Christian: (4) an unreadable registry stops the close (d90c5ecc, Decision
 149); (5) every clippy warning in the workspace is cleaned up inside 287: 75 at the first
 measure, 34 after batch 1 (e701a229). -->
+<!-- evidence: commit 36b6d7c8, 2026-10-13, Fixes: F-0028, seal ca71b9068867f964 intact (red plan
+75758fa4e0f9569b, doc plan c9e69e5f05795868). Red first: a_touched_crate_outside_the_old_five_is_offered
+failed on the tree with left [] right ["nsh-test"], cargo exit 101, before any fix. Green: 442 tests
+passed and 0 failed, clippy 0, rustfmt clean, nsh-test 238/238, core doctor run 0 failed. A touched
+crate with no versioned row refuses the close and is named, by the test
+a_touched_crate_with_no_versioned_row_refuses_and_names_it. Real tree: the debug nsh's bump-versions
+listed 19 versioned rows and refused frob with exit 1; INT-287's own close, modelled from 60 days of
+its commits, asks 13 crates and refuses none. Earlier steps: 2819446c (step 0), 43e8705b (step 1),
+9c93a774, d90c5ecc (step 2); the warnings cleanup of ruling 5, 75 to 0, in e701a229, 7925d0e8,
+0bc0b95d, 3ba9648b. -->
 - [ ] G3 the close writes the registry. Red: a bump test whose registry row
       stays old. Fix: write_versions updates the row in the same plan, and
       refuses before any write if the row is missing. Green, plus the drift
