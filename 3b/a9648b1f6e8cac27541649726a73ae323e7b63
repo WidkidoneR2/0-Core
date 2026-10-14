@@ -1,0 +1,1933 @@
+file /home/christian/0-core/zero/engine/src/domains/friday/attention.rs  sha256 b689eac22a1e550f -> fcc9d6adadaef690
+file /home/christian/0-core/zero/engine/src/domains/friday/doc_steward.rs  sha256 a4435b872fc2ac87 -> ccdb138882b86771
+file /home/christian/0-core/zero/engine/src/domains/predict/mod.rs  sha256 f77f846e258997d9 -> 4b6d8e32708745a7
+file /home/christian/0-core/zero/tools/zero-doctor/src/probes/internals.rs  sha256 43281d22a731358c -> a40c583db68a0f7a
+file /home/christian/0-core/zero/engine/src/domains/snapshot/mod.rs  sha256 e6e064e25674fba4 -> e5751bec902e5b52
+file /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs  sha256 936b0eb83653d000 -> a91e72ae23405c24
+file /home/christian/0-core/zero/engine/src/domains/integrity/mod.rs  sha256 1920c52cd82b3832 -> f1f7e9685fa56b81
+file /home/christian/0-core/zero/tools/zero-docs/src/toolgen.rs  sha256 7103e4a8759c59a3 -> d6860d9b3a068d9f
+--- /home/christian/0-core/zero/engine/src/domains/friday/attention.rs: replacing lines 270..299 ---
+   268:         )
+   269:         .unwrap();
+>> 270:     let _ = stmt
+>> 271:         .query_map([], |r| {
+>> 272:             Ok((
+>> 273:                 r.get::<_, String>(0)?,
+>> 274:                 r.get::<_, f64>(1)?,
+>> 275:                 r.get::<_, i64>(2)?,
+>> 276:                 r.get::<_, String>(3)?,
+>> 277:             ))
+>> 278:         })
+>> 279:         .unwrap()
+>> 280:         .flatten()
+>> 281:         .for_each(|(etype, score, spoke, detail)| {
+>> 282:             let spoke_str = if spoke == 1 {
+>> 283:                 "spoke".bright_yellow()
+>> 284:             } else {
+>> 285:                 "silent".dimmed()
+>> 286:             };
+>> 287:             let score_color = if score >= ATTENTION_THRESHOLD {
+>> 288:                 format!("{:.3}", score).bright_yellow()
+>> 289:             } else {
+>> 290:                 format!("{:.3}", score).dimmed()
+>> 291:             };
+>> 292:             println!(
+>> 293:                 "    {} {} {} {}",
+>> 294:                 score_color,
+>> 295:                 spoke_str,
+>> 296:                 etype.bright_cyan(),
+>> 297:                 detail[..detail.len().min(40)].dimmed()
+>> 298:             );
+>> 299:         });
+   300:     println!();
+   301: }
+++     stmt.query_map([], |r| {
+++         Ok((
+++             r.get::<_, String>(0)?,
+++             r.get::<_, f64>(1)?,
+++             r.get::<_, i64>(2)?,
+++             r.get::<_, String>(3)?,
+++         ))
+++     })
+++     .unwrap()
+++     .flatten()
+++     .for_each(|(etype, score, spoke, detail)| {
+++         let spoke_str = if spoke == 1 {
+++             "spoke".bright_yellow()
+++         } else {
+++             "silent".dimmed()
+++         };
+++         let score_color = if score >= ATTENTION_THRESHOLD {
+++             format!("{:.3}", score).bright_yellow()
+++         } else {
+++             format!("{:.3}", score).dimmed()
+++         };
+++         println!(
+++             "    {} {} {} {}",
+++             score_color,
+++             spoke_str,
+++             etype.bright_cyan(),
+++             detail[..detail.len().min(40)].dimmed()
+++         );
+++     });
+--- /home/christian/0-core/zero/engine/src/domains/friday/doc_steward.rs: replacing lines 51..64 ---
+   49:     let mut proposals = 0;
+   50:     // Rule 1: vocabulary word added -> COMMAND-GUIDE.md
+>> 51:     if subject.contains("vocab")
+>> 52:         || subject.contains("vocabulary")
+>> 53:         || body.contains("vocab")
+>> 54:         || changed_files.iter().any(|f| f.contains("commands/mod.rs"))
+>> 55:     {
+>> 56:         if subject.contains("feat") || subject.contains("add") {
+>> 57:             db.execute(
+>> 58:                 "INSERT INTO friday_doc_proposals (timestamp, commit_hash, doc_file, reason, status)
+>> 59:                  VALUES (?1, ?2, 'docs/COMMAND-GUIDE.md', ?3, 'pending')",
+>> 60:                 params![ts, hash, format!("Commit '{}' may have added new vocabulary words or commands", subject)]
+>> 61:             )?;
+>> 62:             proposals += 1;
+>> 63:         }
+>> 64:     }
+   65:     // Rule 2: new tool or deploy change -> TOOLS.md
+   66:     if changed_files
+++     if (subject.contains("vocab")
+++         || subject.contains("vocabulary")
+++         || body.contains("vocab")
+++         || changed_files.iter().any(|f| f.contains("commands/mod.rs")))
+++         && (subject.contains("feat") || subject.contains("add"))
+++     {
+++         db.execute(
+++             "INSERT INTO friday_doc_proposals (timestamp, commit_hash, doc_file, reason, status)
+++                  VALUES (?1, ?2, 'docs/COMMAND-GUIDE.md', ?3, 'pending')",
+++             params![
+++                 ts,
+++                 hash,
+++                 format!(
+++                     "Commit '{}' may have added new vocabulary words or commands",
+++                     subject
+++                 )
+++             ],
+++         )?;
+++         proposals += 1;
+++     }
+--- /home/christian/0-core/zero/engine/src/domains/predict/mod.rs: replacing lines 970..976 ---
+   968:                             }
+   969:                         }
+>> 970:                         "health-drops" => {
+>> 971:                             if title_lower.contains("doctor") || title_lower.contains("health") {
+>> 972:                                 0.2
+>> 973:                             } else {
+>> 974:                                 0.0
+>> 975:                             }
+>> 976:                         }
+   977:                         _ => 0.0,
+   978:                     };
+++                         "health-drops"
+++                             if title_lower.contains("doctor") || title_lower.contains("health") =>
+++                         {
+++                             0.2
+++                         }
+--- /home/christian/0-core/zero/tools/zero-doctor/src/probes/internals.rs: replacing lines 36..41 ---
+   34:         // which is the exact defect INT-222 exists to remove, reintroduced by the port.
+   35:         // Take the last line THAT CARRIES WORDS.
+>> 36:         let finding = text
+>> 37:             .lines()
+>> 38:             .map(str::trim)
+>> 39:             .filter(|l| l.chars().any(|c| c.is_alphanumeric()))
+>> 40:             .next_back()
+>> 41:             .unwrap_or("validated");
+   42:         // The validator prefixes its own tick. The render states the status itself, so
+   43:         // carrying it here would put a tick inside a tick.
+++         let finding = text
+++             .lines()
+++             .map(str::trim)
+++             .rfind(|l| l.chars().any(|c| c.is_alphanumeric()))
+++             .unwrap_or("validated");
+--- /home/christian/0-core/zero/engine/src/domains/snapshot/mod.rs: replacing lines 209..217 ---
+   207:         "  │  {}
+   208: ",
+>> 209:         "Identity".bright_white().bold()
+>> 210:     ));
+>> 211:     out.push_str(&format!(
+>> 212:         "  │  Project 0 — built entirely in Rust
+>> 213: ",
+>> 214:     ));
+>> 215:     out.push_str(&format!(
+>> 216:         "  │  {} commits  ·  {} tools  ·  {}% health
+>> 217: ",
+   218:         d.commit_count, d.tool_count, d.health
+   219:     ));
+++         "Identity".bright_white().bold()
+++     ));
+++     out.push_str(
+++         "  │  Project 0 — built entirely in Rust
+++ ",
+++     );
+++     out.push_str(&format!(
+++         "  │  {} commits  ·  {} tools  ·  {}% health
+++ ",
+--- /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: replacing lines 1589..1614 ---
+   1587: }
+   1588: 
+>> 1589: /// INT-094: hygiene -- orphan accumulation surfaced from zero-deadwood --summary.
+>> 1590: /// Summary line format: TOTAL|aliases|baks|keybinds|registry|scripts|modules
+>> 1591: 
+>> 1592: /// INT-222: this runs every check eagerly, so run_quick filters 32 results down to 3 --
+>> 1593: /// measured at 0.49s against the old hardcoded list's 0.04s. Deliberately NOT restructured
+>> 1594: /// into a lazy registry of Tier plus closure pairs: run_quick has exactly one caller, the
+>> 1595: /// hand-typed doctor quick command, so half a second buys nothing on a path nobody waits on.
+>> 1596: /// And moving the tier onto a registry entry would take it off CheckResult, which is what
+>> 1597: /// makes the compiler force a classification at every construction site.
+>> 1598: /// Revisit only if this lands somewhere hot -- a prompt, a shell start, a service.
+>> 1599: ///
+>> 1600: /// ⭐ ANSWERED 2026-09-18, BY INT-222 PHASE 2. The concern above is CORRECT and the new
+>> 1601: /// design does not violate it, so this note stays rather than being quietly overwritten.
+>> 1602: ///
+>> 1603: ///   THE WARNING      moving the tier onto a registry entry takes it OFF CheckResult,
+>> 1604: ///                    and that is what forces a classification at every construction site.
+>> 1605: ///   THE DESIGN       the tier moves to the DEFINITION, which is where a declaration
+>> 1606: ///                    belongs -- but every OUTCOME still carries one, and the engine
+>> 1607: ///                    REFUSES a definition that declares none. The compiler's job here
+>> 1608: ///                    becomes validate()'s job there -- earlier, and by name.
+>> 1609: ///
+>> 1610: /// And the performance point survives untouched: all_checks stays eager, because the
+>> 1611: /// registry is a list of DECLARATIONS, not of closures to call lazily.
+>> 1612: /// THE DOCTOR MEASUREMENTS COME FROM zero-doctor.
+>> 1613: ///
+>> 1614: /// INT-269: the check set's path, built in ONE place. from_engine() and check_one() both ask here.
+   1615: fn check_set_path() -> std::path::PathBuf {
+   1616:     zero_core::paths::registry_dir().join("doctor/checks.toml")
+++ /// INT-269: the check set's path, built in ONE place. from_engine() and check_one() both ask here.
+--- /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: replacing lines 1655..1655 ---
+   1653: ///
+   1654: /// BOTH MAPPINGS BELOW ARE EXHAUSTIVE WITH NO CATCH-ALL. A new variant fails to compile here
+>> 1655: /// instead of quietly defaulting -- the same rule the probe dispatcher uses.
+   1656: fn from_engine() -> Vec<CheckResult> {
+   1657:     use zero_doctor::{Status as ES, Tier as ET};
+++ /// instead of quietly defaulting -- the same rule the probe dispatcher uses.
+++ ///
+++ /// INT-222: this runs every check eagerly, so run_quick filters 32 results down to 3 --
+++ /// measured at 0.49s against the old hardcoded list's 0.04s. Deliberately NOT restructured
+++ /// into a lazy registry of Tier plus closure pairs: run_quick has exactly one caller, the
+++ /// hand-typed doctor quick command, so half a second buys nothing on a path nobody waits on.
+++ /// And moving the tier onto a registry entry would take it off CheckResult, which is what
+++ /// makes the compiler force a classification at every construction site.
+++ /// Revisit only if this lands somewhere hot -- a prompt, a shell start, a service.
+++ ///
+++ /// ⭐ ANSWERED 2026-09-18, BY INT-222 PHASE 2. The concern above is CORRECT and the new
+++ /// design does not violate it, so this note stays rather than being quietly overwritten.
+++ ///
+++ ///   THE WARNING      moving the tier onto a registry entry takes it OFF CheckResult,
+++ ///                    and that is what forces a classification at every construction site.
+++ ///   THE DESIGN       the tier moves to the DEFINITION, which is where a declaration
+++ ///                    belongs -- but every OUTCOME still carries one, and the engine
+++ ///                    REFUSES a definition that declares none. The compiler's job here
+++ ///                    becomes validate()'s job there -- earlier, and by name.
+++ ///
+++ /// And the performance point survives untouched: all_checks stays eager, because the
+++ /// registry is a list of DECLARATIONS, not of closures to call lazily.
+++ /// THE DOCTOR MEASUREMENTS COME FROM zero-doctor.
+--- /home/christian/0-core/zero/engine/src/domains/integrity/mod.rs: replacing lines 1816..2277 ---
+   1814:     Ok(())
+   1815: }
+>> 1816: #[cfg(test)]
+>> 1817: mod tests {
+>> 1818:     use super::*;
+>> 1819: 
+>> 1820:     /// A stand-in repo, laid out where the owner says crates live (INT-267 L2): one tool crate
+>> 1821:     /// and the engine, each a version ahead of the registry, over an in-memory database.
+>> 1822:     fn stand_in(tag: &str) -> (AppContext, PathBuf) {
+>> 1823:         // A per-call number as well as the process id (INT-284, F-0026): cargo runs a crate's
+>> 1824:         // tests as threads of one process, so the tag and the process id alone gave two callers
+>> 1825:         // one tree.
+>> 1826:         static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+>> 1827:         let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+>> 1828:         let root = std::env::temp_dir().join(format!(
+>> 1829:             "integrity-int267-{tag}-{}-{call}",
+>> 1830:             std::process::id()
+>> 1831:         ));
+>> 1832:         let _ = std::fs::remove_dir_all(&root);
+>> 1833:         let tool = root.join(zero_core::paths::CRATE_PARENTS[0]).join("alpha");
+>> 1834:         let engine = root.join(zero_core::paths::SINGLE_CRATES[0]);
+>> 1835:         for (dir, ver) in [(&tool, "2.0.0"), (&engine, "4.0.0")] {
+>> 1836:             std::fs::create_dir_all(dir).unwrap();
+>> 1837:             let cargo = format!("[package]\nversion = \"{}\"\n", ver);
+>> 1838:             std::fs::write(dir.join("Cargo.toml"), cargo).unwrap();
+>> 1839:         }
+>> 1840:         let registry = root.join("zero/registry");
+>> 1841:         std::fs::create_dir_all(&registry).unwrap();
+>> 1842:         let tools = "[[tool]]\nname = \"alpha\"\nversion = \"1.0.0\"\n\n[[tool]]\nname = \"core\"\nversion = \"3.0.0\"\n";
+>> 1843:         std::fs::write(registry.join("tools.toml"), tools).unwrap();
+>> 1844:         let ctx = AppContext {
+>> 1845:             runtime: crate::runtime::Runtime {
+>> 1846:                 root: root.clone(),
+>> 1847:                 logs: root.join("logs"),
+>> 1848:                 cache: root.join("cache"),
+>> 1849:                 snapshots: root.join("snapshots"),
+>> 1850:                 locks: root.join("locks"),
+>> 1851:                 db: rusqlite::Connection::open_in_memory().unwrap(),
+>> 1852:             },
+>> 1853:             capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+>> 1854:             home: root.display().to_string(),
+>> 1855:             core_root: root.display().to_string(),
+>> 1856:             source_root: root.join("zero").display().to_string(),
+>> 1857:         };
+>> 1858:         assert!(ensure_tables(&ctx).is_ok());
+>> 1859:         (ctx, root)
+>> 1860:     }
+>> 1861: 
+>> 1862:     /// INT-284 G1: two calls with one tag must never share a tree. Cargo runs a crate's tests
+>> 1863:     /// as threads of one process, so a root named from the tag and the process id alone is
+>> 1864:     /// shared, and one test's clear-and-rebuild erases the other's tree (F-0026).
+>> 1865:     #[test]
+>> 1866:     fn two_stand_ins_with_one_tag_never_share_a_directory() {
+>> 1867:         let (_first_ctx, first) = stand_in("same-tag");
+>> 1868:         let (_second_ctx, second) = stand_in("same-tag");
+>> 1869:         let _ = std::fs::remove_dir_all(&first);
+>> 1870:         let _ = std::fs::remove_dir_all(&second);
+>> 1871:         assert_ne!(
+>> 1872:             first,
+>> 1873:             second,
+>> 1874:             "two stand_in calls with one tag were given one directory: {}",
+>> 1875:             first.display()
+>> 1876:         );
+>> 1877:     }
+>> 1878: 
+>> 1879:     fn drift_only() -> Vec<Box<dyn IntegrityCheck>> {
+>> 1880:         vec![Box::new(checks::RegistryVersionDriftCheck)]
+>> 1881:     }
+>> 1882: 
+>> 1883:     // ── INT-275: proposals are shown and applied only while a fresh run still finds them ──
+>> 1884: 
+>> 1885:     /// The rows a reader may show: not applied, and not retired once that column exists.
+>> 1886:     /// Written to work on the table before and after INT-275, so the same tests go red then green.
+>> 1887:     fn pending_ids(ctx: &AppContext) -> Vec<i64> {
+>> 1888:         let has_retired = ctx
+>> 1889:             .runtime
+>> 1890:             .db
+>> 1891:             .query_row(
+>> 1892:                 "SELECT COUNT(*) FROM pragma_table_info('pending_fixes') WHERE name = 'retired_at'",
+>> 1893:                 [],
+>> 1894:                 |r| r.get::<_, i64>(0),
+>> 1895:             )
+>> 1896:             .map(|n| n > 0)
+>> 1897:             .unwrap_or(false);
+>> 1898:         let sql = if has_retired {
+>> 1899:             "SELECT id FROM pending_fixes WHERE applied_at IS NULL AND retired_at IS NULL ORDER BY id"
+>> 1900:         } else {
+>> 1901:             "SELECT id FROM pending_fixes WHERE applied_at IS NULL ORDER BY id"
+>> 1902:         };
+>> 1903:         let mut stmt = ctx.runtime.db.prepare(sql).unwrap();
+>> 1904:         let ids: Vec<i64> = stmt
+>> 1905:             .query_map([], |r| r.get::<_, i64>(0))
+>> 1906:             .unwrap()
+>> 1907:             .filter_map(|r| r.ok())
+>> 1908:             .collect();
+>> 1909:         ids
+>> 1910:     }
+>> 1911: 
+>> 1912:     /// Pending rows whose description matches, with their action_data.
+>> 1913:     fn pending_data(ctx: &AppContext, like: &str) -> Vec<(i64, String)> {
+>> 1914:         pending_ids(ctx)
+>> 1915:             .into_iter()
+>> 1916:             .filter_map(|id| {
+>> 1917:                 ctx.runtime
+>> 1918:                     .db
+>> 1919:                     .query_row(
+>> 1920:                         "SELECT id, action_data FROM pending_fixes WHERE id = ?1 AND description LIKE ?2",
+>> 1921:                         rusqlite::params![id, like],
+>> 1922:                         |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)),
+>> 1923:                     )
+>> 1924:                     .ok()
+>> 1925:             })
+>> 1926:             .collect()
+>> 1927:     }
+>> 1928: 
+>> 1929:     /// Move the stand-in tool crate to a new cargo version.
+>> 1930:     fn set_alpha(root: &std::path::Path, ver: &str) {
+>> 1931:         let cargo = root
+>> 1932:             .join(zero_core::paths::CRATE_PARENTS[0])
+>> 1933:             .join("alpha")
+>> 1934:             .join("Cargo.toml");
+>> 1935:         std::fs::write(cargo, format!("[package]\nversion = \"{}\"\n", ver)).unwrap();
+>> 1936:     }
+>> 1937: 
+>> 1938:     /// INT-275 G3: a row whose check is no longer in the suite is never pending again.
+>> 1939:     #[test]
+>> 1940:     fn a_row_of_a_removed_check_is_not_pending() {
+>> 1941:         let (ctx, root) = stand_in("ghost");
+>> 1942:         ctx.runtime
+>> 1943:             .db
+>> 1944:             .execute(
+>> 1945:                 "INSERT INTO pending_fixes (category, check_name, action_type, action_data, description, created_at)
+>> 1946:                  VALUES ('autostart', 'autostart_retired_tool', 'UpdateFile', 'x', 'keyscan is retired', 1)",
+>> 1947:                 [],
+>> 1948:             )
+>> 1949:             .unwrap();
+>> 1950:         let ghost = ctx.runtime.db.last_insert_rowid();
+>> 1951:         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+>> 1952:         let pending = pending_ids(&ctx);
+>> 1953:         let _ = std::fs::remove_dir_all(&root);
+>> 1954:         assert!(
+>> 1955:             !pending.contains(&ghost),
+>> 1956:             "a row of a removed check is still pending"
+>> 1957:         );
+>> 1958:     }
+>> 1959: 
+>> 1960:     /// INT-275 G4: the same tool drifting twice leaves one pending row, carrying the newer version.
+>> 1961:     #[test]
+>> 1962:     fn one_pending_row_per_identity() {
+>> 1963:         let (ctx, root) = stand_in("identity");
+>> 1964:         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+>> 1965:         set_alpha(&root, "2.1.0");
+>> 1966:         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+>> 1967:         let alpha = pending_data(&ctx, "alpha:%");
+>> 1968:         let _ = std::fs::remove_dir_all(&root);
+>> 1969:         assert_eq!(
+>> 1970:             alpha.len(),
+>> 1971:             1,
+>> 1972:             "one tool drifting twice left these pending: {:?}",
+>> 1973:             alpha
+>> 1974:         );
+>> 1975:         assert_eq!(
+>> 1976:             alpha[0].1, "alpha\t2.1.0",
+>> 1977:             "the pending row does not carry the newer version"
+>> 1978:         );
+>> 1979:     }
+>> 1980: 
+>> 1981:     /// INT-275 G5: a drift corrected by hand retires resolved; it is not left pending or marked applied.
+>> 1982:     #[test]
+>> 1983:     fn a_resolved_drift_is_not_pending() {
+>> 1984:         let (ctx, root) = stand_in("resolved");
+>> 1985:         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+>> 1986:         let id = pending_data(&ctx, "alpha:%").first().map(|r| r.0);
+>> 1987:         let path = root.join("zero/registry/tools.toml");
+>> 1988:         let corrected = std::fs::read_to_string(&path).unwrap().replace(
+>> 1989:             "name = \"alpha\"\nversion = \"1.0.0\"",
+>> 1990:             "name = \"alpha\"\nversion = \"2.0.0\"",
+>> 1991:         );
+>> 1992:         std::fs::write(&path, corrected).unwrap();
+>> 1993:         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+>> 1994:         let pending = pending_ids(&ctx);
+>> 1995:         let applied: Option<i64> = id.and_then(|id| {
+>> 1996:             ctx.runtime
+>> 1997:                 .db
+>> 1998:                 .query_row(
+>> 1999:                     "SELECT applied_at FROM pending_fixes WHERE id = ?1",
+>> 2000:                     [id],
+>> 2001:                     |r| r.get::<_, Option<i64>>(0),
+>> 2002:                 )
+>> 2003:                 .ok()
+>> 2004:                 .flatten()
+>> 2005:         });
+>> 2006:         let _ = std::fs::remove_dir_all(&root);
+>> 2007:         let id = id.expect("no drift row for alpha was recorded");
+>> 2008:         assert!(
+>> 2009:             !pending.contains(&id),
+>> 2010:             "a drift corrected by hand is still pending"
+>> 2011:         );
+>> 2012:         assert_eq!(applied, None, "a resolved row was marked applied");
+>> 2013:     }
+>> 2014: 
+>> 2015:     /// INT-275 G6: applying a superseded drift refuses as an error and writes nothing.
+>> 2016:     #[test]
+>> 2017:     fn applying_a_stale_drift_refuses_and_writes_nothing() {
+>> 2018:         let (ctx, root) = stand_in("stale");
+>> 2019:         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+>> 2020:         let stale: Option<i64> = ctx
+>> 2021:             .runtime
+>> 2022:             .db
+>> 2023:             .query_row(
+>> 2024:                 "SELECT id FROM pending_fixes WHERE action_data = ?1",
+>> 2025:                 ["alpha\t2.0.0"],
+>> 2026:                 |r| r.get::<_, i64>(0),
+>> 2027:             )
+>> 2028:             .ok();
+>> 2029:         set_alpha(&root, "3.0.0");
+>> 2030:         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+>> 2031:         let path = root.join("zero/registry/tools.toml");
+>> 2032:         let before = std::fs::read(&path).unwrap();
+>> 2033:         let refused = stale.map(|id| cmd_apply(&ctx, &id.to_string()).is_err());
+>> 2034:         let after = std::fs::read(&path).unwrap();
+>> 2035:         let _ = std::fs::remove_dir_all(&root);
+>> 2036:         assert_eq!(
+>> 2037:             refused,
+>> 2038:             Some(true),
+>> 2039:             "applying a superseded drift did not refuse"
+>> 2040:         );
+>> 2041:         assert!(
+>> 2042:             before == after,
+>> 2043:             "applying a superseded drift wrote the registry"
+>> 2044:         );
+>> 2045:     }
+>> 2046:     /// INT-275 G3: apply on a row of a removed check refuses, writes nothing, and retires it.
+>> 2047:     #[test]
+>> 2048:     fn applying_a_row_of_a_removed_check_refuses() {
+>> 2049:         let (ctx, root) = stand_in("ghost-apply");
+>> 2050:         ctx.runtime
+>> 2051:             .db
+>> 2052:             .execute(
+>> 2053:                 "INSERT INTO pending_fixes (category, check_name, action_type, action_data, description, created_at)
+>> 2054:                  VALUES ('autostart', 'autostart_retired_tool', 'UpdateFile', 'x', 'keyscan is retired', 1)",
+>> 2055:                 [],
+>> 2056:             )
+>> 2057:             .unwrap();
+>> 2058:         let ghost = ctx.runtime.db.last_insert_rowid();
+>> 2059:         let refused = cmd_apply(&ctx, &ghost.to_string()).is_err();
+>> 2060:         let reason: Option<String> = ctx
+>> 2061:             .runtime
+>> 2062:             .db
+>> 2063:             .query_row(
+>> 2064:                 "SELECT retired_reason FROM pending_fixes WHERE id = ?1",
+>> 2065:                 [ghost],
+>> 2066:                 |r| r.get::<_, Option<String>>(0),
+>> 2067:             )
+>> 2068:             .ok()
+>> 2069:             .flatten();
+>> 2070:         let _ = std::fs::remove_dir_all(&root);
+>> 2071:         assert!(refused, "apply on a row of a removed check did not refuse");
+>> 2072:         assert_eq!(reason.as_deref(), Some("check removed"));
+>> 2073:     }
+>> 2074: 
+>> 2075:     /// INT-275 G7: a move carries out the from and to stored on its row; only that file moves,
+>> 2076:     /// even when another intent mentions the phrase. Red on the deployed build 2026-10-05: the
+>> 2077:     /// old apply arm moved a planned stand-in intent whose body said status: complete.
+>> 2078:     #[test]
+>> 2079:     fn a_move_moves_only_the_file_its_row_names() {
+>> 2080:         let (ctx, root) = stand_in("move");
+>> 2081:         let future = ctx.fpath("intents/future");
+>> 2082:         let complete = ctx.fpath("intents/complete");
+>> 2083:         std::fs::create_dir_all(&future).unwrap();
+>> 2084:         std::fs::create_dir_all(&complete).unwrap();
+>> 2085:         let bystander = future.join("901-bystander.md");
+>> 2086:         std::fs::write(
+>> 2087:             &bystander,
+>> 2088:             "---\nstatus: planned\n---\nThis body only mentions the phrase status: complete\n",
+>> 2089:         )
+>> 2090:         .unwrap();
+>> 2091:         let done = future.join("902-done.md");
+>> 2092:         std::fs::write(&done, "---\nstatus: complete\n---\n").unwrap();
+>> 2093:         let suite: Vec<Box<dyn IntegrityCheck>> =
+>> 2094:             vec![Box::new(checks::IntentStatusDirectoryCheck)];
+>> 2095:         run_pipeline(&IntegrityContext::new(&ctx), &suite, true);
+>> 2096:         let rows = pending_data(&ctx, "902-done.md%");
+>> 2097:         let applied = rows
+>> 2098:             .first()
+>> 2099:             .map(|r| cmd_apply(&ctx, &r.0.to_string()).is_ok());
+>> 2100:         let moved = complete.join("902-done.md").exists() && !done.exists();
+>> 2101:         let stayed = bystander.exists();
+>> 2102:         let _ = std::fs::remove_dir_all(&root);
+>> 2103:         assert_eq!(
+>> 2104:             rows.len(),
+>> 2105:             1,
+>> 2106:             "expected one pending move for 902-done.md: {:?}",
+>> 2107:             rows
+>> 2108:         );
+>> 2109:         assert_eq!(applied, Some(true), "the move was not applied");
+>> 2110:         assert!(moved, "the named file was not moved to complete/");
+>> 2111:         assert!(stayed, "a file the row does not name was moved");
+>> 2112:     }
+>> 2113: 
+>> 2114:     /// INT-275: an intent's status is its frontmatter line; a body that mentions one is not one.
+>> 2115:     #[test]
+>> 2116:     fn status_is_the_frontmatter_line_not_a_mention() {
+>> 2117:         assert_eq!(
+>> 2118:             frontmatter_status("---\nstatus: planned\n---\nsays status: complete\n"),
+>> 2119:             "status: planned"
+>> 2120:         );
+>> 2121:         assert_eq!(frontmatter_status("no frontmatter at all\n"), "");
+>> 2122:     }
+>> 2123: 
+>> 2124:     /// INT-267 L2: the check finds Cargo.toml where the owner says crates live. Seen red while
+>> 2125:     /// it joined paths no crate has lived in since the tree moved under zero/.
+>> 2126:     #[test]
+>> 2127:     fn drift_check_reads_every_crate_through_the_owner() {
+>> 2128:         let (ctx, root) = stand_in("reads");
+>> 2129:         let found = checks::RegistryVersionDriftCheck.run(&IntegrityContext::new(&ctx));
+>> 2130:         let _ = std::fs::remove_dir_all(&root);
+>> 2131:         let names: Vec<&str> = found.iter().map(|i| i.description.as_str()).collect();
+>> 2132:         assert_eq!(found.len(), 2, "both drifts found: {names:?}");
+>> 2133:     }
+>> 2134: 
+>> 2135:     /// INT-283 G2: a row that resolves to no crate is reported, never skipped in silence.
+>> 2136:     /// Before INT-283 the check met None and continued, so a renamed crate read as clean.
+>> 2137:     #[test]
+>> 2138:     fn a_row_with_no_crate_is_reported_not_skipped() {
+>> 2139:         let (ctx, root) = stand_in("ghost");
+>> 2140:         let path = root.join("zero/registry/tools.toml");
+>> 2141:         let mut reg = std::fs::read_to_string(&path).unwrap();
+>> 2142:         reg.push_str("\n[[tool]]\nname = \"ghost\"\nversion = \"1.0.0\"\n");
+>> 2143:         std::fs::write(&path, reg).unwrap();
+>> 2144:         let found = checks::RegistryVersionDriftCheck.run(&IntegrityContext::new(&ctx));
+>> 2145:         let _ = std::fs::remove_dir_all(&root);
+>> 2146:         let names: Vec<&str> = found.iter().map(|i| i.description.as_str()).collect();
+>> 2147:         assert!(
+>> 2148:             found.iter().any(|i| i.description.starts_with("ghost:")),
+>> 2149:             "a row with no crate was skipped in silence: {names:?}"
+>> 2150:         );
+>> 2151:     }
+>> 2152: 
+>> 2153:     /// INT-283 G4: on the real tree, every live rust row of the registry is compared. A row the
+>> 2154:     /// check cannot compare is an alert, and this names it. Red on nsh until its row says which
+>> 2155:     /// crate directory it is built from.
+>> 2156:     #[test]
+>> 2157:     fn every_live_row_of_the_real_registry_is_compared() {
+>> 2158:         let root = zero_core::paths::core_dir();
+>> 2159:         let scratch =
+>> 2160:             std::env::temp_dir().join(format!("integrity-int283-real-{}", std::process::id()));
+>> 2161:         let ctx = AppContext {
+>> 2162:             runtime: crate::runtime::Runtime {
+>> 2163:                 root: scratch.clone(),
+>> 2164:                 logs: scratch.join("logs"),
+>> 2165:                 cache: scratch.join("cache"),
+>> 2166:                 snapshots: scratch.join("snapshots"),
+>> 2167:                 locks: scratch.join("locks"),
+>> 2168:                 db: rusqlite::Connection::open_in_memory().unwrap(),
+>> 2169:             },
+>> 2170:             capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+>> 2171:             home: std::env::var("HOME").unwrap_or_default(),
+>> 2172:             core_root: root.display().to_string(),
+>> 2173:             source_root: root.join("zero").display().to_string(),
+>> 2174:         };
+>> 2175:         let found = checks::RegistryVersionDriftCheck.run(&IntegrityContext::new(&ctx));
+>> 2176:         let alerts: Vec<&str> = found
+>> 2177:             .iter()
+>> 2178:             .filter(|i| i.severity == Severity::Alert)
+>> 2179:             .map(|i| i.description.as_str())
+>> 2180:             .collect();
+>> 2181:         assert!(
+>> 2182:             alerts.is_empty(),
+>> 2183:             "registry rows the drift check cannot compare: {alerts:?}"
+>> 2184:         );
+>> 2185:     }
+>> 2186: 
+>> 2187:     /// INT-267 batch 1b: a scan proposes drift and records every one; it never edits the registry.
+>> 2188:     #[test]
+>> 2189:     fn a_scan_records_every_drift_and_writes_nothing() {
+>> 2190:         let (ctx, root) = stand_in("consent");
+>> 2191:         let path = root.join("zero/registry/tools.toml");
+>> 2192:         let before = std::fs::read_to_string(&path).unwrap();
+>> 2193:         let result = run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+>> 2194:         let after = std::fs::read_to_string(&path).unwrap();
+>> 2195:         let pending: i64 = ctx
+>> 2196:             .runtime
+>> 2197:             .db
+>> 2198:             .query_row(
+>> 2199:                 "SELECT COUNT(*) FROM pending_fixes WHERE applied_at IS NULL",
+>> 2200:                 [],
+>> 2201:                 |r| r.get(0),
+>> 2202:             )
+>> 2203:             .unwrap();
+>> 2204:         let _ = std::fs::remove_dir_all(&root);
+>> 2205:         assert_eq!(before, after, "a scan rewrote the registry");
+>> 2206:         assert_eq!(result.auto_fixed, 0, "a scan applied a fix");
+>> 2207:         assert_eq!(pending, 2, "every drift is recorded, not only the first");
+>> 2208:     }
+>> 2209: 
+>> 2210:     /// INT-267 batch 1b: applying one drift proposal writes exactly that tool's version.
+>> 2211:     #[test]
+>> 2212:     fn applying_a_drift_writes_exactly_its_version() {
+>> 2213:         let (ctx, root) = stand_in("apply");
+>> 2214:         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+>> 2215:         let id: Option<i64> = ctx
+>> 2216:             .runtime
+>> 2217:             .db
+>> 2218:             .query_row(
+>> 2219:                 "SELECT id FROM pending_fixes WHERE description LIKE ?1 AND applied_at IS NULL",
+>> 2220:                 ["alpha:%"],
+>> 2221:                 |r| r.get(0),
+>> 2222:             )
+>> 2223:             .ok();
+>> 2224:         let applied = id.map(|id| cmd_apply(&ctx, &id.to_string()).is_ok());
+>> 2225:         let registry = std::fs::read_to_string(root.join("zero/registry/tools.toml")).unwrap();
+>> 2226:         let done: Option<i64> = id.and_then(|id| {
+>> 2227:             ctx.runtime
+>> 2228:                 .db
+>> 2229:                 .query_row(
+>> 2230:                     "SELECT applied_at FROM pending_fixes WHERE id = ?1",
+>> 2231:                     [id],
+>> 2232:                     |r| r.get(0),
+>> 2233:                 )
+>> 2234:                 .ok()
+>> 2235:                 .flatten()
+>> 2236:         });
+>> 2237:         let _ = std::fs::remove_dir_all(&root);
+>> 2238:         assert_eq!(applied, Some(true), "no drift proposal for alpha to apply");
+>> 2239:         assert!(
+>> 2240:             registry.contains("name = \"alpha\"\nversion = \"2.0.0\""),
+>> 2241:             "alpha not updated:\n{registry}"
+>> 2242:         );
+>> 2243:         assert!(
+>> 2244:             registry.contains("name = \"core\"\nversion = \"3.0.0\""),
+>> 2245:             "another tool changed:\n{registry}"
+>> 2246:         );
+>> 2247:         assert!(done.is_some(), "the proposal is not marked applied");
+>> 2248:     }
+>> 2249: }
+>> 2250: pub fn cmd_trend(ctx: &AppContext) -> CoreResult<()> {
+>> 2251:     use colored::*;
+>> 2252:     let _stmt = ctx.runtime.db.prepare(
+>> 2253:         "SELECT integrity_score, timestamp FROM integrity_log
+>> 2254:          GROUP BY date(timestamp, 'unixepoch')
+>> 2255:          ORDER BY timestamp DESC LIMIT 14",
+>> 2256:     );
+>> 2257:     // Fallback: use quick_scan for current score
+>> 2258:     let (score, _, _, _) = quick_scan(ctx);
+>> 2259:     println!();
+>> 2260:     println!("  {} Integrity Trend", "📈".normal());
+>> 2261:     println!("  {}", "─".repeat(48).dimmed());
+>> 2262:     println!(
+>> 2263:         "  Current: {}%",
+>> 2264:         if score >= 95 {
+>> 2265:             score.to_string().bright_green()
+>> 2266:         } else {
+>> 2267:             score.to_string().bright_yellow()
+>> 2268:         }
+>> 2269:     );
+>> 2270:     println!("  {} Integrity tracking builds over time", "→".dimmed());
+>> 2271:     println!(
+>> 2272:         "  {} Run core integrity run daily to build history",
+>> 2273:         "→".dimmed()
+>> 2274:     );
+>> 2275:     println!();
+>> 2276:     Ok(())
+>> 2277: }
+   2278: 
+++ pub fn cmd_trend(ctx: &AppContext) -> CoreResult<()> {
+++     use colored::*;
+++     let _stmt = ctx.runtime.db.prepare(
+++         "SELECT integrity_score, timestamp FROM integrity_log
+++          GROUP BY date(timestamp, 'unixepoch')
+++          ORDER BY timestamp DESC LIMIT 14",
+++     );
+++     // Fallback: use quick_scan for current score
+++     let (score, _, _, _) = quick_scan(ctx);
+++     println!();
+++     println!("  {} Integrity Trend", "📈".normal());
+++     println!("  {}", "─".repeat(48).dimmed());
+++     println!(
+++         "  Current: {}%",
+++         if score >= 95 {
+++             score.to_string().bright_green()
+++         } else {
+++             score.to_string().bright_yellow()
+++         }
+++     );
+++     println!("  {} Integrity tracking builds over time", "→".dimmed());
+++     println!(
+++         "  {} Run core integrity run daily to build history",
+++         "→".dimmed()
+++     );
+++     println!();
+++     Ok(())
+++ }
+++ #[cfg(test)]
+++ mod tests {
+++     use super::*;
+++ 
+++     /// A stand-in repo, laid out where the owner says crates live (INT-267 L2): one tool crate
+++     /// and the engine, each a version ahead of the registry, over an in-memory database.
+++     fn stand_in(tag: &str) -> (AppContext, PathBuf) {
+++         // A per-call number as well as the process id (INT-284, F-0026): cargo runs a crate's
+++         // tests as threads of one process, so the tag and the process id alone gave two callers
+++         // one tree.
+++         static CALLS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+++         let call = CALLS.fetch_add(1, std::sync::atomic::Ordering::Relaxed);
+++         let root = std::env::temp_dir().join(format!(
+++             "integrity-int267-{tag}-{}-{call}",
+++             std::process::id()
+++         ));
+++         let _ = std::fs::remove_dir_all(&root);
+++         let tool = root.join(zero_core::paths::CRATE_PARENTS[0]).join("alpha");
+++         let engine = root.join(zero_core::paths::SINGLE_CRATES[0]);
+++         for (dir, ver) in [(&tool, "2.0.0"), (&engine, "4.0.0")] {
+++             std::fs::create_dir_all(dir).unwrap();
+++             let cargo = format!("[package]\nversion = \"{}\"\n", ver);
+++             std::fs::write(dir.join("Cargo.toml"), cargo).unwrap();
+++         }
+++         let registry = root.join("zero/registry");
+++         std::fs::create_dir_all(&registry).unwrap();
+++         let tools = "[[tool]]\nname = \"alpha\"\nversion = \"1.0.0\"\n\n[[tool]]\nname = \"core\"\nversion = \"3.0.0\"\n";
+++         std::fs::write(registry.join("tools.toml"), tools).unwrap();
+++         let ctx = AppContext {
+++             runtime: crate::runtime::Runtime {
+++                 root: root.clone(),
+++                 logs: root.join("logs"),
+++                 cache: root.join("cache"),
+++                 snapshots: root.join("snapshots"),
+++                 locks: root.join("locks"),
+++                 db: rusqlite::Connection::open_in_memory().unwrap(),
+++             },
+++             capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+++             home: root.display().to_string(),
+++             core_root: root.display().to_string(),
+++             source_root: root.join("zero").display().to_string(),
+++         };
+++         assert!(ensure_tables(&ctx).is_ok());
+++         (ctx, root)
+++     }
+++ 
+++     /// INT-284 G1: two calls with one tag must never share a tree. Cargo runs a crate's tests
+++     /// as threads of one process, so a root named from the tag and the process id alone is
+++     /// shared, and one test's clear-and-rebuild erases the other's tree (F-0026).
+++     #[test]
+++     fn two_stand_ins_with_one_tag_never_share_a_directory() {
+++         let (_first_ctx, first) = stand_in("same-tag");
+++         let (_second_ctx, second) = stand_in("same-tag");
+++         let _ = std::fs::remove_dir_all(&first);
+++         let _ = std::fs::remove_dir_all(&second);
+++         assert_ne!(
+++             first,
+++             second,
+++             "two stand_in calls with one tag were given one directory: {}",
+++             first.display()
+++         );
+++     }
+++ 
+++     fn drift_only() -> Vec<Box<dyn IntegrityCheck>> {
+++         vec![Box::new(checks::RegistryVersionDriftCheck)]
+++     }
+++ 
+++     // ── INT-275: proposals are shown and applied only while a fresh run still finds them ──
+++ 
+++     /// The rows a reader may show: not applied, and not retired once that column exists.
+++     /// Written to work on the table before and after INT-275, so the same tests go red then green.
+++     fn pending_ids(ctx: &AppContext) -> Vec<i64> {
+++         let has_retired = ctx
+++             .runtime
+++             .db
+++             .query_row(
+++                 "SELECT COUNT(*) FROM pragma_table_info('pending_fixes') WHERE name = 'retired_at'",
+++                 [],
+++                 |r| r.get::<_, i64>(0),
+++             )
+++             .map(|n| n > 0)
+++             .unwrap_or(false);
+++         let sql = if has_retired {
+++             "SELECT id FROM pending_fixes WHERE applied_at IS NULL AND retired_at IS NULL ORDER BY id"
+++         } else {
+++             "SELECT id FROM pending_fixes WHERE applied_at IS NULL ORDER BY id"
+++         };
+++         let mut stmt = ctx.runtime.db.prepare(sql).unwrap();
+++         let ids: Vec<i64> = stmt
+++             .query_map([], |r| r.get::<_, i64>(0))
+++             .unwrap()
+++             .filter_map(|r| r.ok())
+++             .collect();
+++         ids
+++     }
+++ 
+++     /// Pending rows whose description matches, with their action_data.
+++     fn pending_data(ctx: &AppContext, like: &str) -> Vec<(i64, String)> {
+++         pending_ids(ctx)
+++             .into_iter()
+++             .filter_map(|id| {
+++                 ctx.runtime
+++                     .db
+++                     .query_row(
+++                         "SELECT id, action_data FROM pending_fixes WHERE id = ?1 AND description LIKE ?2",
+++                         rusqlite::params![id, like],
+++                         |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)),
+++                     )
+++                     .ok()
+++             })
+++             .collect()
+++     }
+++ 
+++     /// Move the stand-in tool crate to a new cargo version.
+++     fn set_alpha(root: &std::path::Path, ver: &str) {
+++         let cargo = root
+++             .join(zero_core::paths::CRATE_PARENTS[0])
+++             .join("alpha")
+++             .join("Cargo.toml");
+++         std::fs::write(cargo, format!("[package]\nversion = \"{}\"\n", ver)).unwrap();
+++     }
+++ 
+++     /// INT-275 G3: a row whose check is no longer in the suite is never pending again.
+++     #[test]
+++     fn a_row_of_a_removed_check_is_not_pending() {
+++         let (ctx, root) = stand_in("ghost");
+++         ctx.runtime
+++             .db
+++             .execute(
+++                 "INSERT INTO pending_fixes (category, check_name, action_type, action_data, description, created_at)
+++                  VALUES ('autostart', 'autostart_retired_tool', 'UpdateFile', 'x', 'keyscan is retired', 1)",
+++                 [],
+++             )
+++             .unwrap();
+++         let ghost = ctx.runtime.db.last_insert_rowid();
+++         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+++         let pending = pending_ids(&ctx);
+++         let _ = std::fs::remove_dir_all(&root);
+++         assert!(
+++             !pending.contains(&ghost),
+++             "a row of a removed check is still pending"
+++         );
+++     }
+++ 
+++     /// INT-275 G4: the same tool drifting twice leaves one pending row, carrying the newer version.
+++     #[test]
+++     fn one_pending_row_per_identity() {
+++         let (ctx, root) = stand_in("identity");
+++         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+++         set_alpha(&root, "2.1.0");
+++         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+++         let alpha = pending_data(&ctx, "alpha:%");
+++         let _ = std::fs::remove_dir_all(&root);
+++         assert_eq!(
+++             alpha.len(),
+++             1,
+++             "one tool drifting twice left these pending: {:?}",
+++             alpha
+++         );
+++         assert_eq!(
+++             alpha[0].1, "alpha\t2.1.0",
+++             "the pending row does not carry the newer version"
+++         );
+++     }
+++ 
+++     /// INT-275 G5: a drift corrected by hand retires resolved; it is not left pending or marked applied.
+++     #[test]
+++     fn a_resolved_drift_is_not_pending() {
+++         let (ctx, root) = stand_in("resolved");
+++         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+++         let id = pending_data(&ctx, "alpha:%").first().map(|r| r.0);
+++         let path = root.join("zero/registry/tools.toml");
+++         let corrected = std::fs::read_to_string(&path).unwrap().replace(
+++             "name = \"alpha\"\nversion = \"1.0.0\"",
+++             "name = \"alpha\"\nversion = \"2.0.0\"",
+++         );
+++         std::fs::write(&path, corrected).unwrap();
+++         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+++         let pending = pending_ids(&ctx);
+++         let applied: Option<i64> = id.and_then(|id| {
+++             ctx.runtime
+++                 .db
+++                 .query_row(
+++                     "SELECT applied_at FROM pending_fixes WHERE id = ?1",
+++                     [id],
+++                     |r| r.get::<_, Option<i64>>(0),
+++                 )
+++                 .ok()
+++                 .flatten()
+++         });
+++         let _ = std::fs::remove_dir_all(&root);
+++         let id = id.expect("no drift row for alpha was recorded");
+++         assert!(
+++             !pending.contains(&id),
+++             "a drift corrected by hand is still pending"
+++         );
+++         assert_eq!(applied, None, "a resolved row was marked applied");
+++     }
+++ 
+++     /// INT-275 G6: applying a superseded drift refuses as an error and writes nothing.
+++     #[test]
+++     fn applying_a_stale_drift_refuses_and_writes_nothing() {
+++         let (ctx, root) = stand_in("stale");
+++         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+++         let stale: Option<i64> = ctx
+++             .runtime
+++             .db
+++             .query_row(
+++                 "SELECT id FROM pending_fixes WHERE action_data = ?1",
+++                 ["alpha\t2.0.0"],
+++                 |r| r.get::<_, i64>(0),
+++             )
+++             .ok();
+++         set_alpha(&root, "3.0.0");
+++         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+++         let path = root.join("zero/registry/tools.toml");
+++         let before = std::fs::read(&path).unwrap();
+++         let refused = stale.map(|id| cmd_apply(&ctx, &id.to_string()).is_err());
+++         let after = std::fs::read(&path).unwrap();
+++         let _ = std::fs::remove_dir_all(&root);
+++         assert_eq!(
+++             refused,
+++             Some(true),
+++             "applying a superseded drift did not refuse"
+++         );
+++         assert!(
+++             before == after,
+++             "applying a superseded drift wrote the registry"
+++         );
+++     }
+++     /// INT-275 G3: apply on a row of a removed check refuses, writes nothing, and retires it.
+++     #[test]
+++     fn applying_a_row_of_a_removed_check_refuses() {
+++         let (ctx, root) = stand_in("ghost-apply");
+++         ctx.runtime
+++             .db
+++             .execute(
+++                 "INSERT INTO pending_fixes (category, check_name, action_type, action_data, description, created_at)
+++                  VALUES ('autostart', 'autostart_retired_tool', 'UpdateFile', 'x', 'keyscan is retired', 1)",
+++                 [],
+++             )
+++             .unwrap();
+++         let ghost = ctx.runtime.db.last_insert_rowid();
+++         let refused = cmd_apply(&ctx, &ghost.to_string()).is_err();
+++         let reason: Option<String> = ctx
+++             .runtime
+++             .db
+++             .query_row(
+++                 "SELECT retired_reason FROM pending_fixes WHERE id = ?1",
+++                 [ghost],
+++                 |r| r.get::<_, Option<String>>(0),
+++             )
+++             .ok()
+++             .flatten();
+++         let _ = std::fs::remove_dir_all(&root);
+++         assert!(refused, "apply on a row of a removed check did not refuse");
+++         assert_eq!(reason.as_deref(), Some("check removed"));
+++     }
+++ 
+++     /// INT-275 G7: a move carries out the from and to stored on its row; only that file moves,
+++     /// even when another intent mentions the phrase. Red on the deployed build 2026-10-05: the
+++     /// old apply arm moved a planned stand-in intent whose body said status: complete.
+++     #[test]
+++     fn a_move_moves_only_the_file_its_row_names() {
+++         let (ctx, root) = stand_in("move");
+++         let future = ctx.fpath("intents/future");
+++         let complete = ctx.fpath("intents/complete");
+++         std::fs::create_dir_all(&future).unwrap();
+++         std::fs::create_dir_all(&complete).unwrap();
+++         let bystander = future.join("901-bystander.md");
+++         std::fs::write(
+++             &bystander,
+++             "---\nstatus: planned\n---\nThis body only mentions the phrase status: complete\n",
+++         )
+++         .unwrap();
+++         let done = future.join("902-done.md");
+++         std::fs::write(&done, "---\nstatus: complete\n---\n").unwrap();
+++         let suite: Vec<Box<dyn IntegrityCheck>> =
+++             vec![Box::new(checks::IntentStatusDirectoryCheck)];
+++         run_pipeline(&IntegrityContext::new(&ctx), &suite, true);
+++         let rows = pending_data(&ctx, "902-done.md%");
+++         let applied = rows
+++             .first()
+++             .map(|r| cmd_apply(&ctx, &r.0.to_string()).is_ok());
+++         let moved = complete.join("902-done.md").exists() && !done.exists();
+++         let stayed = bystander.exists();
+++         let _ = std::fs::remove_dir_all(&root);
+++         assert_eq!(
+++             rows.len(),
+++             1,
+++             "expected one pending move for 902-done.md: {:?}",
+++             rows
+++         );
+++         assert_eq!(applied, Some(true), "the move was not applied");
+++         assert!(moved, "the named file was not moved to complete/");
+++         assert!(stayed, "a file the row does not name was moved");
+++     }
+++ 
+++     /// INT-275: an intent's status is its frontmatter line; a body that mentions one is not one.
+++     #[test]
+++     fn status_is_the_frontmatter_line_not_a_mention() {
+++         assert_eq!(
+++             frontmatter_status("---\nstatus: planned\n---\nsays status: complete\n"),
+++             "status: planned"
+++         );
+++         assert_eq!(frontmatter_status("no frontmatter at all\n"), "");
+++     }
+++ 
+++     /// INT-267 L2: the check finds Cargo.toml where the owner says crates live. Seen red while
+++     /// it joined paths no crate has lived in since the tree moved under zero/.
+++     #[test]
+++     fn drift_check_reads_every_crate_through_the_owner() {
+++         let (ctx, root) = stand_in("reads");
+++         let found = checks::RegistryVersionDriftCheck.run(&IntegrityContext::new(&ctx));
+++         let _ = std::fs::remove_dir_all(&root);
+++         let names: Vec<&str> = found.iter().map(|i| i.description.as_str()).collect();
+++         assert_eq!(found.len(), 2, "both drifts found: {names:?}");
+++     }
+++ 
+++     /// INT-283 G2: a row that resolves to no crate is reported, never skipped in silence.
+++     /// Before INT-283 the check met None and continued, so a renamed crate read as clean.
+++     #[test]
+++     fn a_row_with_no_crate_is_reported_not_skipped() {
+++         let (ctx, root) = stand_in("ghost");
+++         let path = root.join("zero/registry/tools.toml");
+++         let mut reg = std::fs::read_to_string(&path).unwrap();
+++         reg.push_str("\n[[tool]]\nname = \"ghost\"\nversion = \"1.0.0\"\n");
+++         std::fs::write(&path, reg).unwrap();
+++         let found = checks::RegistryVersionDriftCheck.run(&IntegrityContext::new(&ctx));
+++         let _ = std::fs::remove_dir_all(&root);
+++         let names: Vec<&str> = found.iter().map(|i| i.description.as_str()).collect();
+++         assert!(
+++             found.iter().any(|i| i.description.starts_with("ghost:")),
+++             "a row with no crate was skipped in silence: {names:?}"
+++         );
+++     }
+++ 
+++     /// INT-283 G4: on the real tree, every live rust row of the registry is compared. A row the
+++     /// check cannot compare is an alert, and this names it. Red on nsh until its row says which
+++     /// crate directory it is built from.
+++     #[test]
+++     fn every_live_row_of_the_real_registry_is_compared() {
+++         let root = zero_core::paths::core_dir();
+++         let scratch =
+++             std::env::temp_dir().join(format!("integrity-int283-real-{}", std::process::id()));
+++         let ctx = AppContext {
+++             runtime: crate::runtime::Runtime {
+++                 root: scratch.clone(),
+++                 logs: scratch.join("logs"),
+++                 cache: scratch.join("cache"),
+++                 snapshots: scratch.join("snapshots"),
+++                 locks: scratch.join("locks"),
+++                 db: rusqlite::Connection::open_in_memory().unwrap(),
+++             },
+++             capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+++             home: std::env::var("HOME").unwrap_or_default(),
+++             core_root: root.display().to_string(),
+++             source_root: root.join("zero").display().to_string(),
+++         };
+++         let found = checks::RegistryVersionDriftCheck.run(&IntegrityContext::new(&ctx));
+++         let alerts: Vec<&str> = found
+++             .iter()
+++             .filter(|i| i.severity == Severity::Alert)
+++             .map(|i| i.description.as_str())
+++             .collect();
+++         assert!(
+++             alerts.is_empty(),
+++             "registry rows the drift check cannot compare: {alerts:?}"
+++         );
+++     }
+++ 
+++     /// INT-267 batch 1b: a scan proposes drift and records every one; it never edits the registry.
+++     #[test]
+++     fn a_scan_records_every_drift_and_writes_nothing() {
+++         let (ctx, root) = stand_in("consent");
+++         let path = root.join("zero/registry/tools.toml");
+++         let before = std::fs::read_to_string(&path).unwrap();
+++         let result = run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+++         let after = std::fs::read_to_string(&path).unwrap();
+++         let pending: i64 = ctx
+++             .runtime
+++             .db
+++             .query_row(
+++                 "SELECT COUNT(*) FROM pending_fixes WHERE applied_at IS NULL",
+++                 [],
+++                 |r| r.get(0),
+++             )
+++             .unwrap();
+++         let _ = std::fs::remove_dir_all(&root);
+++         assert_eq!(before, after, "a scan rewrote the registry");
+++         assert_eq!(result.auto_fixed, 0, "a scan applied a fix");
+++         assert_eq!(pending, 2, "every drift is recorded, not only the first");
+++     }
+++ 
+++     /// INT-267 batch 1b: applying one drift proposal writes exactly that tool's version.
+++     #[test]
+++     fn applying_a_drift_writes_exactly_its_version() {
+++         let (ctx, root) = stand_in("apply");
+++         run_pipeline(&IntegrityContext::new(&ctx), &drift_only(), true);
+++         let id: Option<i64> = ctx
+++             .runtime
+++             .db
+++             .query_row(
+++                 "SELECT id FROM pending_fixes WHERE description LIKE ?1 AND applied_at IS NULL",
+++                 ["alpha:%"],
+++                 |r| r.get(0),
+++             )
+++             .ok();
+++         let applied = id.map(|id| cmd_apply(&ctx, &id.to_string()).is_ok());
+++         let registry = std::fs::read_to_string(root.join("zero/registry/tools.toml")).unwrap();
+++         let done: Option<i64> = id.and_then(|id| {
+++             ctx.runtime
+++                 .db
+++                 .query_row(
+++                     "SELECT applied_at FROM pending_fixes WHERE id = ?1",
+++                     [id],
+++                     |r| r.get(0),
+++                 )
+++                 .ok()
+++                 .flatten()
+++         });
+++         let _ = std::fs::remove_dir_all(&root);
+++         assert_eq!(applied, Some(true), "no drift proposal for alpha to apply");
+++         assert!(
+++             registry.contains("name = \"alpha\"\nversion = \"2.0.0\""),
+++             "alpha not updated:\n{registry}"
+++         );
+++         assert!(
+++             registry.contains("name = \"core\"\nversion = \"3.0.0\""),
+++             "another tool changed:\n{registry}"
+++         );
+++         assert!(done.is_some(), "the proposal is not marked applied");
+++     }
+++ }
+--- /home/christian/0-core/zero/tools/zero-docs/src/toolgen.rs: replacing lines 103..108 ---
+   101: }
+   102: 
+>> 103: /// Enrich a ToolMeta from registry/tools.toml (line-parsed, matching existing style).
+>> 104: fn enrich_from_registry(
+>> 105:     tools: &[(String, String, String, String, bool, Vec<String>)],
+>> 106:     m: &mut ToolMeta,
+>> 107: ) {
+>> 108:     // tools: (name, category, expected_usage, description, retired)
+   109:     if let Some((_, cat, usage, _desc, retired, deps)) =
+   110:         tools.iter().find(|(n, _, _, _, _, _)| *n == m.name)
+++ /// One tools.toml row as parse_registry reads it:
+++ /// (name, category, expected_usage, description, retired, deps).
+++ type RegistryRow = (String, String, String, String, bool, Vec<String>);
+++ 
+++ /// Enrich a ToolMeta from registry/tools.toml (line-parsed, matching existing style).
+++ fn enrich_from_registry(tools: &[RegistryRow], m: &mut ToolMeta) {
+--- /home/christian/0-core/zero/tools/zero-docs/src/toolgen.rs: replacing lines 128..128 ---
+   126: 
+   127: /// Line-parse registry/tools.toml into (name, category, expected_usage, description, retired).
+>> 128: fn parse_registry() -> Vec<(String, String, String, String, bool, Vec<String>)> {
+   129:     // The registry moved into the platform directory in the Phase 1 tree reorganisation and this path did not
+   130:     // follow it. For a month every generated README said "unregistered" and "uncategorized" -- not
+++ fn parse_registry() -> Vec<RegistryRow> {
+--- /home/christian/0-core/zero/tools/zero-docs/src/toolgen.rs: replacing lines 401..769 ---
+   399: }
+   400: 
+>> 401: #[cfg(test)]
+>> 402: mod count_tests {
+>> 403:     use super::*;
+>> 404: 
+>> 405:     /// The catalog counts tools, and a tool is a binary. A library crate on disk is not one --
+>> 406:     /// counting every crate made the catalog say 22 while 18 binaries were deployed.
+>> 407:     #[test]
+>> 408:     fn a_library_crate_is_not_a_tool() {
+>> 409:         let d = std::env::temp_dir().join(format!("zero-docs-count-{}", std::process::id()));
+>> 410:         let _ = std::fs::remove_dir_all(&d);
+>> 411:         std::fs::create_dir_all(d.join("src")).unwrap();
+>> 412:         let cargo = d.join("Cargo.toml");
+>> 413:         std::fs::write(&cargo, "[package]\nname = \"x\"\nversion = \"0.1.0\"\n").unwrap();
+>> 414:         std::fs::write(d.join("src/lib.rs"), "").unwrap();
+>> 415:         assert!(
+>> 416:             !parse_cargo(&cargo).unwrap().binary,
+>> 417:             "lib.rs alone is not a tool"
+>> 418:         );
+>> 419:         std::fs::write(d.join("src/main.rs"), "fn main() {}").unwrap();
+>> 420:         assert!(
+>> 421:             parse_cargo(&cargo).unwrap().binary,
+>> 422:             "src/main.rs is a binary"
+>> 423:         );
+>> 424:         std::fs::remove_file(d.join("src/main.rs")).unwrap();
+>> 425:         std::fs::write(
+>> 426:             &cargo,
+>> 427:             "[package]\nname = \"x\"\n\n[[bin]]\nname = \"x\"\npath = \"src/x.rs\"\n",
+>> 428:         )
+>> 429:         .unwrap();
+>> 430:         assert!(
+>> 431:             parse_cargo(&cargo).unwrap().binary,
+>> 432:             "a [[bin]] target is a binary"
+>> 433:         );
+>> 434:         let _ = std::fs::remove_dir_all(&d);
+>> 435:     }
+>> 436: }
+>> 437: 
+>> 438: /// The tools the index lists: binaries that are not retired. The ONE place that is decided --
+>> 439: /// the header and readme-index's own report both count this, so they cannot disagree.
+>> 440: pub fn active_tools(metas: &[ToolMeta]) -> Vec<&ToolMeta> {
+>> 441:     metas.iter().filter(|m| !m.retired && m.binary).collect()
+>> 442: }
+>> 443: 
+>> 444: /// PIECE 2c: render the top-level tools/README.md index (catalog by category).
+>> 445: pub fn render_index(metas: &[ToolMeta]) -> String {
+>> 446:     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
+>> 447:     let active = active_tools(metas);
+>> 448:     let retired: Vec<&ToolMeta> = metas.iter().filter(|m| m.retired).collect();
+>> 449: 
+>> 450:     let mut out = String::new();
+>> 451:     out.push_str("# Project 0 -- Rust Tools\n\n");
+>> 452:     out.push_str(&format!(
+>> 453:         "Project 0's tool ecosystem: {} active tools (plus {} retired), each a purpose-built Rust program.\n\n",
+>> 454:         active.len(), retired.len()
+>> 455:     ));
+>> 456:     out.push_str(&format!(
+>> 457:         "**Generated:** {} by `zero-docs readme-index`\n\n",
+>> 458:         date
+>> 459:     ));
+>> 460:     out.push_str("---\n\n");
+>> 461: 
+>> 462:     // Group active tools by category.
+>> 463:     let mut cats: Vec<String> = active.iter().map(|m| m.category.clone()).collect();
+>> 464:     cats.sort();
+>> 465:     cats.dedup();
+>> 466: 
+>> 467:     for cat in &cats {
+>> 468:         let in_cat: Vec<&&ToolMeta> = active.iter().filter(|m| &m.category == cat).collect();
+>> 469:         if in_cat.is_empty() {
+>> 470:             continue;
+>> 471:         }
+>> 472:         out.push_str(&format!("## {}\n\n", cap_first(cat)));
+>> 473:         out.push_str("| Tool | Version | Description |\n");
+>> 474:         out.push_str("|------|---------|-------------|\n");
+>> 475:         for m in &in_cat {
+>> 476:             let desc = match m.description.find("-- INT-") {
+>> 477:                 Some(pos) => m.description[..pos].trim_end().to_string(),
+>> 478:                 None => m.description.clone(),
+>> 479:             };
+>> 480:             let desc = if desc.is_empty() {
+>> 481:                 "-".to_string()
+>> 482:             } else {
+>> 483:                 desc
+>> 484:             };
+>> 485:             out.push_str(&format!(
+>> 486:                 "| [`{}`]({}) | {} | {} |\n",
+>> 487:                 m.name,
+>> 488:                 index_link(&m.name),
+>> 489:                 if m.version.is_empty() {
+>> 490:                     "-"
+>> 491:                 } else {
+>> 492:                     &m.version
+>> 493:                 },
+>> 494:                 desc,
+>> 495:             ));
+>> 496:         }
+>> 497:         out.push('\n');
+>> 498:     }
+>> 499: 
+>> 500:     if !retired.is_empty() {
+>> 501:         out.push_str("## Retired\n\n");
+>> 502:         for m in &retired {
+>> 503:             out.push_str(&format!("- `{}` (v{})\n", m.name, m.version));
+>> 504:         }
+>> 505:         out.push('\n');
+>> 506:     }
+>> 507: 
+>> 508:     out.push_str("---\n\n");
+>> 509:     out.push_str("*This index is generated -- do not hand-edit; re-run `zero-docs readme-generate` to refresh.*\n");
+>> 510:     out
+>> 511: }
+>> 512: 
+>> 513: fn cap_first(s: &str) -> String {
+>> 514:     let mut c = s.chars();
+>> 515:     match c.next() {
+>> 516:         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+>> 517:         None => String::new(),
+>> 518:     }
+>> 519: }
+>> 520: 
+>> 521: /// PIECE 2c: generate per-tool READMEs + the index. dry_run prints what WOULD be written.
+>> 522: /// Write ONLY the top-level index. Not the per-tool READMEs.
+>> 523: ///
+>> 524: /// ⚠️ `cmd_generate` BELOW WOULD DESTROY HAND-WRITTEN DOCUMENTATION. Measured 2026-09-15
+>> 525: /// on novashell/README.md: the file on disk explains why nsh is not the login shell and why
+>> 526: /// it is not POSIX. The generated replacement is a metadata stub plus a changelog dump,
+>> 527: /// headed "active (unregistered) -- uncategorized" because it looks the CRATE name
+>> 528: /// (novashell) up in a registry keyed by BINARY name (nsh). It would lose real writing
+>> 529: /// and introduce a false claim in one write.
+>> 530: ///
+>> 531: /// The INDEX has no such problem: it is entirely derived, nobody hand-edits it, and it
+>> 532: /// is built from `gather_all()` -- which reads DISK, so a deleted crate cannot survive
+>> 533: /// in it. That is why the two are separable and why only this one is safe to run.
+>> 534: pub fn cmd_index(dry_run: bool) {
+>> 535:     let metas = gather_all();
+>> 536:     let rt = zero_core::paths::tools_dir();
+>> 537:     let index = render_index(&metas);
+>> 538:     let path = rt.join("README.md");
+>> 539:     if dry_run {
+>> 540:         println!(
+>> 541:             "  would write: {} (index, {} bytes, {} active tools, {} crates read)",
+>> 542:             shown(&path),
+>> 543:             index.len(),
+>> 544:             active_tools(&metas).len(),
+>> 545:             metas.len()
+>> 546:         );
+>> 547:         return;
+>> 548:     }
+>> 549:     match std::fs::write(&path, &index) {
+>> 550:         Ok(_) => println!(
+>> 551:             "  wrote: {} (index, {} active tools, {} crates read)",
+>> 552:             shown(&path),
+>> 553:             active_tools(&metas).len(),
+>> 554:             metas.len()
+>> 555:         ),
+>> 556:         Err(e) => {
+>> 557:             eprintln!("  failed: index -- {}", e);
+>> 558:             std::process::exit(1);
+>> 559:         }
+>> 560:     }
+>> 561: }
+>> 562: 
+>> 563: pub fn cmd_generate(dry_run: bool) {
+>> 564:     let metas = gather_all();
+>> 565:     let rt = zero_core::paths::tools_dir();
+>> 566:     let mut written = 0usize;
+>> 567:     let mut skipped = 0usize;
+>> 568: 
+>> 569:     for m in &metas {
+>> 570:         // Generate READMEs for all tools (active + retired get a stub via the same template).
+>> 571:         // INT-111/037: core (engine) writes to zero/engine/, not tools/core/.
+>> 572:         let readme_path = if m.name == "core" {
+>> 573:             core_root().join("zero/engine/README.md")
+>> 574:         } else {
+>> 575:             zero_core::paths::crate_dir(&m.name)
+>> 576:                 .unwrap_or_else(|| rt.join(&m.name))
+>> 577:                 .join("README.md")
+>> 578:         };
+>> 579:         let content = render_readme(m);
+>> 580:         if dry_run {
+>> 581:             println!(
+>> 582:                 "  would write: {} ({} bytes)",
+>> 583:                 shown(&readme_path),
+>> 584:                 content.len()
+>> 585:             );
+>> 586:             written += 1;
+>> 587:             continue;
+>> 588:         }
+>> 589:         match std::fs::write(&readme_path, &content) {
+>> 590:             Ok(_) => {
+>> 591:                 written += 1;
+>> 592:             }
+>> 593:             Err(e) => {
+>> 594:                 eprintln!("  failed: {}/README.md -- {}", m.name, e);
+>> 595:                 skipped += 1;
+>> 596:             }
+>> 597:         }
+>> 598:     }
+>> 599: 
+>> 600:     // Top-level index.
+>> 601:     let index = render_index(&metas);
+>> 602:     let index_path = rt.join("README.md");
+>> 603:     if dry_run {
+>> 604:         println!(
+>> 605:             "  would write: {} (index, {} bytes)",
+>> 606:             shown(&index_path),
+>> 607:             index.len()
+>> 608:         );
+>> 609:     } else {
+>> 610:         match std::fs::write(&index_path, &index) {
+>> 611:             Ok(_) => println!("  wrote: {} (index)", shown(&index_path)),
+>> 612:             Err(e) => eprintln!("  failed: index -- {}", e),
+>> 613:         }
+>> 614:     }
+>> 615: 
+>> 616:     if dry_run {
+>> 617:         println!(
+>> 618:             "\n  DRY RUN: {} per-tool READMEs + 1 index would be written",
+>> 619:             written
+>> 620:         );
+>> 621:     } else {
+>> 622:         println!(
+>> 623:             "\n  Done: {} per-tool READMEs written, {} skipped, + index",
+>> 624:             written, skipped
+>> 625:         );
+>> 626:     }
+>> 627: }
+>> 628: 
+>> 629: /// Truncate a string at a word boundary near `max` chars, adding an ellipsis
+>> 630: /// if the original was longer. Never cuts mid-word.
+>> 631: fn truncate_words(s: &str, max: usize) -> String {
+>> 632:     if s.chars().count() <= max {
+>> 633:         return s.to_string();
+>> 634:     }
+>> 635:     // Take up to `max` chars, then back off to the last space.
+>> 636:     let head: String = s.chars().take(max).collect();
+>> 637:     let cut = match head.rfind(' ') {
+>> 638:         Some(pos) if pos > 0 => &head[..pos],
+>> 639:         _ => &head,
+>> 640:     };
+>> 641:     format!("{}\u{2026}", cut.trim_end())
+>> 642: }
+>> 643: 
+>> 644: /// PIECE 3: pull recent SUBSTANTIVE commits touching a tool's dir.
+>> 645: /// Subject-line only, noise-filtered, capped. Returns Vec<(short_hash, subject)>.
+>> 646: fn tool_history(name: &str, cap: usize) -> Vec<(String, String)> {
+>> 647:     let out = std::process::Command::new("git")
+>> 648:         .arg("-C")
+>> 649:         .arg(core_root())
+>> 650:         .args(["log", "--pretty=format:%h\x1f%s", "--"])
+>> 651:         .args(zero_core::paths::crate_history_pathspecs(name))
+>> 652:         .output();
+>> 653:     let text = match out {
+>> 654:         Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
+>> 655:         Err(_) => return vec![],
+>> 656:     };
+>> 657:     let noise = [
+>> 658:         "wip",
+>> 659:         "typo",
+>> 660:         "fmt",
+>> 661:         "format",
+>> 662:         "merge",
+>> 663:         "bump version",
+>> 664:         "checkpoint",
+>> 665:     ];
+>> 666:     let mut entries = vec![];
+>> 667:     for line in text.lines() {
+>> 668:         if let Some((hash, subj)) = line.split_once('\x1f') {
+>> 669:             let s = subj.trim();
+>> 670:             // subject only; truncate at a word boundary near 80 chars, add ellipsis.
+>> 671:             let subject = truncate_words(s, 80);
+>> 672:             let low = subject.to_lowercase();
+>> 673:             if noise.iter().any(|n| low == *n || low.starts_with(n)) {
+>> 674:                 continue;
+>> 675:             }
+>> 676:             if subject.is_empty() {
+>> 677:                 continue;
+>> 678:             }
+>> 679:             entries.push((hash.to_string(), subject));
+>> 680:             if entries.len() >= cap {
+>> 681:                 break;
+>> 682:             }
+>> 683:         }
+>> 684:     }
+>> 685:     entries
+>> 686: }
+>> 687: 
+>> 688: /// PIECE 3: render a CHANGELOG for one tool -- header + platform entry + history.
+>> 689: pub fn render_changelog(m: &ToolMeta) -> String {
+>> 690:     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
+>> 691:     let mut out = String::new();
+>> 692: 
+>> 693:     out.push_str(&format!("# Changelog -- {}\n\n", m.name));
+>> 694:     out.push_str("All notable changes to this tool. Generated by `zero-docs changelog-tools`.\n\n");
+>> 695:     out.push_str("This project follows the Project 0 versioning model; format loosely tracks Keep a Changelog.\n\n");
+>> 696:     out.push_str("---\n\n");
+>> 697: 
+>> 698:     // Platform entry: per-tool build and deploy instructions, naming the commands that work here.
+>> 699:     out.push_str(&format!(
+>> 700:         "## [{}] -- Omarchy / Arch era",
+>> 701:         if m.version.is_empty() {
+>> 702:             "current"
+>> 703:         } else {
+>> 704:             &m.version
+>> 705:         }
+>> 706:     ));
+>> 707:     out.push_str("\n\n");
+>> 708:     out.push_str("### Changed\n");
+>> 709:     out.push_str("- Migrated to Omarchy (Arch) 2026-08-26.\n");
+>> 710:     out.push_str("- Build: `cargo build --release`.\n");
+>> 711:     out.push_str("- Deploy: `ship` for the workspace, `ship <tool>` for one.\n\n");
+>> 712: 
+>> 713:     // Recent substantive history from git.
+>> 714:     let hist = tool_history(&m.name, 15);
+>> 715:     if !hist.is_empty() {
+>> 716:         out.push_str("## Recent history\n\n");
+>> 717:         for (hash, subj) in &hist {
+>> 718:             out.push_str(&format!("- `{}` {}\n", hash, subj));
+>> 719:         }
+>> 720:         out.push('\n');
+>> 721:     }
+>> 722: 
+>> 723:     out.push_str("---\n\n");
+>> 724:     out.push_str(&format!(
+>> 725:         "*Generated {} by `zero-docs changelog-tools` -- do not hand-edit; re-run to refresh.*\n",
+>> 726:         date
+>> 727:     ));
+>> 728:     out
+>> 729: }
+>> 730: 
+>> 731: /// PIECE 3: preview ONE tool's changelog (no writing).
+>> 732: pub fn cmd_changelog_preview(name: &str) {
+>> 733:     let metas = gather_all();
+>> 734:     match metas.iter().find(|m| m.name == name) {
+>> 735:         Some(m) => {
+>> 736:             println!("----- CHANGELOG preview: {} -----\n", name);
+>> 737:             print!("{}", render_changelog(m));
+>> 738:             println!("----- end preview -----");
+>> 739:         }
+>> 740:         None => println!("  tool not found on disk: {}", name),
+>> 741:     }
+>> 742: }
+>> 743: 
+>> 744: /// PIECE 3: generate CHANGELOG.md for all tools. dry_run prints what would be written.
+>> 745: pub fn cmd_changelog_generate(dry_run: bool) {
+>> 746:     let metas = gather_all();
+>> 747:     let rt = zero_core::paths::tools_dir();
+>> 748:     let mut written = 0usize;
+>> 749:     for m in &metas {
+>> 750:         let path = zero_core::paths::crate_dir(&m.name)
+>> 751:             .unwrap_or_else(|| rt.join(&m.name))
+>> 752:             .join("CHANGELOG.md");
+>> 753:         let content = render_changelog(m);
+>> 754:         if dry_run {
+>> 755:             println!("  would write: {} ({} bytes)", shown(&path), content.len());
+>> 756:             written += 1;
+>> 757:             continue;
+>> 758:         }
+>> 759:         match std::fs::write(&path, &content) {
+>> 760:             Ok(_) => written += 1,
+>> 761:             Err(e) => eprintln!("  failed: {}/CHANGELOG.md -- {}", m.name, e),
+>> 762:         }
+>> 763:     }
+>> 764:     if dry_run {
+>> 765:         println!("\n  DRY RUN: {} CHANGELOGs would be written", written);
+>> 766:     } else {
+>> 767:         println!("\n  Done: {} CHANGELOGs written", written);
+>> 768:     }
+>> 769: }
+   770: 
+++ /// The tools the index lists: binaries that are not retired. The ONE place that is decided --
+++ /// the header and readme-index's own report both count this, so they cannot disagree.
+++ pub fn active_tools(metas: &[ToolMeta]) -> Vec<&ToolMeta> {
+++     metas.iter().filter(|m| !m.retired && m.binary).collect()
+++ }
+++ 
+++ /// PIECE 2c: render the top-level tools/README.md index (catalog by category).
+++ pub fn render_index(metas: &[ToolMeta]) -> String {
+++     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
+++     let active = active_tools(metas);
+++     let retired: Vec<&ToolMeta> = metas.iter().filter(|m| m.retired).collect();
+++ 
+++     let mut out = String::new();
+++     out.push_str("# Project 0 -- Rust Tools\n\n");
+++     out.push_str(&format!(
+++         "Project 0's tool ecosystem: {} active tools (plus {} retired), each a purpose-built Rust program.\n\n",
+++         active.len(), retired.len()
+++     ));
+++     out.push_str(&format!(
+++         "**Generated:** {} by `zero-docs readme-index`\n\n",
+++         date
+++     ));
+++     out.push_str("---\n\n");
+++ 
+++     // Group active tools by category.
+++     let mut cats: Vec<String> = active.iter().map(|m| m.category.clone()).collect();
+++     cats.sort();
+++     cats.dedup();
+++ 
+++     for cat in &cats {
+++         let in_cat: Vec<&&ToolMeta> = active.iter().filter(|m| &m.category == cat).collect();
+++         if in_cat.is_empty() {
+++             continue;
+++         }
+++         out.push_str(&format!("## {}\n\n", cap_first(cat)));
+++         out.push_str("| Tool | Version | Description |\n");
+++         out.push_str("|------|---------|-------------|\n");
+++         for m in &in_cat {
+++             let desc = match m.description.find("-- INT-") {
+++                 Some(pos) => m.description[..pos].trim_end().to_string(),
+++                 None => m.description.clone(),
+++             };
+++             let desc = if desc.is_empty() {
+++                 "-".to_string()
+++             } else {
+++                 desc
+++             };
+++             out.push_str(&format!(
+++                 "| [`{}`]({}) | {} | {} |\n",
+++                 m.name,
+++                 index_link(&m.name),
+++                 if m.version.is_empty() {
+++                     "-"
+++                 } else {
+++                     &m.version
+++                 },
+++                 desc,
+++             ));
+++         }
+++         out.push('\n');
+++     }
+++ 
+++     if !retired.is_empty() {
+++         out.push_str("## Retired\n\n");
+++         for m in &retired {
+++             out.push_str(&format!("- `{}` (v{})\n", m.name, m.version));
+++         }
+++         out.push('\n');
+++     }
+++ 
+++     out.push_str("---\n\n");
+++     out.push_str("*This index is generated -- do not hand-edit; re-run `zero-docs readme-generate` to refresh.*\n");
+++     out
+++ }
+++ 
+++ fn cap_first(s: &str) -> String {
+++     let mut c = s.chars();
+++     match c.next() {
+++         Some(f) => f.to_uppercase().collect::<String>() + c.as_str(),
+++         None => String::new(),
+++     }
+++ }
+++ 
+++ /// PIECE 2c: generate per-tool READMEs + the index. dry_run prints what WOULD be written.
+++ /// Write ONLY the top-level index. Not the per-tool READMEs.
+++ ///
+++ /// ⚠️ `cmd_generate` BELOW WOULD DESTROY HAND-WRITTEN DOCUMENTATION. Measured 2026-09-15
+++ /// on novashell/README.md: the file on disk explains why nsh is not the login shell and why
+++ /// it is not POSIX. The generated replacement is a metadata stub plus a changelog dump,
+++ /// headed "active (unregistered) -- uncategorized" because it looks the CRATE name
+++ /// (novashell) up in a registry keyed by BINARY name (nsh). It would lose real writing
+++ /// and introduce a false claim in one write.
+++ ///
+++ /// The INDEX has no such problem: it is entirely derived, nobody hand-edits it, and it
+++ /// is built from `gather_all()` -- which reads DISK, so a deleted crate cannot survive
+++ /// in it. That is why the two are separable and why only this one is safe to run.
+++ pub fn cmd_index(dry_run: bool) {
+++     let metas = gather_all();
+++     let rt = zero_core::paths::tools_dir();
+++     let index = render_index(&metas);
+++     let path = rt.join("README.md");
+++     if dry_run {
+++         println!(
+++             "  would write: {} (index, {} bytes, {} active tools, {} crates read)",
+++             shown(&path),
+++             index.len(),
+++             active_tools(&metas).len(),
+++             metas.len()
+++         );
+++         return;
+++     }
+++     match std::fs::write(&path, &index) {
+++         Ok(_) => println!(
+++             "  wrote: {} (index, {} active tools, {} crates read)",
+++             shown(&path),
+++             active_tools(&metas).len(),
+++             metas.len()
+++         ),
+++         Err(e) => {
+++             eprintln!("  failed: index -- {}", e);
+++             std::process::exit(1);
+++         }
+++     }
+++ }
+++ 
+++ pub fn cmd_generate(dry_run: bool) {
+++     let metas = gather_all();
+++     let rt = zero_core::paths::tools_dir();
+++     let mut written = 0usize;
+++     let mut skipped = 0usize;
+++ 
+++     for m in &metas {
+++         // Generate READMEs for all tools (active + retired get a stub via the same template).
+++         // INT-111/037: core (engine) writes to zero/engine/, not tools/core/.
+++         let readme_path = if m.name == "core" {
+++             core_root().join("zero/engine/README.md")
+++         } else {
+++             zero_core::paths::crate_dir(&m.name)
+++                 .unwrap_or_else(|| rt.join(&m.name))
+++                 .join("README.md")
+++         };
+++         let content = render_readme(m);
+++         if dry_run {
+++             println!(
+++                 "  would write: {} ({} bytes)",
+++                 shown(&readme_path),
+++                 content.len()
+++             );
+++             written += 1;
+++             continue;
+++         }
+++         match std::fs::write(&readme_path, &content) {
+++             Ok(_) => {
+++                 written += 1;
+++             }
+++             Err(e) => {
+++                 eprintln!("  failed: {}/README.md -- {}", m.name, e);
+++                 skipped += 1;
+++             }
+++         }
+++     }
+++ 
+++     // Top-level index.
+++     let index = render_index(&metas);
+++     let index_path = rt.join("README.md");
+++     if dry_run {
+++         println!(
+++             "  would write: {} (index, {} bytes)",
+++             shown(&index_path),
+++             index.len()
+++         );
+++     } else {
+++         match std::fs::write(&index_path, &index) {
+++             Ok(_) => println!("  wrote: {} (index)", shown(&index_path)),
+++             Err(e) => eprintln!("  failed: index -- {}", e),
+++         }
+++     }
+++ 
+++     if dry_run {
+++         println!(
+++             "\n  DRY RUN: {} per-tool READMEs + 1 index would be written",
+++             written
+++         );
+++     } else {
+++         println!(
+++             "\n  Done: {} per-tool READMEs written, {} skipped, + index",
+++             written, skipped
+++         );
+++     }
+++ }
+++ 
+++ /// Truncate a string at a word boundary near `max` chars, adding an ellipsis
+++ /// if the original was longer. Never cuts mid-word.
+++ fn truncate_words(s: &str, max: usize) -> String {
+++     if s.chars().count() <= max {
+++         return s.to_string();
+++     }
+++     // Take up to `max` chars, then back off to the last space.
+++     let head: String = s.chars().take(max).collect();
+++     let cut = match head.rfind(' ') {
+++         Some(pos) if pos > 0 => &head[..pos],
+++         _ => &head,
+++     };
+++     format!("{}\u{2026}", cut.trim_end())
+++ }
+++ 
+++ /// PIECE 3: pull recent SUBSTANTIVE commits touching a tool's dir.
+++ /// Subject-line only, noise-filtered, capped. Returns Vec<(short_hash, subject)>.
+++ fn tool_history(name: &str, cap: usize) -> Vec<(String, String)> {
+++     let out = std::process::Command::new("git")
+++         .arg("-C")
+++         .arg(core_root())
+++         .args(["log", "--pretty=format:%h\x1f%s", "--"])
+++         .args(zero_core::paths::crate_history_pathspecs(name))
+++         .output();
+++     let text = match out {
+++         Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
+++         Err(_) => return vec![],
+++     };
+++     let noise = [
+++         "wip",
+++         "typo",
+++         "fmt",
+++         "format",
+++         "merge",
+++         "bump version",
+++         "checkpoint",
+++     ];
+++     let mut entries = vec![];
+++     for line in text.lines() {
+++         if let Some((hash, subj)) = line.split_once('\x1f') {
+++             let s = subj.trim();
+++             // subject only; truncate at a word boundary near 80 chars, add ellipsis.
+++             let subject = truncate_words(s, 80);
+++             let low = subject.to_lowercase();
+++             if noise.iter().any(|n| low == *n || low.starts_with(n)) {
+++                 continue;
+++             }
+++             if subject.is_empty() {
+++                 continue;
+++             }
+++             entries.push((hash.to_string(), subject));
+++             if entries.len() >= cap {
+++                 break;
+++             }
+++         }
+++     }
+++     entries
+++ }
+++ 
+++ /// PIECE 3: render a CHANGELOG for one tool -- header + platform entry + history.
+++ pub fn render_changelog(m: &ToolMeta) -> String {
+++     let date = chrono::Local::now().format("%Y-%m-%d").to_string();
+++     let mut out = String::new();
+++ 
+++     out.push_str(&format!("# Changelog -- {}\n\n", m.name));
+++     out.push_str("All notable changes to this tool. Generated by `zero-docs changelog-tools`.\n\n");
+++     out.push_str("This project follows the Project 0 versioning model; format loosely tracks Keep a Changelog.\n\n");
+++     out.push_str("---\n\n");
+++ 
+++     // Platform entry: per-tool build and deploy instructions, naming the commands that work here.
+++     out.push_str(&format!(
+++         "## [{}] -- Omarchy / Arch era",
+++         if m.version.is_empty() {
+++             "current"
+++         } else {
+++             &m.version
+++         }
+++     ));
+++     out.push_str("\n\n");
+++     out.push_str("### Changed\n");
+++     out.push_str("- Migrated to Omarchy (Arch) 2026-08-26.\n");
+++     out.push_str("- Build: `cargo build --release`.\n");
+++     out.push_str("- Deploy: `ship` for the workspace, `ship <tool>` for one.\n\n");
+++ 
+++     // Recent substantive history from git.
+++     let hist = tool_history(&m.name, 15);
+++     if !hist.is_empty() {
+++         out.push_str("## Recent history\n\n");
+++         for (hash, subj) in &hist {
+++             out.push_str(&format!("- `{}` {}\n", hash, subj));
+++         }
+++         out.push('\n');
+++     }
+++ 
+++     out.push_str("---\n\n");
+++     out.push_str(&format!(
+++         "*Generated {} by `zero-docs changelog-tools` -- do not hand-edit; re-run to refresh.*\n",
+++         date
+++     ));
+++     out
+++ }
+++ 
+++ /// PIECE 3: preview ONE tool's changelog (no writing).
+++ pub fn cmd_changelog_preview(name: &str) {
+++     let metas = gather_all();
+++     match metas.iter().find(|m| m.name == name) {
+++         Some(m) => {
+++             println!("----- CHANGELOG preview: {} -----\n", name);
+++             print!("{}", render_changelog(m));
+++             println!("----- end preview -----");
+++         }
+++         None => println!("  tool not found on disk: {}", name),
+++     }
+++ }
+++ 
+++ /// PIECE 3: generate CHANGELOG.md for all tools. dry_run prints what would be written.
+++ pub fn cmd_changelog_generate(dry_run: bool) {
+++     let metas = gather_all();
+++     let rt = zero_core::paths::tools_dir();
+++     let mut written = 0usize;
+++     for m in &metas {
+++         let path = zero_core::paths::crate_dir(&m.name)
+++             .unwrap_or_else(|| rt.join(&m.name))
+++             .join("CHANGELOG.md");
+++         let content = render_changelog(m);
+++         if dry_run {
+++             println!("  would write: {} ({} bytes)", shown(&path), content.len());
+++             written += 1;
+++             continue;
+++         }
+++         match std::fs::write(&path, &content) {
+++             Ok(_) => written += 1,
+++             Err(e) => eprintln!("  failed: {}/CHANGELOG.md -- {}", m.name, e),
+++         }
+++     }
+++     if dry_run {
+++         println!("\n  DRY RUN: {} CHANGELOGs would be written", written);
+++     } else {
+++         println!("\n  Done: {} CHANGELOGs written", written);
+++     }
+++ }
+++ 
+++ #[cfg(test)]
+++ mod count_tests {
+++     use super::*;
+++ 
+++     /// The catalog counts tools, and a tool is a binary. A library crate on disk is not one --
+++     /// counting every crate made the catalog say 22 while 18 binaries were deployed.
+++     #[test]
+++     fn a_library_crate_is_not_a_tool() {
+++         let d = std::env::temp_dir().join(format!("zero-docs-count-{}", std::process::id()));
+++         let _ = std::fs::remove_dir_all(&d);
+++         std::fs::create_dir_all(d.join("src")).unwrap();
+++         let cargo = d.join("Cargo.toml");
+++         std::fs::write(&cargo, "[package]\nname = \"x\"\nversion = \"0.1.0\"\n").unwrap();
+++         std::fs::write(d.join("src/lib.rs"), "").unwrap();
+++         assert!(
+++             !parse_cargo(&cargo).unwrap().binary,
+++             "lib.rs alone is not a tool"
+++         );
+++         std::fs::write(d.join("src/main.rs"), "fn main() {}").unwrap();
+++         assert!(
+++             parse_cargo(&cargo).unwrap().binary,
+++             "src/main.rs is a binary"
+++         );
+++         std::fs::remove_file(d.join("src/main.rs")).unwrap();
+++         std::fs::write(
+++             &cargo,
+++             "[package]\nname = \"x\"\n\n[[bin]]\nname = \"x\"\npath = \"src/x.rs\"\n",
+++         )
+++         .unwrap();
+++         assert!(
+++             parse_cargo(&cargo).unwrap().binary,
+++             "a [[bin]] target is a binary"
+++         );
+++         let _ = std::fs::remove_dir_all(&d);
+++     }
+++ }
+/home/christian/0-core/zero/engine/src/domains/friday/attention.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/friday/doc_steward.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/predict/mod.rs: 1 replaced
+/home/christian/0-core/zero/tools/zero-doctor/src/probes/internals.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/snapshot/mod.rs: 9 line(s) replaced by 9
+/home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: 26 line(s) replaced by 1
+/home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: 1 line(s) replaced by 23
+/home/christian/0-core/zero/engine/src/domains/integrity/mod.rs: 462 line(s) replaced by 462
+/home/christian/0-core/zero/tools/zero-docs/src/toolgen.rs: 1 replaced
+/home/christian/0-core/zero/tools/zero-docs/src/toolgen.rs: 1 replaced
+/home/christian/0-core/zero/tools/zero-docs/src/toolgen.rs: 369 line(s) replaced by 369
