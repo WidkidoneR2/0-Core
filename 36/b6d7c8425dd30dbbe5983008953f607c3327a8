@@ -1,0 +1,655 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 2b167615148c43e3 -> 6fe9c8fe049c17d0
+file /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs  sha256 a8d94b4add42b58b -> 39cbf11bf62c0302
+file /home/christian/0-core/zero/shell/novashell/Cargo.toml  sha256 3b39ecab44fbdcdb -> 00229a788dd32a39
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1088..1100 ---
+   1086: }
+   1087: 
+>> 1088: /// A crate this intent's commits touched: the id bump-versions accepts, and its Cargo.toml
+>> 1089: /// relative to the 0-core root.
+>> 1090: struct TouchedCrate {
+>> 1091:     tool: &'static str,
+>> 1092:     rel: String,
+>> 1093: }
+>> 1094: 
+>> 1095: /// One settled crate. `level` None means skipped.
+>> 1096: struct VersionPlan {
+>> 1097:     tool: &'static str,
+>> 1098:     rel: String,
+>> 1099:     level: Option<zero_core::version::Level>,
+>> 1100: }
+   1101: 
+   1102: /// INT-326 found the touched crates this way. INT-271 keeps the detection and names each crate
+++ /// A crate this intent's commits touched: its registry row's name (core, nsh, nsh-test), its
+++ /// package and directory, and its Cargo.toml relative to the 0-core root (INT-287 G2).
+++ struct TouchedCrate {
+++     tool: String,
+++     package: String,
+++     dir: String,
+++     rel: String,
+++ }
+++ 
+++ impl TouchedCrate {
+++     /// The last segment of its directory: engine, novashell. --bump accepts it.
+++     fn folder(&self) -> &str {
+++         self.dir.rsplit('/').next().unwrap_or(&self.dir)
+++     }
+++ }
+++ 
+++ /// One settled crate. `level` None means skipped.
+++ struct VersionPlan {
+++     tool: String,
+++     rel: String,
+++     level: Option<zero_core::version::Level>,
+++ }
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1140..1158 ---
+   1138: }
+   1139: 
+>> 1140: /// INT-287 G2: the crates a set of repo paths touches, in the order the close asks about them.
+>> 1141: /// Pure: the paths and the workspace come in and nothing is read, so a test can call it.
+>> 1142: /// TRACKED_CRATES and path_in_crate still decide (F-0028); each crate's Cargo.toml comes from
+>> 1143: /// the registry's workspace, the same file crate_rel_dir gave for all five.
+>> 1144: fn crates_touched(
+>> 1145:     paths: &[&str],
+>> 1146:     ws: &zero_core::registry::Workspace,
+>> 1147: ) -> Result<Vec<TouchedCrate>, String> {
+>> 1148:     Ok(TRACKED_CRATES
+>> 1149:         .iter()
+>> 1150:         .filter(|tool| paths.iter().any(|p| path_in_crate(p, tool)))
+>> 1151:         .filter_map(|tool| {
+>> 1152:             ws.find(tool).map(|v| TouchedCrate {
+>> 1153:                 tool,
+>> 1154:                 rel: format!("{}/Cargo.toml", v.krate.dir),
+>> 1155:             })
+>> 1156:         })
+>> 1157:         .collect())
+>> 1158: }
+   1159: 
+   1160: /// Check every --bump before anything is asked or written: the `tool=level` shape, a crate this
+++ /// INT-287 G2: the crates a set of repo paths touches, in the workspace's directory order.
+++ /// Pure: the paths and the workspace come in and nothing is read, so a test can call it.
+++ /// The registry decides (F-0028): every versioned crate a path lies under is offered, and a
+++ /// touched crate with no versioned row refuses the close and is named.
+++ fn crates_touched(
+++     paths: &[&str],
+++     ws: &zero_core::registry::Workspace,
+++ ) -> Result<Vec<TouchedCrate>, String> {
+++     let touches = |dir: &str| paths.iter().any(|p| path_in_crate(p, dir));
+++     let unversioned: Vec<&str> = ws
+++         .unversioned
+++         .iter()
+++         .filter(|c| touches(&c.dir))
+++         .map(|c| c.package.as_str())
+++         .collect();
+++     if !unversioned.is_empty() {
+++         return Err(format!(
+++             "this intent touched {} with no versioned row in the tool registry, so no version can be offered. Add a [[tool]] row for each to zero/registry/tools.toml, then rerun the close",
+++             unversioned.join(", ")
+++         ));
+++     }
+++     Ok(ws
+++         .versioned
+++         .iter()
+++         .filter(|v| touches(&v.krate.dir))
+++         .map(|v| TouchedCrate {
+++             tool: v.row.name.clone(),
+++             package: v.krate.package.clone(),
+++             dir: v.krate.dir.clone(),
+++             rel: format!("{}/Cargo.toml", v.krate.dir),
+++         })
+++         .collect())
+++ }
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1174..1214 ---
+   1172: }
+   1173: 
+>> 1174: /// Check every --bump before anything is asked or written: the `tool=level` shape, a crate this
+>> 1175: /// intent touched, a known level, no crate named twice. `core` is accepted for `engine`.
+>> 1176: fn parse_bump_flags(
+>> 1177:     raw: &[String],
+>> 1178:     touched: &[&'static str],
+>> 1179: ) -> Result<Vec<(&'static str, Option<zero_core::version::Level>)>, String> {
+>> 1180:     let mut out: Vec<(&'static str, Option<zero_core::version::Level>)> = Vec::new();
+>> 1181:     for r in raw {
+>> 1182:         let (name, word) = r
+>> 1183:             .split_once('=')
+>> 1184:             .ok_or_else(|| format!("--bump {} is not tool=level", r))?;
+>> 1185:         let name = if name == "core" { "engine" } else { name };
+>> 1186:         let tool = touched
+>> 1187:             .iter()
+>> 1188:             .copied()
+>> 1189:             .find(|t| *t == name)
+>> 1190:             .ok_or_else(|| {
+>> 1191:                 let seen = if touched.is_empty() {
+>> 1192:                     "none".to_string()
+>> 1193:                 } else {
+>> 1194:                     touched.join(", ")
+>> 1195:                 };
+>> 1196:                 format!(
+>> 1197:                     "--bump {}: this intent's commits did not touch {} (touched: {})",
+>> 1198:                     r, name, seen
+>> 1199:                 )
+>> 1200:             })?;
+>> 1201:         let level = if word == "skip" {
+>> 1202:             None
+>> 1203:         } else {
+>> 1204:             Some(zero_core::version::Level::parse(word).ok_or_else(|| {
+>> 1205:                 format!("--bump {}: {} is not patch, minor, major or skip", r, word)
+>> 1206:             })?)
+>> 1207:         };
+>> 1208:         if out.iter().any(|(t, _)| *t == tool) {
+>> 1209:             return Err(format!("--bump names {} twice", tool));
+>> 1210:         }
+>> 1211:         out.push((tool, level));
+>> 1212:     }
+>> 1213:     Ok(out)
+>> 1214: }
+   1215: 
+   1216: /// Ask on stderr until the answer is a level or skip. No default: the digit is a judgement about
+++ /// Check every --bump before anything is asked or written: the `tool=level` shape, a crate this
+++ /// intent touched, a known level, no crate named twice. A crate answers to its registry row, its
+++ /// package or its folder (core or engine, nsh or novashell) and is named by its row (INT-287 G2).
+++ fn parse_bump_flags(
+++     raw: &[String],
+++     touched: &[TouchedCrate],
+++ ) -> Result<Vec<(String, Option<zero_core::version::Level>)>, String> {
+++     let mut out: Vec<(String, Option<zero_core::version::Level>)> = Vec::new();
+++     for r in raw {
+++         let (name, word) = r
+++             .split_once('=')
+++             .ok_or_else(|| format!("--bump {} is not tool=level", r))?;
+++         let tool = touched
+++             .iter()
+++             .find(|t| t.tool == name)
+++             .or_else(|| touched.iter().find(|t| t.package == name))
+++             .or_else(|| touched.iter().find(|t| t.folder() == name))
+++             .map(|t| t.tool.clone())
+++             .ok_or_else(|| {
+++                 let seen: Vec<&str> = touched.iter().map(|t| t.tool.as_str()).collect();
+++                 let seen = if seen.is_empty() {
+++                     "none".to_string()
+++                 } else {
+++                     seen.join(", ")
+++                 };
+++                 format!(
+++                     "--bump {}: this intent's commits did not touch {} (touched: {})",
+++                     r, name, seen
+++                 )
+++             })?;
+++         let level = if word == "skip" {
+++             None
+++         } else {
+++             Some(zero_core::version::Level::parse(word).ok_or_else(|| {
+++                 format!("--bump {}: {} is not patch, minor, major or skip", r, word)
+++             })?)
+++         };
+++         if out.iter().any(|(t, _)| *t == tool) {
+++             return Err(format!("--bump names {} twice", tool));
+++         }
+++         out.push((tool, level));
+++     }
+++     Ok(out)
+++ }
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1245..1266 ---
+   1243: }
+   1244: 
+>> 1245: /// INT-273: the crates the close tracks, in the order it asks about them.
+>> 1246: const TRACKED_CRATES: [&str; 5] = [
+>> 1247:     "novashell",
+>> 1248:     "engine",
+>> 1249:     "zero-git",
+>> 1250:     "friday-chat",
+>> 1251:     "db-browse",
+>> 1252: ];
+>> 1253: 
+>> 1254: /// INT-273: whether a repo path is inside a tracked crate. The one rule: touched_crates uses it to
+>> 1255: /// decide what to ask about and the evidence uses it to decide what to show, so the two cannot
+>> 1256: /// disagree. novashell is matched under every parent it has lived in, engine by its source and
+>> 1257: /// manifest, the rest by name, as INT-326 did.
+>> 1258: fn path_in_crate(path: &str, tool: &str) -> bool {
+>> 1259:     match tool {
+>> 1260:         "novashell" => zero_core::paths::CRATE_PARENTS_HISTORY
+>> 1261:             .iter()
+>> 1262:             .any(|p| path.contains(&format!("{}/novashell", p))),
+>> 1263:         "engine" => path.contains("engine/src") || path.contains("engine/Cargo"),
+>> 1264:         _ => path.contains(tool),
+>> 1265:     }
+>> 1266: }
+   1267: 
+   1268: /// INT-273: one file a commit changed. `added` and `removed` are None for a binary file; `from` is
+++ /// INT-273, INT-287 ruling 2: whether a repo path lies inside the crate at `dir` (zero/engine,
+++ /// zero/shell/novashell). Any file under the crate's folder counts. The close reads 60 days of
+++ /// git log, whose paths keep the parent a crate had then, so the folder is also matched beneath
+++ /// every parent in CRATE_PARENTS_HISTORY. The one rule: crates_touched decides with it and the
+++ /// evidence shows with it, so the two cannot disagree. Whole segments only: novashell-x/ and
+++ /// docs/novashell.md are not novashell.
+++ fn path_in_crate(path: &str, dir: &str) -> bool {
+++     let folder = dir.rsplit('/').next().unwrap_or(dir);
+++     let under = |root: &str| {
+++         let key = format!("{}/", root);
+++         path.starts_with(&key) || path.contains(&format!("/{}", key))
+++     };
+++     under(dir)
+++         || zero_core::paths::CRATE_PARENTS_HISTORY
+++             .iter()
+++             .any(|parent| under(&format!("{}/{}", parent, folder)))
+++ }
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1363..1363 ---
+   1361: /// it, the files and lines they changed under it, the tier legend and the join-key note. It
+   1362: /// informs the digit and never chooses it (INT-102 D4 and D5).
+>> 1363: fn evidence_lines(commits: &[EvCommit], tool: &str, id: &str) -> Vec<String> {
+   1364:     struct Total {
+   1365:         path: String,
+++ fn evidence_lines(commits: &[EvCommit], tool: &str, dir: &str, id: &str) -> Vec<String> {
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1374..1374 ---
+   1372:     let mine: Vec<&EvCommit> = commits
+   1373:         .iter()
+>> 1374:         .filter(|c| c.files.iter().any(|f| path_in_crate(&f.path, tool)))
+   1375:         .collect();
+   1376:     let mut out = vec![format!(
+++         .filter(|c| c.files.iter().any(|f| path_in_crate(&f.path, dir)))
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1390..1390 ---
+   1388:     let mut totals: Vec<Total> = Vec::new();
+   1389:     for c in &mine {
+>> 1390:         for f in c.files.iter().filter(|f| path_in_crate(&f.path, tool)) {
+   1391:             let at = match totals.iter().position(|t| t.path == f.path) {
+   1392:                 Some(n) => n,
+++         for f in c.files.iter().filter(|f| path_in_crate(&f.path, dir)) {
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1494..1494 ---
+   1492:     fn every_number_matches_the_scratch_tree() {
+   1493:         let commits = parse_numstat_z(&raw());
+>> 1494:         let ns = evidence_lines(&commits, "novashell", "999").join("\n");
+   1495:         let renamed = format!("(renamed from {}/novashell/src/a.rs)", SHELL_PARENT);
+   1496:         assert!(
+++         let dir = format!("{}/novashell", SHELL_PARENT);
+++         let ns = evidence_lines(&commits, "novashell", &dir, "999").join("\n");
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1507..1507 ---
+   1505:         assert!(ns.contains("tiers: major breaks a promise"), "{}", ns);
+   1506:         assert!(ns.contains("whose message names INT-999"), "{}", ns);
+>> 1507:         let en = evidence_lines(&commits, "engine", "999").join("\n");
+   1508:         assert!(en.contains("engine: 1 commit(s) naming INT-999"), "{}", en);
+   1509:         assert!(en.contains("1 file(s) under engine, +5 -0"), "{}", en);
+++         let en = evidence_lines(&commits, "engine", "zero/engine", "999").join("\n");
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1513..1531 ---
+   1511:     }
+   1512: 
+>> 1513:     #[test]
+>> 1514:     fn one_rule_places_a_path_in_a_crate() {
+>> 1515:         for parent in CRATE_PARENTS_HISTORY {
+>> 1516:             let p = format!("{}/novashell/src/main.rs", parent);
+>> 1517:             assert!(path_in_crate(&p, "novashell"), "{}", p);
+>> 1518:         }
+>> 1519:         // A historical parent under an older root still matches, as touched_crates always did.
+>> 1520:         let nested = format!("old/{}/novashell/Cargo.toml", CRATE_PARENTS_HISTORY[0]);
+>> 1521:         assert!(path_in_crate(&nested, "novashell"), "{}", nested);
+>> 1522:         assert!(path_in_crate("zero/engine/src/main.rs", "engine"));
+>> 1523:         assert!(path_in_crate("zero/engine/Cargo.toml", "engine"));
+>> 1524:         assert!(!path_in_crate("zero/engine/README.md", "engine"));
+>> 1525:         let git = format!("{}/zero-git/src/lib.rs", TOOLS_PARENT);
+>> 1526:         assert!(path_in_crate(&git, "zero-git"), "{}", git);
+>> 1527:         assert!(!path_in_crate(
+>> 1528:             "zero/intents/complete/272-x.md",
+>> 1529:             "novashell"
+>> 1530:         ));
+>> 1531:     }
+   1532: }
+   1533: 
+++     #[test]
+++     fn one_rule_places_a_path_in_a_crate() {
+++         let ns = format!("{}/novashell", SHELL_PARENT);
+++         for parent in CRATE_PARENTS_HISTORY {
+++             let p = format!("{}/novashell/src/main.rs", parent);
+++             assert!(path_in_crate(&p, &ns), "{}", p);
+++         }
+++         // A historical parent under an older root still matches, as touched_crates always did.
+++         let nested = format!("old/{}/novashell/Cargo.toml", CRATE_PARENTS_HISTORY[0]);
+++         assert!(path_in_crate(&nested, &ns), "{}", nested);
+++         assert!(path_in_crate("zero/engine/src/main.rs", "zero/engine"));
+++         assert!(path_in_crate("zero/engine/Cargo.toml", "zero/engine"));
+++         // INT-287 ruling 2: any file under a crate's folder touches it, not only src and Cargo.
+++         assert!(path_in_crate("zero/engine/README.md", "zero/engine"));
+++         let git = format!("{}/zero-git", TOOLS_PARENT);
+++         let lib = format!("{}/src/lib.rs", git);
+++         assert!(path_in_crate(&lib, &git), "{}", lib);
+++         // A folder that only starts with a crate's name, or a file named like one, is not in it.
+++         let longer = format!("{}/novashell-x/src/a.rs", SHELL_PARENT);
+++         assert!(!path_in_crate(&longer, &ns), "{}", longer);
+++         assert!(!path_in_crate("zero/docs/novashell.md", &ns));
+++         assert!(!path_in_crate("zero/intents/complete/272-x.md", &ns));
+++     }
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1549..1550 ---
+   1547:     use std::io::IsTerminal;
+   1548:     let touched = touched_crates(ctx, id)?;
+>> 1549:     let ids: Vec<&'static str> = touched.iter().map(|t| t.tool).collect();
+>> 1550:     let explicit = parse_bump_flags(&flags.bumps, &ids)?;
+   1551:     let interactive = std::io::stdin().is_terminal();
+   1552:     // INT-273: the work this intent did, read once and shown above each question that is asked.
+++     let explicit = parse_bump_flags(&flags.bumps, &touched)?;
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1558..1558 ---
+   1556:     };
+   1557:     let mut plans = Vec::new();
+>> 1558:     let mut undecided: Vec<&'static str> = Vec::new();
+   1559:     for t in &touched {
+   1560:         let full = std::path::Path::new(&ctx.core_root).join(&t.rel);
+++     let mut undecided: Vec<&str> = Vec::new();
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1573..1573 ---
+   1571:             match &evidence {
+   1572:                 Some(Ok(commits)) => {
+>> 1573:                     for line in evidence_lines(commits, t.tool, id) {
+   1574:                         eprintln!("{}", line);
+   1575:                     }
+++                     for line in evidence_lines(commits, &t.tool, &t.dir, id) {
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1580..1580 ---
+   1578:                 None => {}
+   1579:             }
+>> 1580:             ask_level(t.tool, &current)?
+   1581:         } else {
+   1582:             undecided.push(t.tool);
+++             ask_level(&t.tool, &current)?
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1582..1582 ---
+   1580:             ask_level(&t.tool, &current)?
+   1581:         } else {
+>> 1582:             undecided.push(t.tool);
+   1583:             continue;
+   1584:         };
+++             undecided.push(&t.tool);
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1590..1590 ---
+   1588:         }
+   1589:         plans.push(VersionPlan {
+>> 1590:             tool: t.tool,
+   1591:             rel: t.rel.clone(),
+   1592:             level,
+++             tool: t.tool.clone(),
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1718..1789 ---
+   1716: }
+   1717: 
+>> 1718: #[cfg(test)]
+>> 1719: mod int287_close_tests {
+>> 1720:     use super::crates_touched;
+>> 1721:     use zero_core::paths::SHELL_PARENT;
+>> 1722:     use zero_core::registry::{match_rows, parse, Crate};
+>> 1723: 
+>> 1724:     /// F-0028: the close offered a version only to five crates named in code, so nsh-test
+>> 1725:     /// changed in e1a19f83 and INT-285 closed without asking. A crate the registry versions is
+>> 1726:     /// offered when the intent touched it, whatever its name.
+>> 1727:     #[test]
+>> 1728:     fn a_touched_crate_outside_the_old_five_is_offered() {
+>> 1729:         let rows = parse(concat!(
+>> 1730:             "[[tool]]\nname = \"nsh-test\"\nversion = \"2.0.3\"\n",
+>> 1731:             "type = \"rust\"\nretired = false\n",
+>> 1732:         ))
+>> 1733:         .unwrap();
+>> 1734:         let dir = format!("{}/nsh-test", SHELL_PARENT);
+>> 1735:         let crates = vec![Crate {
+>> 1736:             package: "nsh-test".into(),
+>> 1737:             dir: dir.clone(),
+>> 1738:         }];
+>> 1739:         let ws = match_rows(&rows, &crates).unwrap();
+>> 1740:         let path = format!("{}/src/main.rs", dir);
+>> 1741:         let got: Vec<String> = crates_touched(&[path.as_str()], &ws)
+>> 1742:             .unwrap()
+>> 1743:             .iter()
+>> 1744:             .map(|t| t.tool.to_string())
+>> 1745:             .collect();
+>> 1746:         assert_eq!(got, ["nsh-test"]);
+>> 1747:     }
+>> 1748: }
+>> 1749: 
+>> 1750: #[cfg(test)]
+>> 1751: mod int271_close_tests {
+>> 1752:     use super::parse_bump_flags;
+>> 1753:     use zero_core::version::Level;
+>> 1754: 
+>> 1755:     const TOUCHED: &[&str] = &["novashell", "engine"];
+>> 1756: 
+>> 1757:     fn flags(raw: &[&str]) -> Vec<String> {
+>> 1758:         raw.iter().map(|s| s.to_string()).collect()
+>> 1759:     }
+>> 1760: 
+>> 1761:     #[test]
+>> 1762:     fn a_bump_names_a_touched_crate_and_a_level() {
+>> 1763:         let got = parse_bump_flags(&flags(&["novashell=minor", "core=skip"]), TOUCHED).unwrap();
+>> 1764:         assert_eq!(
+>> 1765:             got,
+>> 1766:             vec![("novashell", Some(Level::Minor)), ("engine", None)]
+>> 1767:         );
+>> 1768:     }
+>> 1769: 
+>> 1770:     #[test]
+>> 1771:     fn every_bad_bump_is_refused_before_anything_is_asked() {
+>> 1772:         for bad in [
+>> 1773:             "novashell",
+>> 1774:             "novashell=ptach",
+>> 1775:             "frob=patch",
+>> 1776:             "db-browse=patch",
+>> 1777:             "novashell=",
+>> 1778:         ] {
+>> 1779:             assert!(
+>> 1780:                 parse_bump_flags(&flags(&[bad]), TOUCHED).is_err(),
+>> 1781:                 "{} should be refused",
+>> 1782:                 bad
+>> 1783:             );
+>> 1784:         }
+>> 1785:         assert!(
+>> 1786:             parse_bump_flags(&flags(&["novashell=patch", "novashell=minor"]), TOUCHED).is_err()
+>> 1787:         );
+>> 1788:     }
+>> 1789: }
+   1790: 
+   1791: pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreResult<()> {
+++ #[cfg(test)]
+++ mod int287_close_tests {
+++     use super::crates_touched;
+++     use zero_core::paths::SHELL_PARENT;
+++     use zero_core::registry::{match_rows, parse, Crate};
+++ 
+++     /// F-0028: the close offered a version only to five crates named in code, so nsh-test
+++     /// changed in e1a19f83 and INT-285 closed without asking. A crate the registry versions is
+++     /// offered when the intent touched it, whatever its name.
+++     #[test]
+++     fn a_touched_crate_outside_the_old_five_is_offered() {
+++         let rows = parse(concat!(
+++             "[[tool]]\nname = \"nsh-test\"\nversion = \"2.0.3\"\n",
+++             "type = \"rust\"\nretired = false\n",
+++         ))
+++         .unwrap();
+++         let dir = format!("{}/nsh-test", SHELL_PARENT);
+++         let crates = vec![Crate {
+++             package: "nsh-test".into(),
+++             dir: dir.clone(),
+++         }];
+++         let ws = match_rows(&rows, &crates).unwrap();
+++         let path = format!("{}/src/main.rs", dir);
+++         let got: Vec<String> = crates_touched(&[path.as_str()], &ws)
+++             .unwrap()
+++             .iter()
+++             .map(|t| t.tool.to_string())
+++             .collect();
+++         assert_eq!(got, ["nsh-test"]);
+++     }
+++ 
+++     /// A touched workspace crate the registry does not version stops the close and is named,
+++     /// rather than being left out of the question (INT-287 G2).
+++     #[test]
+++     fn a_touched_crate_with_no_versioned_row_refuses_and_names_it() {
+++         let rows = parse("[[tool]]\nname = \"nsh-test\"\nversion = \"2.0.3\"\n").unwrap();
+++         let crates = vec![
+++             Crate {
+++                 package: "nsh-test".into(),
+++                 dir: format!("{}/nsh-test", SHELL_PARENT),
+++             },
+++             Crate {
+++                 package: "zero-unrowed".into(),
+++                 dir: format!("{}/zero-unrowed", SHELL_PARENT),
+++             },
+++         ];
+++         let ws = match_rows(&rows, &crates).unwrap();
+++         let path = format!("{}/zero-unrowed/src/lib.rs", SHELL_PARENT);
+++         let err = crates_touched(&[path.as_str()], &ws)
+++             .err()
+++             .expect("a crate with no versioned row must refuse");
+++         assert!(err.contains("zero-unrowed"), "{}", err);
+++     }
+++ }
+++ 
+++ #[cfg(test)]
+++ mod int271_close_tests {
+++     use super::{parse_bump_flags, TouchedCrate};
+++     use zero_core::paths::SHELL_PARENT;
+++     use zero_core::version::Level;
+++ 
+++     /// The two crates this module always tested, named as the registry names them (INT-287 G2).
+++     fn touched() -> Vec<TouchedCrate> {
+++         [
+++             ("nsh", "novashell", format!("{}/novashell", SHELL_PARENT)),
+++             ("core", "core", "zero/engine".to_string()),
+++         ]
+++         .into_iter()
+++         .map(|(tool, package, dir)| TouchedCrate {
+++             tool: tool.into(),
+++             package: package.into(),
+++             rel: format!("{}/Cargo.toml", dir),
+++             dir,
+++         })
+++         .collect()
+++     }
+++ 
+++     fn flags(raw: &[&str]) -> Vec<String> {
+++         raw.iter().map(|s| s.to_string()).collect()
+++     }
+++ 
+++     #[test]
+++     fn a_bump_names_a_touched_crate_and_a_level() {
+++         let got = parse_bump_flags(&flags(&["novashell=minor", "core=skip"]), &touched()).unwrap();
+++         assert_eq!(
+++             got,
+++             vec![
+++                 ("nsh".to_string(), Some(Level::Minor)),
+++                 ("core".to_string(), None)
+++             ]
+++         );
+++     }
+++ 
+++     #[test]
+++     fn a_crate_answers_to_its_row_package_or_folder() {
+++         for (name, row) in [
+++             ("nsh", "nsh"),
+++             ("novashell", "nsh"),
+++             ("core", "core"),
+++             ("engine", "core"),
+++         ] {
+++             let flag = format!("{}=patch", name);
+++             let got = parse_bump_flags(&flags(&[flag.as_str()]), &touched()).unwrap();
+++             assert_eq!(got, vec![(row.to_string(), Some(Level::Patch))], "{}", name);
+++         }
+++     }
+++ 
+++     #[test]
+++     fn every_bad_bump_is_refused_before_anything_is_asked() {
+++         for bad in [
+++             "novashell",
+++             "novashell=ptach",
+++             "frob=patch",
+++             "db-browse=patch",
+++             "novashell=",
+++         ] {
+++             assert!(
+++                 parse_bump_flags(&flags(&[bad]), &touched()).is_err(),
+++                 "{} should be refused",
+++                 bad
+++             );
+++         }
+++         assert!(
+++             parse_bump_flags(&flags(&["novashell=patch", "novashell=minor"]), &touched()).is_err()
+++         );
+++         // Two names for one crate are still one crate named twice.
+++         assert!(parse_bump_flags(&flags(&["nsh=patch", "novashell=minor"]), &touched()).is_err());
+++     }
+++ }
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 16817..16827 ---
+   16815: 
+   16816: /// INT-326: bump-versions -- suggest or apply version bumps for modified tools
+>> 16817: // INT-111/INT-271: tool name -> Cargo.toml path for bump-versions. The write itself is
+>> 16818: // zero_core::version::apply_bump.
+>> 16819: fn tool_cargo_path(name: &str) -> Option<String> {
+>> 16820:     // The same five tools as before; their Cargo.toml comes from the owner (INT-267 L2).
+>> 16821:     let dir = match name {
+>> 16822:         "novashell" | "zero-git" | "friday-chat" | "db-browse" => name,
+>> 16823:         "core" | "engine" => "engine",
+>> 16824:         _ => return None,
+>> 16825:     };
+>> 16826:     zero_core::paths::crate_rel_dir(dir).map(|d| format!("{}/Cargo.toml", d))
+>> 16827: }
+   16828: 
+   16829: /// Apply a version bump to a tool's Cargo.toml. Returns (old, new) on success.
+++ // INT-111/INT-271/INT-287: tool name -> Cargo.toml path for bump-versions. The registry decides
+++ // which crates carry a version (F-0028): a row, package or folder name finds one, so nsh,
+++ // novashell, core and engine all answer. The write itself is zero_core::version::apply_bump.
+++ fn tool_cargo_path(name: &str) -> Result<String, String> {
+++     let ws = zero_core::registry::resolve()
+++         .map_err(|e| format!("the tool registry could not be read: {}", e))?;
+++     ws.find(name)
+++         .map(|v| format!("{}/Cargo.toml", v.krate.dir))
+++         .ok_or_else(|| {
+++             format!(
+++                 "unknown tool '{}': no versioned row in the tool registry",
+++                 name
+++             )
+++         })
+++ }
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 16841..16841 ---
+   16839:     level: &str,
+   16840: ) -> Result<(String, String), String> {
+>> 16841:     let rel = tool_cargo_path(tool).ok_or_else(|| format!("unknown tool '{}'", tool))?;
+   16842:     let level = zero_core::version::Level::parse(level)
+   16843:         .ok_or_else(|| format!("unknown level '{}' (use patch|minor|major)", level))?;
+++     let rel = tool_cargo_path(tool)?;
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 16929..16932 ---
+   16927: fn bump_versions_table(core_root: &str) -> CommandResult {
+   16928:     use colored::Colorize;
+>> 16929:     let tools: Vec<(&str, String)> = ["novashell", "core", "zero-git", "friday-chat", "db-browse"]
+>> 16930:         .iter()
+>> 16931:         .filter_map(|n| tool_cargo_path(n).map(|p| (*n, p)))
+>> 16932:         .collect();
+   16933:     let mut out = String::new();
+   16934:     out.push_str(&format!("\n  {} Version Registry\n", "📦".normal()));
+++     let ws = match zero_core::registry::resolve() {
+++         Ok(ws) => ws,
+++         Err(e) => {
+++             return CommandResult::Error(
+++                 format!("bump-versions: the tool registry could not be read: {}", e).into(),
+++                 1,
+++             )
+++         }
+++     };
+++     let tools: Vec<(&str, String)> = ws
+++         .versioned
+++         .iter()
+++         .map(|v| (v.row.name.as_str(), format!("{}/Cargo.toml", v.krate.dir)))
+++         .collect();
+--- /home/christian/0-core/zero/shell/novashell/Cargo.toml: replacing lines 22..22 ---
+   20: 
+   21: [dependencies]
+>> 22: zero-core = { path = "../../tools/zero-core", features = ["db"] }
+   23: rustyline = "17.0.2"
+   24: colored = "2"
+++ zero-core = { path = "../../tools/zero-core", features = ["db", "registry"] }
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/Cargo.toml: 1 replaced
