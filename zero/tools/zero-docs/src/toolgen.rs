@@ -100,12 +100,12 @@ fn parse_cargo(path: &PathBuf) -> Option<ToolMeta> {
     Some(m)
 }
 
+/// One tools.toml row as parse_registry reads it:
+/// (name, category, expected_usage, description, retired, deps).
+type RegistryRow = (String, String, String, String, bool, Vec<String>);
+
 /// Enrich a ToolMeta from registry/tools.toml (line-parsed, matching existing style).
-fn enrich_from_registry(
-    tools: &[(String, String, String, String, bool, Vec<String>)],
-    m: &mut ToolMeta,
-) {
-    // tools: (name, category, expected_usage, description, retired)
+fn enrich_from_registry(tools: &[RegistryRow], m: &mut ToolMeta) {
     if let Some((_, cat, usage, _desc, retired, deps)) =
         tools.iter().find(|(n, _, _, _, _, _)| *n == m.name)
     {
@@ -125,7 +125,7 @@ fn enrich_from_registry(
 }
 
 /// Line-parse registry/tools.toml into (name, category, expected_usage, description, retired).
-fn parse_registry() -> Vec<(String, String, String, String, bool, Vec<String>)> {
+fn parse_registry() -> Vec<RegistryRow> {
     // The registry moved into the platform directory in the Phase 1 tree reorganisation and this path did not
     // follow it. For a month every generated README said "unregistered" and "uncategorized" -- not
     // because the tools were unregistered, but because this read returned nothing.
@@ -395,43 +395,6 @@ pub fn cmd_preview_one(name: &str) {
             println!("----- end preview -----");
         }
         None => println!("  tool not found on disk: {}", name),
-    }
-}
-
-#[cfg(test)]
-mod count_tests {
-    use super::*;
-
-    /// The catalog counts tools, and a tool is a binary. A library crate on disk is not one --
-    /// counting every crate made the catalog say 22 while 18 binaries were deployed.
-    #[test]
-    fn a_library_crate_is_not_a_tool() {
-        let d = std::env::temp_dir().join(format!("zero-docs-count-{}", std::process::id()));
-        let _ = std::fs::remove_dir_all(&d);
-        std::fs::create_dir_all(d.join("src")).unwrap();
-        let cargo = d.join("Cargo.toml");
-        std::fs::write(&cargo, "[package]\nname = \"x\"\nversion = \"0.1.0\"\n").unwrap();
-        std::fs::write(d.join("src/lib.rs"), "").unwrap();
-        assert!(
-            !parse_cargo(&cargo).unwrap().binary,
-            "lib.rs alone is not a tool"
-        );
-        std::fs::write(d.join("src/main.rs"), "fn main() {}").unwrap();
-        assert!(
-            parse_cargo(&cargo).unwrap().binary,
-            "src/main.rs is a binary"
-        );
-        std::fs::remove_file(d.join("src/main.rs")).unwrap();
-        std::fs::write(
-            &cargo,
-            "[package]\nname = \"x\"\n\n[[bin]]\nname = \"x\"\npath = \"src/x.rs\"\n",
-        )
-        .unwrap();
-        assert!(
-            parse_cargo(&cargo).unwrap().binary,
-            "a [[bin]] target is a binary"
-        );
-        let _ = std::fs::remove_dir_all(&d);
     }
 }
 
@@ -765,5 +728,42 @@ pub fn cmd_changelog_generate(dry_run: bool) {
         println!("\n  DRY RUN: {} CHANGELOGs would be written", written);
     } else {
         println!("\n  Done: {} CHANGELOGs written", written);
+    }
+}
+
+#[cfg(test)]
+mod count_tests {
+    use super::*;
+
+    /// The catalog counts tools, and a tool is a binary. A library crate on disk is not one --
+    /// counting every crate made the catalog say 22 while 18 binaries were deployed.
+    #[test]
+    fn a_library_crate_is_not_a_tool() {
+        let d = std::env::temp_dir().join(format!("zero-docs-count-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(d.join("src")).unwrap();
+        let cargo = d.join("Cargo.toml");
+        std::fs::write(&cargo, "[package]\nname = \"x\"\nversion = \"0.1.0\"\n").unwrap();
+        std::fs::write(d.join("src/lib.rs"), "").unwrap();
+        assert!(
+            !parse_cargo(&cargo).unwrap().binary,
+            "lib.rs alone is not a tool"
+        );
+        std::fs::write(d.join("src/main.rs"), "fn main() {}").unwrap();
+        assert!(
+            parse_cargo(&cargo).unwrap().binary,
+            "src/main.rs is a binary"
+        );
+        std::fs::remove_file(d.join("src/main.rs")).unwrap();
+        std::fs::write(
+            &cargo,
+            "[package]\nname = \"x\"\n\n[[bin]]\nname = \"x\"\npath = \"src/x.rs\"\n",
+        )
+        .unwrap();
+        assert!(
+            parse_cargo(&cargo).unwrap().binary,
+            "a [[bin]] target is a binary"
+        );
+        let _ = std::fs::remove_dir_all(&d);
     }
 }

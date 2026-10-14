@@ -1586,31 +1586,6 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-/// INT-094: hygiene -- orphan accumulation surfaced from zero-deadwood --summary.
-/// Summary line format: TOTAL|aliases|baks|keybinds|registry|scripts|modules
-
-/// INT-222: this runs every check eagerly, so run_quick filters 32 results down to 3 --
-/// measured at 0.49s against the old hardcoded list's 0.04s. Deliberately NOT restructured
-/// into a lazy registry of Tier plus closure pairs: run_quick has exactly one caller, the
-/// hand-typed doctor quick command, so half a second buys nothing on a path nobody waits on.
-/// And moving the tier onto a registry entry would take it off CheckResult, which is what
-/// makes the compiler force a classification at every construction site.
-/// Revisit only if this lands somewhere hot -- a prompt, a shell start, a service.
-///
-/// ⭐ ANSWERED 2026-09-18, BY INT-222 PHASE 2. The concern above is CORRECT and the new
-/// design does not violate it, so this note stays rather than being quietly overwritten.
-///
-///   THE WARNING      moving the tier onto a registry entry takes it OFF CheckResult,
-///                    and that is what forces a classification at every construction site.
-///   THE DESIGN       the tier moves to the DEFINITION, which is where a declaration
-///                    belongs -- but every OUTCOME still carries one, and the engine
-///                    REFUSES a definition that declares none. The compiler's job here
-///                    becomes validate()'s job there -- earlier, and by name.
-///
-/// And the performance point survives untouched: all_checks stays eager, because the
-/// registry is a list of DECLARATIONS, not of closures to call lazily.
-/// THE DOCTOR MEASUREMENTS COME FROM zero-doctor.
-///
 /// INT-269: the check set's path, built in ONE place. from_engine() and check_one() both ask here.
 fn check_set_path() -> std::path::PathBuf {
     zero_core::paths::registry_dir().join("doctor/checks.toml")
@@ -1678,6 +1653,28 @@ fn check_one(id: &str) -> i32 {
 ///
 /// BOTH MAPPINGS BELOW ARE EXHAUSTIVE WITH NO CATCH-ALL. A new variant fails to compile here
 /// instead of quietly defaulting -- the same rule the probe dispatcher uses.
+///
+/// INT-222: this runs every check eagerly, so run_quick filters 32 results down to 3 --
+/// measured at 0.49s against the old hardcoded list's 0.04s. Deliberately NOT restructured
+/// into a lazy registry of Tier plus closure pairs: run_quick has exactly one caller, the
+/// hand-typed doctor quick command, so half a second buys nothing on a path nobody waits on.
+/// And moving the tier onto a registry entry would take it off CheckResult, which is what
+/// makes the compiler force a classification at every construction site.
+/// Revisit only if this lands somewhere hot -- a prompt, a shell start, a service.
+///
+/// ⭐ ANSWERED 2026-09-18, BY INT-222 PHASE 2. The concern above is CORRECT and the new
+/// design does not violate it, so this note stays rather than being quietly overwritten.
+///
+///   THE WARNING      moving the tier onto a registry entry takes it OFF CheckResult,
+///                    and that is what forces a classification at every construction site.
+///   THE DESIGN       the tier moves to the DEFINITION, which is where a declaration
+///                    belongs -- but every OUTCOME still carries one, and the engine
+///                    REFUSES a definition that declares none. The compiler's job here
+///                    becomes validate()'s job there -- earlier, and by name.
+///
+/// And the performance point survives untouched: all_checks stays eager, because the
+/// registry is a list of DECLARATIONS, not of closures to call lazily.
+/// THE DOCTOR MEASUREMENTS COME FROM zero-doctor.
 fn from_engine() -> Vec<CheckResult> {
     use zero_doctor::{Status as ES, Tier as ET};
     let path = check_set_path();

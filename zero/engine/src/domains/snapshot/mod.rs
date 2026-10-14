@@ -208,10 +208,10 @@ fn render_markdown(d: &SnapshotData) -> String {
 ",
         "Identity".bright_white().bold()
     ));
-    out.push_str(&format!(
+    out.push_str(
         "  │  Project 0 — built entirely in Rust
 ",
-    ));
+    );
     out.push_str(&format!(
         "  │  {} commits  ·  {} tools  ·  {}% health
 ",

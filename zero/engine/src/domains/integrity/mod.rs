@@ -1813,6 +1813,34 @@ pub fn cmd_heal(ctx: &AppContext, dry_run: bool) -> CoreResult<()> {
     println!();
     Ok(())
 }
+pub fn cmd_trend(ctx: &AppContext) -> CoreResult<()> {
+    use colored::*;
+    let _stmt = ctx.runtime.db.prepare(
+        "SELECT integrity_score, timestamp FROM integrity_log
+         GROUP BY date(timestamp, 'unixepoch')
+         ORDER BY timestamp DESC LIMIT 14",
+    );
+    // Fallback: use quick_scan for current score
+    let (score, _, _, _) = quick_scan(ctx);
+    println!();
+    println!("  {} Integrity Trend", "📈".normal());
+    println!("  {}", "─".repeat(48).dimmed());
+    println!(
+        "  Current: {}%",
+        if score >= 95 {
+            score.to_string().bright_green()
+        } else {
+            score.to_string().bright_yellow()
+        }
+    );
+    println!("  {} Integrity tracking builds over time", "→".dimmed());
+    println!(
+        "  {} Run core integrity run daily to build history",
+        "→".dimmed()
+    );
+    println!();
+    Ok(())
+}
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -2246,32 +2274,4 @@ mod tests {
         );
         assert!(done.is_some(), "the proposal is not marked applied");
     }
-}
-pub fn cmd_trend(ctx: &AppContext) -> CoreResult<()> {
-    use colored::*;
-    let _stmt = ctx.runtime.db.prepare(
-        "SELECT integrity_score, timestamp FROM integrity_log
-         GROUP BY date(timestamp, 'unixepoch')
-         ORDER BY timestamp DESC LIMIT 14",
-    );
-    // Fallback: use quick_scan for current score
-    let (score, _, _, _) = quick_scan(ctx);
-    println!();
-    println!("  {} Integrity Trend", "📈".normal());
-    println!("  {}", "─".repeat(48).dimmed());
-    println!(
-        "  Current: {}%",
-        if score >= 95 {
-            score.to_string().bright_green()
-        } else {
-            score.to_string().bright_yellow()
-        }
-    );
-    println!("  {} Integrity tracking builds over time", "→".dimmed());
-    println!(
-        "  {} Run core integrity run daily to build history",
-        "→".dimmed()
-    );
-    println!();
-    Ok(())
 }

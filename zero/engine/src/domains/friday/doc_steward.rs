@@ -48,19 +48,25 @@ pub fn analyze_commit(ctx: &AppContext) -> CoreResult<()> {
     let ts = now_ts();
     let mut proposals = 0;
     // Rule 1: vocabulary word added -> COMMAND-GUIDE.md
-    if subject.contains("vocab")
+    if (subject.contains("vocab")
         || subject.contains("vocabulary")
         || body.contains("vocab")
-        || changed_files.iter().any(|f| f.contains("commands/mod.rs"))
+        || changed_files.iter().any(|f| f.contains("commands/mod.rs")))
+        && (subject.contains("feat") || subject.contains("add"))
     {
-        if subject.contains("feat") || subject.contains("add") {
-            db.execute(
-                "INSERT INTO friday_doc_proposals (timestamp, commit_hash, doc_file, reason, status)
+        db.execute(
+            "INSERT INTO friday_doc_proposals (timestamp, commit_hash, doc_file, reason, status)
                  VALUES (?1, ?2, 'docs/COMMAND-GUIDE.md', ?3, 'pending')",
-                params![ts, hash, format!("Commit '{}' may have added new vocabulary words or commands", subject)]
-            )?;
-            proposals += 1;
-        }
+            params![
+                ts,
+                hash,
+                format!(
+                    "Commit '{}' may have added new vocabulary words or commands",
+                    subject
+                )
+            ],
+        )?;
+        proposals += 1;
     }
     // Rule 2: new tool or deploy change -> TOOLS.md
     if changed_files

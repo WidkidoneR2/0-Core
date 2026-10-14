@@ -36,8 +36,7 @@ pub fn intent_ledger() -> Measurement {
         let finding = text
             .lines()
             .map(str::trim)
-            .filter(|l| l.chars().any(|c| c.is_alphanumeric()))
-            .next_back()
+            .rfind(|l| l.chars().any(|c| c.is_alphanumeric()))
             .unwrap_or("validated");
         // The validator prefixes its own tick. The render states the status itself, so
         // carrying it here would put a tick inside a tick.

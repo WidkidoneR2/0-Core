@@ -267,35 +267,34 @@ pub fn show_debug(db: &Connection) {
          FROM friday_attention ORDER BY timestamp DESC LIMIT 5",
         )
         .unwrap();
-    let _ = stmt
-        .query_map([], |r| {
-            Ok((
-                r.get::<_, String>(0)?,
-                r.get::<_, f64>(1)?,
-                r.get::<_, i64>(2)?,
-                r.get::<_, String>(3)?,
-            ))
-        })
-        .unwrap()
-        .flatten()
-        .for_each(|(etype, score, spoke, detail)| {
-            let spoke_str = if spoke == 1 {
-                "spoke".bright_yellow()
-            } else {
-                "silent".dimmed()
-            };
-            let score_color = if score >= ATTENTION_THRESHOLD {
-                format!("{:.3}", score).bright_yellow()
-            } else {
-                format!("{:.3}", score).dimmed()
-            };
-            println!(
-                "    {} {} {} {}",
-                score_color,
-                spoke_str,
-                etype.bright_cyan(),
-                detail[..detail.len().min(40)].dimmed()
-            );
-        });
+    stmt.query_map([], |r| {
+        Ok((
+            r.get::<_, String>(0)?,
+            r.get::<_, f64>(1)?,
+            r.get::<_, i64>(2)?,
+            r.get::<_, String>(3)?,
+        ))
+    })
+    .unwrap()
+    .flatten()
+    .for_each(|(etype, score, spoke, detail)| {
+        let spoke_str = if spoke == 1 {
+            "spoke".bright_yellow()
+        } else {
+            "silent".dimmed()
+        };
+        let score_color = if score >= ATTENTION_THRESHOLD {
+            format!("{:.3}", score).bright_yellow()
+        } else {
+            format!("{:.3}", score).dimmed()
+        };
+        println!(
+            "    {} {} {} {}",
+            score_color,
+            spoke_str,
+            etype.bright_cyan(),
+            detail[..detail.len().min(40)].dimmed()
+        );
+    });
     println!();
 }

@@ -967,12 +967,10 @@ pub fn next(ctx: &AppContext) -> CoreResult<()> {
                                 0.0
                             }
                         }
-                        "health-drops" => {
-                            if title_lower.contains("doctor") || title_lower.contains("health") {
-                                0.2
-                            } else {
-                                0.0
-                            }
+                        "health-drops"
+                            if title_lower.contains("doctor") || title_lower.contains("health") =>
+                        {
+                            0.2
                         }
                         _ => 0.0,
                     };
