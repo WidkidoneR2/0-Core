@@ -16814,16 +16814,20 @@ fn memory_distill(db: &StateDb) -> CommandResult {
 }
 
 /// INT-326: bump-versions -- suggest or apply version bumps for modified tools
-// INT-111/INT-271: tool name -> Cargo.toml path for bump-versions. The write itself is
-// zero_core::version::apply_bump.
-fn tool_cargo_path(name: &str) -> Option<String> {
-    // The same five tools as before; their Cargo.toml comes from the owner (INT-267 L2).
-    let dir = match name {
-        "novashell" | "zero-git" | "friday-chat" | "db-browse" => name,
-        "core" | "engine" => "engine",
-        _ => return None,
-    };
-    zero_core::paths::crate_rel_dir(dir).map(|d| format!("{}/Cargo.toml", d))
+// INT-111/INT-271/INT-287: tool name -> Cargo.toml path for bump-versions. The registry decides
+// which crates carry a version (F-0028): a row, package or folder name finds one, so nsh,
+// novashell, core and engine all answer. The write itself is zero_core::version::apply_bump.
+fn tool_cargo_path(name: &str) -> Result<String, String> {
+    let ws = zero_core::registry::resolve()
+        .map_err(|e| format!("the tool registry could not be read: {}", e))?;
+    ws.find(name)
+        .map(|v| format!("{}/Cargo.toml", v.krate.dir))
+        .ok_or_else(|| {
+            format!(
+                "unknown tool '{}': no versioned row in the tool registry",
+                name
+            )
+        })
 }
 
 /// Apply a version bump to a tool's Cargo.toml. Returns (old, new) on success.
@@ -16834,7 +16838,7 @@ pub fn apply_version_bump(
     tool: &str,
     level: &str,
 ) -> Result<(String, String), String> {
-    let rel = tool_cargo_path(tool).ok_or_else(|| format!("unknown tool '{}'", tool))?;
+    let rel = tool_cargo_path(tool)?;
     let level = zero_core::version::Level::parse(level)
         .ok_or_else(|| format!("unknown level '{}' (use patch|minor|major)", level))?;
     zero_core::version::apply_bump(&std::path::Path::new(core_root).join(rel), level)
@@ -16922,9 +16926,19 @@ fn bump_versions_cmd(core_root: &str, args: &[&str]) -> CommandResult {
 
 fn bump_versions_table(core_root: &str) -> CommandResult {
     use colored::Colorize;
-    let tools: Vec<(&str, String)> = ["novashell", "core", "zero-git", "friday-chat", "db-browse"]
+    let ws = match zero_core::registry::resolve() {
+        Ok(ws) => ws,
+        Err(e) => {
+            return CommandResult::Error(
+                format!("bump-versions: the tool registry could not be read: {}", e).into(),
+                1,
+            )
+        }
+    };
+    let tools: Vec<(&str, String)> = ws
+        .versioned
         .iter()
-        .filter_map(|n| tool_cargo_path(n).map(|p| (*n, p)))
+        .map(|v| (v.row.name.as_str(), format!("{}/Cargo.toml", v.krate.dir)))
         .collect();
     let mut out = String::new();
     out.push_str(&format!("\n  {} Version Registry\n", "📦".normal()));

@@ -19,7 +19,7 @@ name = "nsh"
 path = "src/main.rs"
 
 [dependencies]
-zero-core = { path = "../../tools/zero-core", features = ["db"] }
+zero-core = { path = "../../tools/zero-core", features = ["db", "registry"] }
 rustyline = "17.0.2"
 colored = "2"
 rusqlite = { version = "0.31", features = ["bundled"] }
