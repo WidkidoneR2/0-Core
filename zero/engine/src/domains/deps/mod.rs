@@ -60,11 +60,7 @@ pub fn graph(ctx: &AppContext) -> CoreResult<()> {
     // Summary
     let total_tools = deps.len();
     let total_deps: usize = deps.values().map(|d| d.len()).sum();
-    let avg_deps = if total_tools > 0 {
-        total_deps / total_tools
-    } else {
-        0
-    };
+    let avg_deps = total_deps.checked_div(total_tools).unwrap_or(0);
 
     println!(
         "{}",

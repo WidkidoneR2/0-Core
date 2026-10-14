@@ -339,11 +339,7 @@ pub fn stats(ctx: &AppContext) -> CoreResult<()> {
     let cancelled = intents.iter().filter(|i| i.status == "cancelled").count();
     let deferred = intents.iter().filter(|i| i.status == "deferred").count();
 
-    let pct = if total > 0 {
-        (complete * 100) / total
-    } else {
-        0
-    };
+    let pct = (complete * 100).checked_div(total).unwrap_or(0);
     let bar_filled = pct / 5;
     let bar = format!(
         "{}{}",
@@ -2680,11 +2676,7 @@ pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
                 .unwrap_or_else(|| name.clone());
             let total_gates = content.matches("⬜").count() + content.matches("✅").count();
             let done_gates = content.matches("✅").count();
-            let gate_pct = if total_gates > 0 {
-                (done_gates * 100) / total_gates
-            } else {
-                0
-            };
+            let gate_pct = (done_gates * 100).checked_div(total_gates).unwrap_or(0);
             let days_since: i64 = {
                 let out = std::process::Command::new("git")
                     .args([
@@ -2836,11 +2828,7 @@ pub fn predict_completion(ctx: &AppContext, id: &str) -> CoreResult<()> {
         "Gates:".dimmed(),
         done_gates,
         total_gates,
-        if total_gates > 0 {
-            (done_gates * 100) / total_gates
-        } else {
-            0
-        }
+        (done_gates * 100).checked_div(total_gates).unwrap_or(0)
     );
     println!(
         "  {:<24} {} gates remaining",

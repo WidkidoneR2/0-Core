@@ -5605,7 +5605,7 @@ fn main() {
                 .iter()
                 .filter(|r| r.category.to_string() == *cat && r.passed())
                 .count();
-            let pct = if count > 0 { (passed * 100) / count } else { 0 };
+            let pct = (passed * 100).checked_div(count).unwrap_or(0);
             let bar = "█".repeat(pct / 10);
             println!(
                 "  [{:>11}] {}/{} {}% {}",

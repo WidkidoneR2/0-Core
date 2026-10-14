@@ -1603,11 +1603,7 @@ pub fn why_correlate(ctx: &AppContext, domain_a: &str, domain_b: &str) -> CoreRe
         }
     }
 
-    let proximity_pct = if total_a > 0 {
-        close_count * 100 / total_a
-    } else {
-        0
-    };
+    let proximity_pct = (close_count * 100).checked_div(total_a).unwrap_or(0);
 
     // Average time between A and nearest B
     let avg_lag: i64 = a_events

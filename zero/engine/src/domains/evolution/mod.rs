@@ -1098,11 +1098,9 @@ pub fn future_impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
         }
     }
 
-    let impact_pct = if total_domains > 0 {
-        (affected_count * 100) / total_domains
-    } else {
-        0
-    };
+    let impact_pct = (affected_count * 100)
+        .checked_div(total_domains)
+        .unwrap_or(0);
 
     let blast_radius = match impact_pct {
         0..=10 => "CONTAINED — minimal blast radius",

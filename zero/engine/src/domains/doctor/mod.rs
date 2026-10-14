@@ -316,11 +316,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     // INT-148: Unknown (couldn't-run) and Blocked checks are excluded from the ratio --
     // "couldn't determine" and "blocked" are not failures and must not drag health down.
     let determinable = total.saturating_sub(unknown).saturating_sub(blocked);
-    let raw = if determinable > 0 {
-        (passed * 100) / determinable
-    } else {
-        0
-    };
+    let raw = (passed * 100).checked_div(determinable).unwrap_or(0);
 
     // ⭐ A CRITICAL FAILURE CAPS HEALTH AT 50 (INT-222, decided 2026-09-04).
     //
@@ -813,7 +809,7 @@ pub fn simulate(ctx: &AppContext) -> CoreResult<()> {
     let passed = checks.iter().filter(|r| r.status == Status::Pass).count() as u32;
     let warnings = checks.iter().filter(|r| r.status == Status::Warn).count() as u32;
     let failed = checks.iter().filter(|r| r.status == Status::Fail).count() as u32;
-    let predicted = if total > 0 { (passed * 100) / total } else { 0 };
+    let predicted = (passed * 100).checked_div(total).unwrap_or(0);
 
     println!("{}", "🔮 core simulate doctor".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
