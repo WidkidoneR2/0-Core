@@ -1,0 +1,108 @@
+file /home/christian/0-core/zero/engine/src/domains/deps/mod.rs  sha256 59fcc3b769cbfc7e -> 7f6e04204a06e8fc
+file /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs  sha256 1f8af7ed2c7c89a1 -> 936b0eb83653d000
+file /home/christian/0-core/zero/engine/src/domains/events/mod.rs  sha256 1bc2dd7c7b75dc2d -> 5e97a2247880c43a
+file /home/christian/0-core/zero/engine/src/domains/evolution/mod.rs  sha256 d43f3344f1b88716 -> 5d023340136d652b
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 d4dd83dcc92d5141 -> 8fbc7fb340e257d9
+file /home/christian/0-core/zero/shell/nsh-test/src/main.rs  sha256 4a84000c1b529d57 -> 0e5596673e419265
+--- /home/christian/0-core/zero/engine/src/domains/deps/mod.rs: replacing lines 63..67 ---
+   61:     let total_tools = deps.len();
+   62:     let total_deps: usize = deps.values().map(|d| d.len()).sum();
+>> 63:     let avg_deps = if total_tools > 0 {
+>> 64:         total_deps / total_tools
+>> 65:     } else {
+>> 66:         0
+>> 67:     };
+   68: 
+   69:     println!(
+++     let avg_deps = total_deps.checked_div(total_tools).unwrap_or(0);
+--- /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: replacing lines 319..323 ---
+   317:     // "couldn't determine" and "blocked" are not failures and must not drag health down.
+   318:     let determinable = total.saturating_sub(unknown).saturating_sub(blocked);
+>> 319:     let raw = if determinable > 0 {
+>> 320:         (passed * 100) / determinable
+>> 321:     } else {
+>> 322:         0
+>> 323:     };
+   324: 
+   325:     // ⭐ A CRITICAL FAILURE CAPS HEALTH AT 50 (INT-222, decided 2026-09-04).
+++     let raw = (passed * 100).checked_div(determinable).unwrap_or(0);
+--- /home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: replacing lines 812..812 ---
+   810:     let warnings = checks.iter().filter(|r| r.status == Status::Warn).count() as u32;
+   811:     let failed = checks.iter().filter(|r| r.status == Status::Fail).count() as u32;
+>> 812:     let predicted = if total > 0 { (passed * 100) / total } else { 0 };
+   813: 
+   814:     println!("{}", "🔮 core simulate doctor".cyan().bold());
+++     let predicted = (passed * 100).checked_div(total).unwrap_or(0);
+--- /home/christian/0-core/zero/engine/src/domains/events/mod.rs: replacing lines 1606..1610 ---
+   1604:     }
+   1605: 
+>> 1606:     let proximity_pct = if total_a > 0 {
+>> 1607:         close_count * 100 / total_a
+>> 1608:     } else {
+>> 1609:         0
+>> 1610:     };
+   1611: 
+   1612:     // Average time between A and nearest B
+++     let proximity_pct = (close_count * 100).checked_div(total_a).unwrap_or(0);
+--- /home/christian/0-core/zero/engine/src/domains/evolution/mod.rs: replacing lines 1101..1105 ---
+   1099:     }
+   1100: 
+>> 1101:     let impact_pct = if total_domains > 0 {
+>> 1102:         (affected_count * 100) / total_domains
+>> 1103:     } else {
+>> 1104:         0
+>> 1105:     };
+   1106: 
+   1107:     let blast_radius = match impact_pct {
+++     let impact_pct = (affected_count * 100)
+++         .checked_div(total_domains)
+++         .unwrap_or(0);
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 342..346 ---
+   340:     let deferred = intents.iter().filter(|i| i.status == "deferred").count();
+   341: 
+>> 342:     let pct = if total > 0 {
+>> 343:         (complete * 100) / total
+>> 344:     } else {
+>> 345:         0
+>> 346:     };
+   347:     let bar_filled = pct / 5;
+   348:     let bar = format!(
+++     let pct = (complete * 100).checked_div(total).unwrap_or(0);
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 2679..2683 ---
+   2677:             let total_gates = content.matches("⬜").count() + content.matches("✅").count();
+   2678:             let done_gates = content.matches("✅").count();
+>> 2679:             let gate_pct = if total_gates > 0 {
+>> 2680:                 (done_gates * 100) / total_gates
+>> 2681:             } else {
+>> 2682:                 0
+>> 2683:             };
+   2684:             let days_since: i64 = {
+   2685:                 let out = std::process::Command::new("git")
+++             let gate_pct = (done_gates * 100).checked_div(total_gates).unwrap_or(0);
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 2831..2835 ---
+   2829:         done_gates,
+   2830:         total_gates,
+>> 2831:         if total_gates > 0 {
+>> 2832:             (done_gates * 100) / total_gates
+>> 2833:         } else {
+>> 2834:             0
+>> 2835:         }
+   2836:     );
+   2837:     println!(
+++         (done_gates * 100).checked_div(total_gates).unwrap_or(0)
+--- /home/christian/0-core/zero/shell/nsh-test/src/main.rs: replacing lines 5608..5608 ---
+   5606:                 .filter(|r| r.category.to_string() == *cat && r.passed())
+   5607:                 .count();
+>> 5608:             let pct = if count > 0 { (passed * 100) / count } else { 0 };
+   5609:             let bar = "█".repeat(pct / 10);
+   5610:             println!(
+++             let pct = (passed * 100).checked_div(count).unwrap_or(0);
+/home/christian/0-core/zero/engine/src/domains/deps/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/doctor/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/events/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/evolution/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/main.rs: 1 replaced
