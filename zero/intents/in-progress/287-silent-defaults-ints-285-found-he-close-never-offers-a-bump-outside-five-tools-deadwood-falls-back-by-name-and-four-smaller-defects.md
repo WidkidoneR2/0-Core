@@ -260,8 +260,16 @@ names main.rs:2646, which was :2764 when it was fixed; its at: field is main.rs:
 the record of that. Also closed in 287 on 2026-10-16: F-0045 in ae77e56d. -->
 - [ ] G10 doors: ship what changed, nsh-test all passing, d 0 failed, core
       intent validate clean.
-- [ ] G11 commits: one per fix, each with Intent and Fixes and its plan Seal
+- [x] G11 commits: one per fix, each with Intent and Fixes and its plan Seal
       and note; pushed; trace reads every seal intact.
+<!-- evidence: 2026-10-16. Every commit naming INT-287 that carries a Seal: (22 on main, from
+2819446c onward) was read with core intent trace and every seal is intact: the plan text kept
+under refs/notes/seals hashes to it. All pushed to origin with refs/notes/seals. One per fix,
+with one exception recorded at G7: G7's doc move landed in 0153ec95 beside G8 because the
+pre-commit hook restaged main.rs, and 3199de06 carries Fixes: F-0033. Findings fixed by 287:
+F-0028 36b6d7c8, F-0029 010abd46, F-0030 90d77e16, F-0032 e01656e5, F-0033 3199de06, F-0034
+0153ec95, F-0035 be8d5366, F-0042 805d14f6, F-0045 ae77e56d. F-0031 closed without a fix by G5's
+measurement. Open by ruling, for their own intents: F-0036 to F-0041, F-0043, F-0044. -->
 - [ ] G12 each gate carries evidence per INT-158.
 
 ## Non-goals
