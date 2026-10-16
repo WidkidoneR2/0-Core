@@ -1,0 +1,303 @@
+file /home/christian/0-core/zero/tools/zero-core/src/registry.rs  sha256 1837159806b2ed3c -> a73307f7a3f13655
+file /home/christian/0-core/zero/engine/src/domains/integrity/mod.rs  sha256 f1f7e9685fa56b81 -> 77d1666638f94b43
+--- /home/christian/0-core/zero/tools/zero-core/src/registry.rs: replacing lines 6..8 ---
+   4: //! version. The close and bump-versions each kept their own copy of five versioned crates
+   5: //! (F-0028), so a sixth crate that changed was never offered a version. This module is the
+>> 6: //! one place that answers which workspace crates the registry versions.
+>> 7: //!
+>> 8: //! AN UNREADABLE REGISTRY IS NOT AN EMPTY ONE. A missing or invalid file is an error, never
+   9: //! an empty list: an empty list has nothing to offer and nothing missing, so a broken file
+   10: //! would close an intent silently (zero-doctor probes/tools.rs, measured 2026-09-19).
+++ //! one place that answers which workspace crates the registry versions.
+++ //!
+++ //! ONE WRITER (INT-287 G3, F-0029). set_version and write_version are the only code that
+++ //! changes a row's version. The close bumped Cargo.toml and never the row, and integrity's
+++ //! drift fix kept its own writer that matched one exact two-line shape and answered false
+++ //! with no reason for any other.
+++ //!
+++ 
+--- /home/christian/0-core/zero/tools/zero-core/src/registry.rs: replacing lines 201..203 ---
+   199:     resolve_in(&crate::paths::core_dir(), &crate::paths::tools_registry())
+   200: }
+>> 201: 
+>> 202: #[cfg(test)]
+>> 203: mod tests {
+   204:     use super::*;
+   205: 
+++ 
+++ /// The value of a plain `key = "value"` line: exactly that spacing, no escapes, nothing after.
+++ /// The writer edits only lines it can read back exactly; anything else is refused, never guessed.
+++ fn plain_value<'a>(line: &'a str, key: &str) -> Option<&'a str> {
+++     let v = line
+++         .strip_prefix(key)?
+++         .strip_prefix(" = \"")?
+++         .strip_suffix('"')?;
+++     (!v.contains(['"', '\\'])).then_some(v)
+++ }
+++ 
+++ /// The registry text with row `name`'s version set to `new`, every other byte unchanged.
+++ ///
+++ /// Refuses, changing nothing, when the text does not parse, when no row or more than one row is
+++ /// named `name`, when that row's name or version line is not in the plain form, or when `new`
+++ /// is not a value a plain line can hold. The result is parsed again and must equal the input
+++ /// with that one version changed.
+++ pub fn set_version(text: &str, name: &str, new: &str) -> Result<String, String> {
+++     if new.is_empty() || new.contains(['"', '\\', '\n', '\r']) {
+++         return Err(format!("{new:?} is not a version a registry row can hold"));
+++     }
+++     let before = parse(text)?;
+++     match before.iter().filter(|r| r.name == name).count() {
+++         1 => {}
+++         0 => return Err(format!("the tool registry has no row named {name}")),
+++         n => return Err(format!("the tool registry has {n} rows named {name}")),
+++     }
+++     // Each table: its plain name, and the byte span of every version value (None: not plain).
+++     type Spans = Vec<Option<(usize, usize)>>;
+++     let mut tables: Vec<(Option<&str>, Spans)> = vec![(None, Vec::new())];
+++     let mut at = 0;
+++     for line in text.split_inclusive('\n') {
+++         let body = line.strip_suffix('\n').unwrap_or(line);
+++         let key = body.split('=').next().unwrap_or("").trim();
+++         let table = tables.last_mut().expect("seeded with one table");
+++         if body.trim_start().starts_with('[') {
+++             tables.push((None, Vec::new()));
+++         } else if key == "name" {
+++             table.0 = plain_value(body, "name");
+++         } else if key == "version" {
+++             table.1.push(plain_value(body, "version").map(|v| {
+++                 let start = at + (v.as_ptr() as usize - body.as_ptr() as usize);
+++                 (start, start + v.len())
+++             }));
+++         }
+++         at += line.len();
+++     }
+++     let rows: Vec<&Spans> = tables
+++         .iter()
+++         .filter(|t| t.0 == Some(name))
+++         .map(|t| &t.1)
+++         .collect();
+++     let [spans] = rows.as_slice() else {
+++         return Err(format!(
+++             "the row named {name} has no plain name = \"{name}\" line the writer can find"
+++         ));
+++     };
+++     let [Some((start, end))] = spans.as_slice() else {
+++         return Err(format!(
+++             "the row named {name} needs exactly one plain version = \"...\" line"
+++         ));
+++     };
+++     let out = format!("{}{}{}", &text[..*start], new, &text[*end..]);
+++     let expected: Vec<Row> = before
+++         .into_iter()
+++         .map(|mut r| {
+++             if r.name == name {
+++                 r.version = new.to_string();
+++             }
+++             r
+++         })
+++         .collect();
+++     if parse(&out)? != expected {
+++         return Err(format!(
+++             "setting {name} to {new} would change more than its version; nothing was changed"
+++         ));
+++     }
+++     Ok(out)
+++ }
+++ 
+++ /// Set row `name`'s version in the registry file at `path` through set_version, and return the
+++ /// version it held. The new text is written beside the file and renamed over it, then read back.
+++ /// A refusal writes nothing.
+++ pub fn write_version(path: &Path, name: &str, new: &str) -> Result<String, String> {
+++     let target = std::fs::canonicalize(path)
+++         .map_err(|e| format!("tool registry not found at {} -- {}", path.display(), e))?;
+++     let shown = target.display();
+++     let text =
+++         std::fs::read_to_string(&target).map_err(|e| format!("cannot read {shown} -- {e}"))?;
+++     let old = parse(&text)
+++         .map_err(|e| format!("{shown}: {e}"))?
+++         .into_iter()
+++         .find(|r| r.name == name)
+++         .map(|r| r.version);
+++     let out = set_version(&text, name, new).map_err(|e| format!("{shown}: {e}"))?;
+++     let old = old.ok_or_else(|| format!("{shown}: the tool registry has no row named {name}"))?;
+++     let mut staged = target.clone().into_os_string();
+++     staged.push(".zero-staged");
+++     let staged = std::path::PathBuf::from(staged);
+++     let written = std::fs::write(&staged, &out)
+++         .and_then(|()| std::fs::metadata(&target))
+++         .and_then(|m| std::fs::set_permissions(&staged, m.permissions()))
+++         .and_then(|()| std::fs::rename(&staged, &target));
+++     if let Err(e) = written {
+++         let _ = std::fs::remove_file(&staged);
+++         return Err(format!("{shown} was not changed -- {e}"));
+++     }
+++     match std::fs::read_to_string(&target) {
+++         Ok(back) if back == out => Ok(old),
+++         Ok(_) => Err(format!(
+++             "{shown} did not read back as written; check it by hand"
+++         )),
+++         Err(e) => Err(format!(
+++             "{shown} could not be read back -- {e}; check it by hand"
+++         )),
+++     }
+++ }
+++ 
+++ #[cfg(test)]
+++ 
+--- /home/christian/0-core/zero/tools/zero-core/src/registry.rs: replacing lines 439..441 ---
+   437:         assert!(ws.find("zero-doctor").is_none());
+   438:     }
+>> 439: 
+>> 440:     /// G2's rule on this checkout: every workspace crate has a versioned row, and every
+>> 441:     /// versioned row has a crate. A crate added without a row fails here, by name.
+   442:     #[test]
+   443:     fn the_registry_versions_every_workspace_crate() {
+++ 
+++     const TWO: &str = concat!(
+++         "# heading\n\n",
+++         "[[tool]]\nname = \"a\"\nversion = \"1.0.0\"\ncategory = \"x\"\n\n",
+++         "[[tool]]\nname = \"b\"\ndescription = \"version = 1.0.0\"\nversion = \"1.0.0\"\n",
+++     );
+++ 
+++     #[test]
+++     fn set_version_changes_that_one_version_and_no_other_byte() {
+++         let out = set_version(TWO, "b", "1.1.0").unwrap();
+++         let want = TWO.replace(
+++             "description = \"version = 1.0.0\"\nversion = \"1.0.0\"",
+++             "description = \"version = 1.0.0\"\nversion = \"1.1.0\"",
+++         );
+++         assert_eq!(
+++             out, want,
+++             "only the version of b, not the text in its description"
+++         );
+++         assert_eq!(
+++             set_version(TWO, "a", "1.0.0").unwrap(),
+++             TWO,
+++             "same version, same bytes"
+++         );
+++     }
+++ 
+++     #[test]
+++     fn set_version_refuses_what_it_cannot_edit_exactly() {
+++         let doubled = format!("{TWO}\n[[tool]]\nname = \"a\"\nversion = \"2.0.0\"\n");
+++         let unplain = TWO.replace(
+++             "version = \"1.0.0\"\ncategory",
+++             "version=\"1.0.0\"\ncategory",
+++         );
+++         for (text, name, new, says) in [
+++             (TWO, "c", "1.0.1", "no row named c"),
+++             (doubled.as_str(), "a", "1.0.1", "2 rows named a"),
+++             (unplain.as_str(), "a", "1.0.1", "plain version"),
+++             (TWO, "a", "1.0.1\"", "not a version"),
+++             (TWO, "a", "", "not a version"),
+++             ("[[tool]]\nname = ", "a", "1.0.1", "not valid TOML"),
+++         ] {
+++             let err = set_version(text, name, new).unwrap_err();
+++             assert!(err.contains(says), "{name} {new:?}: {err}");
+++         }
+++     }
+++ 
+++     #[test]
+++     fn write_version_replaces_the_file_and_a_refusal_leaves_it() {
+++         let dir = std::env::temp_dir().join(format!("zero-registry-{}", std::process::id()));
+++         std::fs::create_dir_all(&dir).unwrap();
+++         let path = dir.join("tools.toml");
+++         std::fs::write(&path, TWO).unwrap();
+++         assert_eq!(write_version(&path, "a", "1.2.0").unwrap(), "1.0.0");
+++         let now = std::fs::read_to_string(&path).unwrap();
+++         assert_eq!(now, set_version(TWO, "a", "1.2.0").unwrap());
+++         assert!(write_version(&path, "c", "9.0.0").is_err());
+++         assert_eq!(
+++             std::fs::read_to_string(&path).unwrap(),
+++             now,
+++             "a refusal writes nothing"
+++         );
+++         let left: Vec<_> = std::fs::read_dir(&dir)
+++             .unwrap()
+++             .flatten()
+++             .map(|e| e.file_name())
+++             .collect();
+++         assert_eq!(
+++             left,
+++             [std::ffi::OsString::from("tools.toml")],
+++             "nothing staged is left behind"
+++         );
+++         std::fs::remove_dir_all(&dir).unwrap();
+++     }
+++ 
+++     /// The writer on this checkout's registry: every row can be written, a write of its own
+++     /// version changes no byte, and a new version changes exactly one line.
+++     #[test]
+++     fn the_writer_can_set_every_row_of_the_real_registry() {
+++         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+++             .ancestors()
+++             .nth(3)
+++             .expect("zero-core sits three folders below the repo root");
+++         let rel = crate::paths::tools_registry();
+++         let rel = rel
+++             .strip_prefix(crate::paths::core_dir())
+++             .expect("the registry lives in the checkout");
+++         let text = std::fs::read_to_string(root.join(rel)).unwrap();
+++         let rows = parse(&text).unwrap();
+++         assert!(!rows.is_empty());
+++         for r in &rows {
+++             assert_eq!(
+++                 set_version(&text, &r.name, &r.version).unwrap(),
+++                 text,
+++                 "{}",
+++                 r.name
+++             );
+++             let out = set_version(&text, &r.name, "99.0.0").unwrap();
+++             let changed = text
+++                 .lines()
+++                 .zip(out.lines())
+++                 .filter(|(a, b)| a != b)
+++                 .count();
+++             assert_eq!(changed, 1, "{}", r.name);
+++         }
+++     }
+++ 
+++     /// G2's rule on this checkout: every workspace crate has a versioned row, and every
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/integrity/mod.rs: replacing lines 240..259 ---
+   238: fn apply_safe_fix(fix: &FixAction, ctx: &IntegrityContext) -> bool {
+   239:     match fix {
+>> 240:         FixAction::UpdateRegistryVersion { tool, version } => {
+>> 241:             let path = ctx.ctx.fpath("registry/tools.toml");
+>> 242:             if let Ok(content) = std::fs::read_to_string(&path) {
+>> 243:                 let old = format!("name = \"{}\"\nversion = \"", tool);
+>> 244:                 if let Some(idx) = content.find(&old) {
+>> 245:                     let ver_start = idx + old.len();
+>> 246:                     if let Some(ver_end) = content[ver_start..].find('"') {
+>> 247:                         let new_content = format!(
+>> 248:                             "{}{}{}",
+>> 249:                             &content[..ver_start],
+>> 250:                             version,
+>> 251:                             &content[ver_start + ver_end..]
+>> 252:                         );
+>> 253:                         return std::fs::write(&path, new_content).is_ok();
+>> 254:                     }
+>> 255:                 }
+>> 256:             }
+>> 257:             false
+>> 258:         }
+>> 259:         FixAction::InsertDbRow { table: _, sql } => ctx.ctx.runtime.db.execute_batch(sql).is_ok(),
+   260:         FixAction::SyncDocs => std::process::Command::new("zero-docs")
+   261:             .arg("sync")
+++         FixAction::UpdateRegistryVersion { tool, version } => {
+++             // INT-287 G3: the one registry version writer, shared with the close. A refusal is
+++             // printed with its reason instead of becoming a bare false.
+++             let path = ctx.ctx.fpath("registry/tools.toml");
+++             match zero_core::registry::write_version(&path, tool, version) {
+++                 Ok(_) => true,
+++                 Err(e) => {
+++                     eprintln!("  {}", e);
+++                     false
+++                 }
+++             }
+++         }
+++ 
+/home/christian/0-core/zero/tools/zero-core/src/registry.rs: 1 replaced
+/home/christian/0-core/zero/tools/zero-core/src/registry.rs: 1 replaced
+/home/christian/0-core/zero/tools/zero-core/src/registry.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/integrity/mod.rs: 1 replaced
