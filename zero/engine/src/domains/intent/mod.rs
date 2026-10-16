@@ -1616,6 +1616,14 @@ fn write_versions(ctx: &AppContext, id: &str, plans: &[VersionPlan]) -> CoreResu
     }
     let mut receipt = String::from("\n## Versions\n");
     let mut written: Vec<String> = Vec::new();
+    let registry = zero_core::paths::tools_registry();
+    // INT-287 G3: every planned row is checked before the first write, so a row the writer
+    // cannot set refuses the close with no Cargo.toml bumped.
+    if let Err(e) = rows_writable(&registry, plans) {
+        eprintln!("  refused before any write: {}", e);
+        eprintln!("  nothing was bumped and the intent was not moved");
+        return Err(crate::errors::CoreError::Reported(e));
+    }
     println!();
     println!("  {} Versions", "\u{1f4e6}".normal());
     for (i, p) in plans.iter().enumerate() {
@@ -1625,7 +1633,7 @@ fn write_versions(ctx: &AppContext, id: &str, plans: &[VersionPlan]) -> CoreResu
             continue;
         };
         let full = std::path::Path::new(&ctx.core_root).join(&p.rel);
-        match zero_core::version::apply_bump(&full, level) {
+        match bump_one(Path::new(&ctx.core_root), &registry, p, level) {
             Ok((old, new)) => {
                 println!(
                     "    {} {} {} -> {} ({})",
@@ -1645,8 +1653,19 @@ fn write_versions(ctx: &AppContext, id: &str, plans: &[VersionPlan]) -> CoreResu
                 written.push(format!("{} {}", p.tool, new));
                 sync_lock(ctx, &full, &new);
             }
-            Err(e) => {
-                let rest: Vec<String> = plans[i..]
+            Err(failed) => {
+                let (e, from) = match failed {
+                    BumpFailed::Nothing(e) => (e, i),
+                    BumpFailed::CargoOnly { new, why } => {
+                        written.push(format!("{} {} in Cargo.toml only", p.tool, new));
+                        let e = format!(
+                            "its registry row was not set to {} ({}); set it in registry/tools.toml",
+                            new, why
+                        );
+                        (e, i + 1)
+                    }
+                };
+                let rest: Vec<String> = plans[from..]
                     .iter()
                     .filter_map(|q| {
                         q.level
@@ -1673,6 +1692,44 @@ fn write_versions(ctx: &AppContext, id: &str, plans: &[VersionPlan]) -> CoreResu
         }
     }
     Ok(receipt)
+}
+
+/// INT-287 G3: every planned row, checked against the registry before the close writes
+/// anything. A row the one writer cannot set refuses here, so no Cargo.toml is bumped first.
+fn rows_writable(registry: &Path, plans: &[VersionPlan]) -> Result<(), String> {
+    let text = std::fs::read_to_string(registry)
+        .map_err(|e| format!("cannot read {} -- {}", registry.display(), e))?;
+    for p in plans.iter().filter(|p| p.level.is_some()) {
+        zero_core::registry::set_version(&text, &p.tool, "0.0.0")
+            .map_err(|e| format!("{}: {}", registry.display(), e))?;
+    }
+    Ok(())
+}
+
+/// Why bump_one stopped, and whether the crate's Cargo.toml was already written.
+#[derive(Debug)]
+enum BumpFailed {
+    /// Nothing was written for this crate.
+    Nothing(String),
+    /// Cargo.toml holds `new`; the registry row does not.
+    CargoOnly { new: String, why: String },
+}
+
+/// INT-287 G3: one planned crate's writes under the repo root `root`: its Cargo.toml through
+/// apply_bump, then its row in the registry at `registry` through the one writer, so the close
+/// leaves the two agreeing (F-0029). Returns its old and new version.
+fn bump_one(
+    root: &Path,
+    registry: &Path,
+    p: &VersionPlan,
+    level: zero_core::version::Level,
+) -> Result<(String, String), BumpFailed> {
+    let (old, new) =
+        zero_core::version::apply_bump(&root.join(&p.rel), level).map_err(BumpFailed::Nothing)?;
+    match zero_core::registry::write_version(registry, &p.tool, &new) {
+        Ok(_) => Ok((old, new)),
+        Err(why) => Err(BumpFailed::CargoOnly { new, why }),
+    }
 }
 
 /// INT-125: keep Cargo.lock in step with a bump. The cargo package name comes from the crate's
@@ -1717,9 +1774,11 @@ fn sync_lock(ctx: &AppContext, toml: &std::path::Path, new: &str) {
 
 #[cfg(test)]
 mod int287_close_tests {
-    use super::crates_touched;
+    use super::{bump_one, crates_touched, rows_writable, BumpFailed, VersionPlan};
+    use std::path::{Path, PathBuf};
     use zero_core::paths::SHELL_PARENT;
     use zero_core::registry::{match_rows, parse, Crate};
+    use zero_core::version::Level;
 
     /// F-0028: the close offered a version only to five crates named in code, so nsh-test
     /// changed in e1a19f83 and INT-285 closed without asking. A crate the registry versions is
@@ -1767,6 +1826,96 @@ mod int287_close_tests {
             .err()
             .expect("a crate with no versioned row must refuse");
         assert!(err.contains("zero-unrowed"), "{}", err);
+    }
+
+    /// A temporary repo root with one crate, demo 1.2.3, and a registry at `registry_text`.
+    fn demo_tree(tag: &str, registry_text: &str) -> (PathBuf, PathBuf, VersionPlan) {
+        let root = std::env::temp_dir().join(format!("zero-close-{}-{}", tag, std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("crates/demo")).unwrap();
+        std::fs::write(
+            root.join("crates/demo/Cargo.toml"),
+            "[package]\nname = \"demo\"\nversion = \"1.2.3\"\nedition = \"2021\"\n",
+        )
+        .unwrap();
+        let registry = root.join("tools.toml");
+        std::fs::write(&registry, registry_text).unwrap();
+        let plan = VersionPlan {
+            tool: "demo".into(),
+            rel: "crates/demo/Cargo.toml".into(),
+            level: Some(Level::Minor),
+        };
+        (root, registry, plan)
+    }
+
+    fn cargo_version(root: &Path) -> String {
+        let toml = std::fs::read_to_string(root.join("crates/demo/Cargo.toml")).unwrap();
+        toml.lines()
+            .find_map(|l| l.strip_prefix("version = \""))
+            .map(|v| v.trim_end_matches('"').to_string())
+            .unwrap()
+    }
+
+    /// F-0029: the close bumped Cargo.toml and left the registry row at the old version, so
+    /// every bump needed a follow-up registry commit, and nsh-test 2.0.1 stayed wrong until
+    /// integrity's drift check caught it.
+    #[test]
+    fn a_bump_moves_the_registry_row_with_the_crate() {
+        let (root, registry, plan) = demo_tree(
+            "moves",
+            "[[tool]]\nname = \"demo\"\nversion = \"1.2.3\"\ntype = \"rust\"\n",
+        );
+        let got = bump_one(&root, &registry, &plan, Level::Minor);
+        let row = zero_core::registry::read_in(&registry).unwrap()[0]
+            .version
+            .clone();
+        let cargo = cargo_version(&root);
+        std::fs::remove_dir_all(&root).unwrap();
+        assert_eq!(got.unwrap(), ("1.2.3".to_string(), "1.3.0".to_string()));
+        assert_eq!(cargo, "1.3.0");
+        assert_eq!(row, "1.3.0", "the registry row moves with Cargo.toml");
+    }
+
+    /// A planned crate with no row the writer can set refuses before anything is written; a
+    /// skipped crate is not asked about.
+    #[test]
+    fn a_planned_crate_with_no_row_refuses_before_any_write() {
+        let (root, registry, plan) =
+            demo_tree("norow", "[[tool]]\nname = \"other\"\nversion = \"1.0.0\"\n");
+        let skipped = VersionPlan {
+            tool: "demo".into(),
+            rel: plan.rel.clone(),
+            level: None,
+        };
+        let refused = rows_writable(&registry, std::slice::from_ref(&plan));
+        let quiet = rows_writable(&registry, &[skipped]);
+        let cargo = cargo_version(&root);
+        std::fs::remove_dir_all(&root).unwrap();
+        let err = refused.unwrap_err();
+        assert!(err.contains("no row named demo"), "{}", err);
+        assert!(quiet.is_ok(), "a skipped crate has nothing to write");
+        assert_eq!(cargo, "1.2.3", "nothing was bumped");
+    }
+
+    /// When the row cannot be set after Cargo.toml was written, the failure says so and
+    /// carries the new version, so the message can tell the reader what is already on disk.
+    #[test]
+    fn a_row_that_cannot_be_set_after_the_bump_says_cargo_was_written() {
+        let (root, registry, plan) = demo_tree(
+            "cargoonly",
+            "[[tool]]\nname = \"other\"\nversion = \"1.0.0\"\n",
+        );
+        let got = bump_one(&root, &registry, &plan, Level::Minor);
+        let cargo = cargo_version(&root);
+        std::fs::remove_dir_all(&root).unwrap();
+        match got {
+            Err(BumpFailed::CargoOnly { new, why }) => {
+                assert_eq!(new, "1.3.0");
+                assert!(why.contains("no row named demo"), "{}", why);
+            }
+            other => panic!("expected CargoOnly, got {:?}", other),
+        }
+        assert_eq!(cargo, "1.3.0");
     }
 }
 
