@@ -42,7 +42,7 @@ use std::time::{Duration, Instant};
 /// same disease as a check that cannot fail.
 pub fn fsh_bin() -> String {
     match std::env::var("NSH_BIN") {
-        Ok(p) if std::path::Path::new(&p).exists() => p,
+        Ok(p) if std::path::Path::new(&p).exists() => absolute_shell(&p),
         Ok(p) => {
             eprintln!("  NSH_BIN names a binary that does not exist: {}", p);
             eprintln!("  Refusing to fall back to the deployed shell -- that is how a stale binary passes.");
@@ -78,6 +78,15 @@ pub fn fsh_bin() -> String {
             p.display().to_string()
         }
     }
+}
+
+/// INT-287 G8 (F-0034): the shell path every case spawns, made absolute against nsh-test's own
+/// working directory. The REPL cases start nsh with current_dir /tmp, so a relative NSH_BIN that
+/// exists from here names nothing there, and all of them failed with "No such file".
+fn absolute_shell(p: &str) -> String {
+    std::path::absolute(p)
+        .map(|a| a.display().to_string())
+        .unwrap_or_else(|_| p.to_string())
 }
 
 /// INT-287 G4 (F-0030): the zero-deadwood binary under test, from DEADWOOD_BIN or else the deployed
@@ -821,5 +830,14 @@ mod bin_tests {
             Ok(here.clone())
         );
         assert_eq!(resolve_bin("X_BIN", None, PathBuf::from(&here)), Ok(here));
+    }
+
+    /// F-0034: a relative NSH_BIN is made absolute before any case runs; an absolute one is kept.
+    #[test]
+    fn a_relative_shell_path_is_made_absolute() {
+        let got = super::absolute_shell("target/debug/nsh");
+        assert!(std::path::Path::new(&got).is_absolute(), "{got}");
+        assert!(got.ends_with("target/debug/nsh"), "{got}");
+        assert_eq!(super::absolute_shell("/usr/bin/nsh"), "/usr/bin/nsh");
     }
 }

@@ -164,7 +164,7 @@ fn run_deadwood(args: &[&str]) -> Result<std::process::Output, String> {
 /// which is INT-110's stale-binary lesson and it has bitten again since: a green 143/143 was read
 /// from a shell that did not contain the change being tested.
 ///
-///     cargo build -p novashell && NSH_BIN=target/debug/nsh ./target/debug/nsh-test
+///     cargo build -p novashell && env NSH_BIN=target/debug/nsh ./target/debug/nsh-test
 ///
 /// The pre-push hook builds first, which is why this only bites in manual runs.
 fn run_fsh(input: &str) -> Result<String, String> {
@@ -247,11 +247,6 @@ fn test(name: &str, category: Category, f: impl Fn() -> Result<(), String>) -> T
     }
 }
 
-/// Is there a 0-Core checkout at $HOME/0-core?
-///
-/// ASKED OF $HOME, NOT HARDCODED. The class of case this guards exists because paths were
-/// written as `~/0-core/...` and the suite assumed one machine. Answering the question the same
-/// wrong way would be a joke at this file's expense.
 /// The directory this run's FIXTURE lives in, named from the pid so two runs never collide.
 ///
 /// Same discipline as repl::case_db_dir: the run owns one directory, creates it once, and removes
@@ -336,6 +331,11 @@ fn write(p: &str, body: &str) -> Result<(), String> {
     std::fs::write(p, body).map_err(|e| format!("fixture write {}: {}", p, e))
 }
 
+/// Is there a 0-Core checkout at $HOME/0-core?
+///
+/// ASKED OF $HOME, NOT HARDCODED. The class of case this guards exists because paths were
+/// written as `~/0-core/...` and the suite assumed one machine. Answering the question the same
+/// wrong way would be a joke at this file's expense.
 fn repo_present() -> bool {
     std::path::Path::new(&home()).join("0-core/zero").is_dir()
 }
@@ -5497,7 +5497,7 @@ fn main() {
                 "  ⚠️  this suite is {expected}; the binary above is {saw_version} -- UNBUILT CHANGES ARE NOT COVERED"
             );
             println!(
-                "     to test what you just built: NSH_BIN=target/debug/nsh ./target/debug/nsh-test"
+                "     to test what you just built: env NSH_BIN=target/debug/nsh ./target/debug/nsh-test"
             );
         }
 
