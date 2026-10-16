@@ -1,0 +1,205 @@
+file /home/christian/0-core/zero/tools/zero-core/src/registry.rs  sha256 b4d31c35c93e2c86 -> fa47108f2e9e702e
+file /home/christian/0-core/zero/engine/src/domains/engines/mod.rs  sha256 b6efea5ebc00a6d4 -> 151d7adeb4336d66
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 438962a545ecdc52 -> cfdb60c9ff303c78
+file /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs  sha256 c1a4f233be79d9b6 -> 183c23815218a597
+file /home/christian/0-core/zero/tools/teach/Cargo.toml  sha256 57d6b1a7280db302 -> 58900f841345e765
+file /home/christian/0-core/zero/tools/zero-context/src/main.rs  sha256 427fb5c7a7e34627 -> 58da7e8a85d000d0
+file /home/christian/0-core/zero/tools/teach/src/main.rs  sha256 f7bb17d84c1b6adb -> 31dffaaf1418b6db
+--- /home/christian/0-core/zero/tools/zero-core/src/registry.rs: replacing lines 276..282 ---
+   274:         return Err(format!(
+   275:             "setting {name} to {new} would change more than its version; nothing was changed"
+>> 276:         ));
+>> 277:     }
+>> 278:     Ok(out)
+>> 279: }
+>> 280: 
+>> 281: /// Set row `name`'s version in the registry file at `path` through set_version, and return the
+>> 282: /// version it held. The new text is written beside the file and renamed over it, then read back.
+   283: /// A refusal writes nothing.
+   284: pub fn write_version(path: &Path, name: &str, new: &str) -> Result<String, String> {
+++         ));
+++     }
+++     Ok(out)
+++ }
+++ 
+++ /// Whether set_version can write row `name` in this text: the same checks, run with the row's
+++ /// own version so nothing changes. The close and bump-versions ask before their first write.
+++ pub fn can_set(text: &str, name: &str) -> Result<(), String> {
+++     let current = parse(text)?
+++         .into_iter()
+++         .find(|r| r.name == name)
+++         .map(|r| r.version)
+++         .ok_or_else(|| format!("the tool registry has no row named {name}"))?;
+++     set_version(text, name, &current).map(|_| ())
+++ }
+++ 
+++ /// Set row `name`'s version in the registry file at `path` through set_version, and return the
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/engines/mod.rs: replacing lines 50..53 ---
+   48: /// The seeding itself, on any connection, so a test can run it.
+   49: fn seed_engines(db: &rusqlite::Connection, now: i64) {
+>> 50:     let engines = vec![
+>> 51:         ("core", "3.0.0", "active"),
+>> 52:         ("zero-insightd", "0.1.0", "active"),
+>> 53:         ("delegation", "0.3.0", "active"),
+   54:         ("friday", "0.0.0", "dormant"),
+   55:         ("pattern-weight", "0.0.0", "planned"),
+++     let engines = vec![
+++         ("core", env!("CARGO_PKG_VERSION"), "active"),
+++         ("zero-insightd", "0.1.0", "active"),
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/engines/mod.rs: replacing lines 64..68 ---
+   62:              VALUES (?1, ?2, ?3, ?4)",
+   63:             params![name, version, now, status],
+>> 64:         );
+>> 65:     }
+>> 66: }
+>> 67: 
+>> 68: /// core engines status — show all engines and sync state
+   69: pub fn status(ctx: &AppContext) -> CoreResult<()> {
+   70:     ensure_tables(ctx)?;
+++         );
+++     }
+++     // INSERT OR IGNORE keeps a row already there, so core's version is set on every seed: it
+++     // comes from the engine's own Cargo.toml and never from a copy (INT-287 G3).
+++     let _ = db.execute(
+++         "UPDATE engine_registry SET version = ?1 WHERE name = 'core'",
+++         params![env!("CARGO_PKG_VERSION")],
+++     );
+++ }
+++ 
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1702..1705 ---
+   1700:     let text = std::fs::read_to_string(registry)
+   1701:         .map_err(|e| format!("cannot read {} -- {}", registry.display(), e))?;
+>> 1702:     for p in plans.iter().filter(|p| p.level.is_some()) {
+>> 1703:         zero_core::registry::set_version(&text, &p.tool, "0.0.0")
+>> 1704:             .map_err(|e| format!("{}: {}", registry.display(), e))?;
+>> 1705:     }
+   1706:     Ok(())
+   1707: }
+++     for p in plans.iter().filter(|p| p.level.is_some()) {
+++         zero_core::registry::can_set(&text, &p.tool)
+++             .map_err(|e| format!("{}: {}", registry.display(), e))?;
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 16859..16862 ---
+   16857:     // refuses with nothing bumped (the close does the same, 010abd46).
+   16858:     let text = std::fs::read_to_string(registry)
+>> 16859:         .map_err(|e| format!("cannot read {} -- {}", registry.display(), e))?;
+>> 16860:     zero_core::registry::set_version(&text, name, "0.0.0")
+>> 16861:         .map_err(|e| format!("{}: {}", registry.display(), e))?;
+>> 16862:     let (old, new) =
+   16863:         zero_core::version::apply_bump(&root.join(&v.krate.dir).join("Cargo.toml"), level)?;
+   16864:     zero_core::registry::write_version(registry, name, &new).map_err(|e| {
+++         .map_err(|e| format!("cannot read {} -- {}", registry.display(), e))?;
+++     zero_core::registry::can_set(&text, name)
+++         .map_err(|e| format!("{}: {}", registry.display(), e))?;
+++ 
+--- /home/christian/0-core/zero/tools/teach/Cargo.toml: replacing lines 9..12 ---
+   7: 
+   8: [dependencies]
+>> 9: # Core infrastructure
+>> 10: zero-core = { path = "../zero-core" }
+>> 11: 
+>> 12: # Serialization
+   13: serde = { version = "1", features = ["derive"] }
+   14: serde_json = "1"
+++ # Core infrastructure
+++ zero-core = { path = "../zero-core", features = ["registry"] }
+++ 
+++ 
+--- /home/christian/0-core/zero/tools/zero-context/src/main.rs: replacing lines 13..16 ---
+   11: #[command(
+   12:     name = "zero-context",
+>> 13:     about = "Deep codebase understanding engine",
+>> 14:     version = "1.0.0"
+>> 15: )]
+>> 16: struct Cli {
+   17:     #[command(subcommand)]
+   18:     command: Option<Command>,
+++     about = "Deep codebase understanding engine",
+++     version
+++ )]
+++ 
+--- /home/christian/0-core/zero/tools/teach/src/main.rs: replacing lines 12..13 ---
+   10: use std::process::Command;
+   11: 
+>> 12: const VERSION: &str = "4.0.0";
+>> 13: 
+   14: // ── Persona ───────────────────────────────────────────────────────────────────
+   15: 
+++ const VERSION: &str = env!("CARGO_PKG_VERSION");
+++ 
+--- /home/christian/0-core/zero/tools/teach/src/main.rs: replacing lines 249..250 ---
+   247: }
+   248: 
+>> 249: fn build_tool_registry() -> Vec<ToolInfo> {
+>> 250:     vec![
+   251:         ToolInfo {
+   252:             name: "zero-git".to_string(),
+++ /// INT-287 G3 (F-0035): a tool's version is read from the registry row that versions it, never
+++ /// kept here. An unreadable registry or a missing row shows as unknown rather than a guess.
+++ fn registry_version(row: &str) -> String {
+++     zero_core::registry::read()
+++         .ok()
+++         .and_then(|rows| rows.into_iter().find(|r| r.name == row))
+++         .map(|r| r.version)
+++         .unwrap_or_else(|| "unknown".to_string())
+++ }
+++ 
+++ fn build_tool_registry() -> Vec<ToolInfo> {
+++ 
+--- /home/christian/0-core/zero/tools/teach/src/main.rs: replacing lines 263..264 ---
+   261:         ToolInfo {
+   262:             name: "zero-git".to_string(),
+>> 263:             version: "3.3.0".to_string(),
+>> 264:             description: "Intent-aware git with Risk Score engine. Shows exact files, stages, commits, pushes — all native via git2. No shell-out for core ops.".to_string(),
+   265:             commands: vec![
+   266:                 "zero-git status   # file-level status + risk score".to_string(),
+++             version: registry_version("zero-git"),
+++ 
+--- /home/christian/0-core/zero/tools/teach/src/main.rs: replacing lines 275..277 ---
+   273:         },
+   274:         ToolInfo {
+>> 275:             name: "dot-doctor".to_string(),
+>> 276:             version: "2.0.0".to_string(),
+>> 277:             description: "22-check system health monitor. Symlinks, services, binaries, git state, intent ledger, security posture — all in one pass.".to_string(),
+   278:             commands: vec![
+   279:                 "doctor          # full health check (alias)".to_string(),
+++             name: "doctor".to_string(),
+++             version: registry_version("core"),
+++             description: "System health monitor. Symlinks
+--- /home/christian/0-core/zero/tools/teach/src/main.rs: replacing lines 279..282 ---
+   277:             description: "System health monitor. Symlinks, services, binaries, git state, intent ledger, security posture — all in one pass.".to_string(),
+   278:             commands: vec![
+>> 279:                 "doctor          # full health check (alias)".to_string(),
+>> 280:                 "dot-doctor      # direct binary".to_string(),
+>> 281:                 "d               # shortest alias".to_string(),
+>> 282:             ],
+   283:             philosophy: "You should know the state of your system before you do anything to it. Health first, then action.".to_string(),
+   284:             replaces: None,
+++                 "d                 # full health check".to_string(),
+++                 "core doctor run   # the same check, by its full name".to_string(),
+++ 
+--- /home/christian/0-core/zero/tools/teach/src/main.rs: replacing lines 287..288 ---
+   285:         ToolInfo {
+   286:             name: "intent".to_string(),
+>> 287:             version: "3.0.0".to_string(),
+>> 288:             description: "Intent Ledger manager. Every architectural decision gets a numbered entry with rationale. Commits link to intents. Project 0 remembers why.".to_string(),
+   289:             commands: vec![
+   290:                 "intent list              # all intents with status".to_string(),
+++             version: registry_version("core"),
+++ 
+/home/christian/0-core/zero/tools/zero-core/src/registry.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/engines/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/engines/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
+/home/christian/0-core/zero/tools/teach/Cargo.toml: 1 replaced
+/home/christian/0-core/zero/tools/zero-context/src/main.rs: 1 replaced
+/home/christian/0-core/zero/tools/teach/src/main.rs: 1 replaced
+/home/christian/0-core/zero/tools/teach/src/main.rs: 1 replaced
+/home/christian/0-core/zero/tools/teach/src/main.rs: 1 replaced
+/home/christian/0-core/zero/tools/teach/src/main.rs: 1 replaced
+/home/christian/0-core/zero/tools/teach/src/main.rs: 1 replaced
+/home/christian/0-core/zero/tools/teach/src/main.rs: 1 replaced
