@@ -214,21 +214,50 @@ version filed (F-0044).
   459326d4f60b72bb. Doors: 453 passed, clippy 0, nsh-test 238/238, core doctor run 0 failed.
 - Findings filed by 287 on 2026-10-16: F-0037 to F-0045. F-0045, a core test that reads HOME
   without HOME_LOCK, turned one push gate red. -->
-- [ ] G4 deadwood has one reader. The INT-285 pattern: red case, the reader
+- [x] G4 deadwood has one reader. The INT-285 pattern: red case, the reader
       refuses a missing target, green. nsh-test's count goes up by one.
-- [ ] G5 why the nsh bytes differ. Two release builds of one commit compared,
+<!-- evidence: commit 90d77e16, 2026-10-16, Fixes: F-0030, seal 4a42ced05fe208f1 (red plan
+21d5df6b0a9a9409). Red: deadwood_bin_is_read_in_one_place failed on the tree, DEADWOOD_BIN read 1
+times, expected once, in src/repl.rs: src/main.rs:152. Green: both one-reader cases pass, and
+bin_tests shows both arms refusing a missing binary. The debug suite runs 239 cases, one more than
+the deployed 238; the deployed count moves at the ship (G10). -->
+- [x] G5 why the nsh bytes differ. Two release builds of one commit compared,
       and the deployed binary against a build of its own commit. Cause
       recorded. A fix only if it is a defect; ship nsh is Christian's call.
-- [ ] G6 ship --dry-run says what it would do. Red, fix, green: "would ship"
+<!-- evidence: measured 2026-10-16 against the deployed nsh 5.3.2 (62ed755902981676), which ship
+built from 57389885. Two cargo build --release -p novashell builds of 57389885 into different target
+dirs were byte-identical (79dbc8f296ce811f): the build is reproducible and the target path is not
+embedded. Both differ from the deployed binary, which is 2392 bytes larger. A cargo build --release
+of the whole workspace, the command ship runs (ship main.rs:466), produced 62ed755902981676, byte
+for byte the deployed binary. Cause: the bytes follow the build command, not the commit. A
+workspace build unifies dependency features across crates and a -p build does not. Not a defect,
+so no fix (ruled with G5's own text): a deployed binary is compared only with a workspace release
+build of its commit. The 5.3.1 mismatch was not re-measured; ship keeps three earlier nsh backups. -->
+- [x] G6 ship --dry-run says what it would do. Red, fix, green: "would ship"
       in the summary, and the real ship's wording unchanged.
-- [ ] G7 repo_present's doc back on repo_present. cargo doc clean, nsh-test
+<!-- evidence: commit e01656e5, 2026-10-16, Fixes: F-0032, seal 9413ad38d9065840 (red plan
+5bf7bcce41c9eb02). Red: a_dry_run_summary_says_would_ship failed, left 1 shipped, right 1 would
+ship. Green, with the real ship's wording asserted unchanged in the same test. -->
+- [x] G7 repo_present's doc back on repo_present. cargo doc clean, nsh-test
       unchanged.
-- [ ] G8 NSH_BIN resolves to one absolute path. Red: a relative NSH_BIN shown failing the REPL
+<!-- evidence: the doc move landed in commit 0153ec95 beside G8 (plan g7, seal ad77950a1b2ffc8a):
+the pre-commit hook restaged nsh-test main.rs, so the separate G7 commit found nothing left. The
+commit before this record fences an unrelated indented block at repl.rs:6 as text and carries
+Fixes: F-0033; cargo doc -p nsh-test --no-deps then reports 0 warnings. nsh-test unchanged. -->
+- [x] G8 NSH_BIN resolves to one absolute path. Red: a relative NSH_BIN shown failing the REPL
       cases, in a form G0 settles. Fix: fsh_bin, the one reader, makes the path absolute against
       nsh-test's working directory before any case runs, or refuses it; the help text at
       main.rs:100 and :5331 shows a form that works. Green.
-- [ ] G9 ruling on F-0020: findings are history, so leave it with a note,
+<!-- evidence: commit 0153ec95, 2026-10-16, Fixes: F-0034, seal 9e53ccd84aba23ea (red plan
+6375073ae86fb335). Red: a_relative_shell_path_is_made_absolute failed on the tree. Green, and the
+REPL cases run with env NSH_BIN=target/debug/nsh, the relative form, passed 86/86 (measured
+2026-10-16); before the fix all of them failed with No such file (INT-286). The help text at
+main.rs:167 and :5500 shows env NSH_BIN=target/debug/nsh. -->
+- [x] G9 ruling on F-0020: findings are history, so leave it with a note,
       or amend it.
+<!-- ruled 2026-10-16 by Christian: findings are history, so F-0020 is left as written. Its text
+names main.rs:2646, which was :2764 when it was fixed; its at: field is main.rs:325. This note is
+the record of that. Also closed in 287 on 2026-10-16: F-0045 in ae77e56d. -->
 - [ ] G10 doors: ship what changed, nsh-test all passing, d 0 failed, core
       intent validate clean.
 - [ ] G11 commits: one per fix, each with Intent and Fixes and its plan Seal
