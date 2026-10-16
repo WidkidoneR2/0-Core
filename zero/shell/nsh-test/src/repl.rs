@@ -80,6 +80,34 @@ pub fn fsh_bin() -> String {
     }
 }
 
+/// INT-287 G4 (F-0030): the zero-deadwood binary under test, from DEADWOOD_BIN or else the deployed
+/// one at paths::bin_dir, the same two arms as fsh_bin. A binary that is not on disk is refused
+/// with its path, never handed to PATH to resolve: a missing deadwood is not a passing check.
+pub fn deadwood_bin() -> Result<String, String> {
+    resolve_bin(
+        "DEADWOOD_BIN",
+        std::env::var("DEADWOOD_BIN").ok(),
+        zero_core::paths::bin_dir().join("zero-deadwood"),
+    )
+}
+
+/// The rule both arms keep: a named binary must exist, and so must the deployed fallback.
+fn resolve_bin(
+    var: &str,
+    named: Option<String>,
+    deployed: std::path::PathBuf,
+) -> Result<String, String> {
+    match named {
+        Some(p) if std::path::Path::new(&p).exists() => Ok(p),
+        Some(p) => Err(format!("{var} names a binary that does not exist: {p}")),
+        None if deployed.exists() => Ok(deployed.display().to_string()),
+        None => Err(format!(
+            "{var} is not set and the deployed binary is not there: {}",
+            deployed.display()
+        )),
+    }
+}
+
 /// Strip ANSI CSI/OSC sequences and control bytes; map CR to LF.
 fn strip_ansi(raw: &[u8]) -> String {
     let mut out: Vec<u8> = Vec::with_capacity(raw.len());
@@ -766,4 +794,32 @@ fn run_session_full(
         prompted,
         transcript,
     })
+}
+
+#[cfg(test)]
+mod bin_tests {
+    use super::resolve_bin;
+    use std::path::PathBuf;
+
+    /// INT-287 G4: both arms refuse a binary that is not on disk, and name it.
+    #[test]
+    fn a_missing_binary_is_refused_on_both_arms() {
+        let here = env!("CARGO_MANIFEST_DIR").to_string();
+        let gone = PathBuf::from(&here).join("no-such-binary-int287");
+        let named = resolve_bin(
+            "X_BIN",
+            Some(gone.display().to_string()),
+            PathBuf::from(&here),
+        );
+        assert!(named
+            .unwrap_err()
+            .contains("names a binary that does not exist"));
+        let deployed = resolve_bin("X_BIN", None, gone.clone());
+        assert!(deployed.unwrap_err().contains("is not set"));
+        assert_eq!(
+            resolve_bin("X_BIN", Some(here.clone()), gone.clone()),
+            Ok(here.clone())
+        );
+        assert_eq!(resolve_bin("X_BIN", None, PathBuf::from(&here)), Ok(here));
+    }
 }

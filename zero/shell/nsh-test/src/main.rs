@@ -79,11 +79,78 @@ impl TestResult {
     }
 }
 
+/// INT-285 / INT-287 G4: a variable naming a binary under test is read once, in src/repl.rs, the
+/// owner's file. Walks this crate on disk, located by zero_core::paths, rather than naming files, so
+/// a reader added in a new file goes red the day it is written. The caller assembles `name` from
+/// pieces, or the case would count itself.
+fn env_read_in_owner_file(name: &str) -> Result<(), String> {
+    let base = zero_core::paths::crate_dir("nsh-test")
+        .ok_or("zero_core::paths::crate_dir found no nsh-test crate")?;
+    let needles = [
+        format!("env::var(\"{}\")", name),
+        format!("env::var_os(\"{}\")", name),
+    ];
+    let mut stack = vec![base.clone()];
+    let mut files = 0usize;
+    let mut in_owner_file = 0usize;
+    let mut hits: Vec<String> = Vec::new();
+    while let Some(dir) = stack.pop() {
+        let entries =
+            std::fs::read_dir(&dir).map_err(|e| format!("cannot read {}: {}", dir.display(), e))?;
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_dir() {
+                if path.file_name().map(|n| n != "target").unwrap_or(false) {
+                    stack.push(path);
+                }
+                continue;
+            }
+            if path.extension().map(|x| x != "rs").unwrap_or(true) {
+                continue;
+            }
+            files += 1;
+            let text = std::fs::read_to_string(&path)
+                .map_err(|e| format!("cannot read {}: {}", path.display(), e))?;
+            let shown = path
+                .strip_prefix(&base)
+                .unwrap_or(&path)
+                .display()
+                .to_string();
+            for (n, line) in text.lines().enumerate() {
+                if line.trim_start().starts_with("//") {
+                    continue;
+                }
+                if needles.iter().any(|nd| line.contains(nd.as_str())) {
+                    if shown == "src/repl.rs" {
+                        in_owner_file += 1;
+                    }
+                    hits.push(format!("{}:{}", shown, n + 1));
+                }
+            }
+        }
+    }
+    // AN EMPTY TREE IS NOT A CLEAN ONE. Reading nothing must not pass as finding one.
+    if files == 0 {
+        return Err(format!("read no .rs files under {}", base.display()));
+    }
+    hits.sort();
+    if hits.len() == 1 && in_owner_file == 1 {
+        return Ok(());
+    }
+    Err(format!(
+        "{} is read {} times, expected once, in src/repl.rs: {}",
+        name,
+        hits.len(),
+        hits.join(" | ")
+    ))
+}
+
 /// INT-195 gate 6: invoke zero-deadwood through the same seam pattern run_fsh uses for the
 /// shell. DEADWOOD_BIN lets one test prove the debug build before a deploy and the deployed
-/// artifact after -- the two-binaries discipline the rest of this work relies on.
+/// artifact after -- the two-binaries discipline the rest of this work relies on. The binary is
+/// named by repl::deadwood_bin, which refuses a missing one (INT-287 G4).
 fn run_deadwood(args: &[&str]) -> Result<std::process::Output, String> {
-    let bin = std::env::var("DEADWOOD_BIN").unwrap_or_else(|_| "zero-deadwood".to_string());
+    let bin = repl::deadwood_bin()?;
     Command::new(&bin)
         .args(args)
         .stdout(Stdio::piped())
@@ -2789,68 +2856,16 @@ print('CLASS-DONE')"##;
         "nsh_bin_is_read_in_one_place",
         Category::Regression,
         "needs a real 0-Core: it reads nsh-test's own source, which only a checkout has",
-        || {
-            let base = zero_core::paths::crate_dir("nsh-test")
-                .ok_or("zero_core::paths::crate_dir found no nsh-test crate")?;
-            let name = ["NSH", "BIN"].join("_");
-            let needles = [
-                format!("env::var(\"{}\")", name),
-                format!("env::var_os(\"{}\")", name),
-            ];
-            let mut stack = vec![base.clone()];
-            let mut files = 0usize;
-            let mut in_owner_file = 0usize;
-            let mut hits: Vec<String> = Vec::new();
-            while let Some(dir) = stack.pop() {
-                let entries = std::fs::read_dir(&dir)
-                    .map_err(|e| format!("cannot read {}: {}", dir.display(), e))?;
-                for entry in entries.flatten() {
-                    let path = entry.path();
-                    if path.is_dir() {
-                        if path.file_name().map(|n| n != "target").unwrap_or(false) {
-                            stack.push(path);
-                        }
-                        continue;
-                    }
-                    if path.extension().map(|x| x != "rs").unwrap_or(true) {
-                        continue;
-                    }
-                    files += 1;
-                    let text = std::fs::read_to_string(&path)
-                        .map_err(|e| format!("cannot read {}: {}", path.display(), e))?;
-                    let shown = path
-                        .strip_prefix(&base)
-                        .unwrap_or(&path)
-                        .display()
-                        .to_string();
-                    for (n, line) in text.lines().enumerate() {
-                        if line.trim_start().starts_with("//") {
-                            continue;
-                        }
-                        if needles.iter().any(|nd| line.contains(nd.as_str())) {
-                            if shown == "src/repl.rs" {
-                                in_owner_file += 1;
-                            }
-                            hits.push(format!("{}:{}", shown, n + 1));
-                        }
-                    }
-                }
-            }
-            // AN EMPTY TREE IS NOT A CLEAN ONE. Reading nothing must not pass as finding one.
-            if files == 0 {
-                return Err(format!("read no .rs files under {}", base.display()));
-            }
-            hits.sort();
-            if hits.len() == 1 && in_owner_file == 1 {
-                return Ok(());
-            }
-            Err(format!(
-                "{} is read {} times, expected once, in src/repl.rs: {}",
-                name,
-                hits.len(),
-                hits.join(" | ")
-            ))
-        },
+        || env_read_in_owner_file(&["NSH", "BIN"].join("_")),
+    ));
+    // INT-287 G4 (F-0030): THE DEADWOOD BINARY IS NAMED BY ONE READER TOO. run_deadwood read
+    // DEADWOOD_BIN with a bare "zero-deadwood" default, the shape F-0020 had: PATH decided which
+    // binary was measured, and a missing one was never refused. Same owner file, same walk.
+    results.push(repo_test(
+        "deadwood_bin_is_read_in_one_place",
+        Category::Regression,
+        "needs a real 0-Core: it reads nsh-test's own source, which only a checkout has",
+        || env_read_in_owner_file(&["DEADWOOD", "BIN"].join("_")),
     ));
     // INT-286 G2: A SHELL THAT OWNED ITS TERMINAL AND LOST IT TAKES IT BACK. A background job takes
     // the foreground and prints STOLEN; the next line is sent only after that, so nsh's next read
