@@ -1,0 +1,175 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 47454308882fff3c -> 438962a545ecdc52
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1619..1621 ---
+   1617:     let mut receipt = String::from("\n## Versions\n");
+   1618:     let mut written: Vec<String> = Vec::new();
+>> 1619:     let registry = zero_core::paths::tools_registry();
+>> 1620:     println!();
+>> 1621:     println!("  {} Versions", "\u{1f4e6}".normal());
+   1622:     for (i, p) in plans.iter().enumerate() {
+   1623:         let Some(level) = p.level else {
+++     let registry = zero_core::paths::tools_registry();
+++     // INT-287 G3: every planned row is checked before the first write, so a row the writer
+++     // cannot set refuses the close with no Cargo.toml bumped.
+++     if let Err(e) = rows_writable(&registry, plans) {
+++         eprintln!("  refused before any write: {}", e);
+++         eprintln!("  nothing was bumped and the intent was not moved");
+++         return Err(crate::errors::CoreError::Reported(e));
+++     }
+++     println!();
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1655..1659 ---
+   1653:                 written.push(format!("{} {}", p.tool, new));
+   1654:                 sync_lock(ctx, &full, &new);
+>> 1655:             }
+>> 1656:             Err(e) => {
+>> 1657:                 let rest: Vec<String> = plans[i..]
+>> 1658:                     .iter()
+>> 1659:                     .filter_map(|q| {
+   1660:                         q.level
+   1661:                             .map(|l| format!("bump-versions {} {}", q.tool, l.as_str()))
+++             }
+++             Err(failed) => {
+++                 let (e, from) = match failed {
+++                     BumpFailed::Nothing(e) => (e, i),
+++                     BumpFailed::CargoOnly { new, why } => {
+++                         written.push(format!("{} {} in Cargo.toml only", p.tool, new));
+++                         let e = format!(
+++                             "its registry row was not set to {} ({}); set it in registry/tools.toml",
+++                             new, why
+++                         );
+++                         (e, i + 1)
+++                     }
+++                 };
+++                 let rest: Vec<String> = plans[from..]
+++                     .iter()
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1696..1700 ---
+   1694:     Ok(receipt)
+   1695: }
+>> 1696: 
+>> 1697: /// INT-287 G3: one planned crate's writes under the repo root `root`. Returns its old and new
+>> 1698: /// version.
+>> 1699: fn bump_one(
+>> 1700:     root: &Path,
+   1701:     registry: &Path,
+   1702:     p: &VersionPlan,
+++ 
+++ /// INT-287 G3: every planned row, checked against the registry before the close writes
+++ /// anything. A row the one writer cannot set refuses here, so no Cargo.toml is bumped first.
+++ fn rows_writable(registry: &Path, plans: &[VersionPlan]) -> Result<(), String> {
+++     let text = std::fs::read_to_string(registry)
+++         .map_err(|e| format!("cannot read {} -- {}", registry.display(), e))?;
+++     for p in plans.iter().filter(|p| p.level.is_some()) {
+++         zero_core::registry::set_version(&text, &p.tool, "0.0.0")
+++             .map_err(|e| format!("{}: {}", registry.display(), e))?;
+++     }
+++     Ok(())
+++ }
+++ 
+++ /// Why bump_one stopped, and whether the crate's Cargo.toml was already written.
+++ #[derive(Debug)]
+++ enum BumpFailed {
+++     /// Nothing was written for this crate.
+++     Nothing(String),
+++     /// Cargo.toml holds `new`; the registry row does not.
+++     CargoOnly { new: String, why: String },
+++ }
+++ 
+++ /// INT-287 G3: one planned crate's writes under the repo root `root`: its Cargo.toml through
+++ /// apply_bump, then its row in the registry at `registry` through the one writer, so the close
+++ /// leaves the two agreeing (F-0029). Returns its old and new version.
+++ fn bump_one(
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1725..1730 ---
+   1723:     registry: &Path,
+   1724:     p: &VersionPlan,
+>> 1725:     level: zero_core::version::Level,
+>> 1726: ) -> Result<(String, String), String> {
+>> 1727:     let _ = registry;
+>> 1728:     zero_core::version::apply_bump(&root.join(&p.rel), level)
+>> 1729: }
+>> 1730: 
+   1731: /// INT-125: keep Cargo.lock in step with a bump. The cargo package name comes from the crate's
+   1732: /// own Cargo.toml, not the tool id.
+++     level: zero_core::version::Level,
+++ ) -> Result<(String, String), BumpFailed> {
+++     let (old, new) =
+++         zero_core::version::apply_bump(&root.join(&p.rel), level).map_err(BumpFailed::Nothing)?;
+++     match zero_core::registry::write_version(registry, &p.tool, &new) {
+++         Ok(_) => Ok((old, new)),
+++         Err(why) => Err(BumpFailed::CargoOnly { new, why }),
+++     }
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1776..1779 ---
+   1774: 
+   1775: #[cfg(test)]
+>> 1776: mod int287_close_tests {
+>> 1777:     use super::{bump_one, crates_touched, VersionPlan};
+>> 1778:     use std::path::{Path, PathBuf};
+>> 1779:     use zero_core::paths::SHELL_PARENT;
+   1780:     use zero_core::registry::{match_rows, parse, Crate};
+   1781:     use zero_core::version::Level;
+++ mod int287_close_tests {
+++     use super::{bump_one, crates_touched, rows_writable, BumpFailed, VersionPlan};
+++     use std::path::{Path, PathBuf};
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1876..1878 ---
+   1874:         assert_eq!(got.unwrap(), ("1.2.3".to_string(), "1.3.0".to_string()));
+   1875:         assert_eq!(cargo, "1.3.0");
+>> 1876:         assert_eq!(row, "1.3.0", "the registry row moves with Cargo.toml");
+>> 1877:     }
+>> 1878: }
+   1879: 
+   1880: #[cfg(test)]
+++         assert_eq!(row, "1.3.0", "the registry row moves with Cargo.toml");
+++     }
+++ 
+++     /// A planned crate with no row the writer can set refuses before anything is written; a
+++     /// skipped crate is not asked about.
+++     #[test]
+++     fn a_planned_crate_with_no_row_refuses_before_any_write() {
+++         let (root, registry, plan) =
+++             demo_tree("norow", "[[tool]]\nname = \"other\"\nversion = \"1.0.0\"\n");
+++         let skipped = VersionPlan {
+++             tool: "demo".into(),
+++             rel: plan.rel.clone(),
+++             level: None,
+++         };
+++         let refused = rows_writable(&registry, std::slice::from_ref(&plan));
+++         let quiet = rows_writable(&registry, &[skipped]);
+++         let cargo = cargo_version(&root);
+++         std::fs::remove_dir_all(&root).unwrap();
+++         let err = refused.unwrap_err();
+++         assert!(err.contains("no row named demo"), "{}", err);
+++         assert!(quiet.is_ok(), "a skipped crate has nothing to write");
+++         assert_eq!(cargo, "1.2.3", "nothing was bumped");
+++     }
+++ 
+++     /// When the row cannot be set after Cargo.toml was written, the failure says so and
+++     /// carries the new version, so the message can tell the reader what is already on disk.
+++     #[test]
+++     fn a_row_that_cannot_be_set_after_the_bump_says_cargo_was_written() {
+++         let (root, registry, plan) = demo_tree(
+++             "cargoonly",
+++             "[[tool]]\nname = \"other\"\nversion = \"1.0.0\"\n",
+++         );
+++         let got = bump_one(&root, &registry, &plan, Level::Minor);
+++         let cargo = cargo_version(&root);
+++         std::fs::remove_dir_all(&root).unwrap();
+++         match got {
+++             Err(BumpFailed::CargoOnly { new, why }) => {
+++                 assert_eq!(new, "1.3.0");
+++                 assert!(why.contains("no row named demo"), "{}", why);
+++             }
+++             other => panic!("expected CargoOnly, got {:?}", other),
+++         }
+++         assert_eq!(cargo, "1.3.0");
+++     }
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
