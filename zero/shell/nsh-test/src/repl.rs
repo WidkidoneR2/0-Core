@@ -3,8 +3,10 @@
 //! WHY THIS MODULE EXISTS. nsh-test's run_fsh() invokes `fsh -c`. Measured
 //! 2026-07-17 against the same deployed binary on the same day:
 //!
-//!     fsh -c 'echo hello 2>/dev/null | grep -c hello'   -> 1       CORRECT
-//!     the same line typed at the prompt                 -> hello   WRONG
+//! ```text
+//! fsh -c 'echo hello 2>/dev/null | grep -c hello'   -> 1       CORRECT
+//! the same line typed at the prompt                 -> hello   WRONG
+//! ```
 //!
 //! `fsh -c` never had the INT-172 redirect bug. Only the interactive REPL did.
 //! So 83/83 green never meant "fsh works" -- it meant "the -c path works". It
