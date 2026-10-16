@@ -1,0 +1,16 @@
+file /home/christian/0-core/zero/engine/src/domains/integrity/mod.rs  sha256 77d1666638f94b43 -> e4ff39bf7cb44ea1
+--- /home/christian/0-core/zero/engine/src/domains/integrity/mod.rs: replacing lines 2178..2180 ---
+   2176:     /// crate directory it is built from.
+   2177:     #[test]
+>> 2178:     fn every_live_row_of_the_real_registry_is_compared() {
+>> 2179:         let root = zero_core::paths::core_dir();
+>> 2180:         let scratch =
+   2181:             std::env::temp_dir().join(format!("integrity-int283-real-{}", std::process::id()));
+   2182:         let ctx = AppContext {
+++     fn every_live_row_of_the_real_registry_is_compared() {
+++         // F-0045: this reads the real tree through HOME, which absent_ledger_tests changes under
+++         // HOME_LOCK while cargo runs both in parallel. Holding the lock keeps HOME still here.
+++         let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+++         let root = zero_core::paths::core_dir();
+++ 
+/home/christian/0-core/zero/engine/src/domains/integrity/mod.rs: 1 replaced
