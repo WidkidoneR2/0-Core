@@ -238,23 +238,16 @@ impl PipelineResult {
 fn apply_safe_fix(fix: &FixAction, ctx: &IntegrityContext) -> bool {
     match fix {
         FixAction::UpdateRegistryVersion { tool, version } => {
+            // INT-287 G3: the one registry version writer, shared with the close. A refusal is
+            // printed with its reason instead of becoming a bare false.
             let path = ctx.ctx.fpath("registry/tools.toml");
-            if let Ok(content) = std::fs::read_to_string(&path) {
-                let old = format!("name = \"{}\"\nversion = \"", tool);
-                if let Some(idx) = content.find(&old) {
-                    let ver_start = idx + old.len();
-                    if let Some(ver_end) = content[ver_start..].find('"') {
-                        let new_content = format!(
-                            "{}{}{}",
-                            &content[..ver_start],
-                            version,
-                            &content[ver_start + ver_end..]
-                        );
-                        return std::fs::write(&path, new_content).is_ok();
-                    }
+            match zero_core::registry::write_version(&path, tool, version) {
+                Ok(_) => true,
+                Err(e) => {
+                    eprintln!("  {}", e);
+                    false
                 }
             }
-            false
         }
         FixAction::InsertDbRow { table: _, sql } => ctx.ctx.runtime.db.execute_batch(sql).is_ok(),
         FixAction::SyncDocs => std::process::Command::new("zero-docs")
