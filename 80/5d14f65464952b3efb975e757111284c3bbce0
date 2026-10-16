@@ -1,0 +1,87 @@
+file /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs  sha256 5617b1b70f3fe758 -> c1a4f233be79d9b6
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 16839..16842 ---
+   16837:     )
+   16838: }
+>> 16839: 
+>> 16840: /// INT-287 G3: one bump-versions write, under the repo root `root`.
+>> 16841: fn bump_in(
+>> 16842:     root: &std::path::Path,
+   16843:     registry: &std::path::Path,
+   16844:     ws: &zero_core::registry::Workspace,
+++ 
+++ /// INT-287 G3: one bump-versions write under the repo root `root`: the crate's Cargo.toml, then
+++ /// its registry row through zero_core::registry, the one writer, so the two agree afterwards.
+++ fn bump_in(
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 16848..16851 ---
+   16846:     tool: &str,
+   16847:     level: zero_core::version::Level,
+>> 16848: ) -> Result<(String, String), String> {
+>> 16849:     let _ = registry;
+>> 16850:     let v = ws.find(tool).ok_or_else(|| {
+>> 16851:         format!(
+   16852:             "unknown tool '{}': no versioned row in the tool registry",
+   16853:             tool
+++ ) -> Result<(String, String), String> {
+++     let v = ws.find(tool).ok_or_else(|| {
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 16854..16857 ---
+   16852:             tool
+   16853:         )
+>> 16854:     })?;
+>> 16855:     zero_core::version::apply_bump(&root.join(&v.krate.dir).join("Cargo.toml"), level)
+>> 16856: }
+>> 16857: 
+   16858: /// INT-271: the bump-versions contract. No args: the table. `<tool> <level>`, or the older
+   16859: /// `<level> <tool>`: one write. Anything else is an error, so a wrong call never looks like a table.
+++     })?;
+++     let name = v.row.name.as_str();
+++     // The row is checked before Cargo.toml is written, so a row the one writer cannot set
+++     // refuses with nothing bumped (the close does the same, 010abd46).
+++     let text = std::fs::read_to_string(registry)
+++         .map_err(|e| format!("cannot read {} -- {}", registry.display(), e))?;
+++     zero_core::registry::set_version(&text, name, "0.0.0")
+++         .map_err(|e| format!("{}: {}", registry.display(), e))?;
+++     let (old, new) =
+++         zero_core::version::apply_bump(&root.join(&v.krate.dir).join("Cargo.toml"), level)?;
+++     zero_core::registry::write_version(registry, name, &new).map_err(|e| {
+++         format!(
+++             "{} is {} in Cargo.toml only; its registry row was not set ({}); set it in registry/tools.toml",
+++             name, new, e
+++         )
+++     })?;
+++     Ok((old, new))
+++ }
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: replacing lines 16939..16943 ---
+   16937:         assert_eq!(
+   16938:             rows[0].version, "1.2.4",
+>> 16939:             "the registry row moves with Cargo.toml"
+>> 16940:         );
+>> 16941:     }
+>> 16942: }
+>> 16943: 
+   16944: #[cfg(test)]
+   16945: mod bump_args_tests {
+++             "the registry row moves with Cargo.toml"
+++         );
+++     }
+++ 
+++     /// A crate whose row the writer cannot set is refused before Cargo.toml is touched.
+++     #[test]
+++     fn bump_versions_refuses_a_row_it_cannot_set_before_any_write() {
+++         let (root, registry, ws) =
+++             demo_tree("norow", "[[tool]]\nname = \"other\"\nversion = \"1.0.0\"\n");
+++         let got = bump_in(&root, &registry, &ws, "demo", Level::Patch);
+++         let cargo = cargo_version(&root);
+++         std::fs::remove_dir_all(&root).unwrap();
+++         let err = got.unwrap_err();
+++         assert!(err.contains("no row named demo-row"), "{}", err);
+++         assert_eq!(cargo, "1.2.3", "nothing was bumped");
+++     }
+++ }
+++ 
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/commands/mod.rs: 1 replaced
