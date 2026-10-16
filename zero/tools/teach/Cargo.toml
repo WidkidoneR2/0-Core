@@ -7,7 +7,7 @@ description = "Live system narrator — adapts to newcomer or expert"
 
 [dependencies]
 # Core infrastructure
-zero-core = { path = "../zero-core" }
+zero-core = { path = "../zero-core", features = ["registry"] }
 
 # Serialization
 serde = { version = "1", features = ["derive"] }

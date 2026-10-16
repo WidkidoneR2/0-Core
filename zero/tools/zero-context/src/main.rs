@@ -11,7 +11,7 @@ use walkdir::WalkDir;
 #[command(
     name = "zero-context",
     about = "Deep codebase understanding engine",
-    version = "1.0.0"
+    version
 )]
 struct Cli {
     #[command(subcommand)]

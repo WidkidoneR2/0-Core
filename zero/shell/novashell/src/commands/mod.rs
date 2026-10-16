@@ -16857,7 +16857,7 @@ fn bump_in(
     // refuses with nothing bumped (the close does the same, 010abd46).
     let text = std::fs::read_to_string(registry)
         .map_err(|e| format!("cannot read {} -- {}", registry.display(), e))?;
-    zero_core::registry::set_version(&text, name, "0.0.0")
+    zero_core::registry::can_set(&text, name)
         .map_err(|e| format!("{}: {}", registry.display(), e))?;
     let (old, new) =
         zero_core::version::apply_bump(&root.join(&v.krate.dir).join("Cargo.toml"), level)?;

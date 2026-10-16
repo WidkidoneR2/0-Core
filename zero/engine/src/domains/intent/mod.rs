@@ -1700,7 +1700,7 @@ fn rows_writable(registry: &Path, plans: &[VersionPlan]) -> Result<(), String> {
     let text = std::fs::read_to_string(registry)
         .map_err(|e| format!("cannot read {} -- {}", registry.display(), e))?;
     for p in plans.iter().filter(|p| p.level.is_some()) {
-        zero_core::registry::set_version(&text, &p.tool, "0.0.0")
+        zero_core::registry::can_set(&text, &p.tool)
             .map_err(|e| format!("{}: {}", registry.display(), e))?;
     }
     Ok(())

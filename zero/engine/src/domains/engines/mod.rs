@@ -41,9 +41,14 @@ fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
 
 /// Seed known engines into registry if not present
 fn seed_registry(ctx: &AppContext) -> CoreResult<()> {
-    let now = now_ts();
+    seed_engines(&ctx.runtime.db, now_ts());
+    Ok(())
+}
+
+/// The seeding itself, on any connection, so a test can run it.
+fn seed_engines(db: &rusqlite::Connection, now: i64) {
     let engines = vec![
-        ("core", "3.0.0", "active"),
+        ("core", env!("CARGO_PKG_VERSION"), "active"),
         ("zero-insightd", "0.1.0", "active"),
         ("delegation", "0.3.0", "active"),
         ("friday", "0.0.0", "dormant"),
@@ -52,13 +57,18 @@ fn seed_registry(ctx: &AppContext) -> CoreResult<()> {
         ("self-transform", "0.0.0", "planned"),
     ];
     for (name, version, status) in engines {
-        let _ = ctx.runtime.db.execute(
+        let _ = db.execute(
             "INSERT OR IGNORE INTO engine_registry (name, version, last_active, status)
              VALUES (?1, ?2, ?3, ?4)",
             params![name, version, now, status],
         );
     }
-    Ok(())
+    // INSERT OR IGNORE keeps a row already there, so core's version is set on every seed: it
+    // comes from the engine's own Cargo.toml and never from a copy (INT-287 G3).
+    let _ = db.execute(
+        "UPDATE engine_registry SET version = ?1 WHERE name = 'core'",
+        params![env!("CARGO_PKG_VERSION")],
+    );
 }
 
 /// core engines status — show all engines and sync state
@@ -551,4 +561,36 @@ fn now_ts() -> i64 {
         .duration_since(std::time::UNIX_EPOCH)
         .map(|d| d.as_secs() as i64)
         .unwrap_or(0)
+}
+
+#[cfg(test)]
+mod int287_seed_tests {
+    use super::seed_engines;
+
+    /// INT-287 G3: core's row carried 3.0.0 from a literal while the engine was 4.4.0, and
+    /// INSERT OR IGNORE kept whatever row was already there. Seeding now sets core's version
+    /// from the engine's own Cargo.toml, on a fresh table and on one holding the old row.
+    #[test]
+    fn seeding_sets_core_to_the_engine_version_even_over_an_old_row() {
+        let db = rusqlite::Connection::open_in_memory().unwrap();
+        db.execute_batch(
+            "CREATE TABLE engine_registry (name TEXT PRIMARY KEY, version TEXT NOT NULL,
+             last_active INTEGER NOT NULL, status TEXT NOT NULL);
+             INSERT INTO engine_registry VALUES ('core', '3.0.0', 0, 'active');",
+        )
+        .unwrap();
+        seed_engines(&db, 1);
+        let core: String = db
+            .query_row(
+                "SELECT version FROM engine_registry WHERE name = 'core'",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap();
+        let rows: i64 = db
+            .query_row("SELECT COUNT(*) FROM engine_registry", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(core, env!("CARGO_PKG_VERSION"));
+        assert_eq!(rows, 7, "the other six engines are seeded beside it");
+    }
 }

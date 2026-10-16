@@ -9,7 +9,7 @@ use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::Command;
 
-const VERSION: &str = "4.0.0";
+const VERSION: &str = env!("CARGO_PKG_VERSION");
 
 // ── Persona ───────────────────────────────────────────────────────────────────
 
@@ -246,11 +246,21 @@ fn gather_health() -> usize {
     }
 }
 
+/// INT-287 G3 (F-0035): a tool's version is read from the registry row that versions it, never
+/// kept here. An unreadable registry or a missing row shows as unknown rather than a guess.
+fn registry_version(row: &str) -> String {
+    zero_core::registry::read()
+        .ok()
+        .and_then(|rows| rows.into_iter().find(|r| r.name == row))
+        .map(|r| r.version)
+        .unwrap_or_else(|| "unknown".to_string())
+}
+
 fn build_tool_registry() -> Vec<ToolInfo> {
     vec![
         ToolInfo {
             name: "zero-git".to_string(),
-            version: "3.3.0".to_string(),
+            version: registry_version("zero-git"),
             description: "Intent-aware git with Risk Score engine. Shows exact files, stages, commits, pushes — all native via git2. No shell-out for core ops.".to_string(),
             commands: vec![
                 "zero-git status   # file-level status + risk score".to_string(),
@@ -262,20 +272,19 @@ fn build_tool_registry() -> Vec<ToolInfo> {
             replaces: Some("lazygit".to_string()),
         },
         ToolInfo {
-            name: "dot-doctor".to_string(),
-            version: "2.0.0".to_string(),
-            description: "22-check system health monitor. Symlinks, services, binaries, git state, intent ledger, security posture — all in one pass.".to_string(),
+            name: "doctor".to_string(),
+            version: registry_version("core"),
+            description: "System health monitor. Symlinks, services, binaries, git state, intent ledger, security posture — all in one pass.".to_string(),
             commands: vec![
-                "doctor          # full health check (alias)".to_string(),
-                "dot-doctor      # direct binary".to_string(),
-                "d               # shortest alias".to_string(),
+                "d                 # full health check".to_string(),
+                "core doctor run   # the same check, by its full name".to_string(),
             ],
             philosophy: "You should know the state of your system before you do anything to it. Health first, then action.".to_string(),
             replaces: None,
         },
         ToolInfo {
             name: "intent".to_string(),
-            version: "3.0.0".to_string(),
+            version: registry_version("core"),
             description: "Intent Ledger manager. Every architectural decision gets a numbered entry with rationale. Commits link to intents. Project 0 remembers why.".to_string(),
             commands: vec![
                 "intent list              # all intents with status".to_string(),

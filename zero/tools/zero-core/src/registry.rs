@@ -278,6 +278,17 @@ pub fn set_version(text: &str, name: &str, new: &str) -> Result<String, String> 
     Ok(out)
 }
 
+/// Whether set_version can write row `name` in this text: the same checks, run with the row's
+/// own version so nothing changes. The close and bump-versions ask before their first write.
+pub fn can_set(text: &str, name: &str) -> Result<(), String> {
+    let current = parse(text)?
+        .into_iter()
+        .find(|r| r.name == name)
+        .map(|r| r.version)
+        .ok_or_else(|| format!("the tool registry has no row named {name}"))?;
+    set_version(text, name, &current).map(|_| ())
+}
+
 /// Set row `name`'s version in the registry file at `path` through set_version, and return the
 /// version it held. The new text is written beside the file and renamed over it, then read back.
 /// A refusal writes nothing.
@@ -539,6 +550,99 @@ mod tests {
                 .count();
             assert_eq!(changed, 1, "{}", r.name);
         }
+    }
+
+    /// Every "x.y.z" string literal in `text` outside a `#[cfg(test)]` module and outside a
+    /// comment, with its line number.
+    fn version_literals(text: &str) -> Vec<(usize, String)> {
+        let mut out = Vec::new();
+        // A test module ends at the first line that is its own indent and a closing brace, the
+        // shape rustfmt gives it; counting braces would be fooled by braces in literals.
+        let (mut end, mut pending): (Option<String>, bool) = (None, false);
+        for (i, line) in text.lines().enumerate() {
+            if let Some(close) = &end {
+                if line == close {
+                    end = None;
+                }
+                continue;
+            }
+            let s = line.trim();
+            if s.starts_with("#[cfg(test)]") {
+                pending = true;
+                continue;
+            }
+            if pending && !s.is_empty() {
+                pending = false;
+                if (s.starts_with("mod ") || s.starts_with("pub mod ")) && s.ends_with('{') {
+                    let indent = &line[..line.len() - line.trim_start().len()];
+                    end = Some(format!("{indent}}}"));
+                    continue;
+                }
+            }
+            if s.starts_with("//") {
+                continue;
+            }
+            for piece in line.split('"').skip(1).step_by(2) {
+                let parts: Vec<&str> = piece.split('.').collect();
+                if parts.len() == 3
+                    && parts
+                        .iter()
+                        .all(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()))
+                {
+                    out.push((i + 1, piece.to_string()));
+                }
+            }
+        }
+        out
+    }
+
+    /// INT-287 G3: a version lives in its crate's Cargo.toml and its registry row, and nowhere
+    /// else. Code that shows one reads it -- env!("CARGO_PKG_VERSION"), clap's bare version, the
+    /// registry -- so a bump changes it everywhere. A literal in code is a copy that goes stale
+    /// (teach printed zero-git 3.3.0 at 5.1.2), and this names each one. The engine-state seeds
+    /// are not versions of any crate, so they are listed here by file and value.
+    #[test]
+    fn no_crate_hardcodes_a_version() {
+        const SEEDS: &str = "zero/engine/src/domains/engines/mod.rs";
+        const SEED_STATES: [&str; 3] = ["0.1.0", "0.3.0", "0.0.0"];
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .ancestors()
+            .nth(3)
+            .expect("zero-core sits three folders below the repo root");
+        let mut found = Vec::new();
+        for c in crates_in(root).unwrap() {
+            let mut dirs = vec![root.join(&c.dir).join("src")];
+            while let Some(dir) = dirs.pop() {
+                for entry in std::fs::read_dir(&dir).unwrap().flatten() {
+                    let path = entry.path();
+                    if path.is_dir() {
+                        dirs.push(path);
+                        continue;
+                    }
+                    if path.extension().is_none_or(|e| e != "rs") {
+                        continue;
+                    }
+                    let rel = path
+                        .strip_prefix(root)
+                        .unwrap()
+                        .to_string_lossy()
+                        .into_owned();
+                    let text = std::fs::read_to_string(&path).unwrap();
+                    for (n, v) in version_literals(&text) {
+                        if rel == SEEDS && SEED_STATES.contains(&v.as_str()) {
+                            continue;
+                        }
+                        found.push(format!("{rel}:{n} \"{v}\""));
+                    }
+                }
+            }
+        }
+        found.sort();
+        assert!(
+            found.is_empty(),
+            "versions written into code; read them instead:\n{}",
+            found.join("\n")
+        );
     }
 
     /// G2's rule on this checkout: every workspace crate has a versioned row, and every
