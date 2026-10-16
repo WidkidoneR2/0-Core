@@ -1,0 +1,31 @@
+file /home/christian/0-core/zero/intents/in-progress/287-silent-defaults-ints-285-found-he-close-never-offers-a-bump-outside-five-tools-deadwood-falls-back-by-name-and-four-smaller-defects.md  sha256 2440a2e0359eae0d -> c1270a64781c75c4
+file /home/christian/0-core/zero/intents/findings/F-0031.md  sha256 367252281112da62 -> 5dd49b4059bd86ca
+--- /home/christian/0-core/zero/intents/in-progress/287-silent-defaults-ints-285-found-he-close-never-offers-a-bump-outside-five-tools-deadwood-falls-back-by-name-and-four-smaller-defects.md: replacing lines 263..265 ---
+   261: - [ ] G10 doors: ship what changed, nsh-test all passing, d 0 failed, core
+   262:       intent validate clean.
+>> 263: - [ ] G11 commits: one per fix, each with Intent and Fixes and its plan Seal
+>> 264:       and note; pushed; trace reads every seal intact.
+>> 265: - [ ] G12 each gate carries evidence per INT-158.
+   266: 
+   267: ## Non-goals
+++ - [x] G11 commits: one per fix, each with Intent and Fixes and its plan Seal
+++       and note; pushed; trace reads every seal intact.
+++ <!-- evidence: 2026-10-16. Every commit naming INT-287 that carries a Seal: (22 on main, from
+++ 2819446c onward) was read with core intent trace and every seal is intact: the plan text kept
+++ under refs/notes/seals hashes to it. All pushed to origin with refs/notes/seals. One per fix,
+++ with one exception recorded at G7: G7's doc move landed in 0153ec95 beside G8 because the
+++ pre-commit hook restaged main.rs, and 3199de06 carries Fixes: F-0033. Findings fixed by 287:
+++ F-0028 36b6d7c8, F-0029 010abd46, F-0030 90d77e16, F-0032 e01656e5, F-0033 3199de06, F-0034
+++ 0153ec95, F-0035 be8d5366, F-0042 805d14f6, F-0045 ae77e56d. F-0031 closed without a fix by G5's
+++ measurement. Open by ruling, for their own intents: F-0036 to F-0041, F-0043, F-0044. -->
+++ 
+--- /home/christian/0-core/zero/intents/findings/F-0031.md: replacing lines 7..8 ---
+   5: found_by: INT-287
+   6: found_on: 2026-10-13
+>> 7: closed_without_fix: no
+>> 8: ---
+   9: 
+++ closed_without_fix: not a defect, measured in INT-287 G5 (d4144b62) - the bytes follow the build command, and the deployed nsh is byte for byte a workspace release build of its own commit
+++ 
+/home/christian/0-core/zero/intents/in-progress/287-silent-defaults-ints-285-found-he-close-never-offers-a-bump-outside-five-tools-deadwood-falls-back-by-name-and-four-smaller-defects.md: 1 replaced
+/home/christian/0-core/zero/intents/findings/F-0031.md: 1 replaced
