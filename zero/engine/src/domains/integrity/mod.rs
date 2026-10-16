@@ -2176,6 +2176,9 @@ mod tests {
     /// crate directory it is built from.
     #[test]
     fn every_live_row_of_the_real_registry_is_compared() {
+        // F-0045: this reads the real tree through HOME, which absent_ledger_tests changes under
+        // HOME_LOCK while cargo runs both in parallel. Holding the lock keeps HOME still here.
+        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let root = zero_core::paths::core_dir();
         let scratch =
             std::env::temp_dir().join(format!("integrity-int283-real-{}", std::process::id()));
