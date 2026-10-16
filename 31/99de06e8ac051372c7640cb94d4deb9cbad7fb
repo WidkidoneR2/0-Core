@@ -1,0 +1,19 @@
+file /home/christian/0-core/zero/shell/nsh-test/src/repl.rs  sha256 b098dfa276b25224 -> 0ec0ad86361cf44a
+--- /home/christian/0-core/zero/shell/nsh-test/src/repl.rs: replacing lines 5..9 ---
+   3: //! WHY THIS MODULE EXISTS. nsh-test's run_fsh() invokes `fsh -c`. Measured
+   4: //! 2026-07-17 against the same deployed binary on the same day:
+>> 5: //!
+>> 6: //!     fsh -c 'echo hello 2>/dev/null | grep -c hello'   -> 1       CORRECT
+>> 7: //!     the same line typed at the prompt                 -> hello   WRONG
+>> 8: //!
+>> 9: //! `fsh -c` never had the INT-172 redirect bug. Only the interactive REPL did.
+   10: //! So 83/83 green never meant "fsh works" -- it meant "the -c path works". It
+   11: //! said nothing about the shell we actually type into, and it could not have: no
+++ //!
+++ //! ```text
+++ //! fsh -c 'echo hello 2>/dev/null | grep -c hello'   -> 1       CORRECT
+++ //! the same line typed at the prompt                 -> hello   WRONG
+++ //! ```
+++ //!
+++ 
+/home/christian/0-core/zero/shell/nsh-test/src/repl.rs: 1 replaced
