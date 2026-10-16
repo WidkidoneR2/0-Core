@@ -1,0 +1,46 @@
+file /home/christian/0-core/zero/shell/nsh-test/src/repl.rs  sha256 4727ce0d2a68cbf5 -> b098dfa276b25224
+file /home/christian/0-core/zero/shell/nsh-test/src/main.rs  sha256 bdc5bd77aec1d55a -> bb2592454f50a4d6
+--- /home/christian/0-core/zero/shell/nsh-test/src/repl.rs: replacing lines 86..89 ---
+   84: /// working directory. The REPL cases start nsh with current_dir /tmp, so a relative NSH_BIN that
+   85: /// exists from here names nothing there, and all of them failed with "No such file".
+>> 86: fn absolute_shell(p: &str) -> String {
+>> 87:     p.to_string()
+>> 88: }
+>> 89: 
+   90: /// INT-287 G4 (F-0030): the zero-deadwood binary under test, from DEADWOOD_BIN or else the deployed
+   91: /// one at paths::bin_dir, the same two arms as fsh_bin. A binary that is not on disk is refused
+++ fn absolute_shell(p: &str) -> String {
+++     std::path::absolute(p)
+++         .map(|a| a.display().to_string())
+++         .unwrap_or_else(|_| p.to_string())
+++ }
+++ 
+--- /home/christian/0-core/zero/shell/nsh-test/src/main.rs: replacing lines 166..169 ---
+   164: /// which is INT-110's stale-binary lesson and it has bitten again since: a green 143/143 was read
+   165: /// from a shell that did not contain the change being tested.
+>> 166: ///
+>> 167: ///     cargo build -p novashell && NSH_BIN=target/debug/nsh ./target/debug/nsh-test
+>> 168: ///
+>> 169: /// The pre-push hook builds first, which is why this only bites in manual runs.
+   170: fn run_fsh(input: &str) -> Result<String, String> {
+   171:     run_fsh_env(input, &[])
+++ ///
+++ ///     cargo build -p novashell && env NSH_BIN=target/debug/nsh ./target/debug/nsh-test
+++ ///
+++ 
+--- /home/christian/0-core/zero/shell/nsh-test/src/main.rs: replacing lines 5499..5502 ---
+   5497:                 "  ⚠️  this suite is {expected}; the binary above is {saw_version} -- UNBUILT CHANGES ARE NOT COVERED"
+   5498:             );
+>> 5499:             println!(
+>> 5500:                 "     to test what you just built: NSH_BIN=target/debug/nsh ./target/debug/nsh-test"
+>> 5501:             );
+>> 5502:         }
+   5503: 
+   5504:         // ⭐ THE VERSION CANNOT SEE A MID-VERSION REBUILD, and that is every case that cost
+++             println!(
+++                 "     to test what you just built: env NSH_BIN=target/debug/nsh ./target/debug/nsh-test"
+++             );
+++ 
+/home/christian/0-core/zero/shell/nsh-test/src/repl.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/main.rs: 1 replaced
