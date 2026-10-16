@@ -16814,34 +16814,60 @@ fn memory_distill(db: &StateDb) -> CommandResult {
 }
 
 /// INT-326: bump-versions -- suggest or apply version bumps for modified tools
-// INT-111/INT-271/INT-287: tool name -> Cargo.toml path for bump-versions. The registry decides
-// which crates carry a version (F-0028): a row, package or folder name finds one, so nsh,
-// novashell, core and engine all answer. The write itself is zero_core::version::apply_bump.
-fn tool_cargo_path(name: &str) -> Result<String, String> {
-    let ws = zero_core::registry::resolve()
-        .map_err(|e| format!("the tool registry could not be read: {}", e))?;
-    ws.find(name)
-        .map(|v| format!("{}/Cargo.toml", v.krate.dir))
-        .ok_or_else(|| {
-            format!(
-                "unknown tool '{}': no versioned row in the tool registry",
-                name
-            )
-        })
-}
-
-/// Apply a version bump to a tool's Cargo.toml. Returns (old, new) on success.
+// INT-111/INT-271/INT-287: the registry decides which crates carry a version (F-0028): a row,
+// package or folder name finds one, so nsh, novashell, core and engine all answer.
+/// Apply a version bump to a tool. Returns (old, new) on success.
 /// INT-271: the read, the one-line assert, the arithmetic and the write live in
-/// zero_core::version; this maps the tool name to its Cargo.toml and the word to a level.
+/// zero_core::version; this maps the tool name to its crate and the word to a level.
 pub fn apply_version_bump(
     core_root: &str,
     tool: &str,
     level: &str,
 ) -> Result<(String, String), String> {
-    let rel = tool_cargo_path(tool)?;
+    let ws = zero_core::registry::resolve()
+        .map_err(|e| format!("the tool registry could not be read: {}", e))?;
     let level = zero_core::version::Level::parse(level)
         .ok_or_else(|| format!("unknown level '{}' (use patch|minor|major)", level))?;
-    zero_core::version::apply_bump(&std::path::Path::new(core_root).join(rel), level)
+    bump_in(
+        std::path::Path::new(core_root),
+        &zero_core::paths::tools_registry(),
+        &ws,
+        tool,
+        level,
+    )
+}
+
+/// INT-287 G3: one bump-versions write under the repo root `root`: the crate's Cargo.toml, then
+/// its registry row through zero_core::registry, the one writer, so the two agree afterwards.
+fn bump_in(
+    root: &std::path::Path,
+    registry: &std::path::Path,
+    ws: &zero_core::registry::Workspace,
+    tool: &str,
+    level: zero_core::version::Level,
+) -> Result<(String, String), String> {
+    let v = ws.find(tool).ok_or_else(|| {
+        format!(
+            "unknown tool '{}': no versioned row in the tool registry",
+            tool
+        )
+    })?;
+    let name = v.row.name.as_str();
+    // The row is checked before Cargo.toml is written, so a row the one writer cannot set
+    // refuses with nothing bumped (the close does the same, 010abd46).
+    let text = std::fs::read_to_string(registry)
+        .map_err(|e| format!("cannot read {} -- {}", registry.display(), e))?;
+    zero_core::registry::set_version(&text, name, "0.0.0")
+        .map_err(|e| format!("{}: {}", registry.display(), e))?;
+    let (old, new) =
+        zero_core::version::apply_bump(&root.join(&v.krate.dir).join("Cargo.toml"), level)?;
+    zero_core::registry::write_version(registry, name, &new).map_err(|e| {
+        format!(
+            "{} is {} in Cargo.toml only; its registry row was not set ({}); set it in registry/tools.toml",
+            name, new, e
+        )
+    })?;
+    Ok((old, new))
 }
 
 /// INT-271: the bump-versions contract. No args: the table. `<tool> <level>`, or the older
@@ -16857,6 +16883,76 @@ fn parse_bump_args<'a>(args: &[&'a str]) -> Result<Option<(&'a str, &'a str)>, S
 }
 
 const BUMP_USAGE: &str = "usage: bump-versions                       print the version table\n       bump-versions <tool> <patch|minor|major>  write one bump (<level> <tool> also works)";
+
+#[cfg(test)]
+mod bump_registry_tests {
+    use super::bump_in;
+    use std::path::{Path, PathBuf};
+    use zero_core::registry::{match_rows, parse, Crate, Workspace};
+    use zero_core::version::Level;
+
+    /// A temporary repo root with crate demo 1.2.3, versioned by the row demo-row.
+    fn demo_tree(tag: &str, registry_text: &str) -> (PathBuf, PathBuf, Workspace) {
+        let root = std::env::temp_dir().join(format!("zero-bump-{}-{}", tag, std::process::id()));
+        let _ = std::fs::remove_dir_all(&root);
+        std::fs::create_dir_all(root.join("crates/demo")).unwrap();
+        std::fs::write(
+            root.join("crates/demo/Cargo.toml"),
+            "[package]\nname = \"demo\"\nversion = \"1.2.3\"\nedition = \"2021\"\n",
+        )
+        .unwrap();
+        let registry = root.join("tools.toml");
+        std::fs::write(&registry, registry_text).unwrap();
+        let crates = [Crate {
+            package: "demo".into(),
+            dir: "crates/demo".into(),
+        }];
+        let ws = match_rows(&parse(DEMO_ROW).unwrap(), &crates).unwrap();
+        (root, registry, ws)
+    }
+
+    const DEMO_ROW: &str = "[[tool]]\nname = \"demo-row\"\nversion = \"1.2.3\"\ncrate = \"demo\"\n";
+
+    fn cargo_version(root: &Path) -> String {
+        let toml = std::fs::read_to_string(root.join("crates/demo/Cargo.toml")).unwrap();
+        toml.lines()
+            .find_map(|l| l.strip_prefix("version = \""))
+            .map(|v| v.trim_end_matches('"').to_string())
+            .unwrap()
+    }
+
+    /// F-0029's class in the second writer: bump-versions moved Cargo.toml and left the
+    /// registry row old, and the close's own finish instructions send the reader here. The row
+    /// is found by package name and written under its own name (demo-row, as nsh for novashell).
+    #[test]
+    fn bump_versions_moves_the_registry_row_with_the_crate() {
+        let (root, registry, ws) = demo_tree("moves", DEMO_ROW);
+        let got = bump_in(&root, &registry, &ws, "demo", Level::Patch);
+        let rows = zero_core::registry::read_in(&registry).unwrap();
+        let cargo = cargo_version(&root);
+        std::fs::remove_dir_all(&root).unwrap();
+        assert_eq!(got.unwrap(), ("1.2.3".to_string(), "1.2.4".to_string()));
+        assert_eq!(cargo, "1.2.4");
+        assert_eq!(rows[0].name, "demo-row");
+        assert_eq!(
+            rows[0].version, "1.2.4",
+            "the registry row moves with Cargo.toml"
+        );
+    }
+
+    /// A crate whose row the writer cannot set is refused before Cargo.toml is touched.
+    #[test]
+    fn bump_versions_refuses_a_row_it_cannot_set_before_any_write() {
+        let (root, registry, ws) =
+            demo_tree("norow", "[[tool]]\nname = \"other\"\nversion = \"1.0.0\"\n");
+        let got = bump_in(&root, &registry, &ws, "demo", Level::Patch);
+        let cargo = cargo_version(&root);
+        std::fs::remove_dir_all(&root).unwrap();
+        let err = got.unwrap_err();
+        assert!(err.contains("no row named demo-row"), "{}", err);
+        assert_eq!(cargo, "1.2.3", "nothing was bumped");
+    }
+}
 
 #[cfg(test)]
 mod bump_args_tests {
