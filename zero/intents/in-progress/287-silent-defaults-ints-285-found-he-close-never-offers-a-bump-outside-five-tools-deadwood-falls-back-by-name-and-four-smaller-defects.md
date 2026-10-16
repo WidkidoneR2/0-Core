@@ -195,6 +195,25 @@ its commits, asks 13 crates and refuses none. Earlier steps: 2819446c (step 0), 
       check clean on a real close.
       Also any copy of a version hardcoded in source (277's fourth place): found at G0,
       and moved by the same plan or removed.
+<!-- progress 2026-10-16. Box left open for one clause: the drift check clean on a real close,
+run at cicomplete 287 once ship deploys the new core.
+Ruled by Christian 2026-10-16: integrity's drift fix uses the one writer; seed_registry sets core
+from the engine's Cargo.toml on every seed and the six engine-state seeds stay; F-0035 ruled in,
+its doctor entry corrected (b); bump-versions fixed here; sync_lock filed (F-0041); the generated
+tools README is regenerated at 287's end (F-0043 names its novashell row); teach's CHANGELOG
+version filed (F-0044).
+- 10e80699 zero_core::registry::set_version and write_version, the one row-version writer;
+  integrity's UpdateRegistryVersion uses it. Seal 9aac4dbc9cd83ce8.
+- 010abd46 Fixes F-0029: the close writes the row with the crate, and refuses before any write.
+  Red 1d75f19cf3fbfb1d failed left 1.2.3 right 1.3.0; fix ee7a4e0c1a6e63d9.
+- 805d14f6 Fixes F-0042: bump-versions writes the row too. Red ab0d4e7dda86c3ab failed left
+  1.2.3 right 1.2.4; fix c647035b7e19189a.
+- be8d5366 Fixes F-0035: no_crate_hardcodes_a_version names every x.y.z literal in non-test
+  code (red: 8 sites; the seed red read 3.0.0 where 4.4.0 was due). teach, zero-context, the
+  core seed and the two probes now read their versions. Red 04db8630c5d68161, fix
+  459326d4f60b72bb. Doors: 453 passed, clippy 0, nsh-test 238/238, core doctor run 0 failed.
+- Findings filed by 287 on 2026-10-16: F-0037 to F-0045. F-0045, a core test that reads HOME
+  without HOME_LOCK, turned one push gate red. -->
 - [ ] G4 deadwood has one reader. The INT-285 pattern: red case, the reader
       refuses a missing target, green. nsh-test's count goes up by one.
 - [ ] G5 why the nsh bytes differ. Two release builds of one commit compared,
