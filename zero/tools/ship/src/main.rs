@@ -616,11 +616,14 @@ fn main() {
 
     println!();
     println!(
-        "  {} shipped  {} unchanged  {} failed  {} not built",
-        shipped.len(),
-        unchanged,
-        failed.len(),
-        missing.len()
+        "{}",
+        summary_line(
+            shipped.len(),
+            unchanged,
+            failed.len(),
+            missing.len(),
+            args.dry_run
+        )
     );
     if !missing.is_empty() {
         println!("  not built: {}", missing.join(", "));
@@ -664,9 +667,38 @@ fn main() {
     }
 }
 
+/// The summary line. A dry run names what it would ship, not what it shipped (INT-287 G6).
+fn summary_line(
+    shipped: usize,
+    unchanged: usize,
+    failed: usize,
+    missing: usize,
+    dry_run: bool,
+) -> String {
+    let verb = if dry_run { "would ship" } else { "shipped" };
+    format!(
+        "  {} {}  {} unchanged  {} failed  {} not built",
+        shipped, verb, unchanged, failed, missing
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// F-0032: ship --dry-run ended "1 shipped" when nothing was shipped. A dry run's summary says
+    /// what it would ship; a real ship's wording is unchanged.
+    #[test]
+    fn a_dry_run_summary_says_would_ship() {
+        assert_eq!(
+            summary_line(1, 2, 0, 0, true),
+            "  1 would ship  2 unchanged  0 failed  0 not built"
+        );
+        assert_eq!(
+            summary_line(1, 2, 0, 0, false),
+            "  1 shipped  2 unchanged  0 failed  0 not built"
+        );
+    }
 
     const REG: &str = "[[tool]]\nname = \"fine\"\ndeployable = true\nretired = false\n\n\
                        [[tool]]\nname = \"held\"\ndeployable = false\n\n\
