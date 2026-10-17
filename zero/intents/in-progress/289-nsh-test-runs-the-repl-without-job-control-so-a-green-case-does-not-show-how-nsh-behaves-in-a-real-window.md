@@ -3,7 +3,7 @@ id: 289
 date: 2026-10-13
 type: future
 title: "nsh-test runs the REPL without job control, so a green case does not show how nsh behaves in a real window"
-status: planned
+status: in-progress
 tags: [nsh-test, repl, job-control, harness, pty, coverage, finding]
 depends_on: [287]
 ---
@@ -41,7 +41,7 @@ is on, and every prompt and answer it prints is seen before the case decides.
 
 ## Success Criteria
 
-- [ ] G0 census, read-only for the repo.
+- [x] G0 census, read-only for the repo.
       a. A throwaway git worktree of HEAD in a mktemp dir, with one change made there only: the
          session default is Terminal::Owned, so every REPL case owns its terminal.
       b. The suite run twice against the debug nsh by absolute path (INT-287 G8): from the repo
@@ -51,6 +51,41 @@ is on, and every prompt and answer it prints is seen before the case decides.
          N (an nsh defect), H (a harness defect), R (the case relied on nsh being
          non-interactive). Each R row names what it asserted that only holds without a terminal.
       d. The worktree removed, shown; git status of the repo unchanged, shown.
+<!-- demonstrated 2026-10-16 at HEAD b0decf00. Debug nsh by absolute path (INT-287 G8); every run stored
+into a scratch ZERO_STATE_DB, and the real nsh_test_results table stayed at 363196 rows.
+a. Two throwaway worktrees of HEAD under mktemp: wt-owned with the run_session_banner default at repl.rs:522
+   set to Terminal::Owned, wt-inherited untouched. Both carried the same throwaway session recorder (case,
+   terminal, tcgetsid on the pty after the first prompt, nsh pid, commands, status, exit, lines, transcript).
+   Each was built with cargo build -p nsh-test into its own target dir; the two binaries were hashed and the
+   run refuses if they are equal.
+b. Four interleaved suite runs, I O I O: Inherited 41.1s and 41.4s, Owned 68.6s and 68.4s, all 239/239.
+   Owned costs about 27s per run, about 210ms per session: the 200ms drain at repl.rs:728-736.
+   Each mode ran as named: the I runs had 129 default sessions with no controlling terminal (tcgetsid -1),
+   the O runs 130 sessions with nsh holding it (tcgetsid = nsh pid) and none Inherited.
+   INVALID RUNS, kept as the record: the first two censuses compared the Inherited harness with itself.
+   Both worktrees shared one CARGO_TARGET_DIR, cargo kept the first build (the Owned one built in 0.1s),
+   and every Owned-run session was Inherited. The recorder's tcgetsid count exposed it; per-worktree
+   target dirs and the binary-hash guard now refuse it.
+c. Cases whose verdict or per-line output differs between Inherited and Owned, the same in both runs of
+   each mode: none (109 cases with sessions compared line by line, 239 verdicts).
+   Unstable within one mode, two cases:
+   - repl_jobs_lists_a_running_job | P | P | only the pgid in the jobs line changes run to run | not a row:
+     the census compared a number the case does not assert.
+   - repl_286_lost_terminal_is_taken_back (always Owned) | P | P | 1 of 4 runs ended exit None | class H,
+     plus an N finding for G2.
+     H: a byte timeline over 30 runs of the case alone (teardown 3000ms) shows that when nsh takes its
+     terminal back it prints a second ready marker, and the per-line wait (repl.rs:691) takes that stale
+     marker as the answer to the next line: echo ALIVE and then teardown's exit are each sent one prompt
+     early, in 30 of 30 runs. This is the intent's problem 2, for G3 and G4.
+     N: the exit typed ahead while nsh answers echo ALIVE is never echoed and nsh never exits, in 7 of 30
+     runs (5 of 30 at 500ms and 12 of 30 at 3000ms in a separate run), although the bytes were written.
+     A longer teardown does not change it. Cause not established: nsh does not flush input when it takes
+     the terminal back (tty.rs:95-97), and rustyline 17.0.2 enters raw mode with TCSADRAIN
+     (src/tty/unix.rs:1622). The case stays green because it asserts only ALIVE (main.rs:2908).
+   No R rows: the job-control cases print the same lines with nsh owning its terminal.
+d. Every worktree removed (git worktree list shows only the repo) and git status unchanged after each
+   run. Record and scripts: ~/.cache/zero/int289-g0/ (table.md, run-*.txt, sessions-*.tsv,
+   repl286-repeat.md, repl286-timeline.md), kept until 289 closes. -->
 - [ ] G1 rulings, written here before any code, each naming the G0 rows it rests on:
       a. The default: Owned for every REPL case, or chosen per case.
       b. What Inherited still proves (nsh on a terminal it does not control), and which cases
