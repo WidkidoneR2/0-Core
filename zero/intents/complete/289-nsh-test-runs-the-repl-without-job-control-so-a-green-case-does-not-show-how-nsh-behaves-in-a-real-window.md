@@ -3,7 +3,7 @@ id: 289
 date: 2026-10-13
 type: future
 title: "nsh-test runs the REPL without job control, so a green case does not show how nsh behaves in a real window"
-status: in-progress
+status: complete
 tags: [nsh-test, repl, job-control, harness, pty, coverage, finding]
 depends_on: [287]
 ---
@@ -232,10 +232,28 @@ d: Passed 26, Warnings 2, Failed 0; the two warnings are Git Repository (uncommi
 core intent validate: All 326 intents valid. git worktree list: only /home/christian/0-core.
 The last clause, the close offering nsh-test its bump, can only be shown by cicomplete; it is
 recorded under G8 after the close. -->
-- [ ] G7 commits: each carries INT-289 and its plan Seal, the note under refs/notes/seals; Fixes
+- [x] G7 commits: each carries INT-289 and its plan Seal, the note under refs/notes/seals; Fixes
       lines for the findings fixed here; pushed with the pre-push hook passing; core intent
       trace reads every seal intact.
-- [ ] G8 each gate carries evidence per INT-158.
+<!-- evidence: 2026-10-17. Two commits carry INT-289: 3d0a7f9b (G1 c amended, Seal 760746a45777afd4)
+and af4c9435 (the harness, the red case, the Inherited case, the two G5 cases, the fmt change and the
+G4 to G6 ticks; Seal 8df6819a6338efe3; Fixes: F-0046; no Co-Authored-By or Claude-Session lines).
+The Seals of the other plans are cited in af4c9435's body. core intent trace af4c9435: seal
+8df6819a6338efe3 intact, the plan text kept in refs/notes/seals hashes to it, fixes F-0046. Pushed
+with gp: 83328fb0..af4c9435 main -> main, git status -sb shows main...origin/main with no ahead
+count. core intent trace INT-289: F-0046 fixed by af4c9435; F-0047 stays open (filed in G2, input
+typed ahead lost after a take-back; outside this intent's fix). -->
+- [x] G8 each gate carries evidence per INT-158.
+<!-- evidence: 2026-10-17. INT-158 asks for the proof in an HTML comment after the ticked gate: a
+commit hash, a file:line, an artifact path, or "demonstrated: what + how". Read in this file: G0 has
+its "demonstrated 2026-10-16 at HEAD b0decf00" comment, G1 its "ruled 2026-10-16" comment (with the
+c amendment, commit 3d0a7f9b), and G2 to G7 each an "evidence" comment. No gate is ticked without one.
+Open at this tick, not hidden: the clause in G6 that the close offers nsh-test its bump can only be
+shown by cicomplete. Its result, recorded after the close: cicomplete 289 on 2026-10-17 found one
+touched crate, nsh-test (1 commit naming INT-289, af4c9435, 2 files, +184 -17), and asked "bump
+nsh-test 2.0.4? [patch/minor/major/skip]". Christian answered patch. It wrote nsh-test 2.0.4 ->
+2.0.5, synced Cargo.lock, and appended the Versions receipt below; no version file was edited by
+hand. That clause of G6 is shown. -->
 
 ## Non-goals
 - No change to how nsh behaves unless G1 rules a G2 finding in. No new crates: the owned mode
@@ -245,3 +263,6 @@ recorded under G8 after the close. -->
 ## Dependencies
 depends_on: 287 (its G8 makes NSH_BIN absolute, which G0 needs). Feeds 290, whose red cases need
 an owned terminal, and 277.
+
+## Versions
+- nsh-test 2.0.4 -> 2.0.5 (patch)
