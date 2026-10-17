@@ -1,0 +1,73 @@
+file /home/christian/0-core/zero/intents/in-progress/289-nsh-test-runs-the-repl-without-job-control-so-a-green-case-does-not-show-how-nsh-behaves-in-a-real-window.md  sha256 08801f8c1d88c81f -> 1047a856b24d913c
+--- /home/christian/0-core/zero/intents/in-progress/289-nsh-test-runs-the-repl-without-job-control-so-a-green-case-does-not-show-how-nsh-behaves-in-a-real-window.md: replacing lines 13..13 ---
+   11: ## START HERE
+   12:
+>> 13: Filed 2026-10-13 from what INT-286 measured about the harness. Begin at G0 after INT-287 is
+   14: complete. INT-290 (SIGHUP) and INT-277 (the login path) both need its tests to mean what they say.
+   15:
+++ Written 2026-10-16 at a break; it supersedes the filing note kept below. Open a new chat with
+++ `ints 289` and this section pasted.
+++
+++ STATE: G0 to G3 ticked with evidence. Commits: 488c0ebe G0, 03576147 G1, 23c7310e G2 (F-0046,
+++ F-0047), and the commit that writes this. The tree is clean. The G3 red case is not in the tree:
+++ the red and the fix commit once (AGENTS), so it was taken out for the break.
+++
+++ FIRST, A RULING, because G1 c says it comes back before any code. Measured at 23c7310e with Owned as
+++ the default: 160 of 168 REPL lines get their own 133;D before their ready marker. The 8 without are
+++ 7 continuation lines in multiline_for_loop, multiline_if_block and multiline_while_loop, which end
+++ at the "  ... " continuation prompt and never get a D, and repl_286's echo ALIVE, which is F-0046.
+++ Proposed: a line the case submits as a continuation ends at its ready marker; every other line ends
+++ at its own 133;D and the ready marker after it. Check first which runner those three cases use and
+++ whether it already knows which lines are held. Census: ~/.cache/zero/int289-g0/d-census.md.
+++ Also measured: for the line after a take-back, 133;D arrives in 30 of 30 runs and ALIVE comes before
+++ or with it (repl286-d-marker.md), so ruling c holds for complete commands.
+++
+++ NEXT, in order:
+++ 1. The ruling above, written into G1 c.
+++ 2. Re-apply the red: python3 ~/.cache/zero/int289-g3red-25e510fd9dec.py shows it (expect Seal
+++    822c06f38105e2a1 on an unchanged main.rs); apply it and see it red again on the debug build.
+++ 3. G4 in repl.rs per G1 a to d and that ruling: Owned default, one explicit Inherited echo case, a
+++    line ends at its D and then the ready marker, drain 50ms with the 2s cap. The red goes green and
+++    every G0 row is resolved. One commit for red and fix: the fix plan's Seal and note, the red seal
+++    cited in the body, Fixes: F-0046.
+++ 4. G5 (is_interactive forced false in a worktree: the job-control cases go red), G6 (one ship, suite
+++    wall time at most 52s, d 0 failed, validate, the close offers nsh-test its bump), G7, G8.
+++
+++ LEARNED this session:
+++ - Worktrees that share one CARGO_TARGET_DIR reuse each other's build (same relative paths): give
+++   each its own target dir and hash the binaries. That mistake made the first two G0 runs invalid.
+++ - A paste line over about 2.5k characters can arrive cut: send parts with a length check first.
+++ - Red runs use a scratch ZERO_STATE_DB, so the banner and the results history stay true.
+++ - The int287 doors script is gone; ledger-only commits use the three-door line (nsh-test, core
+++   doctor run, core intent validate). The doors script never could run the d alias.
+++ - Keep until 289 closes: ~/.cache/zero/int289-g0/, int289-g3red-25e510fd9dec.py and
+++   int289-g3-red.plan.txt.
+++
+++ Superseded 2026-10-16, kept as filed:
+++ Filed 2026-10-13 from what INT-286 measured about the harness.
+--- /home/christian/0-core/zero/intents/in-progress/289-nsh-test-runs-the-repl-without-job-control-so-a-green-case-does-not-show-how-nsh-behaves-in-a-real-window.md: replacing lines 167..167 ---
+   165: No other rows: G0c found no mode difference and no R rows, and repl_jobs_lists_a_running_job was
+   166: noise in the comparison, not a row. -->
+>> 167: - [ ] G3 red. One new case, written before the fix, whose answer arrives after a second prompt
+   168:       (INT-286's steal is one way to cause it) and which reads the per-line window only: shown
+   169:       failing on today's harness, with the line it missed.
+++ - [x] G3 red.
+--- /home/christian/0-core/zero/intents/in-progress/289-nsh-test-runs-the-repl-without-job-control-so-a-green-case-does-not-show-how-nsh-behaves-in-a-real-window.md: replacing lines 170..170 ---
+   168:       (INT-286's steal is one way to cause it) and which reads the per-line window only: shown
+   169:       failing on today's harness, with the line it missed.
+>> 170: - [ ] G4 the harness. The G1 rulings in repl.rs; run_session stays the one owner of the session
+   171:       protocol. G3's case green. Every R case rewritten to assert what nsh does with a terminal,
+   172:       or kept Inherited with its G1b reason. Every G0 row resolved (fixed, filed, or kept with a
+++ <!-- evidence: 2026-10-16. Red plan Seal 822c06f38105e2a1 (text: ~/.cache/zero/int289-g3-red.plan.txt)
+++ adds repl_289_answer_after_a_second_ready_marker_is_in_the_window to nsh-test main.rs after the
+++ INT-286 cases. The command prints its own ESC[?2004h, sleeps 0.3s, then echoes ANSWER289; the case
+++ reads the per-line window only (run_repl_lines). On today's harness, debug build and debug nsh:
+++ 239/240, the case failing with: ANSWER289 missing from ["3 commands" job line, "[1/3] printf ..."],
+++ so the window ended at the marker the command printed, before its answer. Output kept in
+++ ~/.cache/zero/int289-g0/g3-red-suite.txt; results went to a scratch db. The steal was not used for the
+++ red: its stale marker comes before the answer in only 23 of 30 runs (measured), so a red built on it
+++ would be flaky. The case is re-applied by its Seal and commits with the G4 fix, per AGENTS. -->
+++ - [ ] G4 the harness.
+/home/christian/0-core/zero/intents/in-progress/289-nsh-test-runs-the-repl-without-job-control-so-a-green-case-does-not-show-how-nsh-behaves-in-a-real-window.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/289-nsh-test-runs-the-repl-without-job-control-so-a-green-case-does-not-show-how-nsh-behaves-in-a-real-window.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/289-nsh-test-runs-the-repl-without-job-control-so-a-green-case-does-not-show-how-nsh-behaves-in-a-real-window.md: 1 replaced
