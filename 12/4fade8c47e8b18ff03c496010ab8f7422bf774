@@ -1,0 +1,15 @@
+file /home/christian/0-core/zero/intents/complete/289-nsh-test-runs-the-repl-without-job-control-so-a-green-case-does-not-show-how-nsh-behaves-in-a-real-window.md  sha256 54ad82684b512e5e -> 630d0b4e2091aed1
+--- /home/christian/0-core/zero/intents/complete/289-nsh-test-runs-the-repl-without-job-control-so-a-green-case-does-not-show-how-nsh-behaves-in-a-real-window.md: replacing lines 252..253 ---
+   250: c amendment, commit 3d0a7f9b), and G2 to G7 each an "evidence" comment. No gate is ticked without one.
+   251: Open at this tick, not hidden: the clause in G6 that the close offers nsh-test its bump can only be
+>> 252: shown by cicomplete. Its result is recorded here by a follow-up edit after the close. -->
+>> 253: 
+   254: ## Non-goals
+   255: - No change to how nsh behaves unless G1 rules a G2 finding in. No new crates: the owned mode
+++ shown by cicomplete. Its result, recorded after the close: cicomplete 289 on 2026-10-17 found one
+++ touched crate, nsh-test (1 commit naming INT-289, af4c9435, 2 files, +184 -17), and asked "bump
+++ nsh-test 2.0.4? [patch/minor/major/skip]". Christian answered patch. It wrote nsh-test 2.0.4 ->
+++ 2.0.5, synced Cargo.lock, and appended the Versions receipt below; no version file was edited by
+++ hand. That clause of G6 is shown. -->
+++ 
+/home/christian/0-core/zero/intents/complete/289-nsh-test-runs-the-repl-without-job-control-so-a-green-case-does-not-show-how-nsh-behaves-in-a-real-window.md: 1 replaced
