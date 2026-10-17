@@ -504,7 +504,7 @@ dependencies = [
 
 [[package]]
 name = "core"
-version = "4.4.0"
+version = "4.4.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1602,7 +1602,7 @@ dependencies = [
 
 [[package]]
 name = "novashell"
-version = "5.3.2"
+version = "5.3.3"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1626,7 +1626,7 @@ dependencies = [
 
 [[package]]
 name = "nsh-test"
-version = "2.0.3"
+version = "2.0.4"
 dependencies = [
  "chrono",
  "colored",
@@ -2358,7 +2358,7 @@ checksum = "dc6fe69c597f9c37bfeeeeeb33da3530379845f10be461a66d16d03eca2ded77"
 
 [[package]]
 name = "ship"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "clap",
  "serde_json",
@@ -2526,7 +2526,7 @@ dependencies = [
 
 [[package]]
 name = "teach"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "clap",
  "colored",
@@ -3595,7 +3595,7 @@ dependencies = [
 
 [[package]]
 name = "zero-ade"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3610,7 +3610,7 @@ dependencies = [
 
 [[package]]
 name = "zero-context"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "clap",
  "colored",
@@ -3622,7 +3622,7 @@ dependencies = [
 
 [[package]]
 name = "zero-core"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "fontdue",
  "libc",
@@ -3635,7 +3635,7 @@ dependencies = [
 
 [[package]]
 name = "zero-daemon"
-version = "4.0.0"
+version = "4.0.1"
 dependencies = [
  "chrono",
  "clap",
@@ -3651,7 +3651,7 @@ dependencies = [
 
 [[package]]
 name = "zero-deadwood"
-version = "1.0.0"
+version = "1.0.1"
 dependencies = [
  "clap",
  "colored",
@@ -3665,7 +3665,7 @@ dependencies = [
 
 [[package]]
 name = "zero-docs"
-version = "2.0.0"
+version = "2.0.1"
 dependencies = [
  "chrono",
  "colored",
@@ -3676,7 +3676,7 @@ dependencies = [
 
 [[package]]
 name = "zero-doctor"
-version = "0.1.0"
+version = "0.1.1"
 dependencies = [
  "chrono",
  "rusqlite",
@@ -3713,7 +3713,7 @@ dependencies = [
 
 [[package]]
 name = "zero-git"
-version = "5.1.2"
+version = "5.1.3"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3740,7 +3740,7 @@ dependencies = [
 
 [[package]]
 name = "zero-sandbox"
-version = "3.0.0"
+version = "3.0.1"
 dependencies = [
  "anyhow",
  "chrono",

@@ -3,7 +3,7 @@ id: 287
 date: 2026-10-12
 type: future
 title: "Silent defaults (INT-285) found: the close never offers a bump outside five tools, deadwood falls back by name, and four smaller defects"
-status: in-progress
+status: complete
 tags: [285, deadwood, cicomplete, ship, nsh]
 ---
 
@@ -280,3 +280,19 @@ measurement. Open by ruling, for their own intents: F-0036 to F-0041, F-0043, F-
 ## Non-goals
 - No change to how nsh behaves. No new crates. No sudo. Omarchy untouched.
 - No retroactive bumps for tools closed before this intent.
+
+## Versions
+- core 4.4.0 -> 4.4.1 (patch)
+- nsh 5.3.2 -> 5.3.3 (patch)
+- nsh-test 2.0.3 -> 2.0.4 (patch)
+- ship 1.0.0 -> 1.0.1 (patch)
+- teach 4.0.0 -> 4.0.1 (patch)
+- zero-ade 1.0.0 -> 1.0.1 (patch)
+- zero-context 1.0.0 -> 1.0.1 (patch)
+- zero-core 1.0.0 -> 1.0.1 (patch)
+- zero-daemon 4.0.0 -> 4.0.1 (patch)
+- zero-deadwood 1.0.0 -> 1.0.1 (patch)
+- zero-docs 2.0.0 -> 2.0.1 (patch)
+- zero-doctor 0.1.0 -> 0.1.1 (patch)
+- zero-git 5.1.2 -> 5.1.3 (patch)
+- zero-sandbox 3.0.0 -> 3.0.1 (patch)
