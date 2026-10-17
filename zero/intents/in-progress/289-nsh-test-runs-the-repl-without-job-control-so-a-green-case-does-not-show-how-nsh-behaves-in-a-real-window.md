@@ -151,6 +151,21 @@ c. The end of a line's answer is that command's own OSC 133;D status marker, the
    G0c's H row: a stale second ready marker after a take-back answered the next line in 30 of 30 runs.
    G3 first shows that nsh emits D for the line after a take-back; if it does not, c comes back for a
    ruling before any code.
+c, amended 2026-10-17, approved by Christian. The ruling above stands except for held lines.
+   A line the case declares held (it opens or continues a multi-line construct, so no command
+   completes) ends at its ready marker, the shell's continuation prompt. A held line that produces a
+   133;D is a harness error. A line not declared held that reaches a ready marker without its own
+   133;D keeps waiting, and fails at 30s. The case declares; the runner never infers it from the
+   prompt text, because taking a ready marker for an answer is the mistake F-0046 records.
+   Rests on the G0 census: of 168 lines 160 have their own 133;D. The 8 without are 7 held lines
+   (multiline_for_loop 2, multiline_if_block 2, multiline_while_loop 3) and echo ALIVE in
+   repl_286_lost_terminal_is_taken_back (F-0046), which this ruling ends.
+   Read 2026-10-17: run_repl_multiline (repl.rs:321) is Incremental, which waits for a ready marker
+   after every line (repl.rs:688-691). Its doc comment (repl.rs:309-311) says every line but the
+   last is sent without waiting; the code does not do that, and G4 corrects the comment. Held lines
+   are named per case, not taken from position: in multiline_while_loop the first line `n=0`
+   completes a command. Buffered delivery (quote, heredoc) writes the block with no wait per line
+   (repl.rs:688-690); only its last line ends as ruled above.
 d. The drain: quiet period 50ms (from 200ms), cap 2s unchanged. A full suite run may grow by at most 10s
    over the Inherited baseline of 41.1s to 41.4s (G0b), so 52s at most; G6 checks the measured wall time
    against it. Rests on G0b: Owned with the 200ms drain cost about 27s per run, about 210ms per session. -->
