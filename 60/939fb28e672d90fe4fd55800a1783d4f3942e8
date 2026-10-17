@@ -1,0 +1,12 @@
+file /home/christian/0-core/zero/intents/future/280-update-readiness-gates-omarchy-updates-on-the-0-core-tree-which-the-omarchy-updater-never-touches.md  sha256 05912018b23ae7ba -> 0082fa64b18dd49e
+--- /home/christian/0-core/zero/intents/future/280-update-readiness-gates-omarchy-updates-on-the-0-core-tree-which-the-omarchy-updater-never-touches.md: replacing lines 67..70 ---
+   65: - No new check. A real precondition of the Omarchy update that d does not measure (a pacman
+   66:   lock, disk space) is filed with core intent find and ruled on by Christian, not added here.
+>> 67: - Filed, not fixed here: installed_kernels counts every directory in /usr/lib/modules
+>> 68:   (system.rs:185-197) while Omarchy counts only pacman-owned vmlinuz files
+>> 69:   (omarchy-update-restart:14-16).
+>> 70: - No rewrite of history: complete intents and CHANGELOG.md:190 keep their words.
+   71: - No change to the health score formula or the forecast (INT-279).
+   72: 
+++ 
+/home/christian/0-core/zero/intents/future/280-update-readiness-gates-omarchy-updates-on-the-0-core-tree-which-the-omarchy-updater-never-touches.md: 1 replaced
