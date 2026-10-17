@@ -86,7 +86,7 @@ c. Cases whose verdict or per-line output differs between Inherited and Owned, t
 d. Every worktree removed (git worktree list shows only the repo) and git status unchanged after each
    run. Record and scripts: ~/.cache/zero/int289-g0/ (table.md, run-*.txt, sessions-*.tsv,
    repl286-repeat.md, repl286-timeline.md), kept until 289 closes. -->
-- [ ] G1 rulings, written here before any code, each naming the G0 rows it rests on:
+- [x] G1 rulings, written here before any code, each naming the G0 rows it rests on:
       a. The default: Owned for every REPL case, or chosen per case.
       b. What Inherited still proves (nsh on a terminal it does not control), and which cases
          keep it. Each kept case says why in a comment.
@@ -96,6 +96,25 @@ d. Every worktree removed (git worktree list shows only the repo) and git status
          transcript.
       d. The drain: its quiet period and cap, and how many seconds a full suite run may grow,
          from G0's measured times.
+<!-- ruled 2026-10-16. a, c, and d's quiet period and cap by Christian; b and d's bound decided by Claude
+at Christian's instruction to make the best decisions.
+a. Owned for every REPL case: the run_session_banner default (repl.rs:522) becomes Terminal::Owned.
+   Rests on G0c: no case's verdict or per-line output changes with the mode (109 cases with sessions,
+   both runs of each mode), so the switch hides nothing, and Owned is how nsh runs in a real window.
+b. Inherited still proves one thing: nsh answering on a pty that is its stdio but not its controlling
+   terminal, as when a script or another program starts it. One plain echo case keeps Terminal::Inherited
+   explicitly, with a comment saying why, so that path and the Inherited branches of run_session_full
+   stay exercised. repl_286_terminal_never_owned_exits_74_with_a_record (NotOwned) keeps covering a
+   terminal nsh does not own. Rests on G0c: no R rows, so no other case needs Inherited.
+c. The end of a line's answer is that command's own OSC 133;D status marker, then the ready marker
+   (ESC[?2004h) after it; a ready marker alone no longer ends a line. A case asserts on a line's window
+   only after its D; what nsh prints after the teardown exit is read only from the transcript. Rests on
+   G0c's H row: a stale second ready marker after a take-back answered the next line in 30 of 30 runs.
+   G3 first shows that nsh emits D for the line after a take-back; if it does not, c comes back for a
+   ruling before any code.
+d. The drain: quiet period 50ms (from 200ms), cap 2s unchanged. A full suite run may grow by at most 10s
+   over the Inherited baseline of 41.1s to 41.4s (G0b), so 52s at most; G6 checks the measured wall time
+   against it. Rests on G0b: Owned with the 200ms drain cost about 27s per run, about 210ms per session. -->
 - [ ] G2 findings. Every N row filed with core intent find "<what>" --at <file:line> --by
       INT-289, its F-number written beside the row. Fixed here only if G1 rules it in;
       otherwise it waits for its own intent. Every H row is fixed in G4.
