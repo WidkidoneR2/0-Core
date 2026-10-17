@@ -1,0 +1,245 @@
+file /home/christian/0-core/zero/shell/nsh-test/src/repl.rs  sha256 0ec0ad86361cf44a -> 07c40e29c70f7ffb
+file /home/christian/0-core/zero/shell/nsh-test/src/main.rs  sha256 cb3e17beb0c95abe -> 3f6b68fde263ee93
+--- /home/christian/0-core/zero/shell/nsh-test/src/repl.rs: replacing lines 302..305 ---
+   300: /// belongs to one path. The shell has two behaviours; so does this.
+   301: #[derive(Clone, Copy, PartialEq)]
+>> 302: pub enum InputDelivery {
+>> 303:     Incremental,
+>> 304:     Buffered,
+>> 305: }
+   306: 
+   307: /// Submit several lines that form ONE continued construct, then capture its output.
+++ pub enum InputDelivery {
+++     Incremental,
+++     Buffered,
+++     /// INT-289 G1 c: Incremental, with these line indexes HELD -- lines that open or continue a
+++     /// multi-line construct, so no command completes and no 133;D comes. A held line ends at its
+++     /// ready marker; every other line ends at its own 133;D and the ready marker after it. The
+++     /// case declares them; the runner never infers them from the prompt text.
+++     Held(&'static [usize]),
+++ }
+--- /home/christian/0-core/zero/shell/nsh-test/src/repl.rs: replacing lines 314..316 ---
+   312: /// Submit several lines that form ONE continued construct, then capture its output.
+   313: ///
+>> 314: /// Every line but the last is HELD: sent without waiting for the prompt to return, because a
+>> 315: /// line inside an unterminated quote, a for loop or an if block does not complete a command
+>> 316: /// and no prompt comes back for it. The last line closes the construct and waits normally.
+   317: ///
+   318: /// WHY THE CONSTRUCT MUST BE LAST. The capture window runs from the LAST `?2004l` to the
+++ /// `held` names the lines that open or continue the construct. They complete no command, so no
+++ /// 133;D comes for them (INT-289 G1 c): a held line ends at its ready marker, the continuation
+++ /// prompt, and every other line ends at its own 133;D and the ready marker after it. Every line is
+++ /// still waited for before the next is sent: writing them together puts all of them in the pty
+++ /// before the editor comes back for the next one, and it reads them as one submission.
+--- /home/christian/0-core/zero/shell/nsh-test/src/repl.rs: replacing lines 328..333 ---
+   326: /// string spanning both, and the session counted the right number of commands. Until this
+   327: /// existed the suite could not express that, or any for/while/if typed across lines.
+>> 328: pub fn run_repl_multiline(
+>> 329:     cmds: &[&str],
+>> 330:     env: &[(&str, &str)],
+>> 331: ) -> Result<(Vec<String>, Option<i32>), String> {
+>> 332:     run_session(cmds, env, None, InputDelivery::Incremental)
+>> 333: }
+   334: 
+   335: /// Submit a construct whose lines rustyline consumes in ONE read: a quote held open, a
+++ pub fn run_repl_multiline(
+++     cmds: &[&str],
+++     held: &'static [usize],
+++     env: &[(&str, &str)],
+++ ) -> Result<(Vec<String>, Option<i32>), String> {
+++     run_session(cmds, env, None, InputDelivery::Held(held))
+++ }
+--- /home/christian/0-core/zero/shell/nsh-test/src/repl.rs: replacing lines 530..531 ---
+   528:     delivery: InputDelivery,
+   529: ) -> Result<(Vec<String>, Option<i32>, String), String> {
+>> 530:     run_session_full(cmds, env, answer, delivery, Terminal::Inherited, None)
+>> 531:         .map(|end| (end.lines, end.status, end.banner))
+   532: }
+   533: 
+++     // INT-289 G1 a: OWNED IS THE DEFAULT. nsh runs as it does in a window -- a session leader on
+++     // the pty, owning the foreground -- so a case that passes here passed with job control.
+++     // Inherited is kept for one case, repl_289_inherited_terminal_still_answers.
+++     let end = run_session_full(cmds, env, answer, delivery, Terminal::Owned, None)?;
+++     // An owned session may end before its first prompt (INT-286 asserts on that). For every case
+++     // that is not asking for it, that is still the error it always was.
+++     if !end.prompted {
+++         return Err("nsh never reached its first prompt".to_string());
+++     }
+++     Ok((end.lines, end.status, end.banner))
+--- /home/christian/0-core/zero/shell/nsh-test/src/repl.rs: replacing lines 542..542 ---
+   540: }
+   541: 
+>> 542: /// INT-286: the session protocol, with the terminal arrangement and a gate. Every runner above
+   543: /// reaches nsh through here, so the shell is still started in exactly one place.
+   544: fn run_session_full(
+++ /// How the wait for one submitted line ended.
+++ enum LineEnd {
+++     Done,
+++     TimedOut,
+++     /// A line the case declared held produced its own 133;D: the declaration is wrong.
+++     HeldButCompleted,
+++ }
+++ 
+++ /// INT-289 G1 c: WHERE A LINE'S ANSWER ENDS. A ready marker alone does not end a line: a take-back
+++ /// prints a second one before it answers (F-0046), and any child that starts a line editor
+++ /// prints one too. A line ends at its OWN `133;D` status mark, then the ready marker after it.
+++ /// Measured 2026-10-16: `133;D` follows the line after a take-back in 30 of 30 runs, before its
+++ /// `133A` and its ready marker.
+++ ///
+++ /// A line the case declared HELD completes no command, so no `133;D` comes; it ends at its
+++ /// ready marker, the continuation prompt. If a `133;D` does come, the declaration is wrong, and
+++ /// that is an error rather than a guess.
+++ ///
+++ /// Every search starts at `mark`, so nothing printed for an earlier line can end this one.
+++ fn wait_line_end(
+++     rx: &mpsc::Receiver<Vec<u8>>,
+++     raw: &mut Vec<u8>,
+++     ready: &[u8],
+++     mark: usize,
+++     held: bool,
+++ ) -> LineEnd {
+++     const OSC_D_MARK: &[u8] = b"\x1b]133;D";
+++     let limit = Duration::from_secs(30);
+++     if held {
+++         let Some(at) = wait_for(rx, raw, ready, mark, limit) else {
+++             return LineEnd::TimedOut;
+++         };
+++         return match find_from(raw, OSC_D_MARK, mark) {
+++             Some(d) if d < at => LineEnd::HeldButCompleted,
+++             _ => LineEnd::Done,
+++         };
+++     }
+++     let Some(d) = wait_for(rx, raw, OSC_D_MARK, mark, limit) else {
+++         return LineEnd::TimedOut;
+++     };
+++     match wait_for(rx, raw, ready, d + OSC_D_MARK.len(), limit) {
+++         Some(_) => LineEnd::Done,
+++         None => LineEnd::TimedOut,
+++     }
+++ }
+++ /// INT-286: the session protocol, with the terminal arrangement and a gate.
+--- /home/christian/0-core/zero/shell/nsh-test/src/repl.rs: replacing lines 752..759 ---
+   750:             continue;
+   751:         }
+>> 752:         if wait_for(&rx, &mut raw, READY, mark, Duration::from_secs(30)).is_none() {
+>> 753:             // INT-286: in an owned mode a shell that ended mid-session is the result, not a
+>> 754:             // harness failure. Inherited keeps the error it always gave.
+>> 755:             if terminal == Terminal::Inherited {
+>> 756:                 return Err(format!("timed out waiting for the prompt after: {cmd}"));
+>> 757:             }
+>> 758:             break;
+>> 759:         }
+   760:     }
+   761: 
+++         // INT-289 G1 c: the line ends at its own 133;D and the ready marker after it, unless the
+++         // case declared it held (wait_line_end).
+++         let held = matches!(delivery, InputDelivery::Held(h) if h.contains(&idx));
+++         match wait_line_end(&rx, &mut raw, READY, mark, held) {
+++             LineEnd::Done => {}
+++             LineEnd::HeldButCompleted => {
+++                 return Err(format!(
+++                     "line {idx} was declared held but produced its own 133;D: {cmd}"
+++                 ));
+++             }
+++             LineEnd::TimedOut => {
+++                 // INT-286: a shell that ENDED mid-session is the result of an owned-mode case.
+++                 // INT-289: owned is the default now, so a shell that is still alive and silent is
+++                 // a hang, and a hang is a failure, as it always was. Inherited keeps its error.
+++                 let ended = matches!(child.try_wait(), Ok(Some(_)));
+++                 if terminal == Terminal::Inherited || !ended {
+++                     return Err(format!("timed out waiting for the prompt after: {cmd}"));
+++                 }
+++                 break;
+++             }
+++         }
+--- /home/christian/0-core/zero/shell/nsh-test/src/repl.rs: replacing lines 799..799 ---
+   797:     // can arrive first and the answer after it, during teardown (measured 2026-10-12: ALIVE came
+   798:     // 1ms after that prompt). What nsh printed until it exited becomes `transcript`; the reader is
+>> 799:     // drained until it has been quiet for 200ms, 2s at most. Inherited skips this, so its cost and
+   800:     // its lines are unchanged.
+   801:     let mut late: Vec<u8> = Vec::new();
+++ drained until it has been quiet for 50ms (INT-289 G1 d; it was 200ms), 2s at most.
+--- /home/christian/0-core/zero/shell/nsh-test/src/repl.rs: replacing lines 804..804 ---
+   802:     if terminal != Terminal::Inherited {
+   803:         let until = Instant::now() + Duration::from_secs(2);
+>> 804:         while let Ok(chunk) = rx.recv_timeout(Duration::from_millis(200)) {
+   805:             late.extend_from_slice(&chunk);
+   806:             if Instant::now() >= until {
+++ while let Ok(chunk) = rx.recv_timeout(Duration::from_millis(50)) {
+--- /home/christian/0-core/zero/shell/nsh-test/src/main.rs: replacing lines 4820..4821 ---
+   4818:     // command's output only.
+   4819:     results.push(test("multiline_for_loop", Category::Hostile, || {
+>> 4820:         let (out, _) =
+>> 4821:             repl::run_repl_multiline(&["for i in alpha beta", "do echo item-$i", "done"], &[])?;
+   4822:         let joined = out.join("\n");
+   4823:         expect_contains(&joined, "item-alpha").and_then(|_| expect_contains(&joined, "item-beta"))
+++         let (out, _) = repl::run_repl_multiline(
+++             &["for i in alpha beta", "do echo item-$i", "done"],
+++             &[0, 1],
+++             &[],
+++         )?;
+--- /home/christian/0-core/zero/shell/nsh-test/src/main.rs: replacing lines 4829..4829 ---
+   4827:     }));
+   4828:     results.push(test("multiline_if_block", Category::Hostile, || {
+>> 4829:         let (out, _) = repl::run_repl_multiline(&["if true", "then echo branch-taken", "fi"], &[])?;
+   4830:         expect_contains(&out.join("\n"), "branch-taken")
+   4831:     }));
+++         let (out, _) =
+++             repl::run_repl_multiline(&["if true", "then echo branch-taken", "fi"], &[0, 1], &[])?;
+--- /home/christian/0-core/zero/shell/nsh-test/src/main.rs: replacing lines 4839..4842 ---
+   4837:                 "while [ $n -lt 2 ]",
+   4838:                 "do echo tick-$n",
+>> 4839:                 "n=$((n+1))",
+>> 4840:                 "done",
+>> 4841:             ],
+>> 4842:             &[],
+   4843:         )?;
+   4844:         let joined = out.join("\n");
+++                 "n=$((n+1))",
+++                 "done",
+++             ],
+++             &[1, 2, 3],
+++             &[],
+--- /home/christian/0-core/zero/shell/nsh-test/src/main.rs: replacing lines 2919..2919 ---
+   2917:         },
+   2918:     ));
+>> 2919:     // INT-289 G3: AN ANSWER THAT FOLLOWS A SECOND READY MARKER BELONGS TO ITS LINE. A take-back makes
+   2920:     // nsh print a second ESC[?2004h before it answers (F-0046), and any child that starts a line editor
+   2921:     // prints one too. Measured 2026-10-16: the per-line wait ended at the first marker after the line was
+++     // INT-289 G1 b: ONE CASE STAYS INHERITED ON PURPOSE. Every other REPL case runs with nsh owning
+++     // its terminal, as it does in a window. This one proves what Inherited still proves: nsh answers
+++     // on a pty that is its stdio but not its controlling terminal, as when a script or another
+++     // program starts it, and the Inherited branches of run_session_full stay exercised.
+++     results.push(test(
+++         "repl_289_inherited_terminal_still_answers",
+++         Category::Repl,
+++         || {
+++             let end = repl::run_repl_gated(
+++                 &["echo INHERITED289"],
+++                 &[],
+++                 repl::Terminal::Inherited,
+++                 None,
+++             )?;
+++             if end.lines.iter().any(|l| l == "INHERITED289") {
+++                 Ok(())
+++             } else {
+++                 Err(format!(
+++                     "nsh did not answer on a pty it does not control: lines {:?}",
+++                     end.lines
+++                 ))
+++             }
+++         },
+++     ));
+++     // INT-289 G3: AN ANSWER THAT FOLLOWS A SECOND READY MARKER BELONGS TO ITS LINE.
+/home/christian/0-core/zero/shell/nsh-test/src/repl.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/repl.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/repl.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/repl.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/repl.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/repl.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/repl.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/repl.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/main.rs: 1 replaced
