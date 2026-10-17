@@ -115,9 +115,16 @@ c. The end of a line's answer is that command's own OSC 133;D status marker, the
 d. The drain: quiet period 50ms (from 200ms), cap 2s unchanged. A full suite run may grow by at most 10s
    over the Inherited baseline of 41.1s to 41.4s (G0b), so 52s at most; G6 checks the measured wall time
    against it. Rests on G0b: Owned with the 200ms drain cost about 27s per run, about 210ms per session. -->
-- [ ] G2 findings. Every N row filed with core intent find "<what>" --at <file:line> --by
+- [x] G2 findings. Every N row filed with core intent find "<what>" --at <file:line> --by
       INT-289, its F-number written beside the row. Fixed here only if G1 rules it in;
       otherwise it waits for its own intent. Every H row is fixed in G4.
+<!-- evidence: 2026-10-16, filed with core intent find --by 289 (usage at engine domains/intent/findings.rs:163).
+- H row, repl_286_lost_terminal_is_taken_back, the stale ready marker: F-0046, at
+  zero/shell/nsh-test/src/repl.rs:691. Fixed in G4 under ruling c; that commit carries Fixes: F-0046.
+- N row, input typed ahead after a take-back is lost: F-0047, at unknown (cause not established, filed
+  the way F-0031 was). G1 did not rule it in, so it waits for its own intent.
+No other rows: G0c found no mode difference and no R rows, and repl_jobs_lists_a_running_job was
+noise in the comparison, not a row. -->
 - [ ] G3 red. One new case, written before the fix, whose answer arrives after a second prompt
       (INT-286's steal is one way to cause it) and which reads the per-line window only: shown
       failing on today's harness, with the line it missed.
