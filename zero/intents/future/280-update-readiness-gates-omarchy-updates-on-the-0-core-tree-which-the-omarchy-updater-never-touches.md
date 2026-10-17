@@ -64,9 +64,6 @@ Reboot Needed with the same readers. 222 is complete and is not edited.
 - No change to Git Repository or Reboot Needed, or to Omarchy's code or update command.
 - No new check. A real precondition of the Omarchy update that d does not measure (a pacman
   lock, disk space) is filed with core intent find and ruled on by Christian, not added here.
-- Filed, not fixed here: installed_kernels counts every directory in /usr/lib/modules
-  (system.rs:185-197) while Omarchy counts only pacman-owned vmlinuz files
-  (omarchy-update-restart:14-16).
 - No rewrite of history: complete intents and CHANGELOG.md:190 keep their words.
 - No change to the health score formula or the forecast (INT-279).
 
