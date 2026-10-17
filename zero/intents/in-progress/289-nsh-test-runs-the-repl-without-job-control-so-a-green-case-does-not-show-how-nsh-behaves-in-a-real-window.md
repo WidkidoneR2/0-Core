@@ -191,16 +191,47 @@ so the window ended at the marker the command printed, before its answer. Output
 ~/.cache/zero/int289-g0/g3-red-suite.txt; results went to a scratch db. The steal was not used for the
 red: its stale marker comes before the answer in only 23 of 30 runs (measured), so a red built on it
 would be flaky. The case is re-applied by its Seal and commits with the G4 fix, per AGENTS. -->
-- [ ] G4 the harness. The G1 rulings in repl.rs; run_session stays the one owner of the session
+- [x] G4 the harness. The G1 rulings in repl.rs; run_session stays the one owner of the session
       protocol. G3's case green. Every R case rewritten to assert what nsh does with a terminal,
       or kept Inherited with its G1b reason. Every G0 row resolved (fixed, filed, or kept with a
       reason); none left blank. No REPL case deleted to reach green.
-- [ ] G5 the class, not the example. In a second throwaway worktree, tty::is_interactive() forced
-      to return false in the debug nsh: the job-control cases go red there, shown. Before 289
-      they stayed green. The worktree removed.
-- [ ] G6 doors: one ship at the end; nsh-test all passing in a new shell, with its wall time
+<!-- evidence: 2026-10-17, plans: red 822c06f38105e2a1, harness 8df6819a6338efe3, fmt 861a2773eff3601d.
+repl.rs: run_session_full is still the one owner; run_session_banner defaults to Terminal::Owned and
+stays an Err when nsh never prompts; a line ends at its own 133;D then the ready marker; held lines
+are declared per case through InputDelivery::Held and run_repl_multiline(cmds, held, env) (for [0,1],
+if [0,1], while [1,2,3]); a held line that produces a 133;D is a harness error; drain 50ms, cap 2s.
+G3's red case repl_289_answer_after_a_second_ready_marker_is_in_the_window was watched failing
+(ANSWER289 missing) and is green after the harness. The one Inherited case is
+repl_289_inherited_terminal_still_answers (G1b reason in its comment); no R rows existed (G0), so no
+other case needed it. G0 rows: the H row (F-0046) is fixed here; the N rows were filed in G2 and the
+case that shows N keeps asserting only ALIVE. Hang detection: green when the shell is alive and
+silent, red when that error was swallowed (runs A and B, ~/.cache/zero/int289-g5/).
+Suite on the debug build, scratch db: 241 of 241 passed in 51.4s after the harness; 243 results,
+All tests passed, 49.9s after the G5 cases. 239 cases before 289, plus the red case, the Inherited
+case and the two G5 cases is 243, so no case was deleted. cargo build clean, cargo fmt --check clean. -->
+- [x] G5 the class, not the example. In a second throwaway worktree, tty::is_interactive() forced
+      to return false in the debug nsh: a job-control case goes red there, shown. Before 289 no
+      case did except repl_286_lost_terminal_is_taken_back. The worktree removed.
+<!-- evidence: 2026-10-17, plan a4694d655eefc8cf. Amended wording, same day: the gate said "the
+job-control cases go red"; the run showed the existing repl_jobs cases stay green on a nsh without
+job control (run C, ~/.cache/zero/int289-g5/), so the gate now says what was measured. Two cases were
+added that read what a foreground child is born with: repl_289_foreground_child_leads_its_own_process_group
+and repl_289_foreground_child_gets_default_job_signals. Run d-N (normal nsh): 0 failed. Run d-F
+(is_interactive forced false): 3 failed, both new cases and repl_286_lost_terminal_is_taken_back.
+Outputs: run-d-N.txt, run-d-F.txt in ~/.cache/zero/int289-g5/. Built in a throwaway worktree with its
+own CARGO_TARGET_DIR; the forced-false binary differed from the repo's debug nsh (hash guard); the
+worktree was removed and git worktree list shows only the repo. -->
+- [x] G6 doors: one ship at the end; nsh-test all passing in a new shell, with its wall time
       inside G1d's bound; d 0 failed; core intent validate clean. The close offers nsh-test its
       bump without a hand edit (the first real use of INT-287 G2).
+<!-- evidence: 2026-10-17. One ship: nsh-test 2.0.4 shipped, 16 unchanged, 0 failed; the deployed
+~/.local/bin/nsh and target/release/nsh have the same sha256 (78f8616e031065dc...). Reloaded with
+exec /home/christian/.local/bin/nsh, then in that new shell: nsh-test 243 results, All tests passed,
+wall 49.5s, inside the 52s bound (G1d set it on a 239-case baseline; this run has 243 cases).
+d: Passed 26, Warnings 2, Failed 0; the two warnings are Git Repository (uncommitted work, until G7) and Update Readiness (INT-280).
+core intent validate: All 326 intents valid. git worktree list: only /home/christian/0-core.
+The last clause, the close offering nsh-test its bump, can only be shown by cicomplete; it is
+recorded under G8 after the close. -->
 - [ ] G7 commits: each carries INT-289 and its plan Seal, the note under refs/notes/seals; Fixes
       lines for the findings fixed here; pushed with the pre-push hook passing; core intent
       trace reads every seal intact.

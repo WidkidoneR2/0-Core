@@ -302,13 +302,20 @@ pub fn case_db_dir() -> String {
 pub enum InputDelivery {
     Incremental,
     Buffered,
+    /// INT-289 G1 c: Incremental, with these line indexes HELD -- lines that open or continue a
+    /// multi-line construct, so no command completes and no 133;D comes. A held line ends at its
+    /// ready marker; every other line ends at its own 133;D and the ready marker after it. The
+    /// case declares them; the runner never infers them from the prompt text.
+    Held(&'static [usize]),
 }
 
 /// Submit several lines that form ONE continued construct, then capture its output.
 ///
-/// Every line but the last is HELD: sent without waiting for the prompt to return, because a
-/// line inside an unterminated quote, a for loop or an if block does not complete a command
-/// and no prompt comes back for it. The last line closes the construct and waits normally.
+/// `held` names the lines that open or continue the construct. They complete no command, so no
+/// 133;D comes for them (INT-289 G1 c): a held line ends at its ready marker, the continuation
+/// prompt, and every other line ends at its own 133;D and the ready marker after it. Every line is
+/// still waited for before the next is sent: writing them together puts all of them in the pty
+/// before the editor comes back for the next one, and it reads them as one submission.
 ///
 /// WHY THE CONSTRUCT MUST BE LAST. The capture window runs from the LAST `?2004l` to the
 /// following `133;A`, so it holds the final command's output and nothing else. A trailing
@@ -320,9 +327,10 @@ pub enum InputDelivery {
 /// existed the suite could not express that, or any for/while/if typed across lines.
 pub fn run_repl_multiline(
     cmds: &[&str],
+    held: &'static [usize],
     env: &[(&str, &str)],
 ) -> Result<(Vec<String>, Option<i32>), String> {
-    run_session(cmds, env, None, InputDelivery::Incremental)
+    run_session(cmds, env, None, InputDelivery::Held(held))
 }
 
 /// Submit a construct whose lines rustyline consumes in ONE read: a quote held open, a
@@ -519,10 +527,63 @@ fn run_session_banner(
     answer: Option<(&str, &str)>,
     delivery: InputDelivery,
 ) -> Result<(Vec<String>, Option<i32>, String), String> {
-    run_session_full(cmds, env, answer, delivery, Terminal::Inherited, None)
-        .map(|end| (end.lines, end.status, end.banner))
+    // INT-289 G1 a: OWNED IS THE DEFAULT. nsh runs as it does in a window -- a session leader on
+    // the pty, owning the foreground -- so a case that passes here passed with job control.
+    // Inherited is kept for one case, repl_289_inherited_terminal_still_answers.
+    let end = run_session_full(cmds, env, answer, delivery, Terminal::Owned, None)?;
+    // An owned session may end before its first prompt (INT-286 asserts on that). For every case
+    // that is not asking for it, that is still the error it always was.
+    if !end.prompted {
+        return Err("nsh never reached its first prompt".to_string());
+    }
+    Ok((end.lines, end.status, end.banner))
 }
 
+/// How the wait for one submitted line ended.
+enum LineEnd {
+    Done,
+    TimedOut,
+    /// A line the case declared held produced its own 133;D: the declaration is wrong.
+    HeldButCompleted,
+}
+
+/// INT-289 G1 c: WHERE A LINE'S ANSWER ENDS. A ready marker alone does not end a line: a take-back
+/// prints a second one before it answers (F-0046), and any child that starts a line editor
+/// prints one too. A line ends at its OWN `133;D` status mark, then the ready marker after it.
+/// Measured 2026-10-16: `133;D` follows the line after a take-back in 30 of 30 runs, before its
+/// `133A` and its ready marker.
+///
+/// A line the case declared HELD completes no command, so no `133;D` comes; it ends at its
+/// ready marker, the continuation prompt. If a `133;D` does come, the declaration is wrong, and
+/// that is an error rather than a guess.
+///
+/// Every search starts at `mark`, so nothing printed for an earlier line can end this one.
+fn wait_line_end(
+    rx: &mpsc::Receiver<Vec<u8>>,
+    raw: &mut Vec<u8>,
+    ready: &[u8],
+    mark: usize,
+    held: bool,
+) -> LineEnd {
+    const OSC_D_MARK: &[u8] = b"\x1b]133;D";
+    let limit = Duration::from_secs(30);
+    if held {
+        let Some(at) = wait_for(rx, raw, ready, mark, limit) else {
+            return LineEnd::TimedOut;
+        };
+        return match find_from(raw, OSC_D_MARK, mark) {
+            Some(d) if d < at => LineEnd::HeldButCompleted,
+            _ => LineEnd::Done,
+        };
+    }
+    let Some(d) = wait_for(rx, raw, OSC_D_MARK, mark, limit) else {
+        return LineEnd::TimedOut;
+    };
+    match wait_for(rx, raw, ready, d + OSC_D_MARK.len(), limit) {
+        Some(_) => LineEnd::Done,
+        None => LineEnd::TimedOut,
+    }
+}
 /// INT-286: the session protocol, with the terminal arrangement and a gate. Every runner above
 /// reaches nsh through here, so the shell is still started in exactly one place.
 fn run_session_full(
@@ -688,13 +749,26 @@ fn run_session_full(
         if delivery == InputDelivery::Buffered && idx + 1 < cmds.len() {
             continue;
         }
-        if wait_for(&rx, &mut raw, READY, mark, Duration::from_secs(30)).is_none() {
-            // INT-286: in an owned mode a shell that ended mid-session is the result, not a
-            // harness failure. Inherited keeps the error it always gave.
-            if terminal == Terminal::Inherited {
-                return Err(format!("timed out waiting for the prompt after: {cmd}"));
+        // INT-289 G1 c: the line ends at its own 133;D and the ready marker after it, unless the
+        // case declared it held (wait_line_end).
+        let held = matches!(delivery, InputDelivery::Held(h) if h.contains(&idx));
+        match wait_line_end(&rx, &mut raw, READY, mark, held) {
+            LineEnd::Done => {}
+            LineEnd::HeldButCompleted => {
+                return Err(format!(
+                    "line {idx} was declared held but produced its own 133;D: {cmd}"
+                ));
             }
-            break;
+            LineEnd::TimedOut => {
+                // INT-286: a shell that ENDED mid-session is the result of an owned-mode case.
+                // INT-289: owned is the default now, so a shell that is still alive and silent is
+                // a hang, and a hang is a failure, as it always was. Inherited keeps its error.
+                let ended = matches!(child.try_wait(), Ok(Some(_)));
+                if terminal == Terminal::Inherited || !ended {
+                    return Err(format!("timed out waiting for the prompt after: {cmd}"));
+                }
+                break;
+            }
         }
     }
 
@@ -722,12 +796,12 @@ fn run_session_full(
     // prompts again BEFORE it answers the line it was sent, so the prompt the loop above waited for
     // can arrive first and the answer after it, during teardown (measured 2026-10-12: ALIVE came
     // 1ms after that prompt). What nsh printed until it exited becomes `transcript`; the reader is
-    // drained until it has been quiet for 200ms, 2s at most. Inherited skips this, so its cost and
+    // drained until it has been quiet for 50ms (INT-289 G1 d; it was 200ms), 2s at most. Inherited skips this, so its cost and
     // its lines are unchanged.
     let mut late: Vec<u8> = Vec::new();
     if terminal != Terminal::Inherited {
         let until = Instant::now() + Duration::from_secs(2);
-        while let Ok(chunk) = rx.recv_timeout(Duration::from_millis(200)) {
+        while let Ok(chunk) = rx.recv_timeout(Duration::from_millis(50)) {
             late.extend_from_slice(&chunk);
             if Instant::now() >= until {
                 break;

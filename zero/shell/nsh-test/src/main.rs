@@ -2916,6 +2916,94 @@ print('CLASS-DONE')"##;
             }
         },
     ));
+    // INT-289 G1 b: ONE CASE STAYS INHERITED ON PURPOSE. Every other REPL case runs with nsh owning
+    // its terminal, as it does in a window. This one proves what Inherited still proves: nsh answers
+    // on a pty that is its stdio but not its controlling terminal, as when a script or another
+    // program starts it, and the Inherited branches of run_session_full stay exercised.
+    results.push(test(
+        "repl_289_inherited_terminal_still_answers",
+        Category::Repl,
+        || {
+            let end =
+                repl::run_repl_gated(&["echo INHERITED289"], &[], repl::Terminal::Inherited, None)?;
+            if end.lines.iter().any(|l| l == "INHERITED289") {
+                Ok(())
+            } else {
+                Err(format!(
+                    "nsh did not answer on a pty it does not control: lines {:?}",
+                    end.lines
+                ))
+            }
+        },
+    ));
+    // INT-289 G3: AN ANSWER THAT FOLLOWS A SECOND READY MARKER BELONGS TO ITS LINE. A take-back makes
+    // nsh print a second ESC[?2004h before it answers (F-0046), and any child that starts a line editor
+    // prints one too. Measured 2026-10-16: the per-line wait ended at the first marker after the line was
+    // sent, so the answer was missed. Ruled (G1 c): a line ends at its own 133;D and the ready marker
+    // after it. The command prints the marker itself, so the case is deterministic, not a race with a
+    // steal.
+    results.push(test(
+        "repl_289_answer_after_a_second_ready_marker_is_in_the_window",
+        Category::Repl,
+        || {
+            let out = repl::run_repl_lines(&["printf '\\033[?2004h'; sleep 0.3; echo ANSWER289"])?;
+            if out.iter().any(|l| l == "ANSWER289") {
+                Ok(())
+            } else {
+                Err(format!(
+                    "the line's window ended at a ready marker the command printed, before its \
+                     answer: ANSWER289 missing from {:?}",
+                    out
+                ))
+            }
+        },
+    ));
+    // INT-289 G5: THE CLASS, NOT THE EXAMPLE. No case could tell a nsh that has job control from
+    // one that has lost it: the repl_jobs cases print the same lines either way (G0 found no R
+    // rows), and only repl_286_lost_terminal_is_taken_back noticed, because it alone owned its
+    // terminal. These two read what a foreground child is BORN with. Under job control nsh gives it
+    // a process group of its own (commands/mod.rs:9124-9127) and resets the job-control signals to
+    // their defaults (:9143-9145); without it the child inherits nsh's group and nsh's ignored
+    // signals. A single command on purpose: a pipeline takes its own group whatever the terminal.
+    results.push(test(
+        "repl_289_foreground_child_leads_its_own_process_group",
+        Category::Repl,
+        || {
+            let cmd = concat!(
+                "python3 -c \"import os; ",
+                "print('PGRP_OWN' if os.getpgrp() == os.getpid() else 'PGRP_SHARED')\""
+            );
+            let out = repl::run_repl_lines(&[cmd])?;
+            if out.iter().any(|l| l == "PGRP_OWN") {
+                Ok(())
+            } else {
+                Err(format!(
+                    "the foreground child did not lead its own process group: {:?}",
+                    out
+                ))
+            }
+        },
+    ));
+    results.push(test(
+        "repl_289_foreground_child_gets_default_job_signals",
+        Category::Repl,
+        || {
+            let cmd = concat!(
+                "python3 -c \"import signal; ",
+                "print('JOBSIG_DEFAULT' if signal.getsignal(signal.SIGTSTP) == signal.SIG_DFL ",
+                "else 'JOBSIG_IGNORED')\""
+            );
+            let out = repl::run_repl_lines(&[cmd])?;
+            if out.iter().any(|l| l == "JOBSIG_DEFAULT") {
+                Ok(())
+            } else {
+                Err(format!(
+                    "the foreground child inherited the shell's ignored job-control signals: {:?}",
+                    out
+                ))
+            }
+        },
+    ));
     // INT-286 G2: A SHELL THAT NEVER OWNED ITS TERMINAL GIVES UP LOUDLY. Started where a background
     // job of another shell would be, nsh's first read fails with EIO. On 5.3.1 it exits 0 with the
     // reason on stderr only. Ruled (G1): it does not take a terminal it never owned; it exits 74
@@ -4795,13 +4883,17 @@ print('CLASS-DONE')"##;
     // The construct is LAST in every case, because the capture window holds the final
     // command's output only.
     results.push(test("multiline_for_loop", Category::Hostile, || {
-        let (out, _) =
-            repl::run_repl_multiline(&["for i in alpha beta", "do echo item-$i", "done"], &[])?;
+        let (out, _) = repl::run_repl_multiline(
+            &["for i in alpha beta", "do echo item-$i", "done"],
+            &[0, 1],
+            &[],
+        )?;
         let joined = out.join("\n");
         expect_contains(&joined, "item-alpha").and_then(|_| expect_contains(&joined, "item-beta"))
     }));
     results.push(test("multiline_if_block", Category::Hostile, || {
-        let (out, _) = repl::run_repl_multiline(&["if true", "then echo branch-taken", "fi"], &[])?;
+        let (out, _) =
+            repl::run_repl_multiline(&["if true", "then echo branch-taken", "fi"], &[0, 1], &[])?;
         expect_contains(&out.join("\n"), "branch-taken")
     }));
     results.push(test("multiline_while_loop", Category::Hostile, || {
@@ -4813,6 +4905,7 @@ print('CLASS-DONE')"##;
                 "n=$((n+1))",
                 "done",
             ],
+            &[1, 2, 3],
             &[],
         )?;
         let joined = out.join("\n");
