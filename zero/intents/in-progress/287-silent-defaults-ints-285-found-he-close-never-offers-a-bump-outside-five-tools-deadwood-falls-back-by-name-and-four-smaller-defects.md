@@ -191,7 +191,7 @@ listed 19 versioned rows and refused frob with exit 1; INT-287's own close, mode
 its commits, asks 13 crates and refuses none. Earlier steps: 2819446c (step 0), 43e8705b (step 1),
 9c93a774, d90c5ecc (step 2); the warnings cleanup of ruling 5, 75 to 0, in e701a229, 7925d0e8,
 0bc0b95d, 3ba9648b. -->
-- [ ] G3 the close writes the registry. Red: a bump test whose registry row
+- [x] G3 the close writes the registry. Red: a bump test whose registry row
       stays old. Fix: write_versions updates the row in the same plan, and
       refuses before any write if the row is missing. Green, plus the drift
       check clean on a real close.
@@ -216,6 +216,7 @@ version filed (F-0044).
   459326d4f60b72bb. Doors: 453 passed, clippy 0, nsh-test 238/238, core doctor run 0 failed.
 - Findings filed by 287 on 2026-10-16: F-0037 to F-0045. F-0045, a core test that reads HOME
   without HOME_LOCK, turned one push gate red. -->
+<!-- evidence: demonstrated 2026-10-16 by a real close that is not the real 287 close (that close refuses while G3 is open, engine intent/mod.rs:2077-2104). The deployed core 4.4.0, shipped after ebc55ad6, closed 287 in a disposable clone of 0-core at ad2ed01c under a temporary HOME: origin removed, XDG dirs pointed into it, state.db copied by sqlite backup with the real file opened read-only. In the clone only, G3, G10 and G12 were ticked as scaffolding so the open-gate check would pass. Baseline: core integrity run printed No integrity issues detected (100%). Red first: nsh-test Cargo.toml set to 9.9.9 without its row gave 67% and exactly one proposed issue, its text nsh-test: registry=2.0.3 cargo=9.9.9 recorded in state.db; restored, clean again. The close without a terminal named 14 crates and wrote nothing; with --bump for each (patch, zero-core skip, as ruled at G2) it wrote 13 Cargo.toml versions and the same 13 registry rows: every row equals its Cargo.toml (core 4.4.1, nsh 5.3.3, nsh-test 2.0.4, ship 1.0.1, teach 4.0.1, zero-ade 1.0.1, zero-context 1.0.1, zero-daemon 4.0.1, zero-deadwood 1.0.1, zero-docs 2.0.1, zero-doctor 0.1.1, zero-git 5.1.3, zero-sandbox 3.0.1; zero-core 1.0.0 unchanged). core integrity run after the close: No integrity issues detected, so no registry_version_drift. The real tree HEAD and status and every file in ~/.local/bin were unchanged; the clone was deleted. Levels for the real close are decided at cicomplete 287. -->
 - [x] G4 deadwood has one reader. The INT-285 pattern: red case, the reader
       refuses a missing target, green. nsh-test's count goes up by one.
 <!-- evidence: commit 90d77e16, 2026-10-16, Fixes: F-0030, seal 4a42ced05fe208f1 (red plan
@@ -260,8 +261,9 @@ main.rs:167 and :5500 shows env NSH_BIN=target/debug/nsh. -->
 <!-- ruled 2026-10-16 by Christian: findings are history, so F-0020 is left as written. Its text
 names main.rs:2646, which was :2764 when it was fixed; its at: field is main.rs:325. This note is
 the record of that. Also closed in 287 on 2026-10-16: F-0045 in ae77e56d. -->
-- [ ] G10 doors: ship what changed, nsh-test all passing, d 0 failed, core
+- [x] G10 doors: ship what changed, nsh-test all passing, d 0 failed, core
       intent validate clean.
+<!-- evidence: measured 2026-10-16 on the deployed tools right after the ship of 15 tools after ebc55ad6 (core 4.4.0, nsh 5.3.2, nsh-test 2.0.3 and the rest): nsh-test 239/239, core doctor run 0 failed, core intent validate exit 0, core integrity run 100% with no issues. Nothing shipped between that measurement and this record; the commit carrying this record runs the doors again before it is made. -->
 - [x] G11 commits: one per fix, each with Intent and Fixes and its plan Seal
       and note; pushed; trace reads every seal intact.
 <!-- evidence: 2026-10-16. Every commit naming INT-287 that carries a Seal: (22 on main, from
@@ -272,7 +274,8 @@ pre-commit hook restaged main.rs, and 3199de06 carries Fixes: F-0033. Findings f
 F-0028 36b6d7c8, F-0029 010abd46, F-0030 90d77e16, F-0032 e01656e5, F-0033 3199de06, F-0034
 0153ec95, F-0035 be8d5366, F-0042 805d14f6, F-0045 ae77e56d. F-0031 closed without a fix by G5's
 measurement. Open by ruling, for their own intents: F-0036 to F-0041, F-0043, F-0044. -->
-- [ ] G12 each gate carries evidence per INT-158.
+- [x] G12 each gate carries evidence per INT-158.
+<!-- evidence: checked 2026-10-16 by the builder of the plan that wrote this record: every gate from G0 to G12 is followed by an HTML comment before the next gate (demonstrated, ruled or evidence, per INT-158), G3, G10 and G12 by this record; the builder refuses when a gate has none. -->
 
 ## Non-goals
 - No change to how nsh behaves. No new crates. No sudo. Omarchy untouched.
