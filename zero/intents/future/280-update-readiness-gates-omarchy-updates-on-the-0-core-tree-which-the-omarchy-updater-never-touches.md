@@ -10,77 +10,72 @@ depends_on: []
 
 ## Vision
 
-d's Update Readiness answers one question: is it safe to run the Omarchy update now? It reads
-only what an Omarchy update depends on, says what it read, and leaves the 0-core tree to the
-check that owns it.
+d reports the health of the shell and the Zero tools. Update Readiness was a NixOS check: it
+asked whether a rebuild from the 0-core tree was safe. On Omarchy the updater reads nothing
+from that tree, and what is left of the check is a second copy of Reboot Needed. 280 retires
+the check so each fact has one owner: the tree belongs to Git Repository, the kernel to
+Reboot Needed.
 
 ## The Problem
 
-The probe (zero/tools/zero-doctor/src/probes/hardening.rs:158-201) has two blockers:
+The probe (zero/tools/zero-doctor/src/probes/hardening.rs:158-201) has two blockers, and neither
+belongs to it:
 
-1. Kernel: the running kernel is not among the installed ones ("reboot -- running X, installed Y").
-2. Tree: `git -C <core root> diff --quiet HEAD` fails ("commit or stash tracked changes").
+1. Tree: `git -C <core root> diff --quiet HEAD` (hardening.rs:178-189). The Omarchy update
+   never reads or writes ~/0-core. omarchy-update (1-64) names neither ~/0-core nor
+   ~/.local/bin; omarchy-update-dev exits 0 when OMARCHY_PATH is /usr/share/omarchy (dev:7);
+   the migrations name only wrapper files in ~/.local/bin; the three post-update hooks only
+   send notifications. It is a leftover from NixOS, where the tree was the system
+   configuration (222:1132-1134).
+2. Kernel: running kernel not among the installed ones (hardening.rs:166-175). Reboot Needed
+   measures the same fact with the same two readers (system.rs:39,43 and :171,:185;
+   hardening.rs:163-164).
 
-Either one turns the check to warn with "hold off -- ...". The second blocker reads the 0-core
-working tree, and that tree is not part of what an Omarchy update reads or writes (Christian,
-2026-10-07; G0 checks that against the updater itself). It is a leftover from NixOS, where the
-0-core tree was the system configuration and an update rebuilt from it. INT-222 recorded those
-rebuild wrappers going with the OS on 2026-08-28 (222:1132-1134), and in the same note ruled that
-update_readiness gates on "an out-of-date kernel or a dirty tree" (222:1136-1139). The kernel half
-of that ruling still holds on Omarchy. The tree half no longer does.
+What that costs today:
 
-What that costs today, to be confirmed in G0 and G1:
-
-- ONE FACT, TWO WARNINGS. A tracked change in 0-core already warns under Git Repository. The same
-  change also warns under Update Readiness, so one uncommitted edit costs two warnings of health.
-- A WRONG INSTRUCTION. d tells the reader to hold off an Omarchy update until 0-core work is
-  committed. Nothing in the update needs that. A reader who trusts the check delays a system
-  update for an unrelated reason, and one who knows better learns to ignore the check.
-- A VAGUE RECOVERY. The registry recovery is "Resolve the above first" (registry/doctor/checks.toml:264).
-  AGENTS.md section 3: a message leaves a next move a reader can run. This one points at nothing.
-- UNTRACKED FILES ARE INVISIBLE TO IT. diff --quiet HEAD sees tracked changes only, so the check
-  passed on 2026-10-07 with an untracked probe file in the tree while Git Repository warned. Its
-  tree half is not even a complete tree check; it is a partial copy of one.
+- ONE FACT, TWO WARNINGS. A tracked change in 0-core warns under Git Repository and again under
+  Update Readiness. A kernel mismatch would warn under Reboot Needed and again here.
+- A WRONG INSTRUCTION. d says to hold off an Omarchy update until 0-core work is committed.
+  Nothing in the update needs that.
+- A VAGUE RECOVERY. "Resolve the above first" (checks.toml:264) names no next move.
+- AN INCOMPLETE TREE CHECK. diff --quiet HEAD ignores untracked files, so it passed on
+  2026-10-07 while Git Repository warned.
+- A LOST SIGNAL. When a blocker exists, unreadable signals are dropped (hardening.rs:191-193).
 
 ## The Solution
 
-First read what Omarchy's update path actually reads and requires (G0). Then hold the check to
-this contract, decided now:
+- RETIRE THE CHECK. Remove the registry entry (checks.toml:257-264), the probe
+  (hardening.rs:151-201), the Probe::UpdateReadiness variant, name map and list entry
+  (probe.rs:76,116,150), the dispatch (probes/mod.rs:63) and the live test (hardening.rs:239-249).
+- ONE OWNER PER FACT. Git Repository owns the tree and Reboot Needed owns the kernel. Neither
+  changes.
+- NOTHING ELSE MOVES. d goes from 28 checks to 27. The score formula and forecast are untouched.
+- HISTORY STAYS READABLE. Stored runs that name the retired check still read.
 
-- THE 0-CORE TREE IS NOT A BLOCKER. Update Readiness does not read the 0-core working tree. A dirty
-  or unpushed tree is reported by Git Repository alone, once.
-- THE KERNEL BLOCKER STAYS, WITH ITS EVIDENCE. A running kernel that is not installed still says
-  "hold off", naming the running and installed versions, as it does today.
-- AN UNREAD SIGNAL IS NEVER A PASS. The rule the probe already keeps (hardening.rs:153-157) stays,
-  and gets a fixture test, not only the live one at hardening.rs:239.
-- THE PASS SAYS WHAT WAS CHECKED. "safe to update -- kernel current, tree clean" stops claiming a
-  tree it no longer reads; it names what it did read.
-- THE RECOVERY IS A NEXT MOVE. The registry recovery names a command or action a reader can take,
-  not "Resolve the above first".
-- THE DECISION IS TESTED. The verdict is computed by a pure function that fixture inputs can drive,
-  so a test states the expected verdict and message for each case and fails if they drift.
-- INT-222 IS AMENDED HERE, NOT REWRITTEN. 222 is complete and forward-only. This intent records,
-  in its own Decision section, that it supersedes the dirty-tree half of 222:1136-1139.
+## Decision
+
+280 supersedes 222:1136-1139 (approved by christian 2026-09-20), which ruled that
+update_readiness gates on "an out-of-date kernel or a dirty tree". Both halves fall. The dirty
+tree is not read by the Omarchy update and Git Repository owns it. The kernel is measured by
+Reboot Needed with the same readers. 222 is complete and is not edited.
 
 ## Non-goals
 
-- No change to the Git Repository check, its pass/warn logic, or its messages.
-- No change to Omarchy's code or its update command. It is read in G0, never edited.
-- No new blocker (a pacman lock, disk space, an Omarchy version check). If G0 finds a real
-  precondition of the Omarchy update that d does not measure, it is filed with core intent find
-  and ruled on by Christian, not added here.
-- No change to the Reboot Needed check. If G0 finds it measures the same kernel fact as this
-  check's kernel blocker, that duplication is recorded and filed as a finding, not resolved here.
+- No change to Git Repository or Reboot Needed, or to Omarchy's code or update command.
+- No new check. A real precondition of the Omarchy update that d does not measure (a pacman
+  lock, disk space) is filed with core intent find and ruled on by Christian, not added here.
+- Filed, not fixed here: installed_kernels counts every directory in /usr/lib/modules
+  (system.rs:185-197) while Omarchy counts only pacman-owned vmlinuz files
+  (omarchy-update-restart:14-16).
+- No rewrite of history: complete intents and CHANGELOG.md:190 keep their words.
 - No change to the health score formula or the forecast (INT-279).
 
 ## Scope against neighbours
 
-- INT-222 owns how checks report. 280 changes what one check measures and amends one ruling of
-  222 by citation.
+- INT-222 owns how checks report. 280 retires one check and amends one ruling by citation.
 - INT-265 retired zero-update because Omarchy has its own updater. 280 removes the last place d
   still reasons about updates as if 0-core were the system.
-- INT-279 made the decline advisory honest. Removing a double-counted warning changes the health
-  numbers the forecast reads; 280 does not touch the forecast itself.
+- INT-279 owns the forecast. Retiring a check changes the count it reads, not the forecast code.
 
 ## Dependencies
 
@@ -91,37 +86,25 @@ depends_on is empty on purpose: nothing has to finish before this can start.
 Each gate is watched failing before it is watched passing. Anchors stay ASCII-only. Every commit
 made from a reviewed plan carries Seal: and its note in refs/notes/seals.
 
-- [ ] G0: recon recorded, each finding with file:line. (a) The probe, its two blockers, its unread
-  branch and its messages (hardening.rs:150-201). (b) The registry entry: tier, severities,
-  recovery (checks.toml:257-264). (c) Every consumer of update_readiness or its message outside
-  zero-doctor (fsearch, including ship and nsh). (d) Omarchy's update command, read only: which
-  binary or script it is, what it reads and writes, and whether any of it touches ~/0-core or
-  ~/.local/bin. (e) Whether reboot_needed reads the same running_kernel and installed_kernels.
-  (f) Which gate, if any, runs cargo test -p zero-doctor (AGENTS.md: only core runs in pre-push).
-- [ ] G1: RED FIRST, AFTER A PURE EXTRACTION. The verdict moves out of update_readiness into a pure
-  function (kernel reading, tree reading in; Measurement out) with NO behaviour change, proven by
-  characterisation tests hand-computed from the current body. Then: (a) a fixture with a current
-  kernel and a dirty tree shows today's warn "hold off -- commit or stash tracked changes"; (b) on
-  the live tree, with one tracked file modified, d shows two warnings for that one change, Git
-  Repository and Update Readiness. Both saved as evidence before behaviour changes.
-- [ ] G2: the tree is not a blocker. The same fixture now passes. The probe no longer runs git or
-  reads the 0-core root; fsearch shows no git call left in update_readiness. The pure function no
-  longer takes a tree input.
-- [ ] G3: the kernel blocker stays and names its evidence. A fixture with a running kernel absent
-  from the installed list warns with both versions in the message.
-- [ ] G4: an unread signal is never a pass. A fixture whose kernel reading fails returns unknown,
-  with the reason in the message. Red first: the fixture is written against the extraction before
-  any change, and shown to hold.
-- [ ] G5: the messages say what was checked. The pass message names the kernel it read and claims
-  nothing about a tree. The registry recovery is a runnable next move, not "Resolve the above
-  first". A test asserts the pass message contains no "tree".
-- [ ] G6: INT-222 is amended by citation. A Decision section in this intent states that it
-  supersedes the dirty-tree half of 222:1136-1139, with the reason. 222 is not edited.
-- [ ] G7: wired in, not configured. The new tests run under cargo test -p zero-doctor. Either that
-  crate is covered by a gate (a deliberately broken assertion turns the gate red; restored, green),
-  or Christian rules it stays a manual door and the ruling is recorded with reasons.
-- [ ] G8: DEPLOYED. One ship at the end. In a new shell, with one tracked file in 0-core modified,
-  the deployed d shows Git Repository warn and Update Readiness pass: one warning for one fact. The
-  file is restored, and d on the clean tree shows both passing.
-- [ ] G9: doors. nsh-test all passing against the deployed binaries, d 0 failed, cargo doc 0
-  warnings for every crate touched, commits carry Intent: INT-280.
+- [ ] G0: recon recorded, each finding with file:line. (a) The probe, its blockers, unread
+  branch and messages (hardening.rs:150-201). (b) The registry entry and what its severities
+  permit (checks.toml:257-264, definition.rs:175-179). (c) Every consumer of update_readiness or
+  its message (fsearch, including ship, nsh and scripts). (d) Omarchy's update path, read only:
+  what it reads and writes, and whether any of it touches ~/0-core or ~/.local/bin.
+  (e) That reboot_needed reads the same running_kernel and installed_kernels.
+- [ ] G1: RED FIRST. At HEAD, d lists Update Readiness. With one tracked file in 0-core modified,
+  d shows two warnings for that one change, Git Repository and Update Readiness. Saved as
+  evidence before anything changes.
+- [ ] G2: REMOVED. The registry entry, probe, variant, name map, list entry, dispatch and live
+  test are gone. fsearch finds no live reference (history excepted). cargo build -p zero-doctor
+  and cargo test -p zero-doctor pass on the debug build.
+- [ ] G3: HISTORY. Run history that names update_readiness still reads after the change, proven on
+  the real state directory.
+- [ ] G4: ONE OWNER, ON THE DEBUG BUILD. d shows 27 checks and no Update Readiness. With one tracked
+  file modified, Git Repository warns once and nothing else warns. Restored, d is clean.
+- [ ] G5: INT-222 IS AMENDED BY CITATION. The Decision section above stands, and git shows no
+  commit under this intent touching the 222 file.
+- [ ] G6: DEPLOYED. One ship at the end. In a new shell, d shows 27 checks and no Update
+  Readiness; with a tracked file modified, Git Repository warns once; restored, d is clean.
+- [ ] G7: doors. nsh-test all passing against the deployed binaries, d 0 failed, cargo doc 0
+  warnings for zero-doctor, commits carry Intent: INT-280.
