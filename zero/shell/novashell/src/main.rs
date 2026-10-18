@@ -1088,10 +1088,13 @@ fn main() -> Result<()> {
         }
     }
 
-    let result = std::thread::Builder::new()
+    let repl = std::thread::Builder::new()
         .stack_size(64 * 1024 * 1024)
         .name("nsh-repl".into())
-        .spawn(|| repl_main())?
+        .spawn(|| repl_main())?;
+    // INT-290: the thread has inherited an open mask; this thread now leaves SIGHUP to it.
+    block_hangup_on_this_thread();
+    let result = repl
         .join()
         .map_err(|_| anyhow::anyhow!("REPL thread panicked"))?;
     result
@@ -1106,6 +1109,143 @@ fn is_eio(e: &ReadlineError) -> bool {
         ReadlineError::Errno(errno) => *errno as i32 == libc::EIO,
         _ => false,
     }
+}
+
+/// INT-290: the terminal hung up (a closed window). The handler only sets a flag and wakes the
+/// REPL thread; everything else happens on the REPL thread, in the exit path.
+static HANGUP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// INT-290: where the hang-up handler tells the watcher thread (the write end of a pipe), and
+/// whether the REPL thread is inside rl.readline() right now.
+static WAKE_FD: std::sync::atomic::AtomicI32 = std::sync::atomic::AtomicI32::new(-1);
+static IN_READLINE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// The handler does two async-signal-safe things: set the flag, write one byte to the pipe.
+extern "C" fn on_sighup(_: libc::c_int) {
+    HANGUP.store(true, std::sync::atomic::Ordering::SeqCst);
+    let fd = WAKE_FD.load(std::sync::atomic::Ordering::SeqCst);
+    if fd >= 0 {
+        let b: u8 = 1;
+        unsafe {
+            libc::write(fd, &b as *const u8 as *const libc::c_void, 1);
+        }
+    }
+}
+
+fn sigint_has_handler() -> bool {
+    unsafe {
+        let mut cur: libc::sigaction = std::mem::zeroed();
+        libc::sigaction(libc::SIGINT, std::ptr::null(), &mut cur) == 0
+            && cur.sa_sigaction != libc::SIG_DFL
+            && cur.sa_sigaction != libc::SIG_IGN
+    }
+}
+
+/// INT-290: wakes a read that the hang-up flag alone cannot. rustyline blocks in read(2) and only
+/// looks at its own signal pipe when that read returns EINTR, which only its own SIGINT handler
+/// (installed without SA_RESTART, and only while a line is being read) both fills and causes.
+/// Sent from here, after the SIGHUP handler has returned, SIGINT is a separate event, so the
+/// read is not restarted. It is sent only while the REPL thread is in readline and only while a
+/// SIGINT handler exists, so a foreground job never gets one and the default action never runs.
+fn hangup_watcher(rd: libc::c_int, tid: usize) {
+    unsafe {
+        let mut all: libc::sigset_t = std::mem::zeroed();
+        libc::sigfillset(&mut all);
+        libc::pthread_sigmask(libc::SIG_BLOCK, &all, std::ptr::null_mut());
+        let mut b = [0u8; 1];
+        loop {
+            let n = libc::read(rd, b.as_mut_ptr() as *mut libc::c_void, 1);
+            if n == 1 {
+                break;
+            }
+            if n == 0 || std::io::Error::last_os_error().raw_os_error() != Some(libc::EINTR) {
+                return;
+            }
+        }
+    }
+    let mut sent = false;
+    loop {
+        std::thread::sleep(std::time::Duration::from_millis(25));
+        if IN_READLINE.load(std::sync::atomic::Ordering::SeqCst) {
+            if sigint_has_handler() {
+                unsafe {
+                    libc::pthread_kill(tid as libc::pthread_t, libc::SIGINT);
+                }
+                sent = true;
+            }
+        } else if sent {
+            return;
+        }
+    }
+}
+
+/// INT-290: take SIGHUP ourselves, on the REPL thread's behalf. Called once, from repl_main,
+/// only for a shell that owns its terminal, so `nsh -c` and scripts keep the default action.
+fn install_hangup_handler() {
+    let tid = unsafe { libc::pthread_self() } as usize;
+    let mut fds = [0 as libc::c_int; 2];
+    if unsafe { libc::pipe2(fds.as_mut_ptr(), libc::O_CLOEXEC) } == 0 {
+        WAKE_FD.store(fds[1], std::sync::atomic::Ordering::SeqCst);
+        let rd = fds[0];
+        let _ = std::thread::Builder::new()
+            .name("nsh-hup".into())
+            .spawn(move || hangup_watcher(rd, tid));
+    }
+    unsafe {
+        libc::signal(libc::SIGHUP, on_sighup as *const () as libc::sighandler_t);
+    }
+}
+
+/// INT-290: the main thread only waits for the REPL thread. Blocking SIGHUP on it means the
+/// kernel's process-directed SIGHUP can only be delivered to the REPL thread, so the flag is set
+/// on that thread before its read can fail with EIO, and EIO never beats the flag.
+fn block_hangup_on_this_thread() {
+    unsafe {
+        let mut set: libc::sigset_t = std::mem::zeroed();
+        libc::sigemptyset(&mut set);
+        libc::sigaddset(&mut set, libc::SIGHUP);
+        libc::pthread_sigmask(libc::SIG_BLOCK, &set, std::ptr::null_mut());
+    }
+}
+
+fn hangup_seen() -> bool {
+    HANGUP.load(std::sync::atomic::Ordering::SeqCst)
+}
+
+/// INT-290: end the way bash ends on a hang-up: the signal itself, with its default action, so
+/// the parent sees signal 1 and not an exit code.
+fn raise_hangup() -> ! {
+    unsafe {
+        libc::signal(libc::SIGHUP, libc::SIG_DFL);
+        libc::raise(libc::SIGHUP);
+    }
+    std::process::exit(129);
+}
+
+/// INT-290: the hang-up line in nsh_exit_log(), INT-286's format with error=SIGHUP. Unlike
+/// record_gave_up it never writes to stderr: the terminal is dead and a write there can panic.
+fn record_hangup() {
+    use std::io::Write;
+    let path = zero_core::paths::nsh_exit_log();
+    let tty = std::fs::read_link("/proc/self/fd/0")
+        .map(|p| p.display().to_string())
+        .unwrap_or_else(|_| "?".to_string());
+    let line = format!(
+        "{} pid={} tty={} eio_retries=0 error=SIGHUP\n",
+        chrono::Local::now().to_rfc3339(),
+        std::process::id(),
+        tty
+    );
+    let _ = path
+        .parent()
+        .map(std::fs::create_dir_all)
+        .unwrap_or(Ok(()))
+        .and_then(|_| {
+            std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&path)
+        })
+        .and_then(|mut f| f.write_all(line.as_bytes()));
 }
 
 /// INT-286: one line in nsh_exit_log() saying why this shell stopped reading its terminal.
@@ -2619,9 +2759,17 @@ fn repl_main() -> Result<()> {
     // INT-286: whether this shell owned its terminal when the REPL began (G1: only such a shell
     // takes it back after an EIO), the run of EIOs so far, and the exit code once it gives up.
     let owned_at_start = crate::tty::is_interactive();
+    // INT-290: only a shell that owns its terminal takes SIGHUP as a flag; `nsh -c` is unchanged.
+    if owned_at_start {
+        install_hangup_handler();
+    }
     let mut eio_retries: u32 = 0;
     let mut gave_up: Option<i32> = None;
     'repl: loop {
+        // INT-290: a hang-up that arrived while a command ran is taken here, before a prompt.
+        if hangup_seen() {
+            break;
+        }
         // INT-250: backfill completion data for the prior command.
         // Compute duration from start time captured at submit.
         let elapsed = last_command_start
@@ -2699,7 +2847,11 @@ fn repl_main() -> Result<()> {
                     } else {
                         "  ... "
                     };
-                    match rl.readline(p) {
+                    // INT-290: the watcher wakes this read on a hang-up, and only while it is here.
+                    IN_READLINE.store(true, std::sync::atomic::Ordering::SeqCst);
+                    let readline_result = rl.readline(p);
+                    IN_READLINE.store(false, std::sync::atomic::Ordering::SeqCst);
+                    match readline_result {
                         Ok(line) => {
                             // INT-286: a good read ends any run of EIOs.
                             eio_retries = 0;
@@ -2751,7 +2903,12 @@ fn repl_main() -> Result<()> {
                         // INT-286: a read from a terminal this shell owned at startup and has
                         // since lost fails with EIO. Take it back and read again, at most three
                         // times in a row; anything else ends the read as it always did.
-                        Err(e) if owned_at_start && is_eio(&e) && eio_retries < 3 => {
+                        Err(e)
+                            if owned_at_start
+                                && !hangup_seen()
+                                && is_eio(&e)
+                                && eio_retries < 3 =>
+                        {
                             eio_retries += 1;
                             if !crate::tty::take_terminal() {
                                 break Err(e);
@@ -2762,6 +2919,11 @@ fn repl_main() -> Result<()> {
                 }
             }
         };
+        // INT-290: whatever the read returned (a line, Eof, the wake-up, EIO), a hang-up wins:
+        // a line read from a dead window is not run, and EIO is not a terminal to take back.
+        if hangup_seen() {
+            break 'repl;
+        }
         match read_result {
             Ok(line) => {
                 // Check reload signal at TOP of loop — before any processing
@@ -3151,6 +3313,14 @@ fn repl_main() -> Result<()> {
         }
     }
 
+    // INT-290: after a hang-up only the F steps below run (journal, session memory, patterns).
+    // The jobs are told first and the record is written before the slow steps, so a hard kill
+    // that follows the hang-up still leaves it. Nothing here prints: the terminal is gone.
+    let hung_up = hangup_seen();
+    if hung_up {
+        job_table.hangup_all();
+        record_hangup();
+    }
     // Write journal daily summary on exit
     let _ = std::process::Command::new("core")
         .args(["journal", "daily-summary"])
@@ -3167,7 +3337,9 @@ fn repl_main() -> Result<()> {
     let hour = chrono::Local::now().hour() as i64;
     // Compute focus_score: 1.0 = all commits on one intent, lower = spread across many
     let session_start_ts = now - (_session_duration as i64 * 60);
-    mark("EXIT: start");
+    if !hung_up {
+        mark("EXIT: start");
+    }
     let distinct_intents: i64 = engine.db().conn.query_row(
         "SELECT COUNT(DISTINCT intent_id) FROM commit_patterns WHERE timestamp > ?1 AND intent_id != ''",
         rusqlite::params![session_start_ts],
@@ -3196,9 +3368,11 @@ fn repl_main() -> Result<()> {
         "INSERT OR REPLACE INTO session_patterns (id, day_of_week, hour_start, hour_end, commit_count, recorded_at, focus_score, deploy_count, command_count, duration_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         rusqlite::params![now.to_string(), dow, hour, hour, _session_commits as i64, now, focus_score, _session_deploys as i64, _session_commands as i64, _session_duration as i64],
     );
-    mark("EXIT: session_patterns written");
-    // INT-229: Session summary on exit
-    {
+    if !hung_up {
+        mark("EXIT: session_patterns written");
+    }
+    // INT-229: Session summary on exit (INT-290: skipped on a hang-up, it is only for the eye)
+    if !hung_up {
         use colored::Colorize;
         let dur_str = if _session_duration >= 60 {
             format!("{}h{}m", _session_duration / 60, _session_duration % 60)
@@ -3239,6 +3413,9 @@ fn repl_main() -> Result<()> {
             println!("  Active: {}", active_intent.bright_cyan());
         }
         println!();
+    }
+    if hung_up {
+        raise_hangup();
     }
     println!("{}", colored::Colorize::dimmed("  Project 0 remembers."));
     mark("EXIT: main returning");

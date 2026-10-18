@@ -417,6 +417,8 @@ pub struct SessionEnd {
     pub banner: String,
     /// None when nsh was ended by a signal, including the harness's own kill.
     pub exit: Option<i32>,
+    /// INT-290: the signal that ended nsh, when one did. `exit` is None then; this says which.
+    pub signal: Option<i32>,
     /// false when nsh ended before its first prompt.
     pub prompted: bool,
     /// Owned modes only (empty for Inherited): every line nsh printed after its first prompt
@@ -436,6 +438,45 @@ pub fn run_repl_gated(
     gate: Option<(usize, &str)>,
 ) -> Result<SessionEnd, String> {
     run_session_full(cmds, env, None, InputDelivery::Incremental, terminal, gate)
+}
+
+thread_local! {
+    static HANGUP_ENDING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// INT-290: run an owned session and END it the way a closed window does: no `exit` is typed,
+/// the pty master is closed and the kernel hangs the shell up. `SessionEnd.signal` says what
+/// ended it. The flag is thread-local, so cases running side by side cannot affect each other.
+pub fn run_repl_hangup(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+    gate: Option<(usize, &str)>,
+) -> Result<SessionEnd, String> {
+    HANGUP_ENDING.with(|c| c.set(true));
+    let end = run_repl_gated(cmds, env, Terminal::Owned, gate);
+    HANGUP_ENDING.with(|c| c.set(false));
+    end
+}
+
+/// INT-290: pids of live `sleep` processes that carry `arg` as an argument. Read from /proc, so
+/// no tool is needed; a defunct process has an empty command line and is not counted.
+pub fn live_pids_with_cmdline(arg: &str) -> Vec<i32> {
+    let mut out = Vec::new();
+    if let Ok(rd) = std::fs::read_dir("/proc") {
+        for e in rd.flatten() {
+            let name = e.file_name().to_string_lossy().to_string();
+            if let Ok(pid) = name.parse::<i32>() {
+                if let Ok(raw) = std::fs::read(format!("/proc/{}/cmdline", pid)) {
+                    let args: Vec<&[u8]> = raw.split(|b| *b == 0).collect();
+                    let is_sleep = args.first().map(|a| a.ends_with(b"sleep")).unwrap_or(false);
+                    if is_sleep && args.iter().any(|a| *a == arg.as_bytes()) {
+                        out.push(pid);
+                    }
+                }
+            }
+        }
+    }
+    out
 }
 
 /// Give the spawn the terminal arrangement asked for. Inherited touches nothing.
@@ -600,6 +641,21 @@ fn run_session_full(
     let s_out = pty.slave.try_clone().map_err(|e| e.to_string())?;
     let s_err = pty.slave.try_clone().map_err(|e| e.to_string())?;
 
+    // INT-290: a hang-up ending closes the pty master, which is what a closed window does. The
+    // reader thread holds a second descriptor for it, so in this mode the thread polls with a
+    // short deadline and drops its descriptor when told to stop; otherwise nothing would hang up.
+    let hangup = HANGUP_ENDING.with(|c| c.get());
+    let stop = std::sync::Arc::new(std::sync::atomic::AtomicBool::new(false));
+    let stop_reader = stop.clone();
+    if hangup {
+        // INT-290: the shell must not inherit the master. openpty leaves it open across exec, so a
+        // shell holding its own master keeps the pty alive and no close is ever a hang-up. Measured
+        // 2026-10-17: without this, nsh ran to the harness deadline and was killed (signal 9).
+        let master_fd = std::os::fd::AsRawFd::as_raw_fd(&pty.master);
+        unsafe {
+            nix::libc::fcntl(master_fd, nix::libc::F_SETFD, nix::libc::FD_CLOEXEC);
+        }
+    }
     let mut cmd = Command::new(fsh_bin());
     own_terminal(&mut cmd, terminal);
     let mut child = cmd
@@ -633,6 +689,20 @@ fn run_session_full(
     std::thread::spawn(move || {
         let mut buf = [0u8; 8192];
         loop {
+            if hangup {
+                let mut pfd = nix::libc::pollfd {
+                    fd: std::os::fd::AsRawFd::as_raw_fd(&reader),
+                    events: nix::libc::POLLIN,
+                    revents: 0,
+                };
+                let ready = unsafe { nix::libc::poll(&mut pfd, 1, 20) };
+                if ready == 0 {
+                    if stop_reader.load(std::sync::atomic::Ordering::SeqCst) {
+                        break;
+                    }
+                    continue;
+                }
+            }
             match reader.read(&mut buf) {
                 Ok(0) => break,
                 Ok(n) => {
@@ -777,8 +847,20 @@ fn run_session_full(
     // of milliseconds when told to; the kill remains as the deadline for the case where it
     // does not. Teardown, not the per-line path -- so this is the speed gate's work rather
     // than a correction to the one about fixed sleeps.
-    let _ = master.write_all(b"exit\n");
-    let deadline = Instant::now() + Duration::from_millis(500);
+    if hangup {
+        // INT-290: the window closes. Nothing is typed; the master goes away and the kernel
+        // hangs up the shell. The deadline is longer: an exit path that saves things takes time.
+        stop.store(true, std::sync::atomic::Ordering::SeqCst);
+        drop(master);
+    } else {
+        let _ = master.write_all(b"exit\n");
+    }
+    let deadline = Instant::now()
+        + if hangup {
+            Duration::from_secs(5)
+        } else {
+            Duration::from_millis(500)
+        };
     loop {
         match child.try_wait() {
             Ok(Some(_)) => break,
@@ -791,7 +873,9 @@ fn run_session_full(
             }
         }
     }
-    let exit = child.wait().ok().and_then(|s| s.code());
+    let waited = child.wait().ok();
+    let exit = waited.and_then(|s| s.code());
+    let signal = waited.and_then(|s| std::os::unix::process::ExitStatusExt::signal(&s));
     // INT-286: AN OWNED-MODE CASE READS PAST THE LAST PROMPT. A shell that takes its terminal back
     // prompts again BEFORE it answers the line it was sent, so the prompt the loop above waited for
     // can arrive first and the answer after it, during teardown (measured 2026-10-12: ALIVE came
@@ -876,6 +960,7 @@ fn run_session_full(
         status,
         banner,
         exit,
+        signal,
         prompted,
         transcript,
     })

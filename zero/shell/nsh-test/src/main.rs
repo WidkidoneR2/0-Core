@@ -3034,6 +3034,97 @@ print('CLASS-DONE')"##;
             }
         },
     ));
+    // INT-290 G2: A CLOSED WINDOW IS A HANG-UP, NOT A LOST TERMINAL. The harness closes the pty
+    // master (run_repl_hangup), which is what a window close does. On 5.3.2 nsh has no SIGHUP
+    // handler: the default action ends it, the exit path never runs and no record is written.
+    results.push(test(
+        "repl_290_hangup_runs_the_exit_path",
+        Category::Repl,
+        || {
+            let state = format!("{}/int290-state-a", repl::case_db_dir());
+            let _ = std::fs::remove_dir_all(&state);
+            std::fs::create_dir_all(&state).map_err(|e| e.to_string())?;
+            let end = repl::run_repl_hangup(
+                &["echo ready290"],
+                &[("XDG_STATE_HOME", state.as_str())],
+                None,
+            )?;
+            let record = std::fs::read_to_string(format!("{}/0-core/nsh-exit.log", state))
+                .unwrap_or_default();
+            if end.signal == Some(1) && record.contains("SIGHUP") {
+                Ok(())
+            } else {
+                Err(format!(
+                    "want SIGHUP re-raised (signal 1) and a hang-up record; got exit {:?}, signal {:?}, record {:?}",
+                    end.exit,
+                    end.signal,
+                    record.trim()
+                ))
+            }
+        },
+    ));
+    results.push(test(
+        "repl_290_hangup_reaches_jobs",
+        Category::Repl,
+        || {
+            let state = format!("{}/int290-state-b", repl::case_db_dir());
+            let _ = std::fs::remove_dir_all(&state);
+            std::fs::create_dir_all(&state).map_err(|e| e.to_string())?;
+            let end = repl::run_repl_hangup(
+                &["sleep 300.290 &"],
+                &[("XDG_STATE_HOME", state.as_str())],
+                None,
+            )?;
+            let mut alive = repl::live_pids_with_cmdline("300.290");
+            let until = std::time::Instant::now() + std::time::Duration::from_secs(2);
+            while !alive.is_empty() && std::time::Instant::now() < until {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+                alive = repl::live_pids_with_cmdline("300.290");
+            }
+            for pid in &alive {
+                unsafe {
+                    nix::libc::kill(*pid, nix::libc::SIGKILL);
+                }
+            }
+            if alive.is_empty() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "a background job outlived the hang-up: pids {:?} (nsh ended exit {:?}, signal {:?})",
+                    alive, end.exit, end.signal
+                ))
+            }
+        },
+    ));
+    results.push(test(
+        "repl_290_hangup_is_not_a_lost_terminal",
+        Category::Repl,
+        || {
+            let state = format!("{}/int290-state-c", repl::case_db_dir());
+            let _ = std::fs::remove_dir_all(&state);
+            std::fs::create_dir_all(&state).map_err(|e| e.to_string())?;
+            let end = repl::run_repl_hangup(
+                &["echo ready290"],
+                &[("XDG_STATE_HOME", state.as_str())],
+                None,
+            )?;
+            let record = std::fs::read_to_string(format!("{}/0-core/nsh-exit.log", state))
+                .unwrap_or_default();
+            if record.contains("SIGHUP")
+                && !record.contains("Input/output error")
+                && end.exit != Some(74)
+            {
+                Ok(())
+            } else {
+                Err(format!(
+                    "want a hang-up record and never a lost terminal (74); got exit {:?}, signal {:?}, record {:?}",
+                    end.exit,
+                    end.signal,
+                    record.trim()
+                ))
+            }
+        },
+    ));
     // A FIXTURE CANNOT FIX THIS ONE EITHER. It asserts that the ordinary shell starts in the
     // REPO HOME -- a default that only exists when the repo does. Pointed at a fixture it would
     // pass against three stub files and prove nothing about the behaviour it guards.

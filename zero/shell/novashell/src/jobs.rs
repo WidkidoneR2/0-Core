@@ -741,6 +741,21 @@ impl JobTable {
         );
     }
 
+    /// INT-290: the terminal is gone. Tell every job group, as bash does: SIGCONT first so a
+    /// stopped group can take the signal, then SIGHUP. It prints nothing and waits for nothing:
+    /// the terminal it would print to no longer exists and nsh is about to end. kill_job prints
+    /// and waits, which is why it is not reused. nsh has no disown, so no group is spared.
+    pub fn hangup_all(&self) {
+        for j in self.jobs.iter() {
+            if let Some(g) = j.pgid {
+                unsafe {
+                    libc::kill(-(g as i32), libc::SIGCONT);
+                    libc::kill(-(g as i32), libc::SIGHUP);
+                }
+            }
+        }
+    }
+
     /// Kill a job by id.
     pub fn kill_job(&mut self, id: JobId) {
         let pos = self.jobs.iter().position(|j| j.id == id);
