@@ -1,0 +1,17 @@
+file /home/christian/0-core/zero/intents/in-progress/291-zero-docs-generates-readmes-that-nothing-keeps-true-and-overwrites-hand-maintained-ones.md  sha256 ec7e56fcdab9da44 -> 7e217780a759fedb
+--- /home/christian/0-core/zero/intents/in-progress/291-zero-docs-generates-readmes-that-nothing-keeps-true-and-overwrites-hand-maintained-ones.md: replacing lines 113..116 ---
+   111:       validate clean. The close offers zero-docs its bump.
+   112: <!-- evidence: 2026-10-18. Two ships, not one: the second followed G3b, which the G5 idempotency test found after the first. nsh-test 252/252 against the deployed zero-docs, readme-index case included. Fresh nsh processes ran zero-docs --version (2.0.1), docs-check, docs-status, docs-sync and zdocs: all exit 0, and the tree was unchanged. The census door is zero-docs --version (G0 and the devbox census): it answers 2.0.1. The integrity fix runs exactly zero-docs sync (integrity/mod.rs:253, unchanged): run as a subprocess it exits 0 and leaves the tree byte-identical. d: 26 passed, 0 failed, 2 warnings (uncommitted changes, update readiness) that clear at the commit; Rust Docs clean; Intent Ledger 331 valid. cargo doc 0 warnings; clippy -D warnings and fmt --check clean for zero-docs and nsh-test (a manual_contains lint in nsh-test repl.rs was fixed). G5 wording amended to match the two ships. -->
+>> 113: - [ ] G6 commits: Intent INT-291 and the plan Seal with its note under refs/notes/seals; pushed
+>> 114:       with the pre-push hook passing; main and refs/notes/seals reach GitHub; core intent trace
+>> 115:       reads every seal intact.
+>> 116: - [ ] G7 each gate carries evidence per INT-158.
+   117: 
+   118: ## Rulings (G1)
+++ - [ ] G6 commits: Intent INT-291 and the last plan's Seal with its note under refs/notes/seals;
+++       the earlier plans' Seals are cited in the evidence comments above, and their text was not
+++       saved before apply, so no note can be rebuilt for them (AGENTS.md: save p.text() first).
+++       Pushed with the pre-push hook passing; main and refs/notes/seals reach GitHub; core intent
+++       trace reads every seal intact.
+++ 
+/home/christian/0-core/zero/intents/in-progress/291-zero-docs-generates-readmes-that-nothing-keeps-true-and-overwrites-hand-maintained-ones.md: 1 replaced
