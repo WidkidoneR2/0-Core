@@ -3,7 +3,7 @@ id: 290
 date: 2026-10-13
 type: future
 title: "nsh dies on SIGHUP: a closed window skips the exit path, saves nothing and leaves no record"
-status: in-progress
+status: complete
 tags: [nsh, sighup, signals, exit-path, jobs, login, resilience, finding]
 depends_on: [289]
 ---
@@ -107,14 +107,16 @@ Not yet measured, for G0:
 - [x] G4 live. The deployed nsh in ghostty, G0a's steps again: the job and the record behave as
       G1 rules, and nsh-exit.log shows the hang-up line.
 <!-- evidence: demonstrated 2026-10-17 on the deployed nsh 5.3.3 in real ghostty windows. Baseline: nsh-exit.log 3 lines (all old EIO), state.db session_patterns 9129 rows, newest 16:50:17. After four window closes: four new lines ending error=SIGHUP (pids 3557, 40863, 42152, 41630, each with its own /dev/pts/N, 19:06:02 to 19:07:39), session_patterns 9133 rows with the newest recorded_at 19:07:39 (the exit path ran to its last save step on a closed terminal, so nothing on it panicked), both sleep 300.290 jobs gone, the one live nsh is the current window. On 5.3.2 the same close left no record and saved nothing. -->
-<!-- evidence: demonstrated 2026-10-17. One ship (18.2s): nsh 5.3.3, nsh-test 2.0.5. The deployed nsh-test against the deployed nsh in a new shell: 246/246 including the three repl_290 cases at 261, 268 and 262 ms (output kept in ~/.cache/zero/suite-290.txt and /tmp/doors290.txt). d: 26 passed, 0 failed, 2 warnings (Git Repository uncommitted changes, Update Readiness hold off on tracked changes), both of which the commit clears. core intent validate: All 326 intents valid. Filed F-0048 (the owned-terminal pty master leak in the nsh-test harness, found by INT-290). The version bumps are left to cicomplete 290 as ruled. -->
 - [x] G5 doors: one ship at the end; the deployed nsh tested in a new shell; nsh-test all
       passing; d 0 failed; core intent validate clean. The close offers nsh and nsh-test their
       bumps.
-- [ ] G6 commits: Intent INT-290 and the plan Seal with its note under refs/notes/seals; pushed
+<!-- evidence: demonstrated 2026-10-17. One ship (18.2s): nsh 5.3.3, nsh-test 2.0.5. The deployed nsh-test against the deployed nsh in a new shell: 246/246 including the three repl_290 cases at 261, 268 and 262 ms (output kept in ~/.cache/zero/suite-290.txt and /tmp/doors290.txt). d: 26 passed, 0 failed, 2 warnings (Git Repository uncommitted changes, Update Readiness hold off on tracked changes), both of which the commit clears. core intent validate: All 326 intents valid. Filed F-0048 (the owned-terminal pty master leak in the nsh-test harness, found by INT-290). The version bumps are left to cicomplete 290 as ruled. -->
+- [x] G6 commits: Intent INT-290 and the plan Seal with its note under refs/notes/seals; pushed
       with the pre-push hook passing; main and refs/notes/seals reach GitHub; core intent trace
       reads every seal intact.
-- [ ] G7 each gate carries evidence per INT-158.
+<!-- evidence: demonstrated 2026-10-17. Commit 0396ce35 carries Intent: INT-290 and Seal: 5e94ff4450936fd4 and no other trailer. gp pushed main 124fade8..0396ce35 with the pre-push hook passing (55.0s); refs/notes/seals e7170134..24ca6619 pushed. core intent trace on the commit, on the seal and on INT-290: seal 5e94ff4450936fd4 intact (the plan text in refs/notes/seals hashes to it); INT-290 has one finding, F-0048, open, filed by core intent find at nsh-test repl.rs:488, named in the commit body and closed by no commit. The other plan seals are cited in the body (red 88f664962e4aba90 and 06b8c25914e23951; e1a37367be85de29, 5285e9df5c083cf2, effc23dd1bc0b983, fee0fde582c6f73a, ffbd98604c269a78); the saved texts of the first seven hash to their seals (checked 19:30). git status after the push: main level with origin/main, only the two INT-280 entries left. -->
+- [x] G7 each gate carries evidence per INT-158.
+<!-- evidence: demonstrated 2026-10-17. Checked by script when this plan was made: G0 to G6 each carry an evidence comment with the date, the commands or seals and the measured result. -->
 
 ## Non-goals
 - No new crates. No sudo. Omarchy untouched, ghostty's config included.
@@ -125,3 +127,7 @@ Not yet measured, for G0:
 ## Dependencies
 depends_on: 289 (its owned terminal is what lets nsh-test deliver a real hang-up). Bears on 277,
 which waits for this one.
+
+## Versions
+- nsh 5.3.3 -> 5.3.4 (patch)
+- nsh-test 2.0.5 -> 2.0.6 (patch)
