@@ -1,18 +1,14 @@
 //! INT-037: per-tool README generator + index.
-//! Reads each tools/<tool>/Cargo.toml (ground truth) and enriches with
+//! Reads each `tools/<tool>/Cargo.toml` (ground truth) and enriches with
 //! registry/tools.toml status, then emits rich READMEs + a top-level index.
 //! Self-maintaining: re-run any time tools change; docs never drift stale.
 
 use std::path::PathBuf;
 
-pub fn core_root() -> PathBuf {
-    dirs::home_dir().unwrap_or_default().join("0-core")
-}
-
 /// A path as the messages show it: relative to the repo, so the message names the file the
 /// write actually touches (INT-267 L2).
 fn shown(p: &std::path::Path) -> String {
-    p.strip_prefix(core_root())
+    p.strip_prefix(zero_core::paths::core_dir())
         .unwrap_or(p)
         .display()
         .to_string()
@@ -42,18 +38,17 @@ pub struct ToolMeta {
     pub license: String,
     pub edition: String,
     pub description: String,
-    pub intent: Option<String>, // INT-NNN parsed from description
     // registry enrichment:
     pub category: String,
     pub status: String, // active / retired / deferred
     pub expected_usage: String,
     pub depends_on: Vec<String>,
     pub retired: bool,
-    /// Has a binary target: a [[bin]] section or src/main.rs. Only binaries are tools.
+    /// Has a binary target: a `[[bin]]` section or `src/main.rs`. Only binaries are tools.
     pub binary: bool,
 }
 
-/// Parse a Cargo.toml [package] block by key (fields may be in ANY order).
+/// Parse a Cargo.toml `[package]` block by key (fields may be in ANY order).
 fn parse_cargo(path: &PathBuf) -> Option<ToolMeta> {
     let text = std::fs::read_to_string(path).ok()?;
     let mut m = ToolMeta::default();
@@ -88,32 +83,34 @@ fn parse_cargo(path: &PathBuf) -> Option<ToolMeta> {
             .parent()
             .map(|d| d.join("src/main.rs").exists())
             .unwrap_or(false);
-    // Extract INT-NNN from the description if present.
-    if let Some(pos) = m.description.find("INT-") {
-        let tail = &m.description[pos..];
-        let num: String = tail
-            .chars()
-            .take_while(|c| c.is_ascii_alphanumeric() || *c == '-')
-            .collect();
-        m.intent = Some(num);
-    }
     Some(m)
 }
 
-/// One tools.toml row as parse_registry reads it:
-/// (name, category, expected_usage, description, retired, deps).
-type RegistryRow = (String, String, String, String, bool, Vec<String>);
+/// The registry rows, read once through the core. Decision 149: the core owns the path and the
+/// parse. This read once failed silently for a month (the path moved and nothing followed it),
+/// so every README said "unregistered". A registry that cannot be read is said, never swallowed:
+/// the generator continues, and every tool then renders as unregistered, as the message says.
+fn read_registry() -> Vec<zero_core::registry::Row> {
+    match zero_core::registry::read() {
+        Ok(rows) => rows,
+        Err(e) => {
+            eprintln!(
+                "  registry not read: {} -- every tool will render as unregistered",
+                e
+            );
+            Vec::new()
+        }
+    }
+}
 
-/// Enrich a ToolMeta from registry/tools.toml (line-parsed, matching existing style).
-fn enrich_from_registry(tools: &[RegistryRow], m: &mut ToolMeta) {
-    if let Some((_, cat, usage, _desc, retired, deps)) =
-        tools.iter().find(|(n, _, _, _, _, _)| *n == m.name)
-    {
-        m.category = cat.clone();
-        m.expected_usage = usage.clone();
-        m.retired = *retired;
-        m.depends_on = deps.clone();
-        m.status = if *retired {
+/// Enrich a ToolMeta from the registry row that names it.
+fn enrich_from_registry(rows: &[zero_core::registry::Row], m: &mut ToolMeta) {
+    if let Some(row) = rows.iter().find(|r| r.name == m.name) {
+        m.category = row.category.clone().unwrap_or_default();
+        m.expected_usage = row.expected_usage.clone().unwrap_or_default();
+        m.retired = row.retired;
+        m.depends_on = row.depends_on.clone();
+        m.status = if row.retired {
             "retired".into()
         } else {
             "active".into()
@@ -124,108 +121,9 @@ fn enrich_from_registry(tools: &[RegistryRow], m: &mut ToolMeta) {
     }
 }
 
-/// Line-parse registry/tools.toml into (name, category, expected_usage, description, retired).
-fn parse_registry() -> Vec<RegistryRow> {
-    // The registry moved into the platform directory in the Phase 1 tree reorganisation and this path did not
-    // follow it. For a month every generated README said "unregistered" and "uncategorized" -- not
-    // because the tools were unregistered, but because this read returned nothing.
-    let path = core_root().join("zero/registry/tools.toml");
-    // AND IT FAILED SILENTLY, which is why it lasted. unwrap_or_default turns a missing registry
-    // into an empty string, an empty vec, and a plausible-looking fallback on every tool. A
-    // generator that cannot find its input should say so; the caller can still continue.
-    let text = match std::fs::read_to_string(&path) {
-        Ok(t) => t,
-        Err(e) => {
-            eprintln!(
-                "  registry not read ({}): {} -- every tool will render as unregistered",
-                path.display(),
-                e
-            );
-            String::new()
-        }
-    };
-    let mut out = vec![];
-    let (mut name, mut cat, mut usage, mut desc, mut retired, mut deps) = (
-        String::new(),
-        String::new(),
-        String::new(),
-        String::new(),
-        false,
-        Vec::<String>::new(),
-    );
-    let flush = |v: &mut Vec<_>,
-                 name: &mut String,
-                 cat: &mut String,
-                 usage: &mut String,
-                 desc: &mut String,
-                 retired: &mut bool,
-                 deps: &mut Vec<String>| {
-        if !name.is_empty() {
-            v.push((
-                name.clone(),
-                cat.clone(),
-                usage.clone(),
-                desc.clone(),
-                *retired,
-                deps.clone(),
-            ));
-        }
-        *name = String::new();
-        *cat = String::new();
-        *usage = String::new();
-        *desc = String::new();
-        *retired = false;
-        deps.clear();
-    };
-    for line in text.lines() {
-        let t = line.trim();
-        if t == "[[tool]]" {
-            flush(
-                &mut out,
-                &mut name,
-                &mut cat,
-                &mut usage,
-                &mut desc,
-                &mut retired,
-                &mut deps,
-            );
-            continue;
-        }
-        if let Some((k, val)) = t.split_once('=') {
-            let val = val.trim().trim_matches('"').to_string();
-            match k.trim() {
-                "name" => name = val,
-                "category" => cat = val,
-                "expected_usage" => usage = val,
-                "description" => desc = val,
-                "retired" => retired = val == "true",
-                "depends_on" => {
-                    deps = val
-                        .trim_matches(|c| c == '[' || c == ']')
-                        .split(',')
-                        .map(|s| s.trim().trim_matches('"').to_string())
-                        .filter(|s| !s.is_empty())
-                        .collect();
-                }
-                _ => {}
-            }
-        }
-    }
-    flush(
-        &mut out,
-        &mut name,
-        &mut cat,
-        &mut usage,
-        &mut desc,
-        &mut retired,
-        &mut deps,
-    );
-    out
-}
-
 /// Gather metadata for ALL tools on disk (tools/*/Cargo.toml).
 pub fn gather_all() -> Vec<ToolMeta> {
-    let registry = parse_registry();
+    let registry = read_registry();
     let mut metas = vec![];
     if let Ok(entries) = zero_core::paths::tool_parent_entries() {
         for e in entries.flatten() {
@@ -245,7 +143,7 @@ pub fn gather_all() -> Vec<ToolMeta> {
     }
     // INT-111/037: the engine (core) lives at zero/engine, not tools/.
     // Include it explicitly so it joins the self-maintaining README pipeline.
-    let engine_cargo = core_root().join("zero/engine/Cargo.toml");
+    let engine_cargo = zero_core::paths::core_dir().join("zero/engine/Cargo.toml");
     if engine_cargo.exists() {
         if let Some(mut m) = parse_cargo(&engine_cargo) {
             enrich_from_registry(&registry, &mut m);
@@ -254,41 +152,6 @@ pub fn gather_all() -> Vec<ToolMeta> {
     }
     metas.sort_by(|a, b| a.name.cmp(&b.name));
     metas
-}
-
-/// PIECE 2a: print parsed metadata for verification (no file writing).
-pub fn cmd_readme_tools_dryprint() {
-    let metas = gather_all();
-    println!(
-        "  Parsed {} tools from {}/*/Cargo.toml:\n",
-        metas.len(),
-        zero_core::paths::CRATE_PARENTS.join(", ")
-    );
-    for m in &metas {
-        let intent = m.intent.clone().unwrap_or_else(|| "-".into());
-        let deps = if m.depends_on.is_empty() {
-            String::new()
-        } else {
-            format!("deps={}", m.depends_on.join(","))
-        };
-        println!(
-            "  {:22} v{:8} [{}] cat={:14} intent={} {} {}",
-            m.name,
-            m.version,
-            m.status,
-            m.category,
-            intent,
-            if m.retired { "(RETIRED)" } else { "" },
-            deps
-        );
-    }
-    let active = metas.iter().filter(|m| !m.retired).count();
-    println!(
-        "\n  Total: {} on disk, {} active, {} retired",
-        metas.len(),
-        active,
-        metas.len() - active
-    );
 }
 
 // INT-111/037: the Changelog SECTION embedded in a tool's README.
@@ -302,7 +165,7 @@ fn render_changelog_section(m: &ToolMeta) -> String {
     let rel = zero_core::paths::crate_rel_dir(dir)
         .map(|d| format!("{}/CHANGELOG.md", d))
         .unwrap_or_default();
-    let curated_path = core_root().join(&rel);
+    let curated_path = zero_core::paths::core_dir().join(&rel);
     if curated_path.is_file() {
         // INT-247: the README links the curated CHANGELOG.md instead of embedding it,
         // so the history it carries lives in one place and is never copied.
@@ -314,28 +177,17 @@ fn render_changelog_section(m: &ToolMeta) -> String {
     out
 }
 
-/// PIECE 2b: render a rich README for one tool.
+/// PIECE 2b: the SCAFFOLD for one tool's README (INT-291 G1a, G1b).
+///
+/// A title, the Cargo.toml description, the changelog link, Build and Deploy -- and nothing a
+/// tool does not own. No version, date, status or category: Cargo.toml owns the version and the
+/// registry owns the rest, and a copy written into prose is a fact that goes stale (14 of 16 did).
+/// No footer either: the scaffold is written once, and the README is the person's from then on.
 pub fn render_readme(m: &ToolMeta) -> String {
-    let date = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let status_badge = match m.status.as_str() {
-        "active" => "active",
-        "retired" => "retired",
-        "unregistered" => "active (unregistered)",
-        other => other,
-    };
     let mut out = String::new();
 
     // Title
     out.push_str(&format!("# \u{1f332} {}\n\n", m.name));
-
-    // Badge line
-    out.push_str(&format!(
-        "**Version:** {} &nbsp;|&nbsp; **License:** {} &nbsp;|&nbsp; **Status:** {} &nbsp;|&nbsp; **Category:** {}\n\n",
-        if m.version.is_empty() { "-" } else { &m.version },
-        if m.license.is_empty() { "-" } else { &m.license },
-        status_badge,
-        if m.category.is_empty() { "-" } else { &m.category },
-    ));
 
     // Description (curated prose from Cargo.toml)
     out.push_str("## \u{1f4d6} Description\n\n");
@@ -348,7 +200,7 @@ pub fn render_readme(m: &ToolMeta) -> String {
     }
 
     out.push_str("---\n\n");
-    // Changelog: curated CHANGELOG.md if present, else auto-seed from git (INT stripped)
+    // Changelog: the curated CHANGELOG.md is linked when it exists (INT-291 G1e).
     out.push_str(&render_changelog_section(m));
 
     out.push_str("---\n\n");
@@ -361,28 +213,51 @@ pub fn render_readme(m: &ToolMeta) -> String {
     out.push_str("## Deploy\n\n");
     out.push_str("```sh\n");
     out.push_str("ship   # builds the release and deploys to ~/.local/bin\n");
-    out.push_str("```\n\n");
-
-    // Dependencies
-    if !m.depends_on.is_empty() {
-        out.push_str("## Project 0 dependencies\n\n");
-        for d in &m.depends_on {
-            out.push_str(&format!("- `{}`\n", d));
-        }
-        out.push('\n');
-    }
-
-    // Footer
-    out.push_str("---\n\n");
-    out.push_str(&format!(
-        "*Part of [Project 0](../../). Last verified {}.*\n",
-        date,
-    ));
-    out.push_str(
-        "*This README is generated by `zero-docs sync` -- do not hand-edit; re-run to refresh.*\n",
-    );
+    out.push_str("```\n");
 
     out
+}
+
+/// The last line every README this tool generated before INT-291 carried. It is the ONLY proof
+/// that a file was generated, because a person's file never ends with it.
+const LEGACY_FOOTER: &str =
+    "*This README is generated by `zero-docs sync` -- do not hand-edit; re-run to refresh.*";
+
+/// Whether `text` is a README this tool generated, and so may overwrite (INT-291 G1b).
+///
+/// Positive proof, so it fails safe: the last non-empty line is exactly the generated footer and
+/// no line says HAND-MAINTAINED. Anything else -- prose, a hand-written file whose own footer
+/// only MENTIONS the generator, an empty file -- belongs to a person.
+fn is_generated(text: &str) -> bool {
+    if text.lines().any(|l| l.contains("HAND-MAINTAINED")) {
+        return false;
+    }
+    text.lines()
+        .rev()
+        .find(|l| !l.trim().is_empty())
+        .is_some_and(|l| l.trim() == LEGACY_FOOTER)
+}
+
+/// What `readme-generate` may do with one tool's README (INT-291 G1b).
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+enum Disposition {
+    /// No file: write the scaffold.
+    Scaffold,
+    /// A file this tool generated: replace it with the scaffold, once. It is a person's after.
+    Rewrite,
+    /// Anything else: leave it byte-identical.
+    Keep,
+}
+
+/// Decide from the file on disk. A file that cannot be read (permissions, not UTF-8) cannot be
+/// proven generated, so it is kept, never overwritten.
+fn classify(path: &std::path::Path) -> Disposition {
+    match std::fs::read_to_string(path) {
+        Ok(t) if is_generated(&t) => Disposition::Rewrite,
+        Ok(_) => Disposition::Keep,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Disposition::Scaffold,
+        Err(_) => Disposition::Keep,
+    }
 }
 
 /// PIECE 2b verify: print the rendered README for ONE named tool (no writing).
@@ -406,7 +281,6 @@ pub fn active_tools(metas: &[ToolMeta]) -> Vec<&ToolMeta> {
 
 /// PIECE 2c: render the top-level tools/README.md index (catalog by category).
 pub fn render_index(metas: &[ToolMeta]) -> String {
-    let date = chrono::Local::now().format("%Y-%m-%d").to_string();
     let active = active_tools(metas);
     let retired: Vec<&ToolMeta> = metas.iter().filter(|m| m.retired).collect();
 
@@ -416,10 +290,9 @@ pub fn render_index(metas: &[ToolMeta]) -> String {
         "Project 0's tool ecosystem: {} active tools (plus {} retired), each a purpose-built Rust program.\n\n",
         active.len(), retired.len()
     ));
-    out.push_str(&format!(
-        "**Generated:** {} by `zero-docs readme-index`\n\n",
-        date
-    ));
+    out.push_str(
+        "**Generated** by `zero-docs readme-index` from each tool's Cargo.toml and the registry; nothing here is typed by hand.\n\n",
+    );
     out.push_str("---\n\n");
 
     // Group active tools by category.
@@ -473,6 +346,43 @@ pub fn render_index(metas: &[ToolMeta]) -> String {
     out
 }
 
+/// INT-291 G1a: the names of every tool whose line in tools/README.md differs from what the index
+/// renders now from Cargo.toml and the registry. Empty means the index is true.
+pub fn check_index() -> Result<Vec<String>, String> {
+    let metas = gather_all();
+    let path = zero_core::paths::tools_dir().join("README.md");
+    let disk = std::fs::read_to_string(&path)
+        .map_err(|e| format!("cannot read {}: {}", shown(&path), e))?;
+    let names: Vec<&str> = metas.iter().map(|m| m.name.as_str()).collect();
+    Ok(stale_names(&render_index(&metas), &disk, &names))
+}
+
+/// Compare two renderings line by line, in no particular order, and name each tool that has a line
+/// in the difference. A difference that names no tool (header, counts, a removed tool) is reported
+/// as "other lines of the index", so a stale index is never reported clean.
+fn stale_names(expected: &str, disk: &str, names: &[&str]) -> Vec<String> {
+    let exp: Vec<&str> = expected.lines().collect();
+    let got: Vec<&str> = disk.lines().collect();
+    let differing: Vec<&str> = exp
+        .iter()
+        .filter(|l| !got.contains(l))
+        .chain(got.iter().filter(|l| !exp.contains(l)))
+        .copied()
+        .collect();
+    let mut stale: Vec<String> = names
+        .iter()
+        .filter(|n| {
+            let tick = format!("`{}`", n);
+            differing.iter().any(|l| l.contains(&tick))
+        })
+        .map(|n| n.to_string())
+        .collect();
+    if stale.is_empty() && !differing.is_empty() {
+        stale.push("other lines of the index".to_string());
+    }
+    stale
+}
+
 fn cap_first(s: &str) -> String {
     let mut c = s.chars();
     match c.next() {
@@ -481,19 +391,15 @@ fn cap_first(s: &str) -> String {
     }
 }
 
-/// PIECE 2c: generate per-tool READMEs + the index. dry_run prints what WOULD be written.
-/// Write ONLY the top-level index. Not the per-tool READMEs.
+/// PIECE 2c: write ONLY the top-level index. dry_run prints what WOULD be written.
 ///
-/// ⚠️ `cmd_generate` BELOW WOULD DESTROY HAND-WRITTEN DOCUMENTATION. Measured 2026-09-15
-/// on novashell/README.md: the file on disk explains why nsh is not the login shell and why
-/// it is not POSIX. The generated replacement is a metadata stub plus a changelog dump,
-/// headed "active (unregistered) -- uncategorized" because it looks the CRATE name
-/// (novashell) up in a registry keyed by BINARY name (nsh). It would lose real writing
-/// and introduce a false claim in one write.
+/// ⚠️ `cmd_generate` used to DESTROY HAND-WRITTEN DOCUMENTATION (measured 2026-09-15 on
+/// novashell/README.md). Since INT-291 it writes only a README it can prove it generated, and this
+/// function never touches a per-tool README at all.
 ///
-/// The INDEX has no such problem: it is entirely derived, nobody hand-edits it, and it
-/// is built from `gather_all()` -- which reads DISK, so a deleted crate cannot survive
-/// in it. That is why the two are separable and why only this one is safe to run.
+/// The index is entirely derived: tools come from `gather_all()` (which reads DISK, so a deleted
+/// crate cannot survive in it), versions from each tool's Cargo.toml, the rest from the registry.
+/// Nobody hand-edits it.
 pub fn cmd_index(dry_run: bool) {
     let metas = gather_all();
     let rt = zero_core::paths::tools_dir();
@@ -523,40 +429,54 @@ pub fn cmd_index(dry_run: bool) {
     }
 }
 
+/// PIECE 2d: scaffold missing per-tool READMEs, retire the ones this tool generated, and write the
+/// index. A README a person owns is never touched (INT-291 G1b). dry_run prints what WOULD happen.
 pub fn cmd_generate(dry_run: bool) {
     let metas = gather_all();
     let rt = zero_core::paths::tools_dir();
-    let mut written = 0usize;
-    let mut skipped = 0usize;
+    let (mut scaffolded, mut rewritten, mut kept, mut failed) = (0usize, 0usize, 0usize, 0usize);
 
     for m in &metas {
         // Generate READMEs for all tools (active + retired get a stub via the same template).
         // INT-111/037: core (engine) writes to zero/engine/, not tools/core/.
         let readme_path = if m.name == "core" {
-            core_root().join("zero/engine/README.md")
+            zero_core::paths::core_dir().join("zero/engine/README.md")
         } else {
             zero_core::paths::crate_dir(&m.name)
                 .unwrap_or_else(|| rt.join(&m.name))
                 .join("README.md")
         };
+        // Only a file this tool can prove it generated is ever replaced.
+        let what = classify(&readme_path);
+        if what == Disposition::Keep {
+            kept += 1;
+            if dry_run {
+                println!("  keeps: {} (person-owned)", shown(&readme_path));
+            }
+            continue;
+        }
         let content = render_readme(m);
+        let verb = if what == Disposition::Scaffold {
+            "scaffold"
+        } else {
+            "rewrite"
+        };
         if dry_run {
             println!(
-                "  would write: {} ({} bytes)",
+                "  would {}: {} ({} bytes)",
+                verb,
                 shown(&readme_path),
                 content.len()
             );
-            written += 1;
+        } else if let Err(e) = std::fs::write(&readme_path, &content) {
+            eprintln!("  failed: {} -- {}", shown(&readme_path), e);
+            failed += 1;
             continue;
         }
-        match std::fs::write(&readme_path, &content) {
-            Ok(_) => {
-                written += 1;
-            }
-            Err(e) => {
-                eprintln!("  failed: {}/README.md -- {}", m.name, e);
-                skipped += 1;
-            }
+        if what == Disposition::Scaffold {
+            scaffolded += 1;
+        } else {
+            rewritten += 1;
         }
     }
 
@@ -572,162 +492,33 @@ pub fn cmd_generate(dry_run: bool) {
     } else {
         match std::fs::write(&index_path, &index) {
             Ok(_) => println!("  wrote: {} (index)", shown(&index_path)),
-            Err(e) => eprintln!("  failed: index -- {}", e),
+            Err(e) => {
+                eprintln!("  failed: index -- {}", e);
+                failed += 1;
+            }
         }
     }
 
     if dry_run {
         println!(
-            "\n  DRY RUN: {} per-tool READMEs + 1 index would be written",
-            written
+            "\n  DRY RUN: {} per-tool READMEs: {} to scaffold, {} to rewrite, {} kept (person-owned); index would be written",
+            metas.len(),
+            scaffolded,
+            rewritten,
+            kept
         );
     } else {
         println!(
-            "\n  Done: {} per-tool READMEs written, {} skipped, + index",
-            written, skipped
+            "\n  Done: {} per-tool READMEs: {} scaffolded, {} rewritten, {} kept (person-owned), {} failed; index written",
+            metas.len(),
+            scaffolded,
+            rewritten,
+            kept,
+            failed
         );
-    }
-}
-
-/// Truncate a string at a word boundary near `max` chars, adding an ellipsis
-/// if the original was longer. Never cuts mid-word.
-fn truncate_words(s: &str, max: usize) -> String {
-    if s.chars().count() <= max {
-        return s.to_string();
-    }
-    // Take up to `max` chars, then back off to the last space.
-    let head: String = s.chars().take(max).collect();
-    let cut = match head.rfind(' ') {
-        Some(pos) if pos > 0 => &head[..pos],
-        _ => &head,
-    };
-    format!("{}\u{2026}", cut.trim_end())
-}
-
-/// PIECE 3: pull recent SUBSTANTIVE commits touching a tool's dir.
-/// Subject-line only, noise-filtered, capped. Returns Vec<(short_hash, subject)>.
-fn tool_history(name: &str, cap: usize) -> Vec<(String, String)> {
-    let out = std::process::Command::new("git")
-        .arg("-C")
-        .arg(core_root())
-        .args(["log", "--pretty=format:%h\x1f%s", "--"])
-        .args(zero_core::paths::crate_history_pathspecs(name))
-        .output();
-    let text = match out {
-        Ok(o) => String::from_utf8_lossy(&o.stdout).to_string(),
-        Err(_) => return vec![],
-    };
-    let noise = [
-        "wip",
-        "typo",
-        "fmt",
-        "format",
-        "merge",
-        "bump version",
-        "checkpoint",
-    ];
-    let mut entries = vec![];
-    for line in text.lines() {
-        if let Some((hash, subj)) = line.split_once('\x1f') {
-            let s = subj.trim();
-            // subject only; truncate at a word boundary near 80 chars, add ellipsis.
-            let subject = truncate_words(s, 80);
-            let low = subject.to_lowercase();
-            if noise.iter().any(|n| low == *n || low.starts_with(n)) {
-                continue;
-            }
-            if subject.is_empty() {
-                continue;
-            }
-            entries.push((hash.to_string(), subject));
-            if entries.len() >= cap {
-                break;
-            }
+        if failed > 0 {
+            std::process::exit(1);
         }
-    }
-    entries
-}
-
-/// PIECE 3: render a CHANGELOG for one tool -- header + platform entry + history.
-pub fn render_changelog(m: &ToolMeta) -> String {
-    let date = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let mut out = String::new();
-
-    out.push_str(&format!("# Changelog -- {}\n\n", m.name));
-    out.push_str("All notable changes to this tool. Generated by `zero-docs changelog-tools`.\n\n");
-    out.push_str("This project follows the Project 0 versioning model; format loosely tracks Keep a Changelog.\n\n");
-    out.push_str("---\n\n");
-
-    // Platform entry: per-tool build and deploy instructions, naming the commands that work here.
-    out.push_str(&format!(
-        "## [{}] -- Omarchy / Arch era",
-        if m.version.is_empty() {
-            "current"
-        } else {
-            &m.version
-        }
-    ));
-    out.push_str("\n\n");
-    out.push_str("### Changed\n");
-    out.push_str("- Migrated to Omarchy (Arch) 2026-08-26.\n");
-    out.push_str("- Build: `cargo build --release`.\n");
-    out.push_str("- Deploy: `ship` for the workspace, `ship <tool>` for one.\n\n");
-
-    // Recent substantive history from git.
-    let hist = tool_history(&m.name, 15);
-    if !hist.is_empty() {
-        out.push_str("## Recent history\n\n");
-        for (hash, subj) in &hist {
-            out.push_str(&format!("- `{}` {}\n", hash, subj));
-        }
-        out.push('\n');
-    }
-
-    out.push_str("---\n\n");
-    out.push_str(&format!(
-        "*Generated {} by `zero-docs changelog-tools` -- do not hand-edit; re-run to refresh.*\n",
-        date
-    ));
-    out
-}
-
-/// PIECE 3: preview ONE tool's changelog (no writing).
-pub fn cmd_changelog_preview(name: &str) {
-    let metas = gather_all();
-    match metas.iter().find(|m| m.name == name) {
-        Some(m) => {
-            println!("----- CHANGELOG preview: {} -----\n", name);
-            print!("{}", render_changelog(m));
-            println!("----- end preview -----");
-        }
-        None => println!("  tool not found on disk: {}", name),
-    }
-}
-
-/// PIECE 3: generate CHANGELOG.md for all tools. dry_run prints what would be written.
-pub fn cmd_changelog_generate(dry_run: bool) {
-    let metas = gather_all();
-    let rt = zero_core::paths::tools_dir();
-    let mut written = 0usize;
-    for m in &metas {
-        let path = zero_core::paths::crate_dir(&m.name)
-            .unwrap_or_else(|| rt.join(&m.name))
-            .join("CHANGELOG.md");
-        let content = render_changelog(m);
-        if dry_run {
-            println!("  would write: {} ({} bytes)", shown(&path), content.len());
-            written += 1;
-            continue;
-        }
-        match std::fs::write(&path, &content) {
-            Ok(_) => written += 1,
-            Err(e) => eprintln!("  failed: {}/CHANGELOG.md -- {}", m.name, e),
-        }
-    }
-    if dry_run {
-        println!("\n  DRY RUN: {} CHANGELOGs would be written", written);
-    } else {
-        println!("\n  Done: {} CHANGELOGs written", written);
     }
 }
 
@@ -765,5 +556,92 @@ mod count_tests {
             "a [[bin]] target is a binary"
         );
         let _ = std::fs::remove_dir_all(&d);
+    }
+}
+
+#[cfg(test)]
+mod ownership_tests {
+    use super::*;
+
+    #[test]
+    fn index_staleness_names_every_changed_tool() {
+        let fresh =
+            "# Tools\n\n| [`alpha`](./alpha/) | AAA | a |\n| [`beta`](./beta/) | BBB | b |\n";
+        let names = ["alpha", "beta"];
+        assert!(stale_names(fresh, fresh, &names).is_empty());
+        let one = fresh.replace("AAA", "CCC");
+        assert_eq!(stale_names(fresh, &one, &names), vec!["alpha".to_string()]);
+        let both = one.replace("BBB", "DDD");
+        assert_eq!(
+            stale_names(fresh, &both, &names),
+            vec!["alpha".to_string(), "beta".to_string()]
+        );
+        let header = fresh.replace("# Tools", "# Old");
+        assert_eq!(
+            stale_names(fresh, &header, &names),
+            vec!["other lines of the index".to_string()]
+        );
+        let extra = format!("{fresh}| [`gone`](./gone/) | 9 | x |\n");
+        assert_eq!(
+            stale_names(fresh, &extra, &names),
+            vec!["other lines of the index".to_string()]
+        );
+    }
+
+    #[test]
+    fn a_file_ending_in_the_generated_footer_is_generated() {
+        let footer = LEGACY_FOOTER;
+        assert!(is_generated(&format!("# t\n\nbody\n\n---\n\n{footer}\n")));
+        assert!(
+            is_generated(&format!("# t\n{footer}\n\n\n")),
+            "trailing blank lines do not matter"
+        );
+        assert!(
+            is_generated(&format!("# t\r\n{footer}\r\n")),
+            "nor does a CRLF file"
+        );
+    }
+
+    #[test]
+    fn a_person_owned_file_is_never_generated() {
+        let footer = LEGACY_FOOTER;
+        // novashell/README.md: its footer wraps across a line, so a substring test would miss it.
+        let wrapped = "# nsh\n\n*HAND-MAINTAINED. This file used to claim it was generated by `zero-docs\nsync`; it is not.*\n";
+        assert!(!is_generated(wrapped));
+        assert!(!is_generated(
+            "# prose\n\nA person wrote this and never added a marker.\n"
+        ));
+        assert!(!is_generated(""));
+        assert!(
+            !is_generated(&format!("{footer}\nA person added a line after it.\n")),
+            "the footer must be the LAST line"
+        );
+        assert!(
+            !is_generated(&format!("# t\nHAND-MAINTAINED\n{footer}\n")),
+            "the marker wins over the footer"
+        );
+    }
+
+    #[test]
+    fn classify_proves_ownership_from_the_file_on_disk() {
+        let dir = std::env::temp_dir().join(format!("zd-classify-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let put = |name: &str, bytes: &[u8]| {
+            let p = dir.join(name);
+            std::fs::write(&p, bytes).unwrap();
+            p
+        };
+        let footer = LEGACY_FOOTER;
+        assert_eq!(classify(&dir.join("missing.md")), Disposition::Scaffold);
+        let generated = put("gen.md", format!("# t\n{footer}\n").as_bytes());
+        assert_eq!(classify(&generated), Disposition::Rewrite);
+        assert_eq!(classify(&put("prose.md", b"# prose\n")), Disposition::Keep);
+        assert_eq!(
+            classify(&put("binary.md", &[0xff, 0xfe, 0x00])),
+            Disposition::Keep,
+            "an unreadable file is kept, not overwritten"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

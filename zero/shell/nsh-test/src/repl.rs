@@ -469,7 +469,7 @@ pub fn live_pids_with_cmdline(arg: &str) -> Vec<i32> {
                 if let Ok(raw) = std::fs::read(format!("/proc/{}/cmdline", pid)) {
                     let args: Vec<&[u8]> = raw.split(|b| *b == 0).collect();
                     let is_sleep = args.first().map(|a| a.ends_with(b"sleep")).unwrap_or(false);
-                    if is_sleep && args.iter().any(|a| *a == arg.as_bytes()) {
+                    if is_sleep && args.contains(&arg.as_bytes()) {
                         out.push(pid);
                     }
                 }

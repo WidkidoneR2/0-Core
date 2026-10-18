@@ -6,8 +6,6 @@ edition = "2021"
 description = "Living documentation engine — keeps README and welcome in sync with live state"
 
 [dependencies]
-zero-core = { path = "../zero-core", features = ["db"] }
+zero-core = { path = "../zero-core", features = ["db", "registry"] }
 colored       = "2.1"
-dirs          = "5.0"
 chrono        = "0.4"
-rusqlite      = { version = "0.31", features = ["bundled"] }

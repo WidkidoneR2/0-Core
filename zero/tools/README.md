@@ -2,7 +2,7 @@
 
 Project 0's tool ecosystem: 17 active tools (plus 0 retired), each a purpose-built Rust program.
 
-**Generated:** 2026-10-17 by `zero-docs readme-index`
+**Generated** by `zero-docs readme-index` from each tool's Cargo.toml and the registry; nothing here is typed by hand.
 
 ---
 

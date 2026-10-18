@@ -3669,8 +3669,6 @@ version = "2.0.1"
 dependencies = [
  "chrono",
  "colored",
- "dirs",
- "rusqlite",
  "zero-core",
 ]
 

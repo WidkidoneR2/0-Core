@@ -24,7 +24,7 @@ struct RegistryFile {
     tool: Vec<Row>,
 }
 
-/// One `[[tool]]` row. Fields no reader here needs (category, description, ...) are ignored.
+/// One `[[tool]]` row. Keys this struct does not name are ignored.
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
 pub struct Row {
     pub name: String,
@@ -42,6 +42,19 @@ pub struct Row {
     pub deployable: bool,
     #[serde(default)]
     pub retired: bool,
+    /// What the tool is for, as the registry files it (core, development, shell). A row
+    /// without one has none: a reader never invents a category.
+    #[serde(default)]
+    pub category: Option<String>,
+    /// How often the tool is expected to run (high, low, rare).
+    #[serde(default)]
+    pub expected_usage: Option<String>,
+    /// The row's one-line description.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Tools this one needs, by registry name. Empty when the row names none.
+    #[serde(default)]
+    pub depends_on: Vec<String>,
 }
 
 impl Row {
@@ -339,6 +352,10 @@ mod tests {
             krate: krate.map(Into::into),
             deployable: true,
             retired,
+            category: None,
+            expected_usage: None,
+            description: None,
+            depends_on: Vec::new(),
         }
     }
 
@@ -365,6 +382,35 @@ mod tests {
         assert_eq!(rows[1].kind, None);
         assert_eq!(rows[1].package(), "bare");
         assert!(!rows[1].deployable && !rows[1].retired);
+    }
+
+    #[test]
+    fn parse_reads_the_descriptive_fields_and_leaves_absent_ones_empty() {
+        let rows = parse(concat!(
+            "[[tool]]\nname = \"zero-docs\"\nversion = \"2.0.1\"\ncategory = \"development\"\n",
+            "expected_usage = \"low\"\ndescription = \"Docs tool\"\n",
+            "depends_on = [\"zero-git\", \"zero-core\"]\n\n",
+            "[[tool]]\nname = \"wrapped\"\nversion = \"1.0.0\"\n",
+            "depends_on = [\n    \"alpha\",\n    \"beta\",\n]\n\n",
+            "[[tool]]\nname = \"bare\"\nversion = \"0.1.0\"\n",
+        ))
+        .unwrap();
+        assert_eq!(rows[0].category.as_deref(), Some("development"));
+        assert_eq!(rows[0].expected_usage.as_deref(), Some("low"));
+        assert_eq!(rows[0].description.as_deref(), Some("Docs tool"));
+        assert_eq!(rows[0].depends_on, ["zero-git", "zero-core"]);
+        assert_eq!(
+            rows[1].depends_on,
+            ["alpha", "beta"],
+            "a list written over several lines is still read whole"
+        );
+        assert_eq!(rows[2].category, None);
+        assert_eq!(rows[2].expected_usage, None);
+        assert_eq!(rows[2].description, None);
+        assert!(
+            rows[2].depends_on.is_empty(),
+            "no depends_on means none, not an error"
+        );
     }
 
     #[test]
