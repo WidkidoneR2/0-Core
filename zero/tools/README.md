@@ -2,7 +2,7 @@
 
 Project 0's tool ecosystem: 17 active tools (plus 0 retired), each a purpose-built Rust program.
 
-**Generated:** 2026-10-16 by `zero-docs readme-index`
+**Generated:** 2026-10-17 by `zero-docs readme-index`
 
 ---
 
@@ -18,7 +18,7 @@ Project 0's tool ecosystem: 17 active tools (plus 0 retired), each a purpose-bui
 | Tool | Version | Description |
 |------|---------|-------------|
 | [`db-browse`](./db-browse/) | 2.1.1 | - |
-| [`nsh-test`](../shell/nsh-test/) | 2.0.4 | nsh permanent regression suite |
+| [`nsh-test`](../shell/nsh-test/) | 2.0.6 | nsh permanent regression suite |
 | [`ship`](./ship/) | 1.0.1 | Build the workspace and place binaries where PATH can see them |
 | [`teach`](./teach/) | 4.0.1 | Live system narrator — adapts to newcomer or expert |
 | [`zero-deadwood`](./zero-deadwood/) | 1.0.1 | - |
@@ -51,7 +51,7 @@ Project 0's tool ecosystem: 17 active tools (plus 0 retired), each a purpose-bui
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| [`novashell`](../shell/novashell/) | 5.3.3 | The shell of Project 0 -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution. |
+| [`novashell`](../shell/novashell/) | 5.3.4 | The shell of Project 0 -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution. |
 
 ---
 
