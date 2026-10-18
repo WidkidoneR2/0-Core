@@ -1,0 +1,223 @@
+file /home/christian/0-core/zero/shell/novashell/src/jobs.rs  sha256 1763e7e643e180f1 -> 16429b5a83d6423b
+file /home/christian/0-core/zero/shell/novashell/src/main.rs  sha256 57f5ea5dac87fa38 -> 330be2cff578348b
+--- /home/christian/0-core/zero/shell/novashell/src/jobs.rs: replacing lines 744..745 ---
+   742:     }
+   743: 
+>> 744:     /// Kill a job by id.
+>> 745:     pub fn kill_job(&mut self, id: JobId) {
+   746:         let pos = self.jobs.iter().position(|j| j.id == id);
+   747:         match pos {
+++     /// INT-290: the terminal is gone. Tell every job group, as bash does: SIGCONT first so a
+++     /// stopped group can take the signal, then SIGHUP. It prints nothing and waits for nothing:
+++     /// the terminal it would print to no longer exists and nsh is about to end. kill_job prints
+++     /// and waits, which is why it is not reused. nsh has no disown, so no group is spared.
+++     pub fn hangup_all(&self) {
+++         for j in self.jobs.iter() {
+++             if let Some(g) = j.pgid {
+++                 unsafe {
+++                     libc::kill(-(g as i32), libc::SIGCONT);
+++                     libc::kill(-(g as i32), libc::SIGHUP);
+++                 }
+++             }
+++         }
+++     }
+++ 
+++     /// Kill a job by id.
+++     pub fn kill_job(
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 1111..1112 ---
+   1109: }
+   1110: 
+>> 1111: /// INT-286: one line in nsh_exit_log() saying why this shell stopped reading its terminal.
+>> 1112: /// Best effort: a record that cannot be written is said on stderr, and the shell still exits 74.
+   1113: fn record_gave_up(e: &ReadlineError, eio_retries: u32) {
+   1114:     use std::io::Write;
+++ /// INT-290: the terminal hung up (a closed window). The handler only sets a flag and wakes the
+++ /// REPL thread; everything else happens on the REPL thread, in the exit path.
+++ static HANGUP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+++ /// The REPL thread, so a SIGHUP that lands on the main thread (parked in join) can wake it.
+++ static REPL_THREAD: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
+++ 
+++ extern "C" fn on_sighup(_: libc::c_int) {
+++     HANGUP.store(true, std::sync::atomic::Ordering::SeqCst);
+++     let tid = REPL_THREAD.load(std::sync::atomic::Ordering::SeqCst);
+++     if tid == 0 {
+++         return;
+++     }
+++     // rustyline polls the terminal and ignores a signal it has no handler for, so a bare
+++     // `kill -HUP` on a live prompt would wait for a keypress. SIGINT is the signal it does
+++     // handle (it returns from the read); wake the REPL thread with it, but only while a SIGINT
+++     // handler exists, so the default action can never end nsh through this path.
+++     unsafe {
+++         let mut cur: libc::sigaction = std::mem::zeroed();
+++         if libc::sigaction(libc::SIGINT, std::ptr::null(), &mut cur) == 0
+++             && cur.sa_sigaction != libc::SIG_DFL
+++             && cur.sa_sigaction != libc::SIG_IGN
+++         {
+++             libc::pthread_kill(tid as libc::pthread_t, libc::SIGINT);
+++         }
+++     }
+++ }
+++ 
+++ /// INT-290: take SIGHUP ourselves, on the REPL thread's behalf. Called once, from repl_main,
+++ /// only for a shell that owns its terminal, so `nsh -c` and scripts keep the default action.
+++ fn install_hangup_handler() {
+++     REPL_THREAD.store(
+++         unsafe { libc::pthread_self() } as usize,
+++         std::sync::atomic::Ordering::SeqCst,
+++     );
+++     unsafe {
+++         libc::signal(libc::SIGHUP, on_sighup as *const () as libc::sighandler_t);
+++     }
+++ }
+++ 
+++ fn hangup_seen() -> bool {
+++     HANGUP.load(std::sync::atomic::Ordering::SeqCst)
+++ }
+++ 
+++ /// INT-290: end the way bash ends on a hang-up: the signal itself, with its default action, so
+++ /// the parent sees signal 1 and not an exit code.
+++ fn raise_hangup() -> ! {
+++     unsafe {
+++         libc::signal(libc::SIGHUP, libc::SIG_DFL);
+++         libc::raise(libc::SIGHUP);
+++     }
+++     std::process::exit(129);
+++ }
+++ 
+++ /// INT-290: the hang-up line in nsh_exit_log(), INT-286's format with error=SIGHUP. Unlike
+++ /// record_gave_up it never writes to stderr: the terminal is dead and a write there can panic.
+++ fn record_hangup() {
+++     use std::io::Write;
+++     let path = zero_core::paths::nsh_exit_log();
+++     let tty = std::fs::read_link("/proc/self/fd/0")
+++         .map(|p| p.display().to_string())
+++         .unwrap_or_else(|_| "?".to_string());
+++     let line = format!(
+++         "{} pid={} tty={} eio_retries=0 error=SIGHUP\n",
+++         chrono::Local::now().to_rfc3339(),
+++         std::process::id(),
+++         tty
+++     );
+++     let _ = path
+++         .parent()
+++         .map(std::fs::create_dir_all)
+++         .unwrap_or(Ok(()))
+++         .and_then(|_| {
+++             std::fs::OpenOptions::new()
+++                 .create(true)
+++                 .append(true)
+++                 .open(&path)
+++         })
+++         .and_then(|mut f| f.write_all(line.as_bytes()));
+++ }
+++ 
+++ /// INT-286: one line in nsh_exit_log() saying why this shell stopped reading its terminal.
+++ /// Best effort:
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 2701..2702 ---
+   2699:     // INT-286: whether this shell owned its terminal when the REPL began (G1: only such a shell
+   2700:     // takes it back after an EIO), the run of EIOs so far, and the exit code once it gives up.
+>> 2701:     let owned_at_start = crate::tty::is_interactive();
+>> 2702:     let mut eio_retries: u32 = 0;
+   2703:     let mut gave_up: Option<i32> = None;
+   2704:     'repl: loop {
+++     let owned_at_start = crate::tty::is_interactive();
+++     // INT-290: only a shell that owns its terminal takes SIGHUP as a flag; `nsh -c` is unchanged.
+++     if owned_at_start {
+++         install_hangup_handler();
+++     }
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 2708..2709 ---
+   2706:     let mut eio_retries: u32 = 0;
+   2707:     let mut gave_up: Option<i32> = None;
+>> 2708:     'repl: loop {
+>> 2709:         // INT-250: backfill completion data for the prior command.
+   2710:         // Compute duration from start time captured at submit.
+   2711:         let elapsed = last_command_start
+++     'repl: loop {
+++         // INT-290: a hang-up that arrived while a command ran is taken here, before a prompt.
+++         if hangup_seen() {
+++             break;
+++         }
+++         // INT-250: backfill completion data for the prior command.
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 2842..2842 ---
+   2840:                         // since lost fails with EIO. Take it back and read again, at most three
+   2841:                         // times in a row; anything else ends the read as it always did.
+>> 2842:                         Err(e) if owned_at_start && is_eio(&e) && eio_retries < 3 => {
+   2843:                             eio_retries += 1;
+   2844:                             if !crate::tty::take_terminal() {
+++ Err(e) if owned_at_start && !hangup_seen() && is_eio(&e) && eio_retries < 3 => {
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 2853..2854 ---
+   2851:             }
+   2852:         };
+>> 2853:         match read_result {
+>> 2854:             Ok(line) => {
+   2855:                 // Check reload signal at TOP of loop — before any processing
+   2856:                 // INT-296: OSC 133 B -- command input received
+++         // INT-290: whatever the read returned (a line, Eof, the wake-up, EIO), a hang-up wins:
+++         // a line read from a dead window is not run, and EIO is not a terminal to take back.
+++         if hangup_seen() {
+++             break 'repl;
+++         }
+++         match read_result {
+++             Ok(line) => {
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 3247..3248 ---
+   3245:     }
+   3246: 
+>> 3247:     // Write journal daily summary on exit
+>> 3248:     let _ = std::process::Command::new("core")
+   3249:         .args(["journal", "daily-summary"])
+   3250:         .output();
+++     // INT-290: after a hang-up only the F steps below run (journal, session memory, patterns).
+++     // The jobs are told first and the record is written before the slow steps, so a hard kill
+++     // that follows the hang-up still leaves it. Nothing here prints: the terminal is gone.
+++     let hung_up = hangup_seen();
+++     if hung_up {
+++         job_table.hangup_all();
+++         record_hangup();
+++     }
+++     // Write journal daily summary on exit
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 3300..3301 ---
+   3298:         rusqlite::params![now.to_string(), dow, hour, hour, _session_commits as i64, now, focus_score, _session_deploys as i64, _session_commands as i64, _session_duration as i64],
+   3299:     );
+>> 3300:     mark("EXIT: session_patterns written");
+>> 3301:     // INT-229: Session summary on exit
+   3302:     {
+   3303:         use colored::Colorize;
+++     if !hung_up {
+++         mark("EXIT: session_patterns written");
+++     }
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 3303..3305 ---
+   3301:         mark("EXIT: session_patterns written");
+   3302:     }
+>> 3303:     // INT-229: Session summary on exit
+>> 3304:     {
+>> 3305:         use colored::Colorize;
+   3306:         let dur_str = if _session_duration >= 60 {
+   3307:             format!("{}h{}m", _session_duration / 60, _session_duration % 60)
+++     // INT-229: Session summary on exit (INT-290: skipped on a hang-up, it is only for the eye)
+++     if !hung_up {
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 3346..3347 ---
+   3344:         println!();
+   3345:     }
+>> 3346:     println!("{}", colored::Colorize::dimmed("  Project 0 remembers."));
+>> 3347:     mark("EXIT: main returning");
+   3348:     // INT-286: a REPL that gave up on its terminal exits 74, never 0. main() does nothing after
+   3349:     // this thread returns, so exiting here skips nothing but the line editor's drop.
+++     if hung_up {
+++         raise_hangup();
+++     }
+++     println!("{}", colored::Colorize::dimmed("  Project 0 remembers."));
+++ 
+/home/christian/0-core/zero/shell/novashell/src/jobs.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
