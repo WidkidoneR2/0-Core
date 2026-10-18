@@ -1,0 +1,298 @@
+file /home/christian/0-core/zero/intents/future/292-cicomplete-bumps-a-version-but-leaves-the-tools-index-and-readme-stating-the-old-one.md  sha256 6862da915777227f -> 532b75cd0bec192a
+file /home/christian/0-core/zero/intents/future/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md  sha256 9a1ef158c994febf -> 8f5b8342ff251329
+file /home/christian/0-core/zero/intents/future/294-eight-open-intents-name-something-declared-that-nothing-checks.md  sha256 44ad7f848bc6f409 -> a6e80ddde30aa00f
+--- /home/christian/0-core/zero/intents/future/292-cicomplete-bumps-a-version-but-leaves-the-tools-index-and-readme-stating-the-old-one.md: replacing lines 7..7 ---
+   5: title: "cicomplete bumps a version but leaves the tools index and README stating the old one"
+   6: status: planned
+>> 7: tags: [cicomplete, versions, docs, tools, ledger]
+   8: ---
+   9: 
+++ tags: [cicomplete, versions, docs, tools, ledger]
+++ depends_on: [291]
+--- /home/christian/0-core/zero/intents/future/292-cicomplete-bumps-a-version-but-leaves-the-tools-index-and-readme-stating-the-old-one.md: replacing lines 12..12 ---
+   10: 
+   11: ## Vision
+>> 12: [Describe the goal and desired outcome]
+   13: 
+   14: ## The Problem
+++ Closing an intent that bumps a tool leaves no document stating the old version. Either the close
+++ refreshes every document that states a version, or, if INT-291 rules that only Cargo.toml and the
+++ derived index state one, it refreshes the index and refuses on any other. cicomplete never writes
+++ prose.
+--- /home/christian/0-core/zero/intents/future/292-cicomplete-bumps-a-version-but-leaves-the-tools-index-and-readme-stating-the-old-one.md: replacing lines 18..18 ---
+   16: 
+   17: ## The Problem
+>> 18: [What problem does this solve?]
+   19: 
+   20: ## The Solution
+++ Measured 2026-10-17, closing INT-290.
+++ 
+++ - cicomplete bumped novashell 5.3.3 to 5.3.4 and nsh-test 2.0.5 to 2.0.6 in Cargo.toml, Cargo.lock
+++   and zero/registry/tools.toml, and its receipt says so. It left zero/tools/README.md stating
+++   novashell 5.3.3 and nsh-test 2.0.4 (already two bumps behind). The fix was a hand-run
+++   `zero-docs readme-generate`, which also rewrote 19 per-tool READMEs and the hand-maintained one
+++   (INT-291).
+++ - No door refuses a commit that leaves a stated version behind: d reported 0 failed with the stale
+++   index in the tree.
+++ - How cicomplete finds what to bump is known from INT-102: it reads `git log --grep=INT-<id>`, so a
+++   commit that does not name the intent is invisible to it (the line was intent/mod.rs:1342 in
+++   August; G0 re-reads it). Decisions D4 (cicomplete suggests, the human picks) and D5 (no mapping
+++   from intent type to semver level) stand and are not reopened here.
+++ - The tools index states a version for every tool and nsh-test reads its count, but nothing checks
+++   its versions.
+++ - INT-212 is a different defect (cicomplete never requires gates to exist; 10 gates open, none
+++   done). This intent does not extend it.
+--- /home/christian/0-core/zero/intents/future/292-cicomplete-bumps-a-version-but-leaves-the-tools-index-and-readme-stating-the-old-one.md: replacing lines 37..37 ---
+   35: 
+   36: ## The Solution
+>> 37: [High-level approach]
+   38: 
+   39: ## Success Criteria
+++ Wait for INT-291 G1a, then pick one of two shapes there:
+++ 
+++ - A. cicomplete runs the index refresh for the crates it bumped, and nothing else.
+++ - B. Only Cargo.toml and the derived index state a version, the index refresh is part of the close,
+++   and the close refuses if any other document states a different one.
+++ 
+++ Either way the close ends with a check that every document stating a version agrees with Cargo.toml.
+--- /home/christian/0-core/zero/intents/future/292-cicomplete-bumps-a-version-but-leaves-the-tools-index-and-readme-stating-the-old-one.md: replacing lines 46..46 ---
+   44: 
+   45: ## Success Criteria
+>> 46: - [ ] ...
+   47: 
+   48: <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
+++ - [ ] G0 recon, read-only. Evidence is the output, kept in ~/.cache/zero:
+++       a. The cicomplete bump code today: file:line of the detection, every file it writes, where the
+++          receipt is written.
+++       b. Every document that states a tool version (index, per-tool READMEs, registry, docs/, CHANGELOGs,
+++          census) against its Cargo.toml, as a table.
+++       c. Which of those INT-291 rules away.
+++       d. What d and the doors check about versions today.
+++ - [ ] G1 rulings after INT-291 G1a, each approved by Christian: where the refresh lives (cicomplete,
+++       ship or the generator), and exactly what the close refuses on.
+++ - [ ] G2 red. A close on a scratch clone of the repo, with a scratch intent that bumps a tool, leaves a
+++       stated version behind. The case fails today.
+++ - [ ] G3 fix. G2 green. The smallest change per ruling; D4 and D5 untouched; no new crates.
+++ - [ ] G4 live. The same scratch close on the deployed cicomplete leaves every stated version equal to
+++       Cargo.toml, and a deliberately stale document makes it refuse.
+++ - [ ] G5 doors: one ship at the end where code changed; the deployed tools tested in a new shell;
+++       nsh-test all passing; d 0 failed; core intent validate clean. The close offers its bumps.
+++ - [ ] G6 commits: Intent INT-292 and the plan Seal with its note under refs/notes/seals; pushed
+++       with the pre-push hook passing; main and refs/notes/seals reach GitHub; core intent trace
+++       reads every seal intact.
+++ - [ ] G7 each gate carries evidence per INT-158.
+--- /home/christian/0-core/zero/intents/future/292-cicomplete-bumps-a-version-but-leaves-the-tools-index-and-readme-stating-the-old-one.md: replacing lines 67..74 ---
+   65: - [ ] G7 each gate carries evidence per INT-158.
+   66: 
+>> 67: <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
+>> 68: When you tick a gate, put the proof in an HTML comment on the line after it: a commit
+>> 69: hash, a file:line, a log or artifact path, or "demonstrated: what + how". Prose counts.
+>> 70: FORWARD-ONLY (never retrofit old intents -- busywork, no payoff).
+>> 71: SOFT (a discipline, not gate-police; nothing enforces this).
+>> 72: LIGHT (trivial self-evident gates need no artifact).
+>> 73: Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
+>> 74: See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+   75: 
+++ ## Non-goals
+++ - No new crates. No sudo. Omarchy untouched.
+++ - D4 and D5 of INT-102 are not reopened: cicomplete suggests, the human picks, and intent type never
+++   maps to a semver level.
+++ - Gate counting and gate requirements belong to INT-212; the generator belongs to INT-291.
+++ - AGENTS.md is not edited here; anything it needs is proposed to Christian.
+++ 
+++ ## Dependencies
+++ depends_on: 291 (its G1a decides whether documents state a version at all).
+--- /home/christian/0-core/zero/intents/future/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: replacing lines 7..7 ---
+   5: title: "no per-tool record states what each active tool must do or proves it works"
+   6: status: planned
+>> 7: tags: [tools, census, contract, devbox, per-tool]
+   8: ---
+   9: 
+++ tags: [tools, census, contract, devbox, per-tool]
+++ depends_on: [291]
+--- /home/christian/0-core/zero/intents/future/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: replacing lines 12..12 ---
+   10: 
+   11: ## Vision
+>> 12: [Describe the goal and desired outcome]
+   13: 
+   14: ## The Problem
+++ Each active tool has one small record, kept where the tool lives, stating what it does, how it
+++ answers for its version, who calls it and what proves it works. The registry, the index and the
+++ census read that record instead of three hand-kept copies. It starts as a census, and only a
+++ contract that earns its keep is added.
+--- /home/christian/0-core/zero/intents/future/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: replacing lines 18..18 ---
+   16: 
+   17: ## The Problem
+>> 18: [What problem does this solve?]
+   19: 
+   20: ## The Solution
+++ Measured 2026-10-17.
+++ 
+++ - The index lists 17 active tools. Facts about one tool live in separate places with separate owners:
+++   Cargo.toml (name, version, description), zero/registry/tools.toml (category, status, usage;
+++   read by more than one tool, which decision 149 reserves to the core), the README (prose), the devbox census file
+++   (zero/shell/devbox/census/<tool>.toml: description, policy, command, expect), the aliases in
+++   ~/.config/nsh/config.nsh, and the doc tables in the state database.
+++ - The census file already has the shape of a check. How many of the 17 tools have one is not
+++   measured.
+++ - zero-deadwood records that by 2026-09-23 four tools still panicked on a closed pipe (teach,
+++   zero-docs, zero-git, zero-context) and six tools had fixed it in four different shapes
+++   (zero-deadwood main.rs:656-659). One per-tool checklist would have caught that.
+++ - No intent states, tool by tool, what each must do. Gaps are found by accident, as the README
+++   staleness was found while closing INT-290.
+--- /home/christian/0-core/zero/intents/future/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: replacing lines 34..34 ---
+   32: 
+   33: ## The Solution
+>> 34: [High-level approach]
+   35: 
+   36: ## Success Criteria
+++ Census first, contract second. G0 builds one row per tool: which facts exist, where each lives,
+++ who owns it, and what proves the tool works. G1 rules the minimum fields and their home (candidates:
+++ the census file, the registry, or [package.metadata] in Cargo.toml), chosen against decision 149's
+++ one-owner rule. A per-tool intent is filed only where the census shows a gap, and its gates close
+++ that gap. ZERO//PROTOCOL stays an idea; this intent decides whether a small contract is worth
+++ building at all.
+--- /home/christian/0-core/zero/intents/future/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: replacing lines 42..42 ---
+   40: 
+   41: ## Success Criteria
+>> 42: - [ ] ...
+   43: 
+   44: <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
+++ - [ ] G0 census, read-only: a table of the 17 tools against the facts above, with the owner of each
+++       fact, whether a census file exists, whether `--version` answers in a clean room, whether a
+++       closed pipe panics, and who calls the tool. Evidence is the table, kept in ~/.cache/zero.
+++ - [ ] G1 rulings, each approved by Christian: the minimum fields of a per-tool record, its home, which
+++       existing readers switch to it, and what a tool with no record is.
+++ - [ ] G2 red. A check that fails today for at least one measured gap from G0 (for example a tool
+++       whose `--version` fails in a clean room, or a tool with no record).
+++ - [ ] G3 build. G2 green, for the first record only, on the debug build; no new crates.
+++ - [ ] G4 per-tool intents: for every tool whose census row shows a gap, an intent exists whose gates
+++       close that gap; tools with no gap are listed as such, with the evidence.
+++ - [ ] G5 doors: one ship at the end where code changed; the deployed tools tested in a new shell;
+++       nsh-test all passing; d 0 failed; core intent validate clean. The close offers its bumps.
+++ - [ ] G6 commits: Intent INT-293 and the plan Seal with its note under refs/notes/seals; pushed
+++       with the pre-push hook passing; main and refs/notes/seals reach GitHub; core intent trace
+++       reads every seal intact.
+++ - [ ] G7 each gate carries evidence per INT-158.
+--- /home/christian/0-core/zero/intents/future/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: replacing lines 59..66 ---
+   57: - [ ] G7 each gate carries evidence per INT-158.
+   58: 
+>> 59: <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
+>> 60: When you tick a gate, put the proof in an HTML comment on the line after it: a commit
+>> 61: hash, a file:line, a log or artifact path, or "demonstrated: what + how". Prose counts.
+>> 62: FORWARD-ONLY (never retrofit old intents -- busywork, no payoff).
+>> 63: SOFT (a discipline, not gate-police; nothing enforces this).
+>> 64: LIGHT (trivial self-evident gates need no artifact).
+>> 65: Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
+>> 66: See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+   67: 
+++ ## Non-goals
+++ - No ZERO//PROTOCOL framework, no capability enforcement, no tool generation. They stay in the idea
+++   bank until G1 shows what a small contract would hold.
+++ - No new crates. No sudo. Omarchy untouched.
+++ - No per-tool intent without a measured gap.
+++ - The readers of tools.toml change only as decision 149 already rules.
+++ 
+++ ## Dependencies
+++ depends_on: 291 (its G1a and G1b decide which documents a tool record may feed).
+--- /home/christian/0-core/zero/intents/future/294-eight-open-intents-name-something-declared-that-nothing-checks.md: replacing lines 11..11 ---
+   9: 
+   10: ## Vision
+>> 11: [Describe the goal and desired outcome]
+   12: 
+   13: ## The Problem
+++ The system checks what it declares. The ledger has one design for declared against checked, one
+++ canonical gate format, and the eight intents that circle that gap either collapse into the design
+++ or each keep one gate against it. Design first; no code in this intent.
+--- /home/christian/0-core/zero/intents/future/294-eight-open-intents-name-something-declared-that-nothing-checks.md: replacing lines 16..16 ---
+   14: 
+   15: ## The Problem
+>> 16: [What problem does this solve?]
+   17: 
+   18: ## The Solution
+++ Measured 2026-10-17 from the open-intent listing. By title, eight future intents each name
+++ something declared that nothing checks:
+++ 
+++ - 211 gate has four spellings and date means four things (the body is still the empty template)
+++ - 212 cicomplete blocks open gates but never requires gates to exist (10 gates open, none done)
+++ - 226 work done without an intent leaves no evidentiary record
+++ - 231 code cites intents that do not exist and nothing notices
+++ - 232 the ledger cannot mechanically answer whether an intent is done
+++ - 233 canonical ownership is not machine-checkable
+++ - 234 edits bypass the mutation primitive and nothing verifies the write landed
+++ - 235 a declared capability is never checked to resolve
+++ 
+++ Only 211 and 212 were read. The other six are taken from their titles, so G0 verifies that they
+++ share one defect before anything is merged. INT-158 says of the evidence convention that nothing
+++ enforces it. During INT-290 two checks were written by hand because the ledger has none: a hash
+++ check of the saved plan texts against their Seals, and a per-gate evidence check run before the
+++ last tick. Decision 142 (store facts, derive conclusions) and the eight Zero laws are the inputs.
+--- /home/christian/0-core/zero/intents/future/294-eight-open-intents-name-something-declared-that-nothing-checks.md: replacing lines 35..35 ---
+   33: 
+   34: ## The Solution
+>> 35: [High-level approach]
+   36: 
+   37: ## Success Criteria
+++ Read all eight bodies, decision 142 and the Zero laws. Tabulate, per intent, what is declared, where it is
+++ declared, and what checks it today (nothing, or what). Rule the canonical gate format first, from 211,
+++ because 212 and 232 depend on it. Then keep, merge or cancel each intent with a reason written in the
+++ ledger, through the tools and not by hand. Any code a ruling needs becomes its own intent.
+--- /home/christian/0-core/zero/intents/future/294-eight-open-intents-name-something-declared-that-nothing-checks.md: replacing lines 41..41 ---
+   39: 
+   40: ## Success Criteria
+>> 41: - [ ] ...
+   42: 
+   43: <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
+++ - [ ] G0 census, read-only: the eight bodies, decision 142 and the Zero laws read; a table of declared,
+++       where declared, and what checks it; overlaps marked; a verdict on whether the eight share one
+++       defect. Evidence is the table, kept in ~/.cache/zero.
+++ - [ ] G1 rulings, each approved by Christian: the canonical gate format, and for each of the eight
+++       whether it stays, merges or is cancelled, with the reason.
+++ - [ ] G2 the plan: for each survivor, one line stating what would fail red, and its depends_on edges
+++       checked against the rule what would break if I started anyway.
+++ - [ ] G3 the ledger changed through the tools per the rulings; core intent validate clean; no file
+++       edited by hand to cancel or merge.
+++ - [ ] G4 live. `core intent next` and `core intent blocked` give true answers over the new graph.
+++ - [ ] G5 doors: no code is shipped;
+++       nsh-test all passing; d 0 failed; core intent validate clean.
+++ - [ ] G6 commits: Intent INT-294 and the plan Seal with its note under refs/notes/seals; pushed
+++       with the pre-push hook passing; main and refs/notes/seals reach GitHub; core intent trace
+++       reads every seal intact.
+++ - [ ] G7 each gate carries evidence per INT-158.
+--- /home/christian/0-core/zero/intents/future/294-eight-open-intents-name-something-declared-that-nothing-checks.md: replacing lines 58..65 ---
+   56: - [ ] G7 each gate carries evidence per INT-158.
+   57: 
+>> 58: <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
+>> 59: When you tick a gate, put the proof in an HTML comment on the line after it: a commit
+>> 60: hash, a file:line, a log or artifact path, or "demonstrated: what + how". Prose counts.
+>> 61: FORWARD-ONLY (never retrofit old intents -- busywork, no payoff).
+>> 62: SOFT (a discipline, not gate-police; nothing enforces this).
+>> 63: LIGHT (trivial self-evident gates need no artifact).
+>> 64: Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
+>> 65: See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+   66: 
+++ ## Non-goals
+++ - No change to the ledger format before G1 rules the gate format.
+++ - Open intents outside the eight are not touched.
+++ - No rebuild of the intent tool and no code in this intent.
+++ - No new crates. No sudo. Omarchy untouched.
+++ 
+++ ## Dependencies
+++ depends_on: none. It orders 211 and 212 and may absorb them; they are inputs, not blockers.
+/home/christian/0-core/zero/intents/future/292-cicomplete-bumps-a-version-but-leaves-the-tools-index-and-readme-stating-the-old-one.md: 1 replaced
+/home/christian/0-core/zero/intents/future/292-cicomplete-bumps-a-version-but-leaves-the-tools-index-and-readme-stating-the-old-one.md: 1 replaced
+/home/christian/0-core/zero/intents/future/292-cicomplete-bumps-a-version-but-leaves-the-tools-index-and-readme-stating-the-old-one.md: 1 replaced
+/home/christian/0-core/zero/intents/future/292-cicomplete-bumps-a-version-but-leaves-the-tools-index-and-readme-stating-the-old-one.md: 1 replaced
+/home/christian/0-core/zero/intents/future/292-cicomplete-bumps-a-version-but-leaves-the-tools-index-and-readme-stating-the-old-one.md: 1 replaced
+/home/christian/0-core/zero/intents/future/292-cicomplete-bumps-a-version-but-leaves-the-tools-index-and-readme-stating-the-old-one.md: 1 replaced
+/home/christian/0-core/zero/intents/future/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: 1 replaced
+/home/christian/0-core/zero/intents/future/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: 1 replaced
+/home/christian/0-core/zero/intents/future/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: 1 replaced
+/home/christian/0-core/zero/intents/future/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: 1 replaced
+/home/christian/0-core/zero/intents/future/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: 1 replaced
+/home/christian/0-core/zero/intents/future/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: 1 replaced
+/home/christian/0-core/zero/intents/future/294-eight-open-intents-name-something-declared-that-nothing-checks.md: 1 replaced
+/home/christian/0-core/zero/intents/future/294-eight-open-intents-name-something-declared-that-nothing-checks.md: 1 replaced
+/home/christian/0-core/zero/intents/future/294-eight-open-intents-name-something-declared-that-nothing-checks.md: 1 replaced
+/home/christian/0-core/zero/intents/future/294-eight-open-intents-name-something-declared-that-nothing-checks.md: 1 replaced
+/home/christian/0-core/zero/intents/future/294-eight-open-intents-name-something-declared-that-nothing-checks.md: 1 replaced
