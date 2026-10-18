@@ -1,0 +1,132 @@
+file /home/christian/0-core/zero/intents/future/291-zero-docs-generates-readmes-that-nothing-keeps-true-and-overwrites-hand-maintained-ones.md  sha256 ba8d0837cf058ae9 -> 47602f096696c44a
+--- /home/christian/0-core/zero/intents/future/291-zero-docs-generates-readmes-that-nothing-keeps-true-and-overwrites-hand-maintained-ones.md: replacing lines 11..11 ---
+   9: 
+   10: ## Vision
+>> 11: [Describe the goal and desired outcome]
+   12: 
+   13: ## The Problem
+++ Every document that states a fact about a tool has one owner, and zero-docs writes only what it
+++ owns. A version is stated by Cargo.toml and by what is derived from it. Prose is written by a person
+++ and is never overwritten. The one generated index is checked by a test. zero-docs keeps the commands
+++ something calls, and a regenerate run on a clean tree changes only what the rulings say it may.
+--- /home/christian/0-core/zero/intents/future/291-zero-docs-generates-readmes-that-nothing-keeps-true-and-overwrites-hand-maintained-ones.md: replacing lines 17..17 ---
+   15: 
+   16: ## The Problem
+>> 17: [What problem does this solve?]
+   18: 
+   19: ## The Solution
+++ Measured 2026-10-17 while closing INT-290.
+++ 
+++ - Nothing keeps the generated READMEs true. 13 of the 15 per-tool READMEs marked generated state a
+++   wrong version (zero-git 4.4.1 against 5.1.3, engine 3.2.9 against 4.4.1, db-browse 1.0.0 against
+++   2.1.1). Generation runs only when someone runs it, and cicomplete never does (INT-292).
+++ - The generator overwrites files a person owns. `zero-docs readme-generate` wrote 19 per-tool
+++   READMEs (16 changed, 3 new) and reported 0 skipped. One was novashell/README.md, whose footer says
+++   HAND-MAINTAINED and which holds text no generator has: why bash keeps the login seat, the
+++   structured-pipe examples, the dependency list. toolgen.rs:487 documents exactly this danger
+++   (measured 2026-09-15) and counts skips, so the guard exists and did not fire. The file was
+++   restored from git before any commit.
+++ - zero-docs is itself a reader of tools.toml: toolgen.rs:127-136 line-parses it and main.rs:212 reads
+++   it again, with a past silent failure recorded at main.rs:200-205 (wrong path, unwrap_or(0)).
+++   Decision 149 rules that the core owns the path and the parse.
+++ - It writes more than READMEs: the docs/public mirror, the root README dynamic section (lines 1-37
+++   are hand-maintained, main.rs:4), CHANGELOG files (changelog-tools says Generated while
+++   toolgen.rs:295 says the curated CHANGELOG.md is hand-written and linked, never copied), and three
+++   database tables (doc_history, doc_registry, engine_signals).
+++ - It is 1,777 lines and 17 subcommands (version 2.0.1). The shell history holds 237,123 rows from
+++   2026-03-13 and 52 zero-docs or zdocs commands. By prefix match public appears 13 times,
+++   readme-index 9, status 2, readme-preview 2. The query overlapped (readme 11 is index 9 plus preview
+++   2), so G0 re-measures with exact words.
+++ - Callers that must keep working: nsh-test (`readme-index --dry-run`, main.rs:2449), the engine
+++   integrity fix (`zero-docs sync`, integrity/mod.rs:253), the devbox census (`zero-docs --version`),
+++   and the aliases docs-check, docs-status, docs-sync and zdocs in ~/.config/nsh/config.nsh.
+--- /home/christian/0-core/zero/intents/future/291-zero-docs-generates-readmes-that-nothing-keeps-true-and-overwrites-hand-maintained-ones.md: replacing lines 44..44 ---
+   42: 
+   43: ## The Solution
+>> 44: [High-level approach]
+   45: 
+   46: ## Success Criteria
+++ One owner per fact, ruled in G1 before any code:
+++ 
+++ - The version of a tool lives in its Cargo.toml. The generated index derives it. No per-tool README
+++   states it.
+++ - Per-tool README prose belongs to a person. The generator never overwrites an existing per-tool
+++   README; it may scaffold one that does not exist.
+++ - The tools index is the one generated document, and a test keeps its numbers true.
+++ - Each of the 17 subcommands is kept, retired or merged by ruling, against its callers, with the
+++   outside-the-repo sweep done before any name goes.
+++ - tools.toml is read through the core (decision 149), not line-parsed here.
+++ 
+++ This is a shrink and an ownership rule, not a new framework. ZERO//PROTOCOL stays in the idea bank
+++ until INT-293 sizes a per-tool contract.
+--- /home/christian/0-core/zero/intents/future/291-zero-docs-generates-readmes-that-nothing-keeps-true-and-overwrites-hand-maintained-ones.md: replacing lines 59..59 ---
+   57: 
+   58: ## Success Criteria
+>> 59: - [ ] ...
+   60: 
+   61: <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
+++ - [ ] G0 census, read-only. Evidence is the output, kept in ~/.cache/zero:
+++       a. toolgen.rs 487-560: what the skip guard tests and why it did not skip novashell/README.md.
+++       b. `readme-generate --dry-run` and `changelog-tools --dry-run`: every file each would write, and
+++          which of them a person owns.
+++       c. Readers of doc_history, doc_registry and engine_signals.
+++       d. How many readers of tools.toml exist now, and whether zero-core offers the typed parse
+++          decision 149 asked for.
+++       e. What `public` and `readme` write, and who reads docs/public.
+++       f. The sweep outside the repo for callers: Hyprland, .desktop, systemd user units,
+++          ~/.local/bin scripts, rc files, crontab.
+++       g. Exact-word subcommand counts from the shell history, in place of the prefix counts.
+++       h. Whether zero-docs can run against a stand-in tree, so the tests do not touch the real one.
+++ - [ ] G1 rulings, written here before any code, each approved by Christian:
+++       a. Who owns a version, and whether a per-tool README states one.
+++       b. What proves a file is human-owned: the marker, or the file existing.
+++       c. Which of the 17 subcommands stay, retire or merge, and what happens to their aliases.
+++       d. The fate of the three database tables.
+++       e. CHANGELOG policy: generated, curated, or one of each with a boundary.
+++       f. tools.toml read through the core.
+++ - [ ] G2 red. Cases that fail on 2.0.1, on a stand-in tree: a file carrying the hand-maintained
+++       marker stays byte-identical after a generate run; the generated index states each tool's
+++       Cargo.toml version; `readme-index --dry-run` states the count it writes; a per-tool README
+++       follows G1a. Seals of the red plans are cited in the commit.
+++ - [ ] G3 fix. G2 green. The smallest change per ruling, one concern per change, each tested on the
+++       debug build; no new crates.
+++ - [ ] G4 live. The deployed zero-docs on the real tree: a full generate run changes only the files
+++       the rulings allow, novashell/README.md is byte-identical, the index is true, and
+++       `zero-docs --version` reads the new version.
+++ - [ ] G5 doors: one ship at the end; the deployed zero-docs tested in a new shell; nsh-test all
+++       passing (its readme-index case included); the engine integrity fix still runs; the census
+++       command still answers; every alias resolves or was retired by G1c; d 0 failed; core intent
+++       validate clean. The close offers zero-docs its bump.
+++ - [ ] G6 commits: Intent INT-291 and the plan Seal with its note under refs/notes/seals; pushed
+++       with the pre-push hook passing; main and refs/notes/seals reach GitHub; core intent trace
+++       reads every seal intact.
+++ - [ ] G7 each gate carries evidence per INT-158.
+--- /home/christian/0-core/zero/intents/future/291-zero-docs-generates-readmes-that-nothing-keeps-true-and-overwrites-hand-maintained-ones.md: replacing lines 96..103 ---
+   94: - [ ] G7 each gate carries evidence per INT-158.
+   95: 
+>> 96: <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
+>> 97: When you tick a gate, put the proof in an HTML comment on the line after it: a commit
+>> 98: hash, a file:line, a log or artifact path, or "demonstrated: what + how". Prose counts.
+>> 99: FORWARD-ONLY (never retrofit old intents -- busywork, no payoff).
+>> 100: SOFT (a discipline, not gate-police; nothing enforces this).
+>> 101: LIGHT (trivial self-evident gates need no artifact).
+>> 102: Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
+>> 103: See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+   104: 
+++ ## Non-goals
+++ - No new crates. No sudo. Omarchy untouched.
+++ - AGENTS.md is not edited here; anything it needs is proposed to Christian.
+++ - No per-tool contract or manifest design: INT-293 owns that, and ZERO//PROTOCOL stays an idea.
+++ - No change to cicomplete: INT-292 owns the version-bump side.
+++ - No change to the intent ledger: INT-294 and 211/212 own that.
+++ - novashell/README.md keeps its hand-written text; only what G1a rules about a version line changes.
+++ 
+++ ## Dependencies
+++ depends_on: none. Informs 292 (the cure may be that documents stop stating a version) and 293
+++ (the README-owner rule). Decisions 149 (tools.toml has one owner) and 142 (store facts, derive
+++ conclusions) bear on G1.
+/home/christian/0-core/zero/intents/future/291-zero-docs-generates-readmes-that-nothing-keeps-true-and-overwrites-hand-maintained-ones.md: 1 replaced
+/home/christian/0-core/zero/intents/future/291-zero-docs-generates-readmes-that-nothing-keeps-true-and-overwrites-hand-maintained-ones.md: 1 replaced
+/home/christian/0-core/zero/intents/future/291-zero-docs-generates-readmes-that-nothing-keeps-true-and-overwrites-hand-maintained-ones.md: 1 replaced
+/home/christian/0-core/zero/intents/future/291-zero-docs-generates-readmes-that-nothing-keeps-true-and-overwrites-hand-maintained-ones.md: 1 replaced
+/home/christian/0-core/zero/intents/future/291-zero-docs-generates-readmes-that-nothing-keeps-true-and-overwrites-hand-maintained-ones.md: 1 replaced
