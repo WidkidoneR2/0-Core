@@ -1,0 +1,97 @@
+file /home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md  sha256 9fa84918754e4b11 -> c7ebb383f3e2c1b7
+--- /home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: replacing lines 63..63 ---
+   61:       (aliases, scripts, tests, the engine); (g) what cmd_public reads from the root README and whether it needs
+   62:       BOUNDARY_MARKER or any field this intent removes; (h) whether docs/public states a version, a date or a count.
+>> 63: - [ ] G1 rulings, written here before any code, each approved by Christian: a. the release version and codename
+   64:       (status prints neither); b. intent counts (no tool prints or patches them); c. health (status prints none;
+   65:       d owns it); d. the root README (person-owned, cmd_readme retired, footer removed once) or kept; e. the one tool
+++ - [x] G1 rulings, written here before any code, each approved by Christian: a. the release version and codename
+--- /home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: replacing lines 67..68 ---
+   65:       d owns it); d. the root README (person-owned, cmd_readme retired, footer removed once) or kept; e. the one tool
+   66:       count and its definition; f. the lines status keeps and the line that reports the index; g. BOUNDARY_MARKER
+>> 67:       and cmd_public's use of the README.
+>> 68: - [ ] G2 red. Cases that fail on 2.0.2, on a stand-in tree: status prints no Version, Intents or Health line;
+   69:       status Tools equals the index count; status names a tool whose index line was edited and its hint names an
+   70:       existing subcommand; sync leaves a root README that never carried the footer byte-identical (today it appends
+++ and cmd_public's use of the README.
+++ <!-- evidence: approved by Christian 2026-10-18 19:26 (message: i approved), all seven as written in the section Rulings (G1). Ruling g is closed by the G0g finding; ruling e's tool count is settled by G0c. -->
+++ 
+--- /home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: replacing lines 62..63 ---
+   60:       version, theme, health, intent_complete and intent_planned, file:line; (f) every caller of the status output
+   61:       (aliases, scripts, tests, the engine); (g) what cmd_public reads from the root README and whether it needs
+>> 62:       BOUNDARY_MARKER or any field this intent removes; (h) whether docs/public states a version, a date or a count.
+>> 63: - [x] G1 rulings, written here before any code, each approved by Christian: a. the release version and codename
+   64:       (status prints neither); b. intent counts (no tool prints or patches them); c. health (status prints none;
+   65:       d owns it); d. the root README (person-owned, cmd_readme retired, footer removed once) or kept; e. the one tool
+++ or any field this intent removes; (h) whether docs/public states a version, a date or a count.
+++ <!-- evidence (partial, gate NOT ticked): (a), (b), (d), (e), (f), (g) answered in the START HERE section from the census run of 2026-10-18; (c) and (h) are open and listed there. -->
+++ 
+--- /home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: replacing lines 90..91 ---
+   88: - [ ] G7 each gate carries evidence per INT-158.
+   89: 
+>> 90: ## Proposed rulings (G1)
+>> 91: Recommendations only. None is approved until G1 is ticked with Christian's approval.
+   92: a. Release version and codename: status prints neither. meta/VERSION and the CHANGELOG own them; anyone who wants
+   93:    them reads those files. Why: a copy can drift (INT-265 found it drifting) and Christian has said it is not needed.
+++ ## Rulings (G1)
+++ 
+--- /home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: replacing lines 91..92 ---
+   89: 
+   90: ## Rulings (G1)
+>> 91: Recommendations only. None is approved until G1 is ticked with Christian's approval.
+>> 92: a. Release version and codename: status prints neither. meta/VERSION and the CHANGELOG own them; anyone who wants
+   93:    them reads those files. Why: a copy can drift (INT-265 found it drifting) and Christian has said it is not needed.
+   94: b. Intent counts: neither status nor any README states them. core intent and ints own the ledger. Why: whether
+++ Approved by Christian 2026-10-18, all seven as written. Ruling g is closed by the census and ruling e's number by G0c.
+++ 
+--- /home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: replacing lines 105..106 ---
+   103: f. status keeps Tools, Core domains and Commits, and ends with the index line: matches every Cargo.toml, or stale
+   104:    for the named tools with run zero-docs sync.
+>> 105: g. BOUNDARY_MARKER stays only if the census (G0g) shows cmd_public needs it.
+>> 106: 
+   107: ## Non-goals
+   108: - No change to meta/VERSION, zero/meta/CHANGELOG.md or the release process (decision 121).
+++ g. BOUNDARY_MARKER goes with cmd_readme. The census (G0g) found it used only by cmd_readme and the README check in status, not by cmd_public.
+++ 
+--- /home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: replacing lines 107..108 ---
+   105: g. BOUNDARY_MARKER goes with cmd_readme. The census (G0g) found it used only by cmd_readme and the README check in status, not by cmd_public.
+   106: 
+>> 107: ## Non-goals
+>> 108: - No change to meta/VERSION, zero/meta/CHANGELOG.md or the release process (decision 121).
+   109: - No decision on whether completed intents are kept. This intent only stops zero-docs counting them.
+   110: - No change to d, or to the cicomplete checkpoint, which prints its own Version, Health and Tools. If G0 shows the
+++ ## START HERE (next session)
+++ State at the end of 2026-10-18: cistart 296 is done (in-progress). No code has changed. G1 is approved. G0 is
+++ partly done and stays unticked. Open the session with: ints 296.
+++ 
+++ G0 census findings (output saved to ~/.cache/zero/int296-g0.txt; file:line in zero/tools/zero-docs/src):
+++ - (a) status prints Version and theme (main.rs:573-577), Tools, Intents, Commits, Health (595-598), Core domains
+++   and a README line (645-655). Sources: version_file (178), CHANGELOG (184), registry::read (205), health_status_file
+++   (300).
+++ - (b) README.md matches 0 of the 3 patterns. Its last line, 209, is the constant footer.
+++ - (d) one hint names a retired subcommand: main.rs:651, zero-docs readme. Every other hint names a dispatch word
+++   (sync, readme-index, readme-generate). The header comment at main.rs:1 still says v2.0.0.
+++ - (e) readers of the copied fields: status (573-597), the cmd_readme dry run (431-444), the two patches (395, 628).
+++ - (f) one caller of status: the alias docs-status (~/.config/nsh/config.nsh:142). docs/inventory.md:41 lists it.
+++ - (g) BOUNDARY_MARKER is used by cmd_readme (357-358) and the README check in status (611-612), not by cmd_public.
+++ 
+++ Open before G0 can be ticked:
+++ - (c) Read the five places that count tools and decide which one answers the tools Project 0 has (ruling e):
+++   zero-docs main.rs:205; the index at toolgen.rs:290; the checkpoint at engine checkpoint/mod.rs:215 (printed 18 at
+++   the cistart); zero-doctor probes/tools.rs:124; engine bootstrap/mod.rs:133.
+++ - (h) cmd_public reads the release version itself (main.rs:65). docs/public/index.md has 1 version string and
+++   PHILOSOPHY.md has 1 version and 1 date. Read cmd_public (main.rs:32-110) to see whether it writes them. If it
+++   does, ruling a needs an extension and goes back to Christian.
+++ - Count how many times README.md contains the END DYNAMIC SECTION marker (0 or 1).
+++ 
+++ Then G2 (red cases), G3 (fix), one ship, G4 to G7. Intent 280 stays untouched.
+++ 
+++ ## Non-goals
+++ 
+/home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: 1 replaced
