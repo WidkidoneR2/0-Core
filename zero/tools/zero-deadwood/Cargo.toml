@@ -1,7 +1,7 @@
 [package]
 name = "zero-deadwood"
 license = "MIT"
-version = "1.0.1"
+version = "1.0.2"
 edition = "2021"
 
 [dependencies]

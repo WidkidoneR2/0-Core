@@ -1,7 +1,7 @@
 [package]
 name = "zero-daemon"
 license = "MIT"
-version = "4.0.1"
+version = "4.0.2"
 edition = "2021"
 description = "Background daemon for Project 0 operations"
 

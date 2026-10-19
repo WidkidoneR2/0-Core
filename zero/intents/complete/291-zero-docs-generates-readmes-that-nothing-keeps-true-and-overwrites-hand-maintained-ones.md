@@ -3,7 +3,7 @@ id: 291
 date: 2026-10-17
 type: future
 title: "zero-docs generates READMEs that nothing keeps true and overwrites hand-maintained ones"
-status: in-progress
+status: complete
 tags: [zero-docs, docs, readme, registry, one-owner, tools]
 ---
 
@@ -110,12 +110,14 @@ h. A stand-in tree works when HOME, XDG_STATE_HOME and ZERO_STATE_DB are all set
       command still answers; every alias resolves or was retired by G1c; d 0 failed; core intent
       validate clean. The close offers zero-docs its bump.
 <!-- evidence: 2026-10-18. Two ships, not one: the second followed G3b, which the G5 idempotency test found after the first. nsh-test 252/252 against the deployed zero-docs, readme-index case included. Fresh nsh processes ran zero-docs --version (2.0.1), docs-check, docs-status, docs-sync and zdocs: all exit 0, and the tree was unchanged. The census door is zero-docs --version (G0 and the devbox census): it answers 2.0.1. The integrity fix runs exactly zero-docs sync (integrity/mod.rs:253, unchanged): run as a subprocess it exits 0 and leaves the tree byte-identical. d: 26 passed, 0 failed, 2 warnings (uncommitted changes, update readiness) that clear at the commit; Rust Docs clean; Intent Ledger 331 valid. cargo doc 0 warnings; clippy -D warnings and fmt --check clean for zero-docs and nsh-test (a manual_contains lint in nsh-test repl.rs was fixed). G5 wording amended to match the two ships. -->
-- [ ] G6 commits: Intent INT-291 and the last plan's Seal with its note under refs/notes/seals;
+- [x] G6 commits: Intent INT-291 and the last plan's Seal with its note under refs/notes/seals;
       the earlier plans' Seals are cited in the evidence comments above, and their text was not
       saved before apply, so no note can be rebuilt for them (AGENTS.md: save p.text() first).
       Pushed with the pre-push hook passing; main and refs/notes/seals reach GitHub; core intent
       trace reads every seal intact.
-- [ ] G7 each gate carries evidence per INT-158.
+<!-- evidence: 2026-10-18. Commit 2d1b0a88 on main carries Intent: INT-291 and Seal: 42b36ff66300de81, the seal of the G6 wording plan, whose text was saved before apply. The note under refs/notes/seals was attached byte for byte and hashes to the Seal. Pushed with the pre-commit and pre-push hooks passing; main and refs/notes/seals on GitHub equal local (fa2db19c..2d1b0a88 and 69e8cb94..ccaa3f9c). core intent trace 2d1b0a88 and core intent trace 42b36ff66300de81 both exit 0 and read: seal 42b36ff66300de81 intact -- the plan text kept in refs/notes/seals hashes to it. The earlier plans of this intent have no note, because their text was not saved before apply; their Seals are cited in the evidence comments above and trace cannot re-check them. Intent 280 move is not part of the commit and stays uncommitted. -->
+- [x] G7 each gate carries evidence per INT-158.
+<!-- evidence: 2026-10-18. Read before this plan was applied: a script listed every gate of this file, and G0, G1, G2, G3, G3b, G4 and G5 each carry an evidence comment; G6 and G7 get theirs in this plan. -->
 
 ## Rulings (G1)
 
@@ -143,3 +145,24 @@ f. TOOLS.TOML. zero-docs reads it through zero-core, in this order: first Row in
 depends_on: none. Informs 292 (the cure may be that documents stop stating a version) and 293
 (the README-owner rule). Decisions 149 (tools.toml has one owner) and 142 (store facts, derive
 conclusions) bear on G1.
+
+## Versions
+- core 4.4.1 -> 4.4.2 (patch)
+- nsh 5.3.4 -> 5.3.5 (patch)
+- nsh-test 2.0.6 -> 2.0.7 (patch)
+- db-browse 2.1.1 -> 2.1.2 (patch)
+- friday-chat 2.1.2 -> 2.1.3 (patch)
+- ship 1.0.1 -> 1.0.2 (patch)
+- teach 4.0.1 -> 4.0.2 (patch)
+- zero-ade 1.0.1 -> 1.0.2 (patch)
+- zero-context 1.0.1 -> 1.0.2 (patch)
+- zero-core 1.0.1 -> 1.0.2 (patch)
+- zero-daemon 4.0.1 -> 4.0.2 (patch)
+- zero-deadwood 1.0.1 -> 1.0.2 (patch)
+- zero-docs 2.0.1 -> 2.0.2 (patch)
+- zero-doctor 0.1.1 -> 0.1.2 (patch)
+- zero-gate 0.1.0 -> 0.1.1 (patch)
+- zero-gen 1.0.0 -> 1.0.1 (patch)
+- zero-git 5.1.3 -> 5.1.4 (patch)
+- zero-insightd 0.1.0 -> 0.1.1 (patch)
+- zero-sandbox 3.0.1 -> 3.0.2 (patch)

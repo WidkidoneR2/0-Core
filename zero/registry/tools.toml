@@ -5,7 +5,7 @@
 
 [[tool]]
 name = "core"
-version = "4.4.1"
+version = "4.4.2"
 category = "core"
 description = "Main engine — 15 domains, capability model"
 expected_usage = "high"
@@ -24,7 +24,7 @@ retired = true
 
 [[tool]]
 name = "zero-daemon"
-version = "4.0.1"
+version = "4.0.2"
 category = "core"
 description = "Background daemon with event bus and pub/sub"
 expected_usage = "rare"
@@ -33,7 +33,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "zero-git"
-version = "5.1.3"
+version = "5.1.4"
 category = "development"
 description = "Git operations with Risk Score engine"
 expected_usage = "high"
@@ -42,7 +42,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "zero-sandbox"
-version = "3.0.1"
+version = "3.0.2"
 category = "development"
 description = "Safe execution sandbox with session history"
 expected_usage = "medium"
@@ -51,7 +51,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "nsh"
-version = "5.3.4"
+version = "5.3.5"
 category = "shell"
 description = "NovaShell -- the structured shell of Project 0. Package: novashell."
 expected_usage = "high"
@@ -99,7 +99,7 @@ deployable = false
 retired = true
 [[tool]]
 name = "teach"
-version = "4.0.1"
+version = "4.0.2"
 category = "development"
 description = "Live system narrator with presentation mode"
 expected_usage = "rare"
@@ -117,7 +117,7 @@ deployable = false
 retired = true
 [[tool]]
 name = "zero-gen"
-version = "1.0.0"
+version = "1.0.1"
 category = "security"
 description = "Password and secret generator suite — 12 types, colored output"
 expected_usage = "medium"
@@ -126,7 +126,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "zero-docs"
-version = "2.0.1"
+version = "2.0.2"
 category = "documentation"
 description = "Living documentation engine — syncs README and welcome message with Project 0 state"
 expected_usage = "low"
@@ -154,7 +154,7 @@ retired = true
 
 [[tool]]
 name = "zero-context"
-version = "1.0.1"
+version = "1.0.2"
 category = "intelligence"
 description = "Deep codebase understanding engine — scan, map, patterns, summary, decisions"
 expected_usage = "medium"
@@ -165,7 +165,7 @@ retired = false
 
 [[tool]]
 name = "zero-insightd"
-version = "0.1.0"
+version = "0.1.1"
 category = "intelligence"
 description = "Insight daemon -- watches state.db, polls for signals, surfaces insights (the nervous system of Project 0)"
 expected_usage = "background"
@@ -267,7 +267,7 @@ retired = false
 # --- Added by INT-098 Phase 2 (registry reconciliation, 2026-06-28) ---
 [[tool]]
 name = "db-browse"
-version = "2.1.1"
+version = "2.1.2"
 category = "development"
 description = "TUI SQLite browser for state.db -- list, query, filter"
 expected_usage = "medium"
@@ -276,7 +276,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "zero-ade"
-version = "1.0.1"
+version = "1.0.2"
 category = "intelligence"
 description = "Agentic dev environment -- fsh PTY + Friday Chat split-pane TUI"
 expected_usage = "medium"
@@ -285,7 +285,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "zero-doctor"
-version = "0.1.1"
+version = "0.1.2"
 category = "core"
 description = "The doctor engine library -- definition format, states, tiers, probe registry, validation; shared by core doctor and nsh doctor (lib, not a binary)"
 expected_usage = "medium"
@@ -295,7 +295,7 @@ retired = false
 
 [[tool]]
 name = "zero-core"
-version = "1.0.1"
+version = "1.0.2"
 category = "core"
 description = "Shared library crate -- Wayland, theme, glyph, canvas primitives (lib, not a binary)"
 expected_usage = "medium"
@@ -304,7 +304,7 @@ deployable = false
 retired = false
 [[tool]]
 name = "zero-deadwood"
-version = "1.0.1"
+version = "1.0.2"
 category = "development"
 description = "Dead-code and orphan detector (reports, never deletes)"
 expected_usage = "medium"
@@ -313,7 +313,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "friday-chat"
-version = "2.1.2"
+version = "2.1.3"
 category = "intelligence"
 description = "Friday Chat TUI -- reads state.db, never invents"
 expected_usage = "medium"
@@ -322,7 +322,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "nsh-test"
-version = "2.0.6"
+version = "2.0.7"
 category = "development"
 description = "fsh regression and bash-conformance suite -- gates every push"
 expected_usage = "medium"
@@ -331,7 +331,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "ship"
-version = "1.0.1"
+version = "1.0.2"
 category = "development"
 description = "Installs built binaries to ~/.local/bin, keeps a versioned backup, records the deploy. --retire is the inverse."
 expected_usage = "high"
@@ -341,7 +341,7 @@ retired = false
 
 [[tool]]
 name = "zero-gate"
-version = "0.1.0"
+version = "0.1.1"
 category = "development"
 description = "The pre-commit and pre-push gates: secrets, formatting, the nsh-test suite. Absent means red."
 expected_usage = "high"

@@ -1,6 +1,6 @@
 [package]
 name = "zero-gate"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 
 # ⚠️ NO DEPENDENCIES, AND THAT IS THE POINT. This runs from a git hook on every commit, so it must

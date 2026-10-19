@@ -1,7 +1,7 @@
 [package]
 name = "teach"
 license = "MIT"
-version = "4.0.1"
+version = "4.0.2"
 edition = "2021"
 description = "Live system narrator — adapts to newcomer or expert"
 
