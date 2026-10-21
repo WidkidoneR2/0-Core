@@ -3,7 +3,7 @@ id: 296
 date: 2026-10-18
 type: future
 title: "zero-docs status prints only what it measures"
-status: in-progress
+status: complete
 tags: [docs, novashell, nsh, zero]
 ---
 
@@ -88,9 +88,11 @@ Remove what zero-docs copies, keep what it measures, and report what it can veri
       core intent validate clean. (Amended 2026-10-21: the bump offer of the close cannot precede the close, because
       cicomplete refuses while a gate is open; its output is cited in the closing commit.)
 <!-- evidence: G5 2026-10-21 ~08:15, after one ship: deployed nsh-test 257 / 257; zero-docs --version 2.0.2; integrity/mod.rs:253 runs zero-docs sync (exit 0 twice); zdocs, docs-check, docs-status, docs-sync ran; no caller of a retired subcommand outside or inside the repo; d 26 passed, 2 warnings, 0 failed; core intent validate all 332 valid. -->
-- [ ] G6 commits: Intent INT-296 and the final plan's Seal with its note under refs/notes/seals; pushed with the
+- [x] G6 commits: Intent INT-296 and the final plan's Seal with its note under refs/notes/seals; pushed with the
       pre-push hook passing; main and refs/notes/seals reach GitHub; core intent trace reads every seal intact.
-- [ ] G7 each gate carries evidence per INT-158.
+<!-- evidence: G6 2026-10-21 08:26. Commit ef539129 on main: fix: zero-docs status prints only what it measures (INT-296), trailers Intent: INT-296 and Seal: 1ff2bce81646c6d7, six files, pre-commit hook passed. The note under refs/notes/seals on that commit is the saved text of that plan: the first 16 hex of its sha256 equal the Seal, checked before the commit (note blob ef1a2289d2a3). The earlier plan Seals are cited in the commit body. git push origin main refs/notes/seals exited 0 through the pre-push hook: main 6554d4fd..ef539129, refs/notes/seals 42363ca7..77a585c2; ls-remote equals local for both refs. core intent trace 296: found 0 findings, 0 open. The intent 280 move was left out. -->
+- [x] G7 each gate carries evidence per INT-158.
+<!-- evidence: G7 2026-10-21 08:27. A script audit of this file listed every gate: G0 to G5 each carry an evidence comment (G0 one, G1 the approval, G2 to G5 one each); G6 and G7 carry theirs from this plan. -->
 
 ## Rulings (G1)
 Approved by Christian 2026-10-18, all seven as written. Ruling g is closed by the census and ruling e's number by G0c.
@@ -148,3 +150,7 @@ INT-291 (complete): the index, check_index, the ownership rule and the eight sub
 first record of this defect), INT-292 (cicomplete bumps leave the index stale; check now catches it), INT-293
 (per-tool records).
 
+
+## Versions
+- nsh-test 2.0.7 -> 2.0.8 (patch)
+- zero-docs 2.0.2 -> 2.0.3 (patch)

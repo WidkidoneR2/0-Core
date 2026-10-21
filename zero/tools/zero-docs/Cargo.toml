@@ -1,7 +1,7 @@
 [package]
 name = "zero-docs"
 license = "MIT"
-version = "2.0.2"
+version = "2.0.3"
 edition = "2021"
 description = "Living documentation engine — keeps README and welcome in sync with live state"
 
