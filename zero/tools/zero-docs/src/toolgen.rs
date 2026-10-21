@@ -279,6 +279,12 @@ pub fn active_tools(metas: &[ToolMeta]) -> Vec<&ToolMeta> {
     metas.iter().filter(|m| !m.retired && m.binary).collect()
 }
 
+/// How many tools the index lists, counted from disk the way the index counts them, so `status` and
+/// `readme-index` cannot disagree (INT-296).
+pub fn active_tool_count() -> usize {
+    active_tools(&gather_all()).len()
+}
+
 /// PIECE 2c: render the top-level tools/README.md index (catalog by category).
 pub fn render_index(metas: &[ToolMeta]) -> String {
     let active = active_tools(metas);

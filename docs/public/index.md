@@ -1,7 +1,5 @@
 # Project 0 Documentation
 
-> 1.0.0
-
 ## Contents
 
 - [Command Reference](COMMAND-GUIDE.md)

@@ -53,36 +53,41 @@ Remove what zero-docs copies, keep what it measures, and report what it can veri
   retired name cannot survive in a message again.
 
 ## Success Criteria
-- [ ] G0 census, read-only, output kept in ~/.cache/zero: (a) every line status prints against its source and its
+- [x] G0 census, read-only, output kept in ~/.cache/zero: (a) every line status prints against its source and its
       owner; (b) the match count in README.md of each cmd_readme pattern (expected 0 of 3) and the lines the footer
       replaces; (c) the four tool counts with the function behind each and which one answers the tools Project 0 has;
       (d) every zero-docs <word> in the source's messages and whether the word is a subcommand; (e) every reader of
       version, theme, health, intent_complete and intent_planned, file:line; (f) every caller of the status output
       (aliases, scripts, tests, the engine); (g) what cmd_public reads from the root README and whether it needs
       BOUNDARY_MARKER or any field this intent removes; (h) whether docs/public states a version, a date or a count.
-<!-- evidence (partial, gate NOT ticked): (a), (b), (d), (e), (f), (g) answered in the START HERE section from the census run of 2026-10-18; (c) and (h) are open and listed there. -->
+<!-- evidence: census 2026-10-18 (a, b, d, e, f, g; ~/.cache/zero/int296-g0.txt) and 2026-10-21 (c, h; ~/.cache/zero/int296-g0ch.txt, int296-g0r.txt, int296-g0s.txt, int296-g2recon.txt). (c) tool counts, five sites: zero-docs status 19 (main.rs:205, registry rows filtered); the index and readme-index 17 (toolgen.rs:278 active_tools, binaries not retired); zero-doctor 17/17 (probes/tools.rs:114, deployable rust tools not retired); the checkpoint 18 (manifest.tool_versions, a snapshot list, a different question); bootstrap counts registry names deployed. Measured live on 2.0.2: status Tools 19, readme-index 17 active tools, 19 crates read. Answer for ruling e: active_tools, 17. (h) cmd_public writes the release version into docs/public/index.md (main.rs:65-72), so ruling a is extended (ruling h); the version and date inside PHILOSOPHY.md are the person text it copies. README.md holds END DYNAMIC SECTION once (line 37) and the footer on line 209. Live 2.0.2 status also printed Version v1.0.0 -- Morphwood and Health 92%. -->
 - [x] G1 rulings, written here before any code, each approved by Christian: a. the release version and codename
       (status prints neither); b. intent counts (no tool prints or patches them); c. health (status prints none;
       d owns it); d. the root README (person-owned, cmd_readme retired, footer removed once) or kept; e. the one tool
       count and its definition; f. the lines status keeps and the line that reports the index; g. BOUNDARY_MARKER
       and cmd_public's use of the README.
 <!-- evidence: approved by Christian 2026-10-18 19:26 (message: i approved), all seven as written in the section Rulings (G1). Ruling g is closed by the G0g finding; ruling e's tool count is settled by G0c. -->
-- [ ] G2 red. Cases that fail on 2.0.2, on a stand-in tree: status prints no Version, Intents or Health line;
+- [x] G2 red. Cases that fail on 2.0.2, on a stand-in tree: status prints no Version, Intents or Health line;
       status Tools equals the index count; status names a tool whose index line was edited and its hint names an
       existing subcommand; sync leaves a root README that never carried the footer byte-identical (today it appends
       the footer); and a zero-docs unit test that every zero-docs <word> in its own messages is a subcommand (fails
       today on zero-docs readme, main.rs:651). The plan text is saved before apply (AGENTS.md); the seals of the
       red plans are cited in the commit.
-- [ ] G3 fix. G2 green. The smallest change per ruling, one concern per change, each tested on the debug build;
+<!-- evidence: red plan Seal 0b6cb63419e779e2, applied 2026-10-21 07:44 (plan text ~/.cache/zero/int296-plan-red.txt). Run against the deployed zero-docs 2.0.2 (ZERO_DOCS_BIN) on stand-in trees: the suite ran 252 of 256, the four new nsh-test cases failed and the six older zero-docs cases passed (~/.cache/zero/int296-red-suite.txt). Reasons: zero_docs_status_prints_only_what_it_measures - status prints a Version, an Intents, a Health and a README line; zero_docs_status_tool_count_is_the_index_count - status counts 5 tools, the index counts 4 (a library crate that only the registry lists); zero_docs_status_names_a_stale_tool_with_a_real_hint - status says numbers outdated, run: zero-docs readme, and never names alpha; zero_docs_sync_leaves_a_person_owned_root_readme_alone - sync appended the retired footer to a README that never carried it. Unit: cargo test -p zero-docs hint_tests fails on main.rs:651, zero-docs readme (~/.cache/zero/int296-red-unit.txt). -->
+- [x] G3 fix. G2 green. The smallest change per ruling, one concern per change, each tested on the debug build;
       no new crates. clippy -D warnings, fmt --check, cargo doc, the zero-docs tests and the zero-core registry
       tests clean.
-- [ ] G4 live. The deployed zero-docs on the real tree: status prints exactly the lines ruling f keeps and
+<!-- evidence: G3 done on the debug build 2026-10-21, one concern per plan, each plan's text saved under ~/.cache/zero/int296-plan-*.txt. Plans (Seals): retire cmd_readme, sync and check, FOOTER, the help text and the old rootstamp case: d2783ea8f4a64ef1 (~/.cache/zero/int296-g3a-build.txt, int296-g3a-unit.txt: the build was clean, the unit test still failed on the status hint, as expected). status measures only Tools, Core domains, Commits and the Index line, with toolgen::active_tool_count as the one tool count, LiveState, gather_state, regex_replace_first and BOUNDARY_MARKER removed: 34d94351af234e3c (int296-g3b-*.txt: build 0, cargo test -p zero-docs 6 of 6, clippy -D warnings 0, fmt --check 0, nsh-test suite 256 of 256 with the four red cases green). Ruling h: red case plan bd4e20f1ff2d8cb6 (suite 256 of 257, zero_docs_public_index_states_no_version failing: the index stated the release version and changed when only the version changed, int296-g3c-red-suite.txt), fix plan 978c1792117d4b5a (cmd_public no longer reads the version); green: build, unit 6 of 6, clippy -D warnings and fmt --check on zero-docs and nsh-test, cargo doc, cargo test -p zero-core, suite 257 of 257 (int296-g3c-green-*.txt). -->
+- [x] G4 live. The deployed zero-docs on the real tree: status prints exactly the lines ruling f keeps and
       nothing it does not measure; README.md changes by the one footer line and nothing else; a second sync leaves
       the tree identical; check exits 0, and names a planted stale tool; docs-status prints the new output.
-- [ ] G5 doors: one ship at the end; the deployed zero-docs tested in a new shell; nsh-test all passing; the
+<!-- evidence: G4 on the deployed zero-docs 2.0.2, real tree, 2026-10-21 08:12 (ship: 2 shipped, 15 unchanged, 0 failed). status exit 0 printed exactly Tools 17, Core domains 54, Commits 5198 and the Index line (matches every Cargo.toml); Tools 17 equals readme-index --dry-run (17 active tools, 19 crates read). README.md differs from HEAD by the one removed footer line and nothing else (git diff -U1 -- README.md). sync #1 exit 0 added only docs/public/index.md to the changed files (ruling h: the index no longer states the version); sync #2 exit 0 left the tree identical (diff sha equal). check exit 0 on the clean tree; with a line planted on core in tools/README.md, check exited 1 and printed: tools/README.md is stale for: core -- run `zero-docs sync`, and status printed Index: out of date: core -- run: zero-docs sync; tools/README.md was restored byte-identical (sha256 verified) and the tree returned to its post-sync state. docs-status and docs-check ran with the new output; docs-check, docs-status, docs-sync and zdocs resolve to zero-docs check, status, sync and zero-docs (config.nsh). Not part of this intent: an uncommitted move of intent 280 (future to in-progress) is in the tree; it stays out of the INT-296 commits. -->
+- [x] G5 doors: one ship at the end; the deployed zero-docs tested in a new shell; nsh-test all passing; the
       engine integrity fix still runs (zero-docs sync, integrity/mod.rs:253); the census command still answers
       (zero-docs --version); every alias resolves (docs-check, docs-status, docs-sync, zdocs); d 0 failed;
-      core intent validate clean. The close offers zero-docs its bump.
+      core intent validate clean. (Amended 2026-10-21: the bump offer of the close cannot precede the close, because
+      cicomplete refuses while a gate is open; its output is cited in the closing commit.)
+<!-- evidence: G5 2026-10-21 ~08:15, after one ship: deployed nsh-test 257 / 257; zero-docs --version 2.0.2; integrity/mod.rs:253 runs zero-docs sync (exit 0 twice); zdocs, docs-check, docs-status, docs-sync ran; no caller of a retired subcommand outside or inside the repo; d 26 passed, 2 warnings, 0 failed; core intent validate all 332 valid. -->
 - [ ] G6 commits: Intent INT-296 and the final plan's Seal with its note under refs/notes/seals; pushed with the
       pre-push hook passing; main and refs/notes/seals reach GitHub; core intent trace reads every seal intact.
 - [ ] G7 each gate carries evidence per INT-158.
@@ -103,6 +108,7 @@ e. One tool count: status and the index call the same function, and a test holds
 f. status keeps Tools, Core domains and Commits, and ends with the index line: matches every Cargo.toml, or stale
    for the named tools with run zero-docs sync.
 g. BOUNDARY_MARKER goes with cmd_readme. The census (G0g) found it used only by cmd_readme and the README check in status, not by cmd_public.
+h. cmd_public (ruling a, extended; approved by Christian 2026-10-21 07:33, message: yes): docs/public/index.md no longer states the release version; the generated index keeps its title and its contents list. Why: it is the same copy of meta/VERSION that status printed (main.rs:65-72), refreshed only when sync runs, so a version bump leaves it stale (INT-292). The version and date inside PHILOSOPHY.md are the person text, copied and not written, and stay.
 
 ## START HERE (next session)
 State at the end of 2026-10-18: cistart 296 is done (in-progress). No code has changed. G1 is approved. G0 is

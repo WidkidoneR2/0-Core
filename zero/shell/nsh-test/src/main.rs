@@ -2556,8 +2556,180 @@ print('CLASS-DONE')"##;
         let _ = std::fs::remove_dir_all(&base);
         result
     }
+    /// INT-296: output with the colour escapes removed, so a case reads what a person reads.
+    fn zd_plain(s: &str) -> String {
+        let mut out = String::new();
+        let mut chars = s.chars();
+        while let Some(c) = chars.next() {
+            if c == '\u{1b}' {
+                for d in chars.by_ref() {
+                    if d.is_ascii_alphabetic() {
+                        break;
+                    }
+                }
+            } else {
+                out.push(c);
+            }
+        }
+        out
+    }
+
+    /// The whole number the text ends in, if it ends in digits.
+    fn zd_last_number(s: &str) -> Option<usize> {
+        let mut digits: Vec<char> = s
+            .trim_end()
+            .chars()
+            .rev()
+            .take_while(|c| c.is_ascii_digit())
+            .collect();
+        digits.reverse();
+        digits.into_iter().collect::<String>().parse().ok()
+    }
+
+    /// The stand-in's domains directory: status refuses to run without one it can read.
+    fn zd_domains(base: &std::path::Path) -> Result<(), String> {
+        std::fs::create_dir_all(base.join("home/0-core/zero/engine/src/domains/alpha"))
+            .map_err(|e| format!("cannot create the stand-in domains directory: {}", e))
+    }
+
     // HELPERS END
     // CASES BEGIN
+    results.push(test(
+        "zero_docs_status_prints_only_what_it_measures",
+        Category::Regression,
+        || {
+            // INT-296: status once copied the release version, the intent counts and the doctor's
+            // last number, so it could disagree with the tool that owns each. It prints what it
+            // measures here and nothing another tool owns.
+            zd_case("statusfacts", |base| {
+                zd_guard(base)?;
+                zd_domains(base)?;
+                let (code, said) = zd_run(base, &["status"])?;
+                let plain = zd_plain(&said);
+                let has = |label: &str| plain.lines().any(|l| l.trim_start().starts_with(label));
+                let mut bad: Vec<String> = Vec::new();
+                for label in ["Version:", "Intents:", "Health:", "README:"] {
+                    if has(label) {
+                        bad.push(format!("prints a {} line", label.trim_end_matches(':')));
+                    }
+                }
+                for label in ["Tools:", "Core domains:", "Commits:"] {
+                    if !has(label) {
+                        bad.push(format!("no longer prints {}", label.trim_end_matches(':')));
+                    }
+                }
+                if code != 0 {
+                    bad.push(format!("exits {}", code));
+                }
+                if bad.is_empty() {
+                    Ok(())
+                } else {
+                    Err(format!("status {}", bad.join(", ")))
+                }
+            })
+        },
+    ));
+    results.push(test(
+        "zero_docs_status_tool_count_is_the_index_count",
+        Category::Regression,
+        || {
+            // INT-296: status counted registry rows (19), the index counted binaries that are not
+            // retired (17). A library crate is a crate on disk and a row in the registry, and it is
+            // not a tool; the two numbers must be one function's answer.
+            zd_case("statuscount", |base| {
+                zd_guard(base)?;
+                zd_domains(base)?;
+                let libby = zd_tools_dir(base).join("libby");
+                zd_write(
+                    &libby.join("Cargo.toml"),
+                    "[package]\nname = \"libby\"\nversion = \"0.1.0\"\nedition = \"2021\"\n",
+                )?;
+                zd_write(&libby.join("src/lib.rs"), "")?;
+                let reg = base.join("home/0-core/zero/registry/tools.toml");
+                let mut rows = std::fs::read_to_string(&reg).map_err(|e| e.to_string())?;
+                rows.push_str("[[tool]]\nname = \"libby\"\nversion = \"0.0.0\"\ncategory = \"dev\"\nexpected_usage = \"daily\"\ndescription = \"libby tool\"\n\n");
+                zd_write(&reg, &rows)?;
+                let (_, idx) = zd_run(base, &["readme-index", "--dry-run"])?;
+                let want = idx
+                    .split(" active tools")
+                    .next()
+                    .and_then(zd_last_number)
+                    .ok_or_else(|| format!("readme-index reports no count: {:?}", idx.trim()))?;
+                let (_, st) = zd_run(base, &["status"])?;
+                let plain = zd_plain(&st);
+                let got = plain
+                    .lines()
+                    .find(|l| l.trim_start().starts_with("Tools:"))
+                    .and_then(zd_last_number)
+                    .ok_or_else(|| format!("status prints no Tools count: {:?}", plain.trim()))?;
+                if got == want {
+                    Ok(())
+                } else {
+                    Err(format!("status counts {} tools, the index counts {}", got, want))
+                }
+            })
+        },
+    ));
+    results.push(test(
+        "zero_docs_status_names_a_stale_tool_with_a_real_hint",
+        Category::Regression,
+        || {
+            // INT-296: status reports the one thing it can prove about the docs: whether
+            // tools/README.md matches every Cargo.toml. Stale, it names the tool and tells the
+            // reader a subcommand that exists (zero-docs readme was retired by INT-291).
+            zd_case("statusstale", |base| {
+                zd_guard(base)?;
+                zd_run(base, &["readme-index"])?;
+                zd_domains(base)?;
+                let ip = zd_tools_dir(base).join("README.md");
+                let text = std::fs::read_to_string(&ip).map_err(|e| e.to_string())?;
+                if !text.contains(&zd_ver(1, 2, 3)) {
+                    return Err(
+                        "the index does not state alpha version, so a stale one cannot be planted"
+                            .to_string(),
+                    );
+                }
+                zd_write(&ip, &text.replace(&zd_ver(1, 2, 3), &zd_ver(0, 0, 1)))?;
+                let (_, said) = zd_run(base, &["status"])?;
+                let plain = zd_plain(&said);
+                if plain.contains("alpha") && plain.contains("zero-docs sync") {
+                    Ok(())
+                } else {
+                    Err(format!(
+                        "status said {:?} for a stale index that names alpha",
+                        plain.trim()
+                    ))
+                }
+            })
+        },
+    ));
+    results.push(test(
+        "zero_docs_sync_leaves_a_person_owned_root_readme_alone",
+        Category::Regression,
+        || {
+            // INT-296: the root README is person-owned. A README that never carried the footer is
+            // byte-identical after sync; zero-docs used to append its footer to it.
+            zd_case("rootkeep", |base| {
+                zd_guard(base)?;
+                zd_domains(base)?;
+                let rp = base.join("home/0-core/README.md");
+                let mine = "# root\n\n<!-- END DYNAMIC SECTION -->\n\nA person wrote this and never added a footer.\n";
+                zd_write(&rp, mine)?;
+                let (code, said) = zd_run(base, &["sync"])?;
+                let now = std::fs::read_to_string(&rp).map_err(|e| e.to_string())?;
+                if now == mine {
+                    Ok(())
+                } else {
+                    Err(format!(
+                        "sync rewrote the root README (exit {}, said {:?}): {:?}",
+                        code,
+                        said.trim(),
+                        now
+                    ))
+                }
+            })
+        },
+    ));
     results.push(test(
         "zero_docs_keeps_a_hand_maintained_readme",
         Category::Regression,
@@ -2684,57 +2856,86 @@ print('CLASS-DONE')"##;
     ));
 
     results.push(test(
-        "zero_docs_sync_leaves_the_root_readme_stamp_free_and_idempotent",
+        "zero_docs_sync_never_writes_the_root_readme",
         Category::Regression,
         || {
-            zd_case("rootstamp", |base| {
+            // INT-296: the root README is person-owned. One that still carries the retired footer
+            // and stale numbers is left exactly as it is, on the first sync and on the second: the
+            // footer goes only by a plan its owner approves, never by zero-docs.
+            zd_case("rootnever", |base| {
                 zd_guard(base)?;
+                zd_domains(base)?;
                 let rp = base.join("home/0-core/README.md");
-                let legacy = format!(
-                    "# root\n\n<!-- END DYNAMIC SECTION -->\n\n4 custom Rust tools and 1+ native domains, 2 complete intents.\n\n*Auto-generated by zero-docs v{} -- last sync: 2020-01-01 00:00*\n",
-                    zd_ver(0, 0, 1)
-                );
-                let mut rows = String::new();
-                for n in ["alpha", "handwritten", "prose", "core"] {
-                    rows.push_str(&format!(
-                        "[[tool]]\nname = \"{}\"\nversion = \"{}\"\ncategory = \"dev\"\nexpected_usage = \"daily\"\ndescription = \"{} tool\"\n\n",
-                        n,
-                        zd_ver(0, 0, 1),
-                        n
-                    ));
+                let legacy = "# root\n\n<!-- END DYNAMIC SECTION -->\n\n4 custom Rust tools and 1+ native domains, 2 complete intents.\n\n*Auto-generated by zero-docs -- the live numbers above are refreshed by `zero-docs sync`.*\n";
+                zd_write(&rp, legacy)?;
+                for round in ["first", "second"] {
+                    let (code, said) = zd_run(base, &["sync"])?;
+                    let now = std::fs::read_to_string(&rp).map_err(|e| e.to_string())?;
+                    if now != legacy {
+                        return Err(format!(
+                            "the {} sync rewrote the root README (exit {}, said {:?}): {:?}",
+                            round,
+                            code,
+                            said.trim(),
+                            now
+                        ));
+                    }
                 }
-                zd_write(&base.join("home/0-core/zero/registry/tools.toml"), &rows)?;
-                std::fs::create_dir_all(base.join("home/0-core/zero/engine/src/domains/alpha"))
-                    .map_err(|e| e.to_string())?;
-                zd_write(&rp, &legacy)?;
-                let (code, said) = zd_run(base, &["sync"])?;
-                let first = std::fs::read_to_string(&rp).map_err(|e| e.to_string())?;
-                if first == legacy {
-                    return Err(format!(
-                        "sync never reached the root README (exit {}): {}",
-                        code,
-                        said.trim()
-                    ));
+                Ok(())
+            })
+        },
+    ));
+
+    results.push(test(
+        "zero_docs_public_index_states_no_version",
+        Category::Regression,
+        || {
+            // INT-296 ruling h: docs/public/index.md keeps its title and its contents list and
+            // states no release version. The VERSION file and Cargo.toml own it, and a copy in a
+            // generated page is wrong by the next release, so two versions must give one index.
+            zd_case("publicnover", |base| {
+                zd_guard(base)?;
+                let home = base.join("home/0-core");
+                zd_write(&home.join("docs/COMMAND-GUIDE.md"), "# Commands\n")?;
+                let idx = home.join("docs/public/index.md");
+                let mut seen = Vec::new();
+                for ver in ["9.8.7", "9.8.8"] {
+                    zd_write(&home.join("zero/meta/VERSION"), &format!("{}\n", ver))?;
+                    let (code, said) = zd_run(base, &["public"])?;
+                    let text = std::fs::read_to_string(&idx).map_err(|e| {
+                        format!(
+                            "public wrote no docs/public/index.md (exit {}, said {:?}): {}",
+                            code,
+                            said.trim(),
+                            e
+                        )
+                    })?;
+                    seen.push(text);
                 }
-                zd_run(base, &["sync"])?;
-                let second = std::fs::read_to_string(&rp).map_err(|e| e.to_string())?;
                 let mut bad = Vec::new();
-                if zd_has_date(&first) {
-                    bad.push("states a date");
+                if seen.iter().any(|t| t.contains("9.8.")) {
+                    bad.push("states the release version");
                 }
-                if first.contains("zero-docs v") {
-                    bad.push("states a version");
+                if seen[0] != seen[1] {
+                    bad.push("changes when only the version changes");
                 }
-                if first != second {
-                    bad.push("changes on a second sync");
+                if !seen[0].starts_with("# Project 0 Documentation\n") {
+                    bad.push("lost its title");
                 }
-                if !first.starts_with("# root\n\n<!-- END DYNAMIC SECTION -->") {
-                    bad.push("changes the text above the boundary");
+                if !seen[0].contains("## Contents\n") {
+                    bad.push("lost its contents heading");
+                }
+                if !seen[0].contains("- [Command Reference](COMMAND-GUIDE.md)\n") {
+                    bad.push("lost its contents list");
                 }
                 if bad.is_empty() {
                     Ok(())
                 } else {
-                    Err(format!("the root README {}", bad.join(" and ")))
+                    Err(format!(
+                        "docs/public/index.md {}: {:?}",
+                        bad.join(" and "),
+                        seen[0]
+                    ))
                 }
             })
         },
