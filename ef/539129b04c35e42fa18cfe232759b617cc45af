@@ -1,0 +1,29 @@
+file /home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md  sha256 e6c02403ccbef8cf -> 47fa1375d2ec7d7a
+--- /home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: replacing lines 88..89 ---
+   86:       engine integrity fix still runs (zero-docs sync, integrity/mod.rs:253); the census command still answers
+   87:       (zero-docs --version); every alias resolves (docs-check, docs-status, docs-sync, zdocs); d 0 failed;
+>> 88:       core intent validate clean. The close offers zero-docs its bump.
+>> 89: - [ ] G6 commits: Intent INT-296 and the final plan's Seal with its note under refs/notes/seals; pushed with the
+   90:       pre-push hook passing; main and refs/notes/seals reach GitHub; core intent trace reads every seal intact.
+   91: - [ ] G7 each gate carries evidence per INT-158.
+++       core intent validate clean. (Amended 2026-10-21: the bump offer of the close cannot precede the close, because
+++       cicomplete refuses while a gate is open; its output is cited in the closing commit.)
+++
+--- /home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: replacing lines 85..85 ---
+   83:       the tree identical; check exits 0, and names a planted stale tool; docs-status prints the new output.
+   84: <!-- evidence: G4 on the deployed zero-docs 2.0.2, real tree, 2026-10-21 08:12 (ship: 2 shipped, 15 unchanged, 0 failed). status exit 0 printed exactly Tools 17, Core domains 54, Commits 5198 and the Index line (matches every Cargo.toml); Tools 17 equals readme-index --dry-run (17 active tools, 19 crates read). README.md differs from HEAD by the one removed footer line and nothing else (git diff -U1 -- README.md). sync #1 exit 0 added only docs/public/index.md to the changed files (ruling h: the index no longer states the version); sync #2 exit 0 left the tree identical (diff sha equal). check exit 0 on the clean tree; with a line planted on core in tools/README.md, check exited 1 and printed: tools/README.md is stale for: core -- run `zero-docs sync`, and status printed Index: out of date: core -- run: zero-docs sync; tools/README.md was restored byte-identical (sha256 verified) and the tree returned to its post-sync state. docs-status and docs-check ran with the new output; docs-check, docs-status, docs-sync and zdocs resolve to zero-docs check, status, sync and zero-docs (config.nsh). Not part of this intent: an uncommitted move of intent 280 (future to in-progress) is in the tree; it stays out of the INT-296 commits. -->
+>> 85: - [ ] G5 doors: one ship at the end; the deployed zero-docs tested in a new shell; nsh-test all passing; the
+   86:       engine integrity fix still runs (zero-docs sync, integrity/mod.rs:253); the census command still answers
+   87:       (zero-docs --version); every alias resolves (docs-check, docs-status, docs-sync, zdocs); d 0 failed;
+++ - [x] G5 doors: one ship at the end;
+--- /home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: replacing lines 90..90 ---
+   88:       core intent validate clean. (Amended 2026-10-21: the bump offer of the close cannot precede the close, because
+   89:       cicomplete refuses while a gate is open; its output is cited in the closing commit.)
+>> 90: - [ ] G6 commits: Intent INT-296 and the final plan's Seal with its note under refs/notes/seals; pushed with the
+   91:       pre-push hook passing; main and refs/notes/seals reach GitHub; core intent trace reads every seal intact.
+   92: - [ ] G7 each gate carries evidence per INT-158.
+++ <!-- evidence: G5 2026-10-21 ~08:15, after one ship: deployed nsh-test 257 / 257; zero-docs --version 2.0.2; integrity/mod.rs:253 runs zero-docs sync (exit 0 twice); zdocs, docs-check, docs-status, docs-sync ran; no caller of a retired subcommand outside or inside the repo; d 26 passed, 2 warnings, 0 failed; core intent validate all 332 valid. -->
+++ - [ ] G6 commits: Intent INT-296
+/home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/296-zero-docs-status-prints-only-what-it-measures.md: 1 replaced
