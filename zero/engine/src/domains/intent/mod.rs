@@ -1108,22 +1108,76 @@ struct VersionPlan {
     level: Option<zero_core::version::Level>,
 }
 
+/// F-0049, F-0050: the `git log` arguments that pick out the commits of one intent, in one
+/// place for touched_crates and intent_commits. The id must be followed by no digit, so INT-29
+/// never matches INT-290 or INT-292 (F-0049). The window opens at the intent's own `date:`, not
+/// at a fixed distance from today: an intent open longer than 60 days keeps its early commits
+/// (F-0050), and an older intent that had the same number (INT-267 did) stays out. A date that
+/// is not YYYY-MM-DD refuses: without it the two cannot be told apart.
+fn intent_log_args(id: &str, started: &str) -> Result<Vec<String>, String> {
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(format!(
+            "intent id {:?} is not a number, so its commits cannot be selected",
+            id
+        ));
+    }
+    let b = started.as_bytes();
+    let dated = b.len() == 10
+        && b.iter().enumerate().all(|(i, c)| {
+            if i == 4 || i == 7 {
+                *c == b'-'
+            } else {
+                c.is_ascii_digit()
+            }
+        });
+    if !dated {
+        return Err(format!(
+            "INT-{} has no date: YYYY-MM-DD in its frontmatter (found {:?}), so its commits \
+             cannot be told from an older intent that had the same number",
+            id, started
+        ));
+    }
+    Ok(vec![
+        "-E".to_string(),
+        format!("--grep=INT-{}([^0-9]|$)", id),
+        format!("--since={} 00:00:00", started),
+    ])
+}
+
+/// F-0049, F-0050: `git log` for one intent. `shape` is what the caller wants printed.
+fn intent_git_log(
+    core_root: &str,
+    id: &str,
+    started: &str,
+    shape: &[&str],
+) -> Result<std::process::Output, String> {
+    let select = intent_log_args(id, started)?;
+    std::process::Command::new("git")
+        .arg("-C")
+        .arg(core_root)
+        .arg("log")
+        .args(shape)
+        .args(&select)
+        .output()
+        .map_err(|e| format!("git log could not run: {}", e))
+}
+
+/// F-0050: the day an intent was written, from its own frontmatter.
+fn intent_started(ctx: &AppContext, id: &str) -> Result<String, String> {
+    load_all(ctx)
+        .into_iter()
+        .find(|i| i.id == id)
+        .map(|i| i.date)
+        .ok_or_else(|| format!("Intent {} not found, so its commits cannot be selected", id))
+}
+
 /// INT-326 found the touched crates this way. INT-287 G2 names each crate by its registry row
 /// (core, nsh, nsh-test), the name bump-versions and --bump both accept.
 fn touched_crates(ctx: &AppContext, id: &str) -> Result<Vec<TouchedCrate>, String> {
-    let touched = std::process::Command::new("git")
-        .args([
-            "-C",
-            &ctx.core_root,
-            "log",
-            "--name-only",
-            "--format=",
-            &format!("--grep=INT-{}", id),
-            "--since=60 days ago",
-        ])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())
-        .unwrap_or_default();
+    // F-0049, F-0050: this intent's own commits, from the day it was written.
+    let started = intent_started(ctx, id)?;
+    let touched = intent_git_log(&ctx.core_root, id, &started, &["--name-only", "--format="])
+        .map(|o| String::from_utf8_lossy(&o.stdout).to_string())?;
     // INT-273: one rule for which crate a path is in, shared with the evidence at the question.
     let paths: Vec<&str> = touched.lines().collect();
     // INT-287 G2: the registry is read here, and an unreadable one stops the close: it is not
@@ -1282,20 +1336,13 @@ struct EvCommit {
 /// touched_crates (the same --grep and --since), so the evidence describes exactly the work the
 /// question is about. Renames stay detected: a move counts its changed lines at its destination,
 /// never the whole file twice.
-fn intent_commits(core_root: &str, id: &str) -> Result<Vec<EvCommit>, String> {
-    let out = std::process::Command::new("git")
-        .args([
-            "-C",
-            core_root,
-            "log",
-            "-z",
-            "--numstat",
-            "--format=%x01%h%x09%s",
-            &format!("--grep=INT-{}", id),
-            "--since=60 days ago",
-        ])
-        .output()
-        .map_err(|e| format!("git log could not run: {}", e))?;
+fn intent_commits(core_root: &str, id: &str, started: &str) -> Result<Vec<EvCommit>, String> {
+    let out = intent_git_log(
+        core_root,
+        id,
+        started,
+        &["-z", "--numstat", "--format=%x01%h%x09%s"],
+    )?;
     if !out.status.success() {
         return Err(format!(
             "git log exited {}: {}",
@@ -1535,6 +1582,172 @@ mod int273_tests {
     }
 }
 
+#[cfg(test)]
+mod f0049_f0050_tests {
+    use super::*;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    static N: AtomicUsize = AtomicUsize::new(0);
+
+    fn git(dir: &Path, args: &[&str], date: &str) {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .env("GIT_AUTHOR_DATE", date)
+            .env("GIT_COMMITTER_DATE", date)
+            .output()
+            .expect("git runs");
+        assert!(out.status.success(), "git {:?}: {:?}", args, out);
+    }
+
+    /// A throwaway repository. Each commit gets its own file, message and date.
+    fn repo(commits: &[(&str, &str)]) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "f0049-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, Ordering::SeqCst)
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        git(&dir, &["init", "-q"], "2026-01-01T12:00:00");
+        git(
+            &dir,
+            &["config", "user.email", "t@example.com"],
+            "2026-01-01T12:00:00",
+        );
+        git(&dir, &["config", "user.name", "t"], "2026-01-01T12:00:00");
+        for (n, (msg, date)) in commits.iter().enumerate() {
+            std::fs::write(dir.join(format!("f{}.txt", n)), msg).unwrap();
+            git(&dir, &["add", "."], date);
+            git(&dir, &["commit", "-q", "-m", msg], date);
+        }
+        dir
+    }
+
+    fn subjects(dir: &Path, id: &str, started: &str) -> Vec<String> {
+        let out = intent_git_log(dir.to_str().unwrap(), id, started, &["--format=%s"]).unwrap();
+        let mut got: Vec<String> = String::from_utf8_lossy(&out.stdout)
+            .lines()
+            .map(String::from)
+            .collect();
+        got.sort();
+        got
+    }
+
+    #[test]
+    fn f0049_an_id_never_matches_a_longer_id() {
+        let d = repo(&[
+            ("INT-29: the one", "2026-10-01T12:00:00"),
+            ("INT-290: not it", "2026-10-02T12:00:00"),
+            ("INT-292: not it either", "2026-10-03T12:00:00"),
+            ("close (INT-29)", "2026-10-04T12:00:00"),
+            ("INT-2: shorter", "2026-10-05T12:00:00"),
+            ("INT-290", "2026-10-06T12:00:00"),
+        ]);
+        let want = vec!["INT-29: the one".to_string(), "close (INT-29)".to_string()];
+        assert_eq!(subjects(&d, "29", "2026-09-01"), want);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn f0049_the_id_in_a_trailer_line_matches_too() {
+        let d = repo(&[("fix: a thing", "2026-10-01T12:00:00")]);
+        git(
+            &d,
+            &[
+                "commit",
+                "-q",
+                "--amend",
+                "-m",
+                "fix: a thing\n\nIntent: INT-29",
+            ],
+            "2026-10-01T12:00:00",
+        );
+        assert_eq!(
+            subjects(&d, "29", "2026-09-01"),
+            vec!["fix: a thing".to_string()]
+        );
+        assert!(subjects(&d, "2", "2026-09-01").is_empty());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn f0050_an_intent_open_longer_than_sixty_days_keeps_its_early_commits() {
+        let d = repo(&[
+            ("INT-5: first", "2026-02-01T12:00:00"),
+            ("INT-5: middle", "2026-05-01T12:00:00"),
+            ("INT-5: last", "2026-10-01T12:00:00"),
+        ]);
+        assert_eq!(
+            subjects(&d, "5", "2026-01-15"),
+            vec![
+                "INT-5: first".to_string(),
+                "INT-5: last".to_string(),
+                "INT-5: middle".to_string()
+            ]
+        );
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn f0050_an_older_intent_with_the_same_number_stays_out() {
+        // INT-267 was two intents: one in May to July, one from 2026-09-28.
+        let d = repo(&[
+            ("INT-267: the old one", "2026-05-02T12:00:00"),
+            ("INT-267: the old one again", "2026-07-30T12:00:00"),
+            ("INT-267: the new one", "2026-09-28T09:00:00"),
+            ("INT-267: closed", "2026-10-03T12:00:00"),
+        ]);
+        assert_eq!(
+            subjects(&d, "267", "2026-09-28"),
+            vec![
+                "INT-267: closed".to_string(),
+                "INT-267: the new one".to_string()
+            ]
+        );
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn the_arguments_are_exactly_these() {
+        assert_eq!(
+            intent_log_args("292", "2026-10-17").unwrap(),
+            vec![
+                "-E".to_string(),
+                "--grep=INT-292([^0-9]|$)".to_string(),
+                "--since=2026-10-17 00:00:00".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn an_id_or_date_that_cannot_select_refuses_and_says_why() {
+        for bad_id in ["", "29;x", "INT-29", "2 9", ".*"] {
+            let e = intent_log_args(bad_id, "2026-10-17").unwrap_err();
+            assert!(e.contains("not a number"), "{}: {}", bad_id, e);
+        }
+        for bad_date in [
+            "",
+            "2026-9-28",
+            "28-09-2026",
+            "2026-09-28T00",
+            "garbage",
+            "2026/09/28",
+        ] {
+            let e = intent_log_args("29", bad_date).unwrap_err();
+            assert!(
+                e.contains("INT-29") && e.contains("date: YYYY-MM-DD"),
+                "{}: {}",
+                bad_date,
+                e
+            );
+        }
+    }
+}
+
 /// INT-271: every version decision, made and checked before the first write. A --bump decides
 /// first, --skip-bumps fills the rest, a terminal asks for what is left, and anywhere else an
 /// undecided crate refuses the close. Each Cargo.toml passes plan_bump here, so a manifest the
@@ -1550,7 +1763,7 @@ fn decide_versions(
     let interactive = std::io::stdin().is_terminal();
     // INT-273: the work this intent did, read once and shown above each question that is asked.
     let evidence = if interactive {
-        Some(intent_commits(&ctx.core_root, id))
+        Some(intent_started(ctx, id).and_then(|s| intent_commits(&ctx.core_root, id, &s)))
     } else {
         None
     };
