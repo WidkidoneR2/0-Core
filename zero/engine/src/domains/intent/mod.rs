@@ -258,7 +258,7 @@ pub fn list(
             }
             // default: only actionable intents
             // INT-332: in-progress/ folder must always show
-            (i.folder == "future" || i.folder == "deferred" || i.folder == "in-progress")
+            folders::ACTIVE.contains(&i.folder.as_str())
                 && (i.status == "planned" || i.status == "in-progress")
         })
         .collect();
