@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 /// INT-266: findings -- one record per file under intents/findings/.
 pub mod findings;
+pub mod folders;
 pub mod gates;
 pub mod trace;
 
@@ -101,17 +102,11 @@ pub(crate) fn in_progress_ids(ctx: &AppContext) -> Vec<String> {
 
 fn load_all(ctx: &AppContext) -> Vec<Intent> {
     let base = intents_dir(ctx);
-    let folders = [
-        "complete",
-        "future",
-        "in-progress",
-        "cancelled",
-        "deferred",
-        "decisions",
-        "experiments",
-        "incidents",
-        "philosophy",
-    ];
+    let folders: Vec<&str> = folders::LIFECYCLE
+        .iter()
+        .chain(folders::RECORDS)
+        .copied()
+        .collect();
     let mut intents = vec![];
 
     for folder in &folders {
@@ -446,7 +441,7 @@ pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
 /// decisions/137: intent lifecycle dirs share ONE id namespace (a file MOVES between them).
 /// Each record dir owns its own sequence.
 pub fn validate_issues() -> (usize, Vec<String>) {
-    const LIFECYCLE: &[&str] = &["future", "in-progress", "complete", "cancelled"];
+    use folders::LIFECYCLE;
     const VALID_STATUS: &[&str] = &[
         "planned",
         "in-progress",
@@ -456,17 +451,7 @@ pub fn validate_issues() -> (usize, Vec<String>) {
         "resolved",
         "decided",
     ];
-    const FOLDERS: &[&str] = &[
-        "complete",
-        "future",
-        "in-progress",
-        "cancelled",
-        "deferred",
-        "decisions",
-        "experiments",
-        "incidents",
-        "philosophy",
-    ];
+    let all_folders: Vec<&str> = LIFECYCLE.iter().chain(folders::RECORDS).copied().collect();
 
     let base = zero_core::paths::intents_dir();
     let mut issues: Vec<String> = Vec::new();
@@ -492,7 +477,7 @@ pub fn validate_issues() -> (usize, Vec<String>) {
     let mut edges: Vec<(String, Vec<String>, String)> = Vec::new();
     let mut count = 0usize;
 
-    for folder in FOLDERS {
+    for folder in &all_folders {
         let dir = base.join(folder);
         let Ok(entries) = fs::read_dir(&dir) else {
             continue;
@@ -1008,7 +993,7 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
 
     // Update frontmatter status in file
     let base = ctx.fpath("intents");
-    let folders = ["future", "planned", "deferred"];
+    let folders = folders::PENDING.to_vec();
     let mut found_path: Option<PathBuf> = None;
 
     for folder in &folders {
@@ -2542,7 +2527,7 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
     // INT-332: block cicomplete if open gates exist without formal deferral
     if let Some(ref path) = {
         let base = ctx.fpath("intents");
-        let folders = ["future", "planned", "deferred", "in-progress"];
+        let folders = folders::ACTIVE.to_vec();
         let mut found: Option<std::path::PathBuf> = None;
         for folder in &folders {
             let dir = base.join(folder);
@@ -2601,7 +2586,7 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
 
     // Find and move the file to complete/
     let base = ctx.fpath("intents");
-    let folders = ["future", "planned", "deferred", "in-progress"];
+    let folders = folders::ACTIVE.to_vec();
     let mut found_path: Option<PathBuf> = None;
 
     for folder in &folders {
@@ -2755,32 +2740,10 @@ pub const TEMPLATES: &[(&str, &str, &str, &str)] = &[
     ("philosophy", "philosophy", "philosophy", "complete"),
 ];
 
-/// The ONE numberer. Same namespace rule `validate_issues` enforces (decisions/137):
-/// the lifecycle dirs share a counter because a file MOVES between them; each record dir
-/// owns its own sequence. Three copies of this logic existed before.
+/// Delegates to `folders::next_number`, the ONE numberer: the lifecycle directories share a counter
+/// because a file MOVES between them (decisions/137), and each record directory owns its own.
 fn next_id(category: &str) -> u32 {
-    const LIFECYCLE: &[&str] = &["future", "in-progress", "complete", "cancelled"];
-    let base = zero_core::paths::intents_dir();
-    let scan: Vec<&str> = if LIFECYCLE.contains(&category) {
-        LIFECYCLE.to_vec()
-    } else {
-        vec![category]
-    };
-    scan.iter()
-        .flat_map(|d| fs::read_dir(base.join(d)).ok().into_iter().flatten())
-        .flatten()
-        .filter_map(|e| {
-            let n = e.file_name().to_string_lossy().to_string();
-            let p = n.split('-').next()?;
-            if p.len() == 3 && p.bytes().all(|b| b.is_ascii_digit()) {
-                p.parse::<u32>().ok()
-            } else {
-                None
-            }
-        })
-        .max()
-        .unwrap_or(0)
-        + 1
+    folders::next_number(&zero_core::paths::intents_dir(), category)
 }
 
 /// Chronological history. Ported from rust-tools/intent's cmd_timeline, which walked eight
@@ -4388,7 +4351,7 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
     }
     let base = intents_dir(ctx);
     // Active folders only -- you cancel work in flight, not something already done.
-    let folders = ["in-progress", "future", "planned", "deferred"];
+    let folders = folders::ACTIVE.to_vec();
     let mut found_path: Option<std::path::PathBuf> = None;
     for folder in &folders {
         let dir = base.join(folder);
@@ -4481,7 +4444,8 @@ pub fn defer_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()> 
     ctx.capabilities
         .require("intent", &[Capability::FilesystemWriteHome])?;
     let base = intents_dir(ctx);
-    let folders = ["in-progress", "future", "complete"];
+    let mut folders = folders::ACTIVE.to_vec();
+    folders.push("complete"); // gates are deferred on finished work too, as before; the one finder (G5) replaces this
     let mut found_path: Option<std::path::PathBuf> = None;
     for folder in &folders {
         let dir = base.join(folder);
@@ -4528,7 +4492,8 @@ pub fn override_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<(
     ctx.capabilities
         .require("intent", &[Capability::FilesystemWriteHome])?;
     let base = intents_dir(ctx);
-    let folders = ["in-progress", "future", "complete"];
+    let mut folders = folders::ACTIVE.to_vec();
+    folders.push("complete"); // gates are deferred on finished work too, as before; the one finder (G5) replaces this
     let mut found_path: Option<std::path::PathBuf> = None;
     for folder in &folders {
         let dir = base.join(folder);
