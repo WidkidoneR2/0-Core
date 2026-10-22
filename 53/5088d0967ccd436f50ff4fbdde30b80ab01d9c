@@ -1,0 +1,11 @@
+file /home/christian/0-core/zero/intents/planned/249-devbox-verify-a-bug-report-and-a-crate-census-are-the-same-question----does-this-reproduce-in-a-clean-room.md  sha256 2ef2f6b12bbedead -> 14945a4381867224
+--- /home/christian/0-core/zero/intents/planned/249-devbox-verify-a-bug-report-and-a-crate-census-are-the-same-question----does-this-reproduce-in-a-clean-room.md: replacing lines 6..7 ---
+   4: type: future
+   5: title: "devbox verify: a bug report and a crate census are the same question -- does this reproduce in a clean room"
+>> 6: status: in-progress
+>> 7: tags: [devbox, sandbox, testing, reproduction, census, 247, 167]
+   8: ---
+   9: 
+++ status: planned
+++ tags: [devbox, sandbox, testing, reproduction, census, 247, 167]
+/home/christian/0-core/zero/intents/planned/249-devbox-verify-a-bug-report-and-a-crate-census-are-the-same-question----does-this-reproduce-in-a-clean-room.md: 1 replaced
