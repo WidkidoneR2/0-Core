@@ -1,0 +1,280 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 4cef5d41da46daea -> b2e68c0854ddb58d
+file /home/christian/0-core/zero/engine/src/domains/intent/finder.rs  sha256 88f29d7fbf427aea -> 67326e58cf16324f
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 10..11 ---
+   8: use std::path::{Path, PathBuf};
+   9: 
+>> 10: /// INT-266: findings -- one record per file under intents/findings/.
+>> 11: pub mod findings;
+   12: pub mod folders;
+   13: pub mod gates;
+++ pub mod finder;
+++ /// INT-266: findings -- one record per file under intents/findings/.
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 997..1023 ---
+   995:     // Update frontmatter status in file
+   996:     let base = ctx.fpath("intents");
+>> 997:     let folders = folders::PENDING.to_vec();
+>> 998:     let mut found_path: Option<PathBuf> = None;
+>> 999: 
+>> 1000:     for folder in &folders {
+>> 1001:         let dir = base.join(folder);
+>> 1002:         if !dir.exists() {
+>> 1003:             continue;
+>> 1004:         }
+>> 1005:         if let Ok(entries) = fs::read_dir(&dir) {
+>> 1006:             for entry in entries.flatten() {
+>> 1007:                 let path = entry.path();
+>> 1008:                 if path
+>> 1009:                     .file_name()
+>> 1010:                     .and_then(|n| n.to_str())
+>> 1011:                     .map(|n| n.starts_with(&format!("{:0>3}", id)) || n.starts_with(id))
+>> 1012:                     .unwrap_or(false)
+>> 1013:                 {
+>> 1014:                     found_path = Some(path);
+>> 1015:                     break;
+>> 1016:                 }
+>> 1017:             }
+>> 1018:         }
+>> 1019:         if found_path.is_some() {
+>> 1020:             break;
+>> 1021:         }
+>> 1022:     }
+>> 1023: 
+   1024:     if let Some(path) = found_path {
+   1025:         let content = fs::read_to_string(&path).map_err(crate::errors::CoreError::Io)?;
+++     let found_path = finder::find_intent_file(&base, id, folders::PENDING);
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 2504..2529 ---
+   2502: 
+   2503:     // INT-332: block cicomplete if open gates exist without formal deferral
+>> 2504:     if let Some(ref path) = {
+>> 2505:         let base = ctx.fpath("intents");
+>> 2506:         let folders = folders::ACTIVE.to_vec();
+>> 2507:         let mut found: Option<std::path::PathBuf> = None;
+>> 2508:         for folder in &folders {
+>> 2509:             let dir = base.join(folder);
+>> 2510:             if let Ok(entries) = std::fs::read_dir(&dir) {
+>> 2511:                 for entry in entries.flatten() {
+>> 2512:                     let p = entry.path();
+>> 2513:                     if p.file_name()
+>> 2514:                         .and_then(|n| n.to_str())
+>> 2515:                         .map(|n| n.starts_with(&format!("{:0>3}", id)) || n.starts_with(id))
+>> 2516:                         .unwrap_or(false)
+>> 2517:                     {
+>> 2518:                         found = Some(p);
+>> 2519:                         break;
+>> 2520:                     }
+>> 2521:                 }
+>> 2522:             }
+>> 2523:             if found.is_some() {
+>> 2524:                 break;
+>> 2525:             }
+>> 2526:         }
+>> 2527:         found
+>> 2528:     } {
+>> 2529:         let file_content = std::fs::read_to_string(path).unwrap_or_default();
+   2530:         if let Err(refusal) = gates::check_completion(&file_content) {
+   2531:             let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+++     let base = ctx.fpath("intents");
+++     let gate_file = match finder::find_intent_file(&base, id, folders::ACTIVE) {
+++         Some(p) => p,
+++         None => {
+++             let msg = format!(
+++                 "intent {} has no file in {}",
+++                 id,
+++                 folders::ACTIVE.join(", ")
+++             );
+++             eprintln!("  refused: {}", msg);
+++             eprintln!("  nothing was written and the intent was not moved");
+++             return Err(crate::errors::CoreError::Reported(msg));
+++         }
+++     };
+++     {
+++         let path = &gate_file;
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 2554..2582 ---
+   2552:     let receipt = write_versions(ctx, id, &planned)?;
+   2553: 
+>> 2554:     // Find and move the file to complete/
+>> 2555:     let base = ctx.fpath("intents");
+>> 2556:     let folders = folders::ACTIVE.to_vec();
+>> 2557:     let mut found_path: Option<PathBuf> = None;
+>> 2558: 
+>> 2559:     for folder in &folders {
+>> 2560:         let dir = base.join(folder);
+>> 2561:         if !dir.exists() {
+>> 2562:             continue;
+>> 2563:         }
+>> 2564:         if let Ok(entries) = fs::read_dir(&dir) {
+>> 2565:             for entry in entries.flatten() {
+>> 2566:                 let path = entry.path();
+>> 2567:                 if path
+>> 2568:                     .file_name()
+>> 2569:                     .and_then(|n| n.to_str())
+>> 2570:                     .map(|n| n.starts_with(&format!("{:0>3}", id)) || n.starts_with(id))
+>> 2571:                     .unwrap_or(false)
+>> 2572:                 {
+>> 2573:                     found_path = Some(path);
+>> 2574:                     break;
+>> 2575:                 }
+>> 2576:             }
+>> 2577:         }
+>> 2578:         if found_path.is_some() {
+>> 2579:             break;
+>> 2580:         }
+>> 2581:     }
+>> 2582: 
+   2583:     if let Some(src_path) = found_path {
+   2584:         // Update status in frontmatter
+++     // Move the file the gate check read to complete/: one search, never two.
+++     let found_path = Some(gate_file);
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 4295..4312 ---
+   4293:     let base = intents_dir(ctx);
+   4294:     // Active folders only -- you cancel work in flight, not something already done.
+>> 4295:     let folders = folders::ACTIVE.to_vec();
+>> 4296:     let mut found_path: Option<std::path::PathBuf> = None;
+>> 4297:     for folder in &folders {
+>> 4298:         let dir = base.join(folder);
+>> 4299:         if let Ok(entries) = std::fs::read_dir(&dir) {
+>> 4300:             for entry in entries.flatten() {
+>> 4301:                 let name = entry.file_name().to_string_lossy().to_string();
+>> 4302:                 if name.starts_with(&format!("{}-", id)) && name.ends_with(".md") {
+>> 4303:                     found_path = Some(entry.path());
+>> 4304:                     break;
+>> 4305:                 }
+>> 4306:             }
+>> 4307:         }
+>> 4308:         if found_path.is_some() {
+>> 4309:             break;
+>> 4310:         }
+>> 4311:     }
+>> 4312:     let path = found_path.ok_or_else(|| crate::errors::CoreError::Domain {
+   4313:         domain: "intent".to_string(),
+   4314:         message: format!(
+++     let found_path = finder::find_intent_file(&base, id, folders::ACTIVE);
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 4368..4390 ---
+   4366: }
+   4367: 
+>> 4368: pub fn defer_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()> {
+>> 4369:     ctx.capabilities
+>> 4370:         .require("intent", &[Capability::FilesystemWriteHome])?;
+>> 4371:     let base = intents_dir(ctx);
+>> 4372:     let mut folders = folders::ACTIVE.to_vec();
+>> 4373:     folders.push("complete"); // gates are deferred on finished work too, as before; the one finder (G5) replaces this
+>> 4374:     let mut found_path: Option<std::path::PathBuf> = None;
+>> 4375:     for folder in &folders {
+>> 4376:         let dir = base.join(folder);
+>> 4377:         if let Ok(entries) = std::fs::read_dir(&dir) {
+>> 4378:             for entry in entries.flatten() {
+>> 4379:                 let name = entry.file_name().to_string_lossy().to_string();
+>> 4380:                 if name.starts_with(&format!("{}-", id)) && name.ends_with(".md") {
+>> 4381:                     found_path = Some(entry.path());
+>> 4382:                     break;
+>> 4383:                 }
+>> 4384:             }
+>> 4385:         }
+>> 4386:         if found_path.is_some() {
+>> 4387:             break;
+>> 4388:         }
+>> 4389:     }
+>> 4390:     let path = found_path.ok_or_else(|| crate::errors::CoreError::Domain {
+   4391:         domain: "intent".to_string(),
+   4392:         message: format!("Intent {} not found", id),
+++ pub fn defer_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()> {
+++     ctx.capabilities
+++         .require("intent", &[Capability::FilesystemWriteHome])?;
+++     let base = intents_dir(ctx);
+++     let mut folders = folders::ACTIVE.to_vec();
+++     folders.push("complete"); // gates are deferred on finished work too, as before
+++     let found_path = finder::find_intent_file(&base, id, &folders);
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 4401..4423 ---
+   4399: }
+   4400: 
+>> 4401: pub fn override_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()> {
+>> 4402:     ctx.capabilities
+>> 4403:         .require("intent", &[Capability::FilesystemWriteHome])?;
+>> 4404:     let base = intents_dir(ctx);
+>> 4405:     let mut folders = folders::ACTIVE.to_vec();
+>> 4406:     folders.push("complete"); // gates are deferred on finished work too, as before; the one finder (G5) replaces this
+>> 4407:     let mut found_path: Option<std::path::PathBuf> = None;
+>> 4408:     for folder in &folders {
+>> 4409:         let dir = base.join(folder);
+>> 4410:         if let Ok(entries) = std::fs::read_dir(&dir) {
+>> 4411:             for entry in entries.flatten() {
+>> 4412:                 let name = entry.file_name().to_string_lossy().to_string();
+>> 4413:                 if name.starts_with(&format!("{}-", id)) && name.ends_with(".md") {
+>> 4414:                     found_path = Some(entry.path());
+>> 4415:                     break;
+>> 4416:                 }
+>> 4417:             }
+>> 4418:         }
+>> 4419:         if found_path.is_some() {
+>> 4420:             break;
+>> 4421:         }
+>> 4422:     }
+>> 4423:     let path = found_path.ok_or_else(|| crate::errors::CoreError::Domain {
+   4424:         domain: "intent".to_string(),
+   4425:         message: format!("Intent {} not found", id),
+++ pub fn override_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()> {
+++     ctx.capabilities
+++         .require("intent", &[Capability::FilesystemWriteHome])?;
+++     let base = intents_dir(ctx);
+++     let mut folders = folders::ACTIVE.to_vec();
+++     folders.push("complete"); // gates are deferred on finished work too, as before
+++     let found_path = finder::find_intent_file(&base, id, &folders);
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/finder.rs: replacing lines 20..34 ---
+   18: }
+   19: 
+>> 20: /// RED SKELETON: today's loose rule, unchanged, so the tests below can fail against it.
+>> 21: pub fn find_intent_file(base: &Path, id: &str, folders: &[&str]) -> Option<PathBuf> {
+>> 22:     for folder in folders {
+>> 23:         if let Ok(entries) = fs::read_dir(base.join(folder)) {
+>> 24:             for entry in entries.flatten() {
+>> 25:                 let n = entry.file_name().to_string_lossy().to_string();
+>> 26:                 if n.starts_with(&format!("{:0>3}", id)) || n.starts_with(id) {
+>> 27:                     return Some(entry.path());
+>> 28:                 }
+>> 29:             }
+>> 30:         }
+>> 31:     }
+>> 32:     None
+>> 33: }
+>> 34: 
+   35: #[cfg(test)]
+   36: mod tests {
+++ /// The file of intent `id`, searching `folders` in order; the first folder holding it wins.
+++ /// None means no such file, and the caller decides what that means: a missing file is never
+++ /// a guess and never a silent skip.
+++ pub fn find_intent_file(base: &Path, id: &str, folders: &[&str]) -> Option<PathBuf> {
+++     let want = number_of(id.trim())?;
+++     for folder in folders {
+++         let Ok(entries) = fs::read_dir(base.join(folder)) else {
+++             continue;
+++         };
+++         let mut hits: Vec<PathBuf> = entries
+++             .flatten()
+++             .filter_map(|e| {
+++                 let n = e.file_name().to_string_lossy().to_string();
+++                 let (stem, _) = n.split_once('-')?;
+++                 (n.ends_with(".md") && number_of(stem) == Some(want)).then(|| e.path())
+++             })
+++             .collect();
+++         hits.sort();
+++         if let Some(first) = hits.into_iter().next() {
+++             return Some(first);
+++         }
+++     }
+++     None
+++ }
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/finder.rs: 1 replaced
