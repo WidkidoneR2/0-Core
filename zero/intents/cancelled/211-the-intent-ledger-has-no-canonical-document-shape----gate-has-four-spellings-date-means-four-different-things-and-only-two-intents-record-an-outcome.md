@@ -3,7 +3,7 @@ id: 211
 date: 2026-08-09
 type: future
 title: "the intent ledger has no canonical document shape -- "gate" has four spellings, "date" means four different things, and only two intents record an outcome"
-status: planned
+status: cancelled
 tags: [ledger, intent, schema]
 ---
 
@@ -45,3 +45,6 @@ SOFT (a discipline, not gate-police; nothing enforces this).
 LIGHT (trivial self-evident gates need no artifact).
 Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
 See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+
+## Gate Check
+🚫 211 -- cancelled: merged into INT-232 by INT-294 R3: the gate shape is ruled in INT-294 R1 and recorded in INT-212, and the date meaning is ruled in INT-232 G2; the body was an empty template -- approved by: christian 2026-10-22

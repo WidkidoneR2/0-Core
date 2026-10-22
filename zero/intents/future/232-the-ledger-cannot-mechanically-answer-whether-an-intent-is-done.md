@@ -77,21 +77,17 @@ intent establishes the requirement; the implementation reconciles the vocabulary
 a fifth word for something that already has four.
 
 ## Success Criteria
-- [ ] G1 THE TWO AXES ARE NAMED AND RULED ON: which of the eight directories are kinds, which are
-      states, and how a document expresses both. ⚠️ A ruling, not a migration -- moving 269 files is
-      a separate decision
-- [ ] G2 ONE CANONICAL GATE TERM IS CHOSEN, with the reason recorded, and the reason is what TOOLING
-      NEEDS IT TO MEAN rather than which spelling is commonest
-- [ ] G3 A TOOL CAN ANSWER "does this intent have unmet gates?" for any intent, mechanically.
-      Demonstrated on a real intent, not asserted
-- [ ] G4 AN INTENT MARKED COMPLETE WITH UNTICKED GATES IS REPORTABLE. ★ That is the check the
-      "123 intents marked done" audit needed and did not have
-- [ ] G5 RELATIONS ARE READ FROM FRONTMATTER ONLY. Prose relationship sections are not parsed, and
-      the ones that exist are either migrated or left as commentary with their authority moved
-- [ ] G6 NO NEW SYNONYM IS INTRODUCED for a concept that already has a name
-- [ ] G7 THE MIGRATION IS INCREMENTAL AND FORWARD-ONLY per INT-158: new intents use the canonical
-      form; 269 existing files are NOT rewritten in one pass
-- [ ] G8 each gate carries evidence per INT-158
+
+- [ ] G1 THE TWO AXES ARE RULED: which of the ten directories are kinds (decisions, incidents, philosophy, experiments, findings) and which are lifecycle states (future, planned, in-progress, complete, cancelled), how a document expresses both, and that a document status agrees with its directory. Red today: planned/ holds a file with status in-progress, and decisions/ holds eleven complete and three planned. A ruling, not a migration
+- [ ] G2 `date:` is measured against the git first-add date of every intent, the number that disagree is recorded, and the ruling (the date the intent was filed, never rewritten) stands or changes with that number in hand
+- [ ] G3 each gate carries evidence per INT-158
+
+## Merged into this intent (INT-294 rulings, 2026-10-22)
+
+- INT-211 is merged here and cancelled. Its two questions are ruled: the gate has one shape (INT-294 R1, recorded in INT-212), and `date:` means the date filed; start and complete are derived from cistart, cicomplete and git (decision 142).
+- The old G2 (one canonical gate term) is closed by INT-294 R1. The old G3 and G4 (an unmet-gates query and a complete-with-unticked report) moved to INT-212 G9.
+- The old G5 (relations from frontmatter only) was already ruled by decision 142 sections 1 and 2: frontmatter holds facts, blocked is derived.
+- The old G6 and G7 stand as rules, not gates: no new synonym for a concept that has a name, and migration is forward-only per INT-158.
 
 ## Non-goals
 - ⚠️ TURNING THE LEDGER INTO A TASK TRACKER. No epics, sprints, story points, owners or estimates.

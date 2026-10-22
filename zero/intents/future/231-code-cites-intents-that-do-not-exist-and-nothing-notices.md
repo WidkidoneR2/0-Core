@@ -55,6 +55,10 @@ to the intent that actually owns the work, or file a real intent because the wor
 citation is the same family: a reference whose target does not exist. It belongs there rather than
 in a new tool.
 
+## INT-294 ruling (2026-10-22)
+
+Stays. The check is built; the open gate is G5, the resolution of the cited numbers, and it is its gate against the gap. 233, 234 and 235 are now filed, so a citation of those numbers resolves to an intent that means different work. The check asks whether INT-NNN exists, not whether it means what the comment means, so a collision passes. INT-294 files that as a finding. depends_on: none.
+
 ## Success Criteria
 - [x] G1 THE CHECK ASKS THE RIGHT QUESTION: does the cited intent EXIST
 <!-- `check_dangling_intent_citations` builds the set of filed numbers from the ledger's filenames

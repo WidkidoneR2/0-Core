@@ -69,6 +69,10 @@ RULE BE DECLARED WITHOUT WRITING ANOTHER BESPOKE DETECTOR?
 If yes, this is an architectural primitive that pays for itself repeatedly. If
 no, it is documentation of four examples and should not be built.
 
+## INT-294 ruling (2026-10-22)
+
+Stays, separate from 234 by both intents own text. Its gate against the gap is the second criterion: bypasses are DERIVED from the owner. Red today: the detector run against e733287d must find the 15 scripts_dir bypasses. depends_on: none.
+
 ## Success Criteria
 - [ ] An owner can be declared in one place, machine-readably
 - [ ] Bypasses are DERIVED from the owner, not listed alongside it

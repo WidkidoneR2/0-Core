@@ -72,6 +72,10 @@ use rollback_action as the concrete case, and see whether the same detector
 naturally handles the next example when one arrives. A framework built from one
 instance is a framework built from a guess.
 
+## INT-294 ruling (2026-10-22)
+
+Stays. Its gate against the gap is the first criterion with the fail-first run on auto-checkpoint, which must report the deleted checkpoint restore action while restart-service passes. Same family as INT-231 (a reference whose target may not exist): related, not blocking, because the 231 check is already built. depends_on: none.
+
 ## Success Criteria
 - [ ] A declared action is checked against the real CLI surface before a
       contract can be activated

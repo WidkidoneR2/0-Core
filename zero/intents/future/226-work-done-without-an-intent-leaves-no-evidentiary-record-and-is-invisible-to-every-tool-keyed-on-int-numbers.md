@@ -77,6 +77,10 @@ condition that became unsatisfiable when the spine flip landed; faelight_state_d
 splitting live state across two directories during the rename. None was recorded
 anywhere, because none was under an intent when it happened.
 
+## INT-294 ruling (2026-10-22)
+
+Stays. This is work done without a declared intent, not a declared thing nothing checks, so it leaves the INT-294 group. Its gate against the gap is G3: a detector that finds no commit for an intent says so. depends_on: none. 211 and 212 appear in its tags only, and neither blocks it.
+
 ## Success Criteria
 - [ ] G1 MEASURE BEFORE RULING: report, from real history since the last tag, how many commits
       carry an `INT-<id>` and how many do not; and for the intentless ones, whether `is_noise()`

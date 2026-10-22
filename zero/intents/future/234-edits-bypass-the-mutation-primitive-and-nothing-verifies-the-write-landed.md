@@ -72,6 +72,10 @@ right output is documentation plus discipline. Reaching that conclusion by
 investigation is a valid outcome; reaching it after building a detector that
 cannot work is not.
 
+## INT-294 ruling (2026-10-22)
+
+Stays, separate from 233 by both intents own text. Its gate against the gap is the second criterion: whether the act is observable is ANSWERED, not assumed. A recorded answer of not enforceable, with why, is a valid close. depends_on: none.
+
 ## Success Criteria
 - [ ] The class boundary above survives contact with a mechanism not listed in it
 - [ ] Whether the act is observable at all is ANSWERED, not assumed

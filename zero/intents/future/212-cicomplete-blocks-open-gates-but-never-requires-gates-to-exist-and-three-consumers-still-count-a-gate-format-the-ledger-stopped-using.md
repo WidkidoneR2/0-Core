@@ -5,7 +5,7 @@ type: future
 title: "cicomplete blocks open gates but never requires gates to exist, and three consumers still count a gate format the ledger stopped using"
 status: planned
 tags: [ledger, intent, gates, enforcement]
-depends_on: [211]
+depends_on: [294]
 ---
 
 ## Vision
@@ -65,26 +65,23 @@ teeth, and fixing the reporting first would leave the hole open while making the
 - Retroactively gating record dirs (decisions/incidents/philosophy/experiments). They are not
   lifecycle intents and do not carry gates.
 
+## Gate format (ruled by INT-294 R1, 2026-10-22)
+
+The section is `## Success Criteria`. Each item is one gate: `- [ ] G<n> text`, followed by an INT-158 evidence comment. `[x]` is done, and that includes a gate closed by declining it with numbered reasons. `[~]` is retired for new intents and still reads as open. A deferral keeps its existing form. The emoji form is legacy and is read only until its consumers migrate. Why this name: the scaffold at mod.rs:3020 already writes it, decision 142 names it as file content, and the tooling needs each item to be one independently checkable condition with evidence.
+
 ## Success Criteria
-- [ ] G1 RED FIRST: a zero-gate intent completes TODAY, demonstrated before any change. Prove it
-      against the extracted checker rather than by running cicomplete on a real intent -- completion
-      checkpoints, bumps a version and emits events, so it is not a cheap probe
-- [ ] G2: the gate rule is extracted into ONE pure function over file content, unit-testable with no
-      filesystem. Today it is an inline closure inside complete_intent and cannot be tested at all
-- [ ] G3: cicomplete REFUSES an intent with no gates, naming that reason distinctly from "open gates"
-- [ ] G4: the phantom folder list is resolved -- the folders searched are the folders that exist,
-      derived from one source rather than a fourth hand-written list
-- [ ] G5: a missing file is a REFUSAL, not a skip. Completion must never proceed because the check
-      could not find what it was checking
-- [ ] G6: ONE gate-counting owner. health, predict_completion and story consume it instead of
-      counting emoji; the four sites are named with line numbers as evidence
-- [ ] G7: health reports a REAL gate count for a markdown-gated intent -- shown before and after on
-      the same intent, since it currently reads 0/0
-- [ ] G8: the grandfathering policy is STATED in this intent, not discovered later: what happens to
-      the existing zero-gate intents when the rule lands
-- [ ] G9: predict_completion's `take(10)` is recorded or fixed -- it takes ten files in readdir
-      order, not the ten most recent, so "from N recent intents" is false today
-- [ ] G10: each gate carries evidence per INT-158
+
+- [ ] G1 RED FIRST: a zero-gate intent completes TODAY, and a stray `- [ ]` outside this section blocks one, both demonstrated against the extracted checker before any change. Not by running cicomplete on a real intent
+- [ ] G2 ONE pure function over file content owns the gate rule: it reads only the `## Success Criteria` section and returns each gate with its id, its state (open, done, deferred) and whether evidence follows. Unit-tested with no filesystem
+- [ ] G3 cicomplete REFUSES an intent with no gates, naming that reason distinctly from open gates
+- [ ] G4 ONE folder source: the folders searched are derived from the directories that exist, replacing the hand-written lists in complete_intent (about line 1002), cancel_intent (mod.rs:4437, which names deferred, a folder that does not exist) and next_id. planned/ and findings/ exist now, so this intent's claim that planned does not exist is stale
+- [ ] G5 a missing file is a REFUSAL, not a skip. Completion never proceeds because the check could not find what it checks
+- [ ] G6 ONE gate-counting owner. health, predict_completion and story consume the G2 function instead of counting emoji; the four sites are named with line numbers
+- [ ] G7 health reports a REAL gate count for a markdown-gated intent, shown before and after on the same intent (it reads 0/0 today)
+- [ ] G8 grandfathering is STATED: 28 complete intents have no checkbox gate today (measured 2026-10-22, an upper bound because emoji gates are not excluded). The rule applies at cicomplete only, forward-only per INT-158; the 28 are listed, not rewritten
+- [ ] G9 a tool answers does this intent have unmet gates, for any intent, and an intent in complete/ with an unticked gate is reportable (196 is one today). Absorbed from INT-232 G3 and G4
+- [ ] G10 predict_completion take(10) is recorded or fixed: it takes ten files in readdir order, not the ten most recent
+- [ ] G11 each gate carries evidence per INT-158
 
 <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
 When you tick a gate, put the proof in an HTML comment on the line after it: a commit
