@@ -1,0 +1,133 @@
+---
+id: 297
+date: 2026-10-21
+type: future
+title: "F-0051 bump-versions"
+status: planned
+tags: [bump-versions, nsh, novashell]
+depends_on: [292]
+---
+
+## Vision
+A version moves everywhere it is written, or it does not move. Whoever writes one -- the close or
+bump-versions -- leaves Cargo.toml, the registry row, Cargo.lock and the tools index in agreement,
+or refuses and names the one that is not. Today only the close keeps that promise. After this
+intent there is one finishing step, it lives in one place, and both writers call it.
+
+## The Problem
+Measured 2026-10-21, shipping core 4.4.4 (F-0049 and F-0050, commit 825e4803).
+
+- `bump-versions core patch` moved zero/engine/Cargo.toml and zero/registry/tools.toml and printed
+  one line. Nothing else. zero/tools/README.md still stated core 4.4.3 and `zero-docs check`
+  exited 1 ("tools/README.md is stale for: core"). The root Cargo.lock read 4.4.3 until the ship
+  build rewrote it. The index was refreshed by hand with `zero-docs readme-index`. Filed as F-0051.
+- The code agrees with what was seen. bump_versions_cmd (zero/shell/novashell/src/commands/mod.rs)
+  calls apply_version_bump, which calls bump_in: read the registry, check the row can be set,
+  write Cargo.toml, write the row. It then prints the arrow line. It never looks for zero-docs,
+  never touches Cargo.lock and never checks.
+- The two writers differ in everything after the first two writes:
+
+  | step                                    | the close (core, write_versions) | bump-versions (nsh, bump_in) |
+  |-----------------------------------------|----------------------------------|------------------------------|
+  | zero-docs found before any write        | yes                              | no                           |
+  | Cargo.toml and registry row             | yes                              | yes                          |
+  | Cargo.lock (cargo update --precise)     | yes                              | no                           |
+  | tools index refreshed                   | yes (INT-292)                    | no                           |
+  | row, lock and index checked             | yes (INT-292)                    | no                           |
+
+- The close points at the weaker writer. When a bump fails part-way, write_versions prints
+  "Finish with: bump-versions <tool> <level>". Following the close's own instruction leaves the
+  tools index stale: the way back it names is the path that does not finish.
+- This is the third fork of the same job. INT-271 moved the arithmetic into zero_core::version
+  because each writer carried its own copy (zero/tools/zero-core/src/version.rs, line 3), F-0029
+  fixed the registry row in bump-versions alone, and INT-292 added the index refresh and the
+  check to the close alone. A second copy of the finishing step inside nsh would be the next fork.
+- Nothing in the suite would notice. zero/shell/nsh-test/src/main.rs has no line that mentions
+  bump. The command is covered by unit tests of bump_in (bump_registry_tests) and of the argument
+  parser (bump_args_tests), and by nothing that runs the command.
+- INT-292 shape B stands: only Cargo.toml, the registry, Cargo.lock and the derived index state a
+  version (INT-291 ruling a). No document joins or leaves that set here.
+
+## The Solution
+One finishing step in zero-core, called by both writers, in this order:
+
+1. Before any write: find zero-docs on PATH. If it is missing, refuse with nothing written.
+2. Write each bump, as each writer does today (bump_one in the close, bump_in in bump-versions).
+3. Sync Cargo.lock for it.
+4. Refresh the tools index: zero-docs readme-index.
+5. Check the registry row, the Cargo.lock entry and zero-docs check against each bumped
+   Cargo.toml. On any disagreement refuse, name every one, say what was written and give the
+   command that finishes.
+
+It is done in two changes, so each can be shown to change one thing: first the move, with the
+close's behaviour and its 8 INT-292 tests unchanged; then bump-versions calls the moved step.
+Printing stays with each caller; the step returns what it found.
+
+The test of the whole intent is one line: on any tree where `zero-docs check` exits 0,
+`bump-versions <tool> patch && zero-docs check` exits 0.
+
+## Success Criteria
+- [ ] G0 recon, read-only. Evidence is the output, kept in ~/.cache/zero/297-g0*.txt:
+      a. Every writer of a version: the callers of apply_bump, write_version and bump_one, and for
+         each one what it writes (Cargo.toml, registry row, Cargo.lock, index) and what it checks.
+         The table in The Problem is re-measured, not copied.
+      b. How a scratch tree is pointed at: zero_core::paths::tools_registry(), registry::resolve()
+         and the core_root argument of bump_versions_cmd. The answer decides how the red case, the
+         live case and the nsh-test cases run on a scratch repo and never on this one.
+      c. Features and dependencies: zero-core's registry feature is on for both callers, the moved
+         code needs no new dependency, and zero-core still builds with its default features.
+      d. Whether zero-core has a versioned registry row. A touched crate with no row refuses the
+         close (F-0028), so this decides how the close for this intent ends.
+      e. Every caller and test of what moves: find_in, sync_lock, refresh_index, registry_version,
+         lock_versions, cargo_pkg, verify_bumped and Bumped, and the tests in int292_refresh_tests.
+- [ ] G1 rulings, each approved by Christian before any code:
+      a. Where the finishing step lives: zero-core (both callers already depend on it and it
+         already owns version.rs and registry.rs), or a copy in nsh.
+      b. bump-versions gives the close's guarantees, the Cargo.lock sync included.
+      c. It refuses before any write when zero-docs is not on PATH, in the close's wording.
+      d. A refusal exits 1, a usage error stays 2, and the table printed with no arguments stays
+         as it is.
+      e. The step returns its findings and each caller prints them, or the step prints.
+- [ ] G2 red. On a scratch tree with a demo crate and the real zero-docs, `bump-versions demo patch`
+      exits 0, the index row still reads the old version and `zero-docs check` exits 1. The case
+      fails today.
+- [ ] G3 move, no change of behaviour. The finishing step lives in zero-core and the close calls it.
+      The 8 int292_refresh_tests pass unchanged in their new home, the domains::intent tests pass,
+      and the scratch close of INT-292 G4 (rebuilt in G0b) gives the same output as before.
+      Its own commit.
+- [ ] G4 fix. G2 green. bump_versions_cmd calls the step: zero-docs found before any write, bump,
+      lock sync, index refresh, check. Unit tests with a stand-in zero-docs (/bin/true agrees,
+      /bin/false is refused) and a test that a missing zero-docs writes nothing.
+- [ ] G5 live. On the shipped nsh in a new shell, the scratch bump leaves every stated version equal
+      to Cargo.toml and zero-docs check exits 0. With a zero-docs whose readme-index does nothing
+      the bump exits 1, names the disagreement and the command that finishes. With zero-docs off
+      PATH it refuses, and the scratch files hash the same as before it.
+- [ ] G6 suite. nsh-test gains cases that run the command: a usage error exits 2, a bump on a
+      scratch tree agrees, a missing zero-docs refuses with nothing written. None of them touches
+      this repository. The count is stated before and after (257 today).
+- [ ] G7 nothing else moved. `bump-versions` with no arguments prints the same table as before
+      (the two outputs compared with cmp), the parse_bump_args and bump_in tests are unchanged, and
+      the close still refuses and finishes as in INT-292 G4.
+- [ ] G8 doors: one ship at the end; the deployed tools tested in a new shell; nsh-test all passing;
+      d 0 failed; core intent validate clean; cargo fmt --check and clippy -D warnings clean for
+      zero-core, core, novashell and nsh-test; cargo doc --no-deps for zero-core with no warning
+      from the new doc comments. Rust in a plan is formatted before the plan.
+- [ ] G9 commits: each names Intent: INT-297, and the one that closes the finding also carries
+      Fixes: F-0051. Each plan Seal has its note attached with git notes add -f -C of a hash-object
+      blob (never -F), and core intent trace reads every seal intact before the push. Pushed with
+      the pre-push hook passing; main and refs/notes/seals reach GitHub; core intent trace F-0051
+      names the fixing commit.
+- [ ] G10 each gate carries evidence per INT-158. The bump offer of the close is cited in the
+      closing commit (cicomplete refuses while a gate is open, so the offer cannot come before it).
+
+## Non-goals
+- No new crates. No sudo. Omarchy untouched.
+- INT-102 D4 and D5 are not reopened: the human picks the level, and intent type never maps to one.
+- No document joins or leaves the set that states a version (INT-291).
+- The version table, the argument forms and the usage exit code 2 do not change.
+- Gate counting is INT-212's. Anchoring the commit search and its window were F-0049 and F-0050.
+- AGENTS.md is not edited here; anything it needs is proposed to Christian.
+
+## Dependencies
+depends_on: 292 (it built the finishing step, in the close). Relates to 271 (one owner for the
+arithmetic), 287 (the registry) and 291 (which documents state a version).
