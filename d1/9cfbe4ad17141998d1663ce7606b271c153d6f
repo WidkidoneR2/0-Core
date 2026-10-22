@@ -1,0 +1,415 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/gates.rs  sha256 ec5e99dd5f0e8baa -> 808e7a2af1ee5a64
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 22bfe56a75f05a76 -> c92f3825fd993489
+--- /home/christian/0-core/zero/engine/src/domains/intent/gates.rs: replacing lines 25..25 ---
+   23: pub struct Gate {
+   24:     /// `G<n>` when the text starts with one.
+>> 25:     pub id: Option<String>,
+   26:     pub state: GateState,
+   27:     /// An INT-158 evidence comment follows the gate (and any wrapped lines of it).
+++     #[allow(dead_code)] // read by the G6 and G7 consumers, which migrate next
+++     pub id: Option<String>,
+--- /home/christian/0-core/zero/engine/src/domains/intent/gates.rs: replacing lines 29..29 ---
+   27:     pub state: GateState,
+   28:     /// An INT-158 evidence comment follows the gate (and any wrapped lines of it).
+>> 29:     pub evidence: bool,
+   30:     pub text: String,
+   31: }
+++     #[allow(dead_code)] // read by the G6 and G7 consumers, which migrate next
+++     pub evidence: bool,
+--- /home/christian/0-core/zero/engine/src/domains/intent/gates.rs: replacing lines 53..89 ---
+   51: }
+   52: 
+>> 53: // -- the rule --
+>> 54: /// Not written yet: INT-212 G2 replaces this stub.
+>> 55: pub fn read_gates(_content: &str) -> GateReport {
+>> 56:     GateReport::default()
+>> 57: }
+>> 58: 
+>> 59: /// A faithful copy of the rule as it stood inline in complete_intent at 25fc081d
+>> 60: /// (mod.rs 2569-2606): whole-file scan, no zero-gate check, any line holding a pause mark exempt.
+>> 61: pub fn check_completion(content: &str) -> Result<(), Refusal> {
+>> 62:     let bad: Vec<String> = content
+>> 63:         .lines()
+>> 64:         .filter(|l| {
+>> 65:             l.trim().starts_with(PAUSE)
+>> 66:                 && !l.contains("[date]")
+>> 67:                 && !l.contains("[reason]")
+>> 68:                 && (!l.contains("approved by: christian") || !l.contains("20"))
+>> 69:         })
+>> 70:         .map(|l| l.trim().to_string())
+>> 71:         .collect();
+>> 72:     if !bad.is_empty() {
+>> 73:         return Err(Refusal::BadDeferral(bad));
+>> 74:     }
+>> 75:     let open: Vec<String> = content
+>> 76:         .lines()
+>> 77:         .filter(|l| {
+>> 78:             let t = l.trim();
+>> 79:             (t.starts_with("- [ ]") || t.starts_with("- [~]") || t.starts_with(LEGACY_OPEN))
+>> 80:                 && !l.contains(PAUSE)
+>> 81:         })
+>> 82:         .map(|l| l.trim().to_string())
+>> 83:         .collect();
+>> 84:     if !open.is_empty() {
+>> 85:         return Err(Refusal::OpenGates(open));
+>> 86:     }
+>> 87:     Ok(())
+>> 88: }
+>> 89: 
+   90: #[cfg(test)]
+   91: mod tests {
+++ // -- the rule --
+++ fn is_any_heading(line: &str) -> bool {
+++     line.starts_with("## ")
+++ }
+++ 
+++ /// `## Success Criteria`, in any case, with or without trailing words.
+++ fn is_section_heading(line: &str) -> bool {
+++     is_any_heading(line) && line[3..].trim().to_ascii_lowercase().starts_with("success criteria")
+++ }
+++ 
+++ /// The state a checkbox-style line declares, and the text after the marker.
+++ fn box_state(trimmed: &str) -> Option<(GateState, &str)> {
+++     let markers = [
+++         ("- [ ]", GateState::Open),
+++         ("- [~]", GateState::Open),
+++         ("- [x]", GateState::Done),
+++         ("- [X]", GateState::Done),
+++     ];
+++     for (marker, state) in markers {
+++         if let Some(rest) = trimmed.strip_prefix(marker) {
+++             return Some((state, rest.trim()));
+++         }
+++     }
+++     if let Some(rest) = trimmed.strip_prefix(LEGACY_OPEN) {
+++         return Some((GateState::Open, rest.trim()));
+++     }
+++     if let Some(rest) = trimmed.strip_prefix(LEGACY_DONE) {
+++         return Some((GateState::Done, rest.trim()));
+++     }
+++     None
+++ }
+++ 
+++ /// The full signed form: a pause mark, the approval signature and a date, on one line.
+++ fn is_signed_deferral(line: &str) -> bool {
+++     line.contains(PAUSE) && line.contains("approved by: christian") && line.contains("20")
+++ }
+++ 
+++ fn gate_id(text: &str) -> Option<String> {
+++     let token = text.split_whitespace().next()?;
+++     let token = token.trim_end_matches(|c: char| !c.is_ascii_alphanumeric());
+++     let digits = token.strip_prefix('G')?;
+++     if !digits.is_empty() && digits.chars().all(|c| c.is_ascii_digit()) {
+++         Some(token.to_string())
+++     } else {
+++         None
+++     }
+++ }
+++ 
+++ /// The lines that count: not inside a fenced code block, not inside a multi-line HTML comment.
+++ fn live_lines(content: &str) -> Vec<&str> {
+++     let mut out = Vec::new();
+++     let (mut fenced, mut commented) = (false, false);
+++     for line in content.lines() {
+++         let t = line.trim_start();
+++         if commented {
+++             commented = !t.contains("-->");
+++             continue;
+++         }
+++         if t.starts_with("```") {
+++             fenced = !fenced;
+++             continue;
+++         }
+++         if fenced {
+++             continue;
+++         }
+++         if t.starts_with("<!--") && !t.contains("-->") {
+++             commented = true;
+++         }
+++         out.push(line);
+++     }
+++     out
+++ }
+++ 
+++ /// An INT-158 evidence comment follows the gate at `at`, after any wrapped lines of it.
+++ fn evidence_follows(lines: &[&str], at: usize) -> bool {
+++     let mut j = at + 1;
+++     while j < lines.len() && !lines[j].trim().is_empty() && lines[j].starts_with([' ', '\t']) {
+++         j += 1;
+++     }
+++     j < lines.len() && {
+++         let t = lines[j].trim_start();
+++         t.starts_with("<!--") && t.to_ascii_lowercase().contains("evidence")
+++     }
+++ }
+++ 
+++ /// Read the gates out of an intent file. Only the Success Criteria section holds gates.
+++ pub fn read_gates(content: &str) -> GateReport {
+++     let lines = live_lines(content);
+++     let mut report = GateReport::default();
+++     let mut in_section = false;
+++     for (at, line) in lines.iter().enumerate() {
+++         if is_any_heading(line) {
+++             in_section = is_section_heading(line);
+++             report.section_found |= in_section;
+++             continue;
+++         }
+++         let t = line.trim();
+++         if !in_section {
+++             if let Some((GateState::Open, _)) = box_state(t) {
+++                 if !is_signed_deferral(line) {
+++                     report.stray_open.push(t.to_string());
+++                 }
+++             }
+++             continue;
+++         }
+++         let evidence = evidence_follows(&lines, at);
+++         if let Some((state, text)) = box_state(t) {
+++             if text.is_empty() || text == "..." {
+++                 continue; // the scaffold's placeholder is not a gate
+++             }
+++             let state = if is_signed_deferral(line) { GateState::Deferred } else { state };
+++             report.gates.push(Gate { id: gate_id(text), state, evidence, text: text.to_string() });
+++         } else if t.starts_with(PAUSE) {
+++             if is_signed_deferral(line) {
+++                 let text = t.trim_start_matches(PAUSE).trim();
+++                 report.gates.push(Gate {
+++                     id: gate_id(text),
+++                     state: GateState::Deferred,
+++                     evidence,
+++                     text: text.to_string(),
+++                 });
+++             } else if !line.contains("[date]") && !line.contains("[reason]") {
+++                 report.bad_deferrals.push(t.to_string());
+++             }
+++         }
+++     }
+++     report
+++ }
+++ 
+++ /// May this intent complete? Refuses with one distinct reason, in this order: a deferral
+++ /// without its signature, no gates at all, an open gate, an open checkbox outside the section.
+++ pub fn check_completion(content: &str) -> Result<(), Refusal> {
+++     let report = read_gates(content);
+++     if !report.bad_deferrals.is_empty() {
+++         return Err(Refusal::BadDeferral(report.bad_deferrals));
+++     }
+++     if report.gates.is_empty() {
+++         return Err(Refusal::NoGates { section_found: report.section_found });
+++     }
+++     let open: Vec<String> = report
+++         .gates
+++         .iter()
+++         .filter(|g| g.state == GateState::Open)
+++         .map(|g| g.text.clone())
+++         .collect();
+++     if !open.is_empty() {
+++         return Err(Refusal::OpenGates(open));
+++     }
+++     if !report.stray_open.is_empty() {
+++         return Err(Refusal::StrayOpen(report.stray_open));
+++     }
+++     Ok(())
+++ }
+++ 
+++ /// The full text of a refusal, one entry per line, for the person at the terminal.
+++ pub fn explain(refusal: &Refusal, today: &str) -> Vec<String> {
+++     let mut out: Vec<String> = Vec::new();
+++     match refusal {
+++         Refusal::BadDeferral(lines) => {
+++             out.push("Deferral format error -- missing approval signature:".to_string());
+++             for l in lines {
+++                 out.push(format!("  {}", l));
+++             }
+++             out.push(String::new());
+++             out.push("Required format:".to_string());
+++             out.push(format!("  {} gate -- deferred: [reason] -- approved by: christian {}", PAUSE, today));
+++         }
+++         Refusal::NoGates { section_found } => {
+++             if *section_found {
+++                 out.push("cicomplete BLOCKED -- the Success Criteria section holds no gates".to_string());
+++             } else {
+++                 out.push("cicomplete BLOCKED -- this intent has no Success Criteria section, so it has no gates".to_string());
+++             }
+++             out.push(String::new());
+++             out.push("Complete means the gates were demonstrated; an intent with none cannot be complete.".to_string());
+++             out.push("Add at least one real gate (a bare `...` placeholder does not count):".to_string());
+++             out.push("  ## Success Criteria".to_string());
+++             out.push("  - [ ] G1 what must be true".to_string());
+++         }
+++         Refusal::OpenGates(gates) => {
+++             out.push(format!(
+++                 "cicomplete BLOCKED -- {} open gate(s) require demonstration or formal deferral:",
+++                 gates.len()
+++             ));
+++             out.push(String::new());
+++             for g in gates {
+++                 out.push(format!("  {}", g));
+++             }
+++             out.push(String::new());
+++             out.push("To defer a gate, edit the intent file and use:".to_string());
+++             out.push(format!("  {} gate description -- deferred: [reason] -- approved by: christian {}", PAUSE, today));
+++             out.push(String::new());
+++             out.push("cicomplete blocked. Demonstrate gates or formally defer them.".to_string());
+++         }
+++         Refusal::StrayOpen(lines) => {
+++             out.push(format!(
+++                 "cicomplete BLOCKED -- {} unticked checkbox(es) outside the Success Criteria section:",
+++                 lines.len()
+++             ));
+++             out.push(String::new());
+++             for l in lines {
+++                 out.push(format!("  {}", l));
+++             }
+++             out.push(String::new());
+++             out.push("These are not gates, and they are not ignored either. Tick them, move them into".to_string());
+++             out.push("Success Criteria as gates, or reword them so they are not checkboxes.".to_string());
+++         }
+++     }
+++     out
+++ }
+++ 
+++ /// One line naming the reason, for the error that ends the command.
+++ pub fn summary(refusal: &Refusal) -> String {
+++     match refusal {
+++         Refusal::BadDeferral(v) => format!("{} deferral(s) missing the approval signature", v.len()),
+++         Refusal::NoGates { section_found: true } => "the Success Criteria section holds no gates".to_string(),
+++         Refusal::NoGates { section_found: false } => "no Success Criteria section, so no gates".to_string(),
+++         Refusal::OpenGates(v) => format!("{} open gate(s)", v.len()),
+++         Refusal::StrayOpen(v) => format!("{} unticked checkbox(es) outside the Success Criteria section", v.len()),
+++     }
+++ }
+++ 
+++ #[cfg(test)]
+++ mod explain_tests {
+++     use super::*;
+++     use std::collections::HashSet;
+++ 
+++     fn all() -> Vec<Refusal> {
+++         vec![
+++             Refusal::BadDeferral(vec!["\u{23F8} G2 b".to_string()]),
+++             Refusal::NoGates { section_found: false },
+++             Refusal::NoGates { section_found: true },
+++             Refusal::OpenGates(vec!["G1 x".to_string()]),
+++             Refusal::StrayOpen(vec!["- [ ] remember".to_string()]),
+++         ]
+++     }
+++ 
+++     #[test]
+++     fn every_refusal_has_its_own_headline() {
+++         let heads: HashSet<String> = all().iter().map(|r| explain(r, "2026-10-22")[0].clone()).collect();
+++         assert_eq!(heads.len(), 5);
+++     }
+++ 
+++     #[test]
+++     fn every_refusal_has_its_own_summary() {
+++         let sums: HashSet<String> = all().iter().map(summary).collect();
+++         assert_eq!(sums.len(), 5);
+++         assert!(sums.iter().all(|s| !s.is_empty()));
+++     }
+++ 
+++     #[test]
+++     fn the_deferral_hint_carries_the_pause_mark_and_the_date() {
+++         let text = explain(&Refusal::OpenGates(vec!["G1 x".to_string()]), "2026-10-22").join("\n");
+++         assert!(text.contains(PAUSE));
+++         assert!(text.contains("approved by: christian 2026-10-22"));
+++         assert!(text.contains("G1 x"));
+++     }
+++ 
+++     #[test]
+++     fn a_stray_box_is_named_as_outside_the_section() {
+++         let first = explain(&Refusal::StrayOpen(vec!["- [ ] a".to_string()]), "d")[0].clone();
+++         assert!(first.contains("outside the Success Criteria section"));
+++     }
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 2569..2632 ---
+   2567:     } {
+   2568:         let file_content = std::fs::read_to_string(path).unwrap_or_default();
+>> 2569:         // Check for malformed deferrals (⏸ without approval signature)
+>> 2570:         let bad_deferrals: Vec<&str> = file_content
+>> 2571:             .lines()
+>> 2572:             .filter(|l| {
+>> 2573:                 let trimmed = l.trim();
+>> 2574:                 trimmed.starts_with('⏸') &&
+>> 2575:                 !l.contains("[date]") &&   // skip example lines
+>> 2576:                 !l.contains("[reason]") && // skip example lines
+>> 2577:                 (!l.contains("approved by: christian") || !l.contains("20"))
+>> 2578:             })
+>> 2579:             .collect();
+>> 2580:         if !bad_deferrals.is_empty() {
+>> 2581:             println!();
+>> 2582:             println!(
+>> 2583:                 "  {} Deferral format error -- missing approval signature:",
+>> 2584:                 "🚫".normal()
+>> 2585:             );
+>> 2586:             for d in &bad_deferrals {
+>> 2587:                 println!("  {} {}", "⏸".normal(), d.trim());
+>> 2588:             }
+>> 2589:             println!();
+>> 2590:             println!("  {} Required format:", "💡".normal());
+>> 2591:             println!("    ⏸ gate -- deferred: [reason] -- approved by: christian 2026-05-25");
+>> 2592:             println!();
+>> 2593:             return Ok(());
+>> 2594:         }
+>> 2595:         let open_gates: Vec<&str> = file_content
+>> 2596:             .lines()
+>> 2597:             .filter(|l| {
+>> 2598:                 let trimmed = l.trim();
+>> 2599:                 // INT-130: detect markdown gates (the real format), not just the emoji.
+>> 2600:                 // OPEN = unchecked `- [ ]` or partial `- [~]`; legacy ⬜ still counts.
+>> 2601:                 // Only `- [x]` passes. A ⏸ deferral line is exempt.
+>> 2602:                 (trimmed.starts_with("- [ ]")
+>> 2603:                     || trimmed.starts_with("- [~]")
+>> 2604:                     || trimmed.starts_with('⬜'))
+>> 2605:                     && !l.contains('⏸')
+>> 2606:             })
+>> 2607:             .collect();
+>> 2608:         if !open_gates.is_empty() {
+>> 2609:             println!();
+>> 2610:             println!("  {} cicomplete BLOCKED -- {} open gate(s) require demonstration or formal deferral:", "🚫".normal(), open_gates.len());
+>> 2611:             println!();
+>> 2612:             for gate in &open_gates {
+>> 2613:                 println!("  {} {}", "⬜".normal(), gate.trim());
+>> 2614:             }
+>> 2615:             println!();
+>> 2616:             println!(
+>> 2617:                 "  {} To defer a gate, edit the intent file and use:",
+>> 2618:                 "💡".normal()
+>> 2619:             );
+>> 2620:             println!(
+>> 2621:                 "    ⏸ gate description -- deferred: [reason] -- approved by: christian {}",
+>> 2622:                 chrono::Utc::now().format("%Y-%m-%d")
+>> 2623:             );
+>> 2624:             println!();
+>> 2625:             println!(
+>> 2626:                 "  {} cicomplete blocked. Demonstrate gates or formally defer them.",
+>> 2627:                 "→".bright_red()
+>> 2628:             );
+>> 2629:             return Ok(());
+>> 2630:         }
+>> 2631:     }
+>> 2632: 
+   2633:     // INT-271: every version decision is made and checked here, before anything is written.
+   2634:     let planned = match decide_versions(ctx, id, flags) {
+++         if let Err(refusal) = gates::check_completion(&file_content) {
+++             let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
+++             println!();
+++             for (n, line) in gates::explain(&refusal, &today).iter().enumerate() {
+++                 if n == 0 {
+++                     println!("  {} {}", "🚫".normal(), line);
+++                 } else {
+++                     println!("  {}", line);
+++                 }
+++             }
+++             let msg = gates::summary(&refusal);
+++             eprintln!("  refused: {}", msg);
+++             eprintln!("  nothing was written and the intent was not moved");
+++             return Err(crate::errors::CoreError::Reported(msg));
+++         }
+++     }
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/gates.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/gates.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/gates.rs: 37 line(s) replaced by 265
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 64 line(s) replaced by 17
