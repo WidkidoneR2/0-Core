@@ -1,0 +1,13 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 5c883341f85692d8 -> 650223c5b0acabe4
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 257..259 ---
+   255:             // default: only actionable intents
+   256:             // INT-332: in-progress/ folder must always show
+>> 257:             (i.folder == "future" || i.folder == "deferred" || i.folder == "in-progress")
+>> 258:                 && (i.status == "planned" || i.status == "in-progress")
+>> 259:         })
+   260:         .collect();
+   261: 
+++             folders::ACTIVE.contains(&i.folder.as_str())
+++                 && (i.status == "planned" || i.status == "in-progress")
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
