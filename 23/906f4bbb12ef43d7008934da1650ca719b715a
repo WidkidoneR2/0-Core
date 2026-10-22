@@ -3,24 +3,24 @@ file /home/christian/0-core/zero/shell/nsh-test/src/main.rs  sha256 af8ccbb1ac6b
 file /home/christian/0-core/zero/intents/in-progress/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md  sha256 69cad579675162ff -> 6135bed847413ad1
 --- /home/christian/0-core/zero/tools/zero-core/src/paths.rs: replacing lines 439..442 ---
    437: }
-   438:
+   438: 
 >> 439: pub fn tools_dir() -> PathBuf {
 >> 440:     core_dir().join(CRATE_PARENTS[0])
 >> 441: }
->> 442:
+>> 442: 
    443: // ═══════════════════════════════════════════════════════════
    444: // CRATES -- INT-267 L2: the ONE owner of where the crates live
 ++ pub fn tools_dir() -> PathBuf {
 ++     core_dir().join(CRATE_PARENTS[0])
 ++ }
-++
+++ 
 ++ /// INT-293: where each active tool's record lives, one NAME.toml per tool, run by zero-sandbox
 ++ /// verify. It sits with DevBox because DevBox runs it. The shell parent is named once, by
 ++ /// SHELL_PARENT, so a move changes that constant and nothing here.
 ++ pub fn census_dir() -> PathBuf {
 ++     core_dir().join(SHELL_PARENT).join("devbox").join("census")
 ++ }
-++
+++ 
 --- /home/christian/0-core/zero/shell/nsh-test/src/main.rs: replacing lines 3185..3186 ---
    3183:                 return Err("tools.toml has no active tool (deployable and not retired); a registry that yields nothing is not a pass".to_string());
    3184:             }
@@ -29,7 +29,7 @@ file /home/christian/0-core/zero/intents/in-progress/293-no-per-tool-record-stat
    3187:                 return Err(format!("the census directory does not exist: {}", dir.display()));
    3188:             }
 ++             let dir = zero_core::paths::census_dir();
-++
+++ 
 --- /home/christian/0-core/zero/intents/in-progress/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: replacing lines 49..49 ---
    47:       existing readers switch to it, and what a tool with no record is.
    48: <!-- evidence: demonstrated: rulings a to f written below, after the G0 table. Christian approved the six rulings in chat on 2026-10-22 (All approved). The sentence in f that verify is not wired into the pre-push gate was added after that and is approved by applying this reviewed plan. -->
