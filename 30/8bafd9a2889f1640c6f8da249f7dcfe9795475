@@ -1,0 +1,318 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60c9ff303c78 -> bb0fb0e33ff2c03f
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1618..1620 ---
+   1616:     }
+   1617:     let mut receipt = String::from("\n## Versions\n");
+>> 1618:     let mut written: Vec<String> = Vec::new();
+>> 1619:     let registry = zero_core::paths::tools_registry();
+>> 1620:     // INT-287 G3: every planned row is checked before the first write, so a row the writer
+   1621:     // cannot set refuses the close with no Cargo.toml bumped.
+   1622:     if let Err(e) = rows_writable(&registry, plans) {
+++     let mut written: Vec<String> = Vec::new();
+++     let mut bumped: Vec<Bumped> = Vec::new();
+++     let registry = zero_core::paths::tools_registry();
+++
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1621..1622 ---
+   1619:     let mut bumped: Vec<Bumped> = Vec::new();
+   1620:     let registry = zero_core::paths::tools_registry();
+>> 1621:     // INT-287 G3: every planned row is checked before the first write, so a row the writer
+>> 1622:     // cannot set refuses the close with no Cargo.toml bumped.
+   1623:     if let Err(e) = rows_writable(&registry, plans) {
+   1624:         eprintln!("  refused before any write: {}", e);
+++     // INT-292: the tools index is refreshed after the last bump, so the binary that does it is
+++     // found before the first write. A close that bumps nothing runs no refresh.
+++     let docs = if plans.iter().any(|p| p.level.is_some()) {
+++         match find_in(&std::env::var("PATH").unwrap_or_default(), "zero-docs") {
+++             Some(found) => Some(found),
+++             None => {
+++                 eprintln!("  refused before any write: zero-docs is not on PATH, so the tools index cannot be refreshed");
+++                 eprintln!("  nothing was bumped and the intent was not moved");
+++                 return Err(crate::errors::CoreError::Reported(
+++                     "zero-docs is not on PATH".to_string(),
+++                 ));
+++             }
+++         }
+++     } else {
+++         None
+++     };
+++     // INT-287 G3: every planned row is checked before the first write, so a row the writer
+++
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1670..1672 ---
+   1668:                     level.as_str()
+   1669:                 ));
+>> 1670:                 written.push(format!("{} {}", p.tool, new));
+>> 1671:                 sync_lock(ctx, &full, &new);
+>> 1672:             }
+   1673:             Err(failed) => {
+   1674:                 let (e, from) = match failed {
+++                 written.push(format!("{} {}", p.tool, new));
+++                 bumped.push(Bumped {
+++                     tool: p.tool.clone(),
+++                     rel: p.rel.clone(),
+++                     new: new.clone(),
+++                 });
+++                 sync_lock(ctx, &full, &new);
+++
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1716..1719 ---
+   1714:         }
+   1715:     }
+>> 1716:     Ok(receipt)
+>> 1717: }
+>> 1718:
+>> 1719: /// INT-287 G3: every planned row, checked against the registry before the close writes
+   1720: /// anything. A row the one writer cannot set refuses here, so no Cargo.toml is bumped first.
+   1721: fn rows_writable(registry: &Path, plans: &[VersionPlan]) -> Result<(), String> {
+++     // INT-292: after the last bump the tools index is refreshed, then registry row, Cargo.lock
+++     // and index are checked against each bumped Cargo.toml. A disagreement stops the close.
+++     if let Some(docs) = docs {
+++         let root = Path::new(&ctx.core_root);
+++         let step = refresh_index(root, &docs)
+++             .and_then(|_| verify_bumped(root, &registry, &docs, &bumped));
+++         match step {
+++             Ok(()) => println!("      {} tools index refreshed and checked", "\u{2713}".green()),
+++             Err(why) => {
+++                 eprintln!("  bump written but the docs do not agree: {}", why);
+++                 eprintln!("  written: {}", written.join(", "));
+++                 eprintln!(
+++                     "  the intent was not moved. Finish with: zero-docs readme-index, then zero-docs check; then rerun cicomplete {} and answer skip for crates already bumped",
+++                     id
+++                 );
+++                 return Err(crate::errors::CoreError::Reported(
+++                     "the tools index does not match the bump".to_string(),
+++                 ));
+++             }
+++         }
+++     }
+++     Ok(receipt)
+++ }
+++
+++ /// INT-292: one crate the close bumped, as it must now read in the registry, Cargo.lock and the
+++ /// tools index.
+++ struct Bumped {
+++     tool: String,
+++     rel: String,
+++     new: String,
+++ }
+++
+++ /// INT-292: the first directory on `path_var` that holds an executable file called `name`.
+++ fn find_in(path_var: &str, name: &str) -> Option<PathBuf> {
+++     use std::os::unix::fs::PermissionsExt;
+++     path_var
+++         .split(':')
+++         .filter(|d| !d.is_empty())
+++         .map(|d| Path::new(d).join(name))
+++         .find(|p| {
+++             p.metadata()
+++                 .map(|m| m.is_file() && m.permissions().mode() & 0o111 != 0)
+++                 .unwrap_or(false)
+++         })
+++ }
+++
+++ /// INT-292: run `zero-docs readme-index` so the tools index states the versions just written.
+++ /// The binary is a parameter so tests need no PATH change.
+++ fn refresh_index(root: &Path, docs: &Path) -> Result<(), String> {
+++     let out = std::process::Command::new(docs)
+++         .arg("readme-index")
+++         .current_dir(root)
+++         .output()
+++         .map_err(|e| format!("cannot run {}: {}", docs.display(), e))?;
+++     if out.status.success() {
+++         return Ok(());
+++     }
+++     Err(format!(
+++         "{} readme-index exited {}: {}",
+++         docs.display(),
+++         out.status.code().map_or("by signal".to_string(), |c| c.to_string()),
+++         String::from_utf8_lossy(&out.stderr).trim()
+++     ))
+++ }
+++
+++ /// INT-292: the version of tool `tool` in the registry text, if its row has one.
+++ fn registry_version(text: &str, tool: &str) -> Option<String> {
+++     let want = format!("name = \"{}\"", tool);
+++     text.split("[[tool]]")
+++         .find(|block| block.lines().any(|l| l.trim() == want))
+++         .and_then(|block| {
+++             block.lines().find_map(|l| {
+++                 l.trim()
+++                     .strip_prefix("version = \"")
+++                     .map(|v| v.trim_end_matches('"').to_string())
+++             })
+++         })
+++ }
+++
+++ /// INT-292: every version Cargo.lock holds for package `pkg`. Empty means the lock does not
+++ /// list it.
+++ fn lock_versions(lock: &str, pkg: &str) -> Vec<String> {
+++     let want = format!("name = \"{}\"", pkg);
+++     let mut found = Vec::new();
+++     let mut lines = lock.lines();
+++     while let Some(l) = lines.next() {
+++         if l.trim() == want {
+++             if let Some(v) = lines.next().and_then(|n| n.trim().strip_prefix("version = \"")) {
+++                 found.push(v.trim_end_matches('"').to_string());
+++             }
+++         }
+++     }
+++     found
+++ }
+++
+++ /// INT-292: the cargo package name in a crate's own Cargo.toml (the same read sync_lock uses).
+++ fn cargo_pkg(toml: &Path) -> Option<String> {
+++     std::fs::read_to_string(toml).ok().and_then(|c| {
+++         c.lines()
+++             .find(|l| l.trim_start().starts_with("name = "))
+++             .map(|l| l.trim().trim_start_matches("name = ").trim_matches('"').to_string())
+++     })
+++ }
+++
+++ /// INT-292: after the refresh, every bumped crate must read the same in the registry row,
+++ /// Cargo.lock and the tools index. Returns every disagreement, so one refusal names them all.
+++ /// A Cargo.lock that is missing or does not list the package is not a disagreement.
+++ fn verify_bumped(
+++     root: &Path,
+++     registry: &Path,
+++     docs: &Path,
+++     bumped: &[Bumped],
+++ ) -> Result<(), String> {
+++     let mut bad: Vec<String> = Vec::new();
+++     let reg = std::fs::read_to_string(registry).unwrap_or_default();
+++     let lock = std::fs::read_to_string(root.join("Cargo.lock")).unwrap_or_default();
+++     for b in bumped {
+++         match registry_version(&reg, &b.tool) {
+++             Some(v) if v == b.new => {}
+++             Some(v) => bad.push(format!("{}: registry row says {}, Cargo.toml says {}", b.tool, v, b.new)),
+++             None => bad.push(format!("{}: registry row has no version, Cargo.toml says {}", b.tool, b.new)),
+++         }
+++         if let Some(pkg) = cargo_pkg(&root.join(&b.rel)) {
+++             let held = lock_versions(&lock, &pkg);
+++             if !held.is_empty() && !held.contains(&b.new) {
+++                 bad.push(format!(
+++                     "{}: Cargo.lock says {}, Cargo.toml says {}",
+++                     b.tool,
+++                     held.join("/"),
+++                     b.new
+++                 ));
+++             }
+++         }
+++     }
+++     match std::process::Command::new(docs).arg("check").current_dir(root).output() {
+++         Ok(o) if o.status.success() => {}
+++         Ok(o) => bad.push(format!(
+++             "tools index: zero-docs check exited {}: {}",
+++             o.status.code().map_or("by signal".to_string(), |c| c.to_string()),
+++             String::from_utf8_lossy(&o.stderr).trim()
+++         )),
+++         Err(e) => bad.push(format!("tools index: cannot run {}: {}", docs.display(), e)),
+++     }
+++     if bad.is_empty() {
+++         Ok(())
+++     } else {
+++         Err(bad.join("; "))
+++     }
+++ }
+++
+++ #[cfg(test)]
+++ mod int292_refresh_tests {
+++     use super::{find_in, lock_versions, refresh_index, registry_version, verify_bumped, Bumped};
+++     use std::path::{Path, PathBuf};
+++
+++     /// `/bin/true` answers every subcommand with exit 0, `/bin/false` with exit 1, so the tests
+++     /// stand in for zero-docs without a script or a PATH change.
+++     const OK: &str = "/bin/true";
+++     const STALE: &str = "/bin/false";
+++
+++     fn demo(tag: &str, reg_version: &str, lock_version: Option<&str>) -> (PathBuf, PathBuf, Vec<Bumped>) {
+++         let root = std::env::temp_dir().join(format!("zero-292-{}-{}", tag, std::process::id()));
+++         let _ = std::fs::remove_dir_all(&root);
+++         std::fs::create_dir_all(root.join("crates/demo")).unwrap();
+++         std::fs::write(
+++             root.join("crates/demo/Cargo.toml"),
+++             "[package]\nname = \"demo\"\nversion = \"1.3.0\"\nedition = \"2021\"\n",
+++         )
+++         .unwrap();
+++         let registry = root.join("tools.toml");
+++         std::fs::write(
+++             &registry,
+++             format!("[[tool]]\nname = \"demo\"\nversion = \"{}\"\ntype = \"rust\"\n", reg_version),
+++         )
+++         .unwrap();
+++         if let Some(v) = lock_version {
+++             std::fs::write(
+++                 root.join("Cargo.lock"),
+++                 format!("[[package]]\nname = \"other\"\nversion = \"0.1.0\"\n\n[[package]]\nname = \"demo\"\nversion = \"{}\"\n", v),
+++             )
+++             .unwrap();
+++         }
+++         let bumped = vec![Bumped { tool: "demo".into(), rel: "crates/demo/Cargo.toml".into(), new: "1.3.0".into() }];
+++         (root, registry, bumped)
+++     }
+++
+++     /// INT-292: a close that bumps must not finish while the index still states the old version.
+++     #[test]
+++     fn a_stale_index_refuses_the_close() {
+++         let (root, registry, bumped) = demo("stale", "1.3.0", Some("1.3.0"));
+++         let err = verify_bumped(&root, &registry, Path::new(STALE), &bumped).unwrap_err();
+++         assert!(err.contains("tools index"), "{}", err);
+++     }
+++
+++     #[test]
+++     fn a_refresh_that_fails_refuses_the_close() {
+++         let (root, _, _) = demo("refresh", "1.3.0", None);
+++         let err = refresh_index(&root, Path::new(STALE)).unwrap_err();
+++         assert!(err.contains("readme-index exited 1"), "{}", err);
+++         assert!(refresh_index(&root, Path::new(OK)).is_ok());
+++     }
+++
+++     /// The sync_lock warning-only gap: a lock entry left at the old version refuses.
+++     #[test]
+++     fn a_lock_entry_at_the_old_version_refuses_the_close() {
+++         let (root, registry, bumped) = demo("lock", "1.3.0", Some("1.2.9"));
+++         let err = verify_bumped(&root, &registry, Path::new(OK), &bumped).unwrap_err();
+++         assert!(err.contains("Cargo.lock says 1.2.9"), "{}", err);
+++     }
+++
+++     #[test]
+++     fn a_registry_row_at_the_old_version_refuses_the_close() {
+++         let (root, registry, bumped) = demo("row", "1.2.9", Some("1.3.0"));
+++         let err = verify_bumped(&root, &registry, Path::new(OK), &bumped).unwrap_err();
+++         assert!(err.contains("registry row says 1.2.9"), "{}", err);
+++     }
+++
+++     #[test]
+++     fn every_disagreement_is_named_in_one_refusal() {
+++         let (root, registry, bumped) = demo("all", "1.2.9", Some("1.2.9"));
+++         let err = verify_bumped(&root, &registry, Path::new(STALE), &bumped).unwrap_err();
+++         assert!(err.contains("registry row") && err.contains("Cargo.lock") && err.contains("tools index"), "{}", err);
+++     }
+++
+++     #[test]
+++     fn agreement_everywhere_passes_and_a_missing_lock_is_not_a_disagreement() {
+++         let (root, registry, bumped) = demo("agree", "1.3.0", Some("1.3.0"));
+++         assert!(verify_bumped(&root, &registry, Path::new(OK), &bumped).is_ok());
+++         let (root, registry, bumped) = demo("nolock", "1.3.0", None);
+++         assert!(verify_bumped(&root, &registry, Path::new(OK), &bumped).is_ok());
+++     }
+++
+++     #[test]
+++     fn the_parsers_read_the_row_and_the_lock() {
+++         let reg = "[[tool]]\nname = \"a\"\nversion = \"1.0.0\"\n\n[[tool]]\nname = \"demo\"\nversion = \"2.0.0\"\n";
+++         assert_eq!(registry_version(reg, "demo").as_deref(), Some("2.0.0"));
+++         assert_eq!(registry_version(reg, "missing"), None);
+++         let lock = "[[package]]\nname = \"demo\"\nversion = \"1.0.0\"\n\n[[package]]\nname = \"demo\"\nversion = \"2.0.0\"\n";
+++         assert_eq!(lock_versions(lock, "demo"), vec!["1.0.0", "2.0.0"]);
+++         assert!(lock_versions(lock, "nope").is_empty());
+++     }
+++
+++     #[test]
+++     fn zero_docs_is_found_on_a_path_and_a_missing_one_is_none() {
+++         assert!(find_in("/nonexistent-292:/bin", "true").is_some());
+++         assert!(find_in("/nonexistent-292", "zero-docs").is_none());
+++         assert!(find_in("", "true").is_none());
+++     }
+++ }
+++
+++ /// INT-287 G3: every planned row, checked against the registry before the close writes
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
