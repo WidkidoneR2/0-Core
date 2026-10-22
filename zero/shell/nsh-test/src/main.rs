@@ -3165,6 +3165,46 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(repo_test(
+        "every_active_tool_has_a_census_record",
+        Category::Regression,
+        "needs a real 0-Core: it reads tools.toml and the census directory, which only a checkout has",
+        || {
+            // INT-293: THE PER-TOOL RECORD. An active tool (a tools.toml row that is deployable and
+            // not retired) states what proves it works in a census file, NAME.toml in the census
+            // directory, which zero-sandbox verify runs. This asks the core for the rows and the disk
+            // for the files, so the registry and the tree cannot disagree without a red test. It
+            // needs no built tool, so the pre-push gate can afford it. It does not run verify: that
+            // is red today for four tools and is the closing test of INT-293 G4, not this gate.
+            let rows = zero_core::registry::read()
+                .map_err(|e| format!("cannot read tools.toml, so no tool can be checked: {}", e))?;
+            let active: Vec<&zero_core::registry::Row> =
+                rows.iter().filter(|r| r.deployable && !r.retired).collect();
+            if active.is_empty() {
+                return Err("tools.toml has no active tool (deployable and not retired); a registry that yields nothing is not a pass".to_string());
+            }
+            let dir = zero_core::paths::census_dir();
+            if !dir.is_dir() {
+                return Err(format!("the census directory does not exist: {}", dir.display()));
+            }
+            let missing: Vec<&str> = active
+                .iter()
+                .filter(|r| !dir.join(format!("{}.toml", r.name)).is_file())
+                .map(|r| r.name.as_str())
+                .collect();
+            if missing.is_empty() {
+                Ok(())
+            } else {
+                Err(format!(
+                    "{} of {} active tools have no census record: {}. A record is NAME.toml in {} with a command that proves the tool runs and an [expect] table; zero-git.toml is the shape, and zero-sandbox verify runs it.",
+                    missing.len(),
+                    active.len(),
+                    missing.join(", "),
+                    dir.display()
+                ))
+            }
+        },
+    ));
+    results.push(repo_test(
         "the_tree_map_names_every_entry",
         Category::Regression,
         "needs a real 0-Core: it reads docs/TREE.md and the tree, which only a checkout has",

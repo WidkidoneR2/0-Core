@@ -1,0 +1,8 @@
+# INT-293: the per-tool record for core, in the shape of zero-git.toml. The question is
+# whether the tool answers --version with exit 0 in a clean room, not on the author machine.
+description = "core answers --version in a clean room"
+policy      = "devbox"
+command     = "core --version"
+
+[expect]
+exit = 0

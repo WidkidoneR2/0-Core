@@ -440,6 +440,13 @@ pub fn tools_dir() -> PathBuf {
     core_dir().join(CRATE_PARENTS[0])
 }
 
+/// INT-293: where each active tool's record lives, one NAME.toml per tool, run by zero-sandbox
+/// verify. It sits with DevBox because DevBox runs it. The shell parent is named once, by
+/// SHELL_PARENT, so a move changes that constant and nothing here.
+pub fn census_dir() -> PathBuf {
+    core_dir().join(SHELL_PARENT).join("devbox").join("census")
+}
+
 // ═══════════════════════════════════════════════════════════
 // CRATES -- INT-267 L2: the ONE owner of where the crates live
 // ═══════════════════════════════════════════════════════════
