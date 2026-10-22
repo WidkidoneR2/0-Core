@@ -10,7 +10,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++     let mut written: Vec<String> = Vec::new();
 ++     let mut bumped: Vec<Bumped> = Vec::new();
 ++     let registry = zero_core::paths::tools_registry();
-++
+++ 
 --- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1621..1622 ---
    1619:     let mut bumped: Vec<Bumped> = Vec::new();
    1620:     let registry = zero_core::paths::tools_registry();
@@ -35,7 +35,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++         None
 ++     };
 ++     // INT-287 G3: every planned row is checked before the first write, so a row the writer
-++
+++ 
 --- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1670..1672 ---
    1668:                     level.as_str()
    1669:                 ));
@@ -51,13 +51,13 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++                     new: new.clone(),
 ++                 });
 ++                 sync_lock(ctx, &full, &new);
-++
+++ 
 --- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 1716..1719 ---
    1714:         }
    1715:     }
 >> 1716:     Ok(receipt)
 >> 1717: }
->> 1718:
+>> 1718: 
 >> 1719: /// INT-287 G3: every planned row, checked against the registry before the close writes
    1720: /// anything. A row the one writer cannot set refuses here, so no Cargo.toml is bumped first.
    1721: fn rows_writable(registry: &Path, plans: &[VersionPlan]) -> Result<(), String> {
@@ -84,7 +84,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++     }
 ++     Ok(receipt)
 ++ }
-++
+++ 
 ++ /// INT-292: one crate the close bumped, as it must now read in the registry, Cargo.lock and the
 ++ /// tools index.
 ++ struct Bumped {
@@ -92,7 +92,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++     rel: String,
 ++     new: String,
 ++ }
-++
+++ 
 ++ /// INT-292: the first directory on `path_var` that holds an executable file called `name`.
 ++ fn find_in(path_var: &str, name: &str) -> Option<PathBuf> {
 ++     use std::os::unix::fs::PermissionsExt;
@@ -106,7 +106,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++                 .unwrap_or(false)
 ++         })
 ++ }
-++
+++ 
 ++ /// INT-292: run `zero-docs readme-index` so the tools index states the versions just written.
 ++ /// The binary is a parameter so tests need no PATH change.
 ++ fn refresh_index(root: &Path, docs: &Path) -> Result<(), String> {
@@ -125,7 +125,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++         String::from_utf8_lossy(&out.stderr).trim()
 ++     ))
 ++ }
-++
+++ 
 ++ /// INT-292: the version of tool `tool` in the registry text, if its row has one.
 ++ fn registry_version(text: &str, tool: &str) -> Option<String> {
 ++     let want = format!("name = \"{}\"", tool);
@@ -139,7 +139,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++             })
 ++         })
 ++ }
-++
+++ 
 ++ /// INT-292: every version Cargo.lock holds for package `pkg`. Empty means the lock does not
 ++ /// list it.
 ++ fn lock_versions(lock: &str, pkg: &str) -> Vec<String> {
@@ -155,7 +155,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++     }
 ++     found
 ++ }
-++
+++ 
 ++ /// INT-292: the cargo package name in a crate's own Cargo.toml (the same read sync_lock uses).
 ++ fn cargo_pkg(toml: &Path) -> Option<String> {
 ++     std::fs::read_to_string(toml).ok().and_then(|c| {
@@ -164,7 +164,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++             .map(|l| l.trim().trim_start_matches("name = ").trim_matches('"').to_string())
 ++     })
 ++ }
-++
+++ 
 ++ /// INT-292: after the refresh, every bumped crate must read the same in the registry row,
 ++ /// Cargo.lock and the tools index. Returns every disagreement, so one refusal names them all.
 ++ /// A Cargo.lock that is missing or does not list the package is not a disagreement.
@@ -210,17 +210,17 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++         Err(bad.join("; "))
 ++     }
 ++ }
-++
+++ 
 ++ #[cfg(test)]
 ++ mod int292_refresh_tests {
 ++     use super::{find_in, lock_versions, refresh_index, registry_version, verify_bumped, Bumped};
 ++     use std::path::{Path, PathBuf};
-++
+++ 
 ++     /// `/bin/true` answers every subcommand with exit 0, `/bin/false` with exit 1, so the tests
 ++     /// stand in for zero-docs without a script or a PATH change.
 ++     const OK: &str = "/bin/true";
 ++     const STALE: &str = "/bin/false";
-++
+++ 
 ++     fn demo(tag: &str, reg_version: &str, lock_version: Option<&str>) -> (PathBuf, PathBuf, Vec<Bumped>) {
 ++         let root = std::env::temp_dir().join(format!("zero-292-{}-{}", tag, std::process::id()));
 ++         let _ = std::fs::remove_dir_all(&root);
@@ -246,7 +246,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++         let bumped = vec![Bumped { tool: "demo".into(), rel: "crates/demo/Cargo.toml".into(), new: "1.3.0".into() }];
 ++         (root, registry, bumped)
 ++     }
-++
+++ 
 ++     /// INT-292: a close that bumps must not finish while the index still states the old version.
 ++     #[test]
 ++     fn a_stale_index_refuses_the_close() {
@@ -254,7 +254,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++         let err = verify_bumped(&root, &registry, Path::new(STALE), &bumped).unwrap_err();
 ++         assert!(err.contains("tools index"), "{}", err);
 ++     }
-++
+++ 
 ++     #[test]
 ++     fn a_refresh_that_fails_refuses_the_close() {
 ++         let (root, _, _) = demo("refresh", "1.3.0", None);
@@ -262,7 +262,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++         assert!(err.contains("readme-index exited 1"), "{}", err);
 ++         assert!(refresh_index(&root, Path::new(OK)).is_ok());
 ++     }
-++
+++ 
 ++     /// The sync_lock warning-only gap: a lock entry left at the old version refuses.
 ++     #[test]
 ++     fn a_lock_entry_at_the_old_version_refuses_the_close() {
@@ -270,21 +270,21 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++         let err = verify_bumped(&root, &registry, Path::new(OK), &bumped).unwrap_err();
 ++         assert!(err.contains("Cargo.lock says 1.2.9"), "{}", err);
 ++     }
-++
+++ 
 ++     #[test]
 ++     fn a_registry_row_at_the_old_version_refuses_the_close() {
 ++         let (root, registry, bumped) = demo("row", "1.2.9", Some("1.3.0"));
 ++         let err = verify_bumped(&root, &registry, Path::new(OK), &bumped).unwrap_err();
 ++         assert!(err.contains("registry row says 1.2.9"), "{}", err);
 ++     }
-++
+++ 
 ++     #[test]
 ++     fn every_disagreement_is_named_in_one_refusal() {
 ++         let (root, registry, bumped) = demo("all", "1.2.9", Some("1.2.9"));
 ++         let err = verify_bumped(&root, &registry, Path::new(STALE), &bumped).unwrap_err();
 ++         assert!(err.contains("registry row") && err.contains("Cargo.lock") && err.contains("tools index"), "{}", err);
 ++     }
-++
+++ 
 ++     #[test]
 ++     fn agreement_everywhere_passes_and_a_missing_lock_is_not_a_disagreement() {
 ++         let (root, registry, bumped) = demo("agree", "1.3.0", Some("1.3.0"));
@@ -292,7 +292,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++         let (root, registry, bumped) = demo("nolock", "1.3.0", None);
 ++         assert!(verify_bumped(&root, &registry, Path::new(OK), &bumped).is_ok());
 ++     }
-++
+++ 
 ++     #[test]
 ++     fn the_parsers_read_the_row_and_the_lock() {
 ++         let reg = "[[tool]]\nname = \"a\"\nversion = \"1.0.0\"\n\n[[tool]]\nname = \"demo\"\nversion = \"2.0.0\"\n";
@@ -302,7 +302,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++         assert_eq!(lock_versions(lock, "demo"), vec!["1.0.0", "2.0.0"]);
 ++         assert!(lock_versions(lock, "nope").is_empty());
 ++     }
-++
+++ 
 ++     #[test]
 ++     fn zero_docs_is_found_on_a_path_and_a_missing_one_is_none() {
 ++         assert!(find_in("/nonexistent-292:/bin", "true").is_some());
@@ -310,7 +310,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 cfdb60
 ++         assert!(find_in("", "true").is_none());
 ++     }
 ++ }
-++
+++ 
 ++ /// INT-287 G3: every planned row, checked against the registry before the close writes
 /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
 /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
