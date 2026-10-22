@@ -3,7 +3,7 @@ id: 294
 date: 2026-10-17
 type: future
 title: "eight open intents name something declared that nothing checks"
-status: in-progress
+status: complete
 tags: [ledger, intent, enforcement, design]
 ---
 
@@ -56,10 +56,12 @@ ledger, through the tools and not by hand. Any code a ruling needs becomes its o
 - [x] G5 doors: no code is shipped;
       nsh-test all passing; d 0 failed; core intent validate clean.
 <!-- evidence: 2026-10-22. No code changed: git status lists only paths under zero/intents (the INT-280 lifecycle move beside them belongs to INT-280, not this intent), and nothing was shipped. nsh-test with the debug binary: 258 / 258 passed in 51.3 s. d: 26 passed, 2 warnings (Git Repository uncommitted changes, Update Readiness hold off because of tracked changes; both expected before the commit), 0 failed, integrity 100%. core intent validate: All 334 intents valid. -->
-- [ ] G6 commits: Intent INT-294 and the plan Seal with its note under refs/notes/seals; pushed
+- [x] G6 commits: Intent INT-294 and the plan Seal with its note under refs/notes/seals; pushed
       with the pre-push hook passing; main and refs/notes/seals reach GitHub; core intent trace
       reads every seal intact.
-- [ ] G7 each gate carries evidence per INT-158.
+<!-- evidence: 2026-10-22. Work commit 1302c2ed carries Intent: INT-294, Finding: F-0052, Finding: F-0053 and Seal: d8137f5c6416c649; its note is under refs/notes/seals, attached with git notes add -C. Pushed with the zero-gate pre-push hook accepting both pushes: main 4e58cd63..1302c2ed in 52.7 s, refs/notes/seals cba1b3ef..e202715a in 52.2 s. git ls-remote origin and git rev-parse agree: main 1302c2edf0cd89a793bb790fa2e953772e40020b, refs/notes/seals e202715a871e387a814866b8d93067b4fdf79b2c. core intent seals, read when this correction was made, lists 1302c2ed with seal d8137f5c6416c649 and verdict sealed, and counts 15 rows: 11 sealed, 4 unsealed (no seal recorded), 0 with any other verdict; core intent trace F-0052 reads the finding as open (no commit on HEAD carries Fixes: F-0052 yet). The close commit and its push follow this tick. -->
+- [x] G7 each gate carries evidence per INT-158.
+<!-- evidence: 2026-10-22. Checked by the script that applied this plan, on the text as it will read: each gate from G0 to G7 is followed by a line starting with an evidence comment, 8 of 8, and the plan was refused before any write when one was missing. -->
 
 ## Non-goals
 - No change to the ledger format before G1 rules the gate format.
