@@ -3,7 +3,7 @@ id: 292
 date: 2026-10-17
 type: future
 title: "cicomplete bumps a version but leaves the tools index and README stating the old one"
-status: in-progress
+status: complete
 tags: [cicomplete, versions, docs, tools, ledger]
 depends_on: [291]
 ---
@@ -95,12 +95,30 @@ Either way the close ends with a check that every document stating a version agr
       refreshed and checked`, left `demo | 1.2.4` and `zero-docs check` exited 0. With a zero-docs
       whose readme-index does nothing the close exited 1 (`bump written but the docs do not
       agree`), named demo 1.2.4 and did not move the intent.
-- [ ] G5 doors: one ship at the end where code changed; the deployed tools tested in a new shell;
-      nsh-test all passing; d 0 failed; core intent validate clean. The close offers its bumps.
-- [ ] G6 commits: Intent INT-292 and the plan Seal with its note under refs/notes/seals; pushed
+- [x] G5 doors: one ship at the end where code changed; the deployed tools tested in a new shell;
+      nsh-test all passing; d 0 failed; core intent validate clean. (Amended 2026-10-21: the bump offer of the close cannot precede
+      the close, because cicomplete refuses while a gate is open; its output is cited in the closing
+      commit.)
+    Evidence 2026-10-21 (G5): one ship at 18:51 (core 4.4.2, nsh-test 2.0.8, zero-docs 2.0.3), then a
+      new shell: nsh-test 257 / 257; d 26 passed, 2 warnings, 0 failed; core intent validate all 332
+      valid; the scratch close ran on the shipped core (see G4). clippy -D warnings and fmt --check
+      are clean for the engine. The bump offer is cited in the closing commit.
+- [x] G6 commits: Intent INT-292 and the plan Seal with its note under refs/notes/seals; pushed
       with the pre-push hook passing; main and refs/notes/seals reach GitHub; core intent trace
       reads every seal intact.
-- [ ] G7 each gate carries evidence per INT-158.
+    Evidence 2026-10-21 (G6): commit 308bafd9 on main, fix: cicomplete refreshes the tools index after
+      a bump and refuses on any disagreement (INT-292), trailers Intent: INT-292 and Seal:
+      41aa3a1cab83b085, four files, pre-commit hook passed. The note under refs/notes/seals is the saved
+      plan text (~/.cache/zero/int292-plan-engine.txt). The first attachment used git notes add -F,
+      which changed the text: core intent trace read it BROKEN. Re-attached with -C of a hash-object
+      blob, trace read it intact. git push origin main refs/notes/seals passed the pre-push hook: main
+      9dfe1401..308bafd9, refs/notes/seals 77a585c2..6a609b58 and 6a609b58..b9618ae5; ls-remote equals
+      local for both refs. core intent seals lists both INT-292 seals sealed (308bafd9, 13fa65e6).
+      Left alone: ef539129 (INT-296) still reads BROKEN, probably the same -F cause. The AGENTS.md
+      commit bcc4e6c7 went out in the same push.
+- [x] G7 each gate carries evidence per INT-158.
+    Evidence 2026-10-21 (G7): read after the ticks, G0 carries its findings, G1 the rulings approved by
+      Christian, G2 to G6 an Evidence line each, and G7 this one.
 
 ## Non-goals
 - No new crates. No sudo. Omarchy untouched.
@@ -111,3 +129,6 @@ Either way the close ends with a check that every document stating a version agr
 
 ## Dependencies
 depends_on: 291 (its G1a decides whether documents state a version at all).
+
+## Versions
+- core 4.4.2 -> 4.4.3 (patch)
