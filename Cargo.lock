@@ -1626,7 +1626,7 @@ dependencies = [
 
 [[package]]
 name = "nsh-test"
-version = "2.0.8"
+version = "2.0.9"
 dependencies = [
  "chrono",
  "colored",
@@ -3622,7 +3622,7 @@ dependencies = [
 
 [[package]]
 name = "zero-core"
-version = "1.0.2"
+version = "1.0.3"
 dependencies = [
  "fontdue",
  "libc",

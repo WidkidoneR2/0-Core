@@ -18,7 +18,7 @@ Project 0's tool ecosystem: 17 active tools (plus 0 retired), each a purpose-bui
 | Tool | Version | Description |
 |------|---------|-------------|
 | [`db-browse`](./db-browse/) | 2.1.2 | - |
-| [`nsh-test`](../shell/nsh-test/) | 2.0.8 | nsh permanent regression suite |
+| [`nsh-test`](../shell/nsh-test/) | 2.0.9 | nsh permanent regression suite |
 | [`ship`](./ship/) | 1.0.2 | Build the workspace and place binaries where PATH can see them |
 | [`teach`](./teach/) | 4.0.2 | Live system narrator — adapts to newcomer or expert |
 | [`zero-deadwood`](./zero-deadwood/) | 1.0.2 | - |

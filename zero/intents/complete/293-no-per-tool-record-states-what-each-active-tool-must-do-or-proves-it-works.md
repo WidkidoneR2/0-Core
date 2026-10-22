@@ -3,7 +3,7 @@ id: 293
 date: 2026-10-17
 type: future
 title: "no per-tool record states what each active tool must do or proves it works"
-status: in-progress
+status: complete
 tags: [tools, census, contract, devbox, per-tool]
 depends_on: [291]
 ---
@@ -57,10 +57,12 @@ building at all.
 - [x] G5 doors: one ship at the end where code changed; the deployed tools tested in a new shell;
       nsh-test all passing; d 0 failed; core intent validate clean. The close offers its bumps.
 <!-- evidence: demonstrated: one ship at the end where code changed: ship nsh-test --dry-run named only nsh-test; ship nsh-test shipped nsh-test 2.0.8 (2026-10-22, around 01:45); only nsh-test was deployed. New shell: exec /home/christian/.local/bin/nsh. Doors on the deployed binaries: nsh-test exit 0, 258 / 258 passed, All tests passed, with every_active_tool_has_a_census_record and crate_directory_has_one_owner both passing (~/.cache/zero/int293-doors-suite.txt); core intent validate exit 0, all 334 intents valid (int293-doors-validate.txt); zero-sandbox verify shows [core] passing and the unchanged 13 passed 3 failed 1 undetermined, the remainder being INT-298 (int293-doors-verify.txt); d in the new shell: 26 passed, 0 failed, 2 warnings (uncommitted changes, update readiness, both for the commit to clear), health 92%. The clause The close offers its bumps cannot be shown before cicomplete runs, and cicomplete refuses an intent with open gates (INT-332, zero/engine/src/domains/intent/mod.rs:2541), so it is recorded in the evidence of G7 at the close. -->
-- [ ] G6 commits: Intent INT-293 and the plan Seal with its note under refs/notes/seals; pushed
+- [x] G6 commits: Intent INT-293 and the plan Seal with its note under refs/notes/seals; pushed
       with the pre-push hook passing; main and refs/notes/seals reach GitHub; core intent trace
       reads every seal intact.
-- [ ] G7 each gate carries evidence per INT-158.
+<!-- evidence: demonstrated: commit 23906f4bbb12ef43d7008934da1650ca719b715a on main, subject INT-293: every active tool is checked for a census record; core.toml is the first record, trailers Intent: INT-293 and Seal: 0c2123457731f20f. The plan text is the note under refs/notes/seals on that commit. Pushed with the pre-push hook installed: git push exit 0, main 156cf8df..23906f4b, refs/notes/seals 5f2a667b..b282eaa6; git ls-remote origin shows the remote main containing the commit and the remote refs/notes/seals equal to the local one (b98492f2). The first note was stored with git notes add -F, which strips trailing spaces, so it hashed to 1d8f431463fd9adc and core intent seals reported BROKEN; it was re-attached byte for byte with git notes add -f -C and pushed (4b4c37fe..b98492f2), and core intent seals -n 3 --intent INT-293 now exits 0 with the verdict sealed, and core intent trace 0c2123457731f20f says: seal 0c2123457731f20f intact. Every later commit stores its note with -C. -->
+- [x] G7 each gate carries evidence per INT-158.
+<!-- evidence: demonstrated: read-only scan of this file on 2026-10-22: 8 gates, G0 to G6 each ticked with an evidence line directly after the gate, 7 of 7, evidence lengths 683, 290, 511, 749, 1151, 1073, 999 characters, each naming the command or file that showed it (cache files int293-*.txt, the commit hash, the seals). The only gate without evidence at the time of the scan was G7 itself. The close offers its bumps: that clause is appended here after cicomplete 293 runs, since cicomplete refuses an intent with open gates. Appended after cicomplete 293 ran (2026-10-22 02:05): it offered nsh-test 2.0.8 (1 commit naming INT-293, +40 -0 in main.rs) and zero-core 1.0.2 (1 commit, +7 -0 in paths.rs); Christian chose patch for both, giving nsh-test 2.0.9 and zero-core 1.0.3 with Cargo.lock synced and the tools index refreshed and checked. It took the checkpoint auto-intent-293-complete (health 92%, 18 tools), moved the intent to intents/complete, and unblocked INT-298. -->
 
 ## Rulings (G1, approved by Christian 2026-10-22)
 Measured first in ~/.cache/zero/int293-g0-table.txt. Each ruling is the one chosen against the alternatives named.
@@ -94,3 +96,7 @@ f. ENFORCEMENT. An nsh-test case reads the active rows through zero-core and lis
 
 ## Dependencies
 depends_on: 291 (its G1a and G1b decide which documents a tool record may feed).
+
+## Versions
+- nsh-test 2.0.8 -> 2.0.9 (patch)
+- zero-core 1.0.2 -> 1.0.3 (patch)
