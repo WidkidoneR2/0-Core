@@ -1,0 +1,170 @@
+file /home/christian/0-core/zero/intents/future/212-cicomplete-blocks-open-gates-but-never-requires-gates-to-exist-and-three-consumers-still-count-a-gate-format-the-ledger-stopped-using.md  sha256 44f6cc8bf543c1d4 -> 00ab910361113e82
+file /home/christian/0-core/zero/intents/future/232-the-ledger-cannot-mechanically-answer-whether-an-intent-is-done.md  sha256 b55a1b3b76d72167 -> d058e5da8bb470b1
+file /home/christian/0-core/zero/intents/future/226-work-done-without-an-intent-leaves-no-evidentiary-record-and-is-invisible-to-every-tool-keyed-on-int-numbers.md  sha256 9bb4714c01669cf1 -> b580e0f7da0fa3a9
+file /home/christian/0-core/zero/intents/future/231-code-cites-intents-that-do-not-exist-and-nothing-notices.md  sha256 22eb9b7fb7c837a2 -> b5c25fa7145c8b1f
+file /home/christian/0-core/zero/intents/future/233-canonical-ownership-is-not-machine-checkable-so-a-single-owner-can-be-bypassed-by-every-consumer-and-nothing-notices.md  sha256 50beca56edb4be66 -> ba1d3d84de05256b
+file /home/christian/0-core/zero/intents/future/234-edits-bypass-the-mutation-primitive-and-nothing-verifies-the-write-landed.md  sha256 e0cd77811dd0602e -> 4a96baaa4656f7cc
+file /home/christian/0-core/zero/intents/future/235-a-declared-capability-is-never-checked-to-resolve-so-a-contract-can-advertise-a-command-that-does-not-exist.md  sha256 d2bdcb73afeca7b2 -> 3dc02fb7dbc7f621
+--- /home/christian/0-core/zero/intents/future/212-cicomplete-blocks-open-gates-but-never-requires-gates-to-exist-and-three-consumers-still-count-a-gate-format-the-ledger-stopped-using.md: replacing lines 7..9 ---
+   5: title: "cicomplete blocks open gates but never requires gates to exist, and three consumers still count a gate format the ledger stopped using"
+   6: status: planned
+>> 7: tags: [ledger, intent, gates, enforcement]
+>> 8: depends_on: [211]
+>> 9: ---
+   10: 
+   11: ## Vision
+++ tags: [ledger, intent, gates, enforcement]
+++ depends_on: [294]
+++ ---
+--- /home/christian/0-core/zero/intents/future/212-cicomplete-blocks-open-gates-but-never-requires-gates-to-exist-and-three-consumers-still-count-a-gate-format-the-ledger-stopped-using.md: replacing lines 68..88 ---
+   66:   lifecycle intents and do not carry gates.
+   67: 
+>> 68: ## Success Criteria
+>> 69: - [ ] G1 RED FIRST: a zero-gate intent completes TODAY, demonstrated before any change. Prove it
+>> 70:       against the extracted checker rather than by running cicomplete on a real intent -- completion
+>> 71:       checkpoints, bumps a version and emits events, so it is not a cheap probe
+>> 72: - [ ] G2: the gate rule is extracted into ONE pure function over file content, unit-testable with no
+>> 73:       filesystem. Today it is an inline closure inside complete_intent and cannot be tested at all
+>> 74: - [ ] G3: cicomplete REFUSES an intent with no gates, naming that reason distinctly from "open gates"
+>> 75: - [ ] G4: the phantom folder list is resolved -- the folders searched are the folders that exist,
+>> 76:       derived from one source rather than a fourth hand-written list
+>> 77: - [ ] G5: a missing file is a REFUSAL, not a skip. Completion must never proceed because the check
+>> 78:       could not find what it was checking
+>> 79: - [ ] G6: ONE gate-counting owner. health, predict_completion and story consume it instead of
+>> 80:       counting emoji; the four sites are named with line numbers as evidence
+>> 81: - [ ] G7: health reports a REAL gate count for a markdown-gated intent -- shown before and after on
+>> 82:       the same intent, since it currently reads 0/0
+>> 83: - [ ] G8: the grandfathering policy is STATED in this intent, not discovered later: what happens to
+>> 84:       the existing zero-gate intents when the rule lands
+>> 85: - [ ] G9: predict_completion's `take(10)` is recorded or fixed -- it takes ten files in readdir
+>> 86:       order, not the ten most recent, so "from N recent intents" is false today
+>> 87: - [ ] G10: each gate carries evidence per INT-158
+>> 88: 
+   89: <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
+   90: When you tick a gate, put the proof in an HTML comment on the line after it: a commit
+++ ## Gate format (ruled by INT-294 R1, 2026-10-22)
+++ 
+++ The section is `## Success Criteria`. Each item is one gate: `- [ ] G<n> text`, followed by an INT-158 evidence comment. `[x]` is done, and that includes a gate closed by declining it with numbered reasons. `[~]` is retired for new intents and still reads as open. A deferral keeps its existing form. The emoji form is legacy and is read only until its consumers migrate. Why this name: the scaffold at mod.rs:3020 already writes it, decision 142 names it as file content, and the tooling needs each item to be one independently checkable condition with evidence.
+++ 
+++ ## Success Criteria
+++ 
+++ - [ ] G1 RED FIRST: a zero-gate intent completes TODAY, and a stray `- [ ]` outside this section blocks one, both demonstrated against the extracted checker before any change. Not by running cicomplete on a real intent
+++ - [ ] G2 ONE pure function over file content owns the gate rule: it reads only the `## Success Criteria` section and returns each gate with its id, its state (open, done, deferred) and whether evidence follows. Unit-tested with no filesystem
+++ - [ ] G3 cicomplete REFUSES an intent with no gates, naming that reason distinctly from open gates
+++ - [ ] G4 ONE folder source: the folders searched are derived from the directories that exist, replacing the hand-written lists in complete_intent (about line 1002), cancel_intent (mod.rs:4437, which names deferred, a folder that does not exist) and next_id. planned/ and findings/ exist now, so this intent's claim that planned does not exist is stale
+++ - [ ] G5 a missing file is a REFUSAL, not a skip. Completion never proceeds because the check could not find what it checks
+++ - [ ] G6 ONE gate-counting owner. health, predict_completion and story consume the G2 function instead of counting emoji; the four sites are named with line numbers
+++ - [ ] G7 health reports a REAL gate count for a markdown-gated intent, shown before and after on the same intent (it reads 0/0 today)
+++ - [ ] G8 grandfathering is STATED: 28 complete intents have no checkbox gate today (measured 2026-10-22, an upper bound because emoji gates are not excluded). The rule applies at cicomplete only, forward-only per INT-158; the 28 are listed, not rewritten
+++ - [ ] G9 a tool answers does this intent have unmet gates, for any intent, and an intent in complete/ with an unticked gate is reportable (196 is one today). Absorbed from INT-232 G3 and G4
+++ - [ ] G10 predict_completion take(10) is recorded or fixed: it takes ten files in readdir order, not the ten most recent
+++ - [ ] G11 each gate carries evidence per INT-158
+++ 
+--- /home/christian/0-core/zero/intents/future/232-the-ledger-cannot-mechanically-answer-whether-an-intent-is-done.md: replacing lines 79..95 ---
+   77: a fifth word for something that already has four.
+   78: 
+>> 79: ## Success Criteria
+>> 80: - [ ] G1 THE TWO AXES ARE NAMED AND RULED ON: which of the eight directories are kinds, which are
+>> 81:       states, and how a document expresses both. ⚠️ A ruling, not a migration -- moving 269 files is
+>> 82:       a separate decision
+>> 83: - [ ] G2 ONE CANONICAL GATE TERM IS CHOSEN, with the reason recorded, and the reason is what TOOLING
+>> 84:       NEEDS IT TO MEAN rather than which spelling is commonest
+>> 85: - [ ] G3 A TOOL CAN ANSWER "does this intent have unmet gates?" for any intent, mechanically.
+>> 86:       Demonstrated on a real intent, not asserted
+>> 87: - [ ] G4 AN INTENT MARKED COMPLETE WITH UNTICKED GATES IS REPORTABLE. ★ That is the check the
+>> 88:       "123 intents marked done" audit needed and did not have
+>> 89: - [ ] G5 RELATIONS ARE READ FROM FRONTMATTER ONLY. Prose relationship sections are not parsed, and
+>> 90:       the ones that exist are either migrated or left as commentary with their authority moved
+>> 91: - [ ] G6 NO NEW SYNONYM IS INTRODUCED for a concept that already has a name
+>> 92: - [ ] G7 THE MIGRATION IS INCREMENTAL AND FORWARD-ONLY per INT-158: new intents use the canonical
+>> 93:       form; 269 existing files are NOT rewritten in one pass
+>> 94: - [ ] G8 each gate carries evidence per INT-158
+>> 95: 
+   96: ## Non-goals
+   97: - ⚠️ TURNING THE LEDGER INTO A TASK TRACKER. No epics, sprints, story points, owners or estimates.
+++ ## Success Criteria
+++ 
+++ - [ ] G1 THE TWO AXES ARE RULED: which of the ten directories are kinds (decisions, incidents, philosophy, experiments, findings) and which are lifecycle states (future, planned, in-progress, complete, cancelled), how a document expresses both, and that a document status agrees with its directory. Red today: planned/ holds a file with status in-progress, and decisions/ holds eleven complete and three planned. A ruling, not a migration
+++ - [ ] G2 `date:` is measured against the git first-add date of every intent, the number that disagree is recorded, and the ruling (the date the intent was filed, never rewritten) stands or changes with that number in hand
+++ - [ ] G3 each gate carries evidence per INT-158
+++ 
+++ ## Merged into this intent (INT-294 rulings, 2026-10-22)
+++ 
+++ - INT-211 is merged here and cancelled. Its two questions are ruled: the gate has one shape (INT-294 R1, recorded in INT-212), and `date:` means the date filed; start and complete are derived from cistart, cicomplete and git (decision 142).
+++ - The old G2 (one canonical gate term) is closed by INT-294 R1. The old G3 and G4 (an unmet-gates query and a complete-with-unticked report) moved to INT-212 G9.
+++ - The old G5 (relations from frontmatter only) was already ruled by decision 142 sections 1 and 2: frontmatter holds facts, blocked is derived.
+++ - The old G6 and G7 stand as rules, not gates: no new synonym for a concept that has a name, and migration is forward-only per INT-158.
+++ 
+--- /home/christian/0-core/zero/intents/future/226-work-done-without-an-intent-leaves-no-evidentiary-record-and-is-invisible-to-every-tool-keyed-on-int-numbers.md: replacing lines 80..81 ---
+   78: anywhere, because none was under an intent when it happened.
+   79: 
+>> 80: ## Success Criteria
+>> 81: - [ ] G1 MEASURE BEFORE RULING: report, from real history since the last tag, how many commits
+   82:       carry an `INT-<id>` and how many do not; and for the intentless ones, whether `is_noise()`
+   83:       keeps or drops them from generated notes. A number, not an impression
+++ ## INT-294 ruling (2026-10-22)
+++ 
+++ Stays. This is work done without a declared intent, not a declared thing nothing checks, so it leaves the INT-294 group. Its gate against the gap is G3: a detector that finds no commit for an intent says so. depends_on: none. 211 and 212 appear in its tags only, and neither blocks it.
+++ 
+++ ## Success Criteria
+++ 
+--- /home/christian/0-core/zero/intents/future/231-code-cites-intents-that-do-not-exist-and-nothing-notices.md: replacing lines 58..59 ---
+   56: in a new tool.
+   57: 
+>> 58: ## Success Criteria
+>> 59: - [x] G1 THE CHECK ASKS THE RIGHT QUESTION: does the cited intent EXIST
+   60: <!-- `check_dangling_intent_citations` builds the set of filed numbers from the ledger's filenames
+   61:      and asks `filed.contains(&n)`. INT-180 IS REPORTED, which is the proof: it sits below the
+++ ## INT-294 ruling (2026-10-22)
+++ 
+++ Stays. The check is built; the open gate is G5, the resolution of the cited numbers, and it is its gate against the gap. 233, 234 and 235 are now filed, so a citation of those numbers resolves to an intent that means different work. The check asks whether INT-NNN exists, not whether it means what the comment means, so a collision passes. INT-294 files that as a finding. depends_on: none.
+++ 
+++ ## Success Criteria
+++ 
+--- /home/christian/0-core/zero/intents/future/233-canonical-ownership-is-not-machine-checkable-so-a-single-owner-can-be-bypassed-by-every-consumer-and-nothing-notices.md: replacing lines 72..73 ---
+   70: no, it is documentation of four examples and should not be built.
+   71: 
+>> 72: ## Success Criteria
+>> 73: - [ ] An owner can be declared in one place, machine-readably
+   74: - [ ] Bypasses are DERIVED from the owner, not listed alongside it
+   75: - [ ] Watch it fail first: run the detector against e733287d and confirm it
+++ ## INT-294 ruling (2026-10-22)
+++ 
+++ Stays, separate from 234 by both intents own text. Its gate against the gap is the second criterion: bypasses are DERIVED from the owner. Red today: the detector run against e733287d must find the 15 scripts_dir bypasses. depends_on: none.
+++ 
+++ ## Success Criteria
+++ 
+--- /home/christian/0-core/zero/intents/future/234-edits-bypass-the-mutation-primitive-and-nothing-verifies-the-write-landed.md: replacing lines 75..76 ---
+   73: cannot work is not.
+   74: 
+>> 75: ## Success Criteria
+>> 76: - [ ] The class boundary above survives contact with a mechanism not listed in it
+   77: - [ ] Whether the act is observable at all is ANSWERED, not assumed
+   78: - [ ] If enforceable: reports, never rewrites -- same contract as deadwood
+++ ## INT-294 ruling (2026-10-22)
+++ 
+++ Stays, separate from 233 by both intents own text. Its gate against the gap is the second criterion: whether the act is observable is ANSWERED, not assumed. A recorded answer of not enforceable, with why, is a valid close. depends_on: none.
+++ 
+++ ## Success Criteria
+++ 
+--- /home/christian/0-core/zero/intents/future/235-a-declared-capability-is-never-checked-to-resolve-so-a-contract-can-advertise-a-command-that-does-not-exist.md: replacing lines 75..76 ---
+   73: instance is a framework built from a guess.
+   74: 
+>> 75: ## Success Criteria
+>> 76: - [ ] A declared action is checked against the real CLI surface before a
+   77:       contract can be activated
+   78: - [ ] Watch it fail first: run the check against auto-checkpoint as it stands
+++ ## INT-294 ruling (2026-10-22)
+++ 
+++ Stays. Its gate against the gap is the first criterion with the fail-first run on auto-checkpoint, which must report the deleted checkpoint restore action while restart-service passes. Same family as INT-231 (a reference whose target may not exist): related, not blocking, because the 231 check is already built. depends_on: none.
+++ 
+++ ## Success Criteria
+++ 
+/home/christian/0-core/zero/intents/future/212-cicomplete-blocks-open-gates-but-never-requires-gates-to-exist-and-three-consumers-still-count-a-gate-format-the-ledger-stopped-using.md: 1 replaced
+/home/christian/0-core/zero/intents/future/212-cicomplete-blocks-open-gates-but-never-requires-gates-to-exist-and-three-consumers-still-count-a-gate-format-the-ledger-stopped-using.md: 21 line(s) replaced by 18
+/home/christian/0-core/zero/intents/future/232-the-ledger-cannot-mechanically-answer-whether-an-intent-is-done.md: 17 line(s) replaced by 13
+/home/christian/0-core/zero/intents/future/226-work-done-without-an-intent-leaves-no-evidentiary-record-and-is-invisible-to-every-tool-keyed-on-int-numbers.md: 1 replaced
+/home/christian/0-core/zero/intents/future/231-code-cites-intents-that-do-not-exist-and-nothing-notices.md: 1 replaced
+/home/christian/0-core/zero/intents/future/233-canonical-ownership-is-not-machine-checkable-so-a-single-owner-can-be-bypassed-by-every-consumer-and-nothing-notices.md: 1 replaced
+/home/christian/0-core/zero/intents/future/234-edits-bypass-the-mutation-primitive-and-nothing-verifies-the-write-landed.md: 1 replaced
+/home/christian/0-core/zero/intents/future/235-a-declared-capability-is-never-checked-to-resolve-so-a-contract-can-advertise-a-command-that-does-not-exist.md: 1 replaced
