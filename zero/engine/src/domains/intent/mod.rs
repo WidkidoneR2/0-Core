@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+pub mod finder;
 /// INT-266: findings -- one record per file under intents/findings/.
 pub mod findings;
 pub mod folders;
@@ -993,32 +994,7 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
 
     // Update frontmatter status in file
     let base = ctx.fpath("intents");
-    let folders = folders::PENDING.to_vec();
-    let mut found_path: Option<PathBuf> = None;
-
-    for folder in &folders {
-        let dir = base.join(folder);
-        if !dir.exists() {
-            continue;
-        }
-        if let Ok(entries) = fs::read_dir(&dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .map(|n| n.starts_with(&format!("{:0>3}", id)) || n.starts_with(id))
-                    .unwrap_or(false)
-                {
-                    found_path = Some(path);
-                    break;
-                }
-            }
-        }
-        if found_path.is_some() {
-            break;
-        }
-    }
+    let found_path = finder::find_intent_file(&base, id, folders::PENDING);
 
     if let Some(path) = found_path {
         let content = fs::read_to_string(&path).map_err(crate::errors::CoreError::Io)?;
@@ -2525,31 +2501,22 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
     }
 
     // INT-332: block cicomplete if open gates exist without formal deferral
-    if let Some(ref path) = {
-        let base = ctx.fpath("intents");
-        let folders = folders::ACTIVE.to_vec();
-        let mut found: Option<std::path::PathBuf> = None;
-        for folder in &folders {
-            let dir = base.join(folder);
-            if let Ok(entries) = std::fs::read_dir(&dir) {
-                for entry in entries.flatten() {
-                    let p = entry.path();
-                    if p.file_name()
-                        .and_then(|n| n.to_str())
-                        .map(|n| n.starts_with(&format!("{:0>3}", id)) || n.starts_with(id))
-                        .unwrap_or(false)
-                    {
-                        found = Some(p);
-                        break;
-                    }
-                }
-            }
-            if found.is_some() {
-                break;
-            }
+    let base = ctx.fpath("intents");
+    let gate_file = match finder::find_intent_file(&base, id, folders::ACTIVE) {
+        Some(p) => p,
+        None => {
+            let msg = format!(
+                "intent {} has no file in {}",
+                id,
+                folders::ACTIVE.join(", ")
+            );
+            eprintln!("  refused: {}", msg);
+            eprintln!("  nothing was written and the intent was not moved");
+            return Err(crate::errors::CoreError::Reported(msg));
         }
-        found
-    } {
+    };
+    {
+        let path = &gate_file;
         let file_content = std::fs::read_to_string(path).unwrap_or_default();
         if let Err(refusal) = gates::check_completion(&file_content) {
             let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
@@ -2584,34 +2551,8 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
     // INT-271: write every planned bump. A failure stops here and the intent is not moved.
     let receipt = write_versions(ctx, id, &planned)?;
 
-    // Find and move the file to complete/
-    let base = ctx.fpath("intents");
-    let folders = folders::ACTIVE.to_vec();
-    let mut found_path: Option<PathBuf> = None;
-
-    for folder in &folders {
-        let dir = base.join(folder);
-        if !dir.exists() {
-            continue;
-        }
-        if let Ok(entries) = fs::read_dir(&dir) {
-            for entry in entries.flatten() {
-                let path = entry.path();
-                if path
-                    .file_name()
-                    .and_then(|n| n.to_str())
-                    .map(|n| n.starts_with(&format!("{:0>3}", id)) || n.starts_with(id))
-                    .unwrap_or(false)
-                {
-                    found_path = Some(path);
-                    break;
-                }
-            }
-        }
-        if found_path.is_some() {
-            break;
-        }
-    }
+    // Move the file the gate check read to complete/: one search, never two.
+    let found_path = Some(gate_file);
 
     if let Some(src_path) = found_path {
         // Update status in frontmatter
@@ -4351,23 +4292,7 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
     }
     let base = intents_dir(ctx);
     // Active folders only -- you cancel work in flight, not something already done.
-    let folders = folders::ACTIVE.to_vec();
-    let mut found_path: Option<std::path::PathBuf> = None;
-    for folder in &folders {
-        let dir = base.join(folder);
-        if let Ok(entries) = std::fs::read_dir(&dir) {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if name.starts_with(&format!("{}-", id)) && name.ends_with(".md") {
-                    found_path = Some(entry.path());
-                    break;
-                }
-            }
-        }
-        if found_path.is_some() {
-            break;
-        }
-    }
+    let found_path = finder::find_intent_file(&base, id, folders::ACTIVE);
     let path = found_path.ok_or_else(|| crate::errors::CoreError::Domain {
         domain: "intent".to_string(),
         message: format!(
@@ -4445,23 +4370,8 @@ pub fn defer_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()> 
         .require("intent", &[Capability::FilesystemWriteHome])?;
     let base = intents_dir(ctx);
     let mut folders = folders::ACTIVE.to_vec();
-    folders.push("complete"); // gates are deferred on finished work too, as before; the one finder (G5) replaces this
-    let mut found_path: Option<std::path::PathBuf> = None;
-    for folder in &folders {
-        let dir = base.join(folder);
-        if let Ok(entries) = std::fs::read_dir(&dir) {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if name.starts_with(&format!("{}-", id)) && name.ends_with(".md") {
-                    found_path = Some(entry.path());
-                    break;
-                }
-            }
-        }
-        if found_path.is_some() {
-            break;
-        }
-    }
+    folders.push("complete"); // gates are deferred on finished work too, as before
+    let found_path = finder::find_intent_file(&base, id, &folders);
     let path = found_path.ok_or_else(|| crate::errors::CoreError::Domain {
         domain: "intent".to_string(),
         message: format!("Intent {} not found", id),
@@ -4493,23 +4403,8 @@ pub fn override_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<(
         .require("intent", &[Capability::FilesystemWriteHome])?;
     let base = intents_dir(ctx);
     let mut folders = folders::ACTIVE.to_vec();
-    folders.push("complete"); // gates are deferred on finished work too, as before; the one finder (G5) replaces this
-    let mut found_path: Option<std::path::PathBuf> = None;
-    for folder in &folders {
-        let dir = base.join(folder);
-        if let Ok(entries) = std::fs::read_dir(&dir) {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if name.starts_with(&format!("{}-", id)) && name.ends_with(".md") {
-                    found_path = Some(entry.path());
-                    break;
-                }
-            }
-        }
-        if found_path.is_some() {
-            break;
-        }
-    }
+    folders.push("complete"); // gates are deferred on finished work too, as before
+    let found_path = finder::find_intent_file(&base, id, &folders);
     let path = found_path.ok_or_else(|| crate::errors::CoreError::Domain {
         domain: "intent".to_string(),
         message: format!("Intent {} not found", id),
