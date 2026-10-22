@@ -9,6 +9,7 @@ use std::path::{Path, PathBuf};
 
 /// INT-266: findings -- one record per file under intents/findings/.
 pub mod findings;
+pub mod gates;
 pub mod trace;
 
 #[derive(Debug, Clone)]
@@ -2565,67 +2566,20 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
         found
     } {
         let file_content = std::fs::read_to_string(path).unwrap_or_default();
-        // Check for malformed deferrals (⏸ without approval signature)
-        let bad_deferrals: Vec<&str> = file_content
-            .lines()
-            .filter(|l| {
-                let trimmed = l.trim();
-                trimmed.starts_with('⏸') &&
-                !l.contains("[date]") &&   // skip example lines
-                !l.contains("[reason]") && // skip example lines
-                (!l.contains("approved by: christian") || !l.contains("20"))
-            })
-            .collect();
-        if !bad_deferrals.is_empty() {
+        if let Err(refusal) = gates::check_completion(&file_content) {
+            let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
             println!();
-            println!(
-                "  {} Deferral format error -- missing approval signature:",
-                "🚫".normal()
-            );
-            for d in &bad_deferrals {
-                println!("  {} {}", "⏸".normal(), d.trim());
+            for (n, line) in gates::explain(&refusal, &today).iter().enumerate() {
+                if n == 0 {
+                    println!("  {} {}", "🚫".normal(), line);
+                } else {
+                    println!("  {}", line);
+                }
             }
-            println!();
-            println!("  {} Required format:", "💡".normal());
-            println!("    ⏸ gate -- deferred: [reason] -- approved by: christian 2026-05-25");
-            println!();
-            return Ok(());
-        }
-        let open_gates: Vec<&str> = file_content
-            .lines()
-            .filter(|l| {
-                let trimmed = l.trim();
-                // INT-130: detect markdown gates (the real format), not just the emoji.
-                // OPEN = unchecked `- [ ]` or partial `- [~]`; legacy ⬜ still counts.
-                // Only `- [x]` passes. A ⏸ deferral line is exempt.
-                (trimmed.starts_with("- [ ]")
-                    || trimmed.starts_with("- [~]")
-                    || trimmed.starts_with('⬜'))
-                    && !l.contains('⏸')
-            })
-            .collect();
-        if !open_gates.is_empty() {
-            println!();
-            println!("  {} cicomplete BLOCKED -- {} open gate(s) require demonstration or formal deferral:", "🚫".normal(), open_gates.len());
-            println!();
-            for gate in &open_gates {
-                println!("  {} {}", "⬜".normal(), gate.trim());
-            }
-            println!();
-            println!(
-                "  {} To defer a gate, edit the intent file and use:",
-                "💡".normal()
-            );
-            println!(
-                "    ⏸ gate description -- deferred: [reason] -- approved by: christian {}",
-                chrono::Utc::now().format("%Y-%m-%d")
-            );
-            println!();
-            println!(
-                "  {} cicomplete blocked. Demonstrate gates or formally defer them.",
-                "→".bright_red()
-            );
-            return Ok(());
+            let msg = gates::summary(&refusal);
+            eprintln!("  refused: {}", msg);
+            eprintln!("  nothing was written and the intent was not moved");
+            return Err(crate::errors::CoreError::Reported(msg));
         }
     }
 
