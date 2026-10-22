@@ -1,0 +1,36 @@
+file /home/christian/0-core/zero/intents/in-progress/212-cicomplete-blocks-open-gates-but-never-requires-gates-to-exist-and-three-consumers-still-count-a-gate-format-the-ledger-stopped-using.md  sha256 7ea7d39268904960 -> fbc3a5a852dd3760
+--- /home/christian/0-core/zero/intents/in-progress/212-cicomplete-blocks-open-gates-but-never-requires-gates-to-exist-and-three-consumers-still-count-a-gate-format-the-ledger-stopped-using.md: replacing lines 68..68 ---
+   66:   lifecycle intents and do not carry gates.
+   67: 
+>> 68: ## Gate format (ruled by INT-294 R1, 2026-10-22)
+   69: 
+   70: The section is `## Success Criteria`. Each item is one gate: `- [ ] G<n> text`, followed by an INT-158 evidence comment. `[x]` is done, and that includes a gate closed by declining it with numbered reasons. `[~]` is retired for new intents and still reads as open. A deferral keeps its existing form. The emoji form is legacy and is read only until its consumers migrate. Why this name: the scaffold at mod.rs:3020 already writes it, decision 142 names it as file content, and the tooling needs each item to be one independently checkable condition with evidence.
+++ ## Re-measured when INT-212 started (2026-10-22)
+++ 
+++ The line numbers in the Evidence above date from 2026-08-09 and are stale. Measured at commit 25fc081d in zero/engine/src/domains/intent/mod.rs:
+++ 
+++ - Enforcer: complete_intent at 2521; `if let Some(ref path)` at 2542; deferral check 2569-2593; open-gate scan 2594-2606. The file finder is written out at 2544/2553 and again at 2650/2664 in that one function.
+++ - Folder lists, hand-written: complete_intent 2544 and 2650 (future, planned, deferred, in-progress); cancel_intent 4437 (in-progress, future, planned, deferred); defer_intent 4530 and override_intent 4577 (in-progress, future, complete); validate_issues LIFECYCLE 448 and FOLDERS 458; next_id LIFECYCLE 2808. Neither LIFECYCLE copy names planned/, which holds one intent (249) that next_id never scans.
+++ - Finders by id: `starts_with(id)` at 1024, 2553, 2664, 3556, 3666, 3785; 3709 and 3860 test the prefix in another shape. The loose test has no `-` boundary: 22 of the 99 short ids (1 to 99) also match another intent's file by prefix, measured against future, planned, in-progress, complete and cancelled. A measured collision, not yet a demonstrated wrong completion; G5 demonstrates it.
+++ - Two more holes, read from the code and not yet run. The open-gate scan exempts any line that contains `⏸` (2604) while the signature check only inspects lines that START with it (2573), so an open gate with a bare `⏸` appended is exempt unsigned. Both refusal paths, bad deferral at 2592 and open gates at 2628, `return Ok(())`, while the version refusal at 2638 returns an error: a refused cicomplete can read as success by exit status.
+++ - Emoji counting is at three sites, 3464, 3584 and 3837, each `content.matches("⬜") + content.matches("✅")`, not the four named above.
+++ - The intents base path has three owners: intents_dir(ctx) at mod.rs:45, zero_core::paths::intents_dir() at paths.rs:431, and ctx.fpath("intents").
+++ 
+++ ## Gate format (ruled by INT-294 R1, 2026-10-22)
+--- /home/christian/0-core/zero/intents/in-progress/212-cicomplete-blocks-open-gates-but-never-requires-gates-to-exist-and-three-consumers-still-count-a-gate-format-the-ledger-stopped-using.md: replacing lines 86..90 ---
+   84: 
+   85: - [ ] G1 RED FIRST: a zero-gate intent completes TODAY, and a stray `- [ ]` outside this section blocks one, both demonstrated against the extracted checker before any change. Not by running cicomplete on a real intent
+>> 86: - [ ] G2 ONE pure function over file content owns the gate rule: it reads only the `## Success Criteria` section and returns each gate with its id, its state (open, done, deferred) and whether evidence follows. Unit-tested with no filesystem
+>> 87: - [ ] G3 cicomplete REFUSES an intent with no gates, naming that reason distinctly from open gates
+>> 88: - [ ] G4 ONE folder source: the folders searched are derived from the directories that exist, replacing the hand-written lists in complete_intent (about line 1002), cancel_intent (mod.rs:4437, which names deferred, a folder that does not exist) and next_id. planned/ and findings/ exist now, so this intent's claim that planned does not exist is stale
+>> 89: - [ ] G5 a missing file is a REFUSAL, not a skip. Completion never proceeds because the check could not find what it checks
+>> 90: - [ ] G6 ONE gate-counting owner. health, predict_completion and story consume the G2 function instead of counting emoji; the four sites are named with line numbers
+   91: - [ ] G7 health reports a REAL gate count for a markdown-gated intent, shown before and after on the same intent (it reads 0/0 today)
+   92: - [ ] G8 grandfathering is STATED: 28 complete intents have no checkbox gate today (measured 2026-10-22, an upper bound because emoji gates are not excluded). The rule applies at cicomplete only, forward-only per INT-158; the 28 are listed, not rewritten
+++ - [ ] G2 ONE pure function over file content owns the gate rule: it reads only the `## Success Criteria` section and returns each gate with its id, its state (open, done, deferred) and whether evidence follows. A gate is deferred only by the full signed form on its own line; a bare `⏸` on an open gate does not exempt it, shown red first against 2604. Unit-tested with no filesystem
+++ - [ ] G3 cicomplete REFUSES an intent with no gates, naming that reason distinctly from open gates, and every refusal exits non-zero: the two refusal paths return Ok(()) today (2592, 2628), shown red first against the exit status
+++ - [ ] G4 ONE folder source: one module-level LIFECYCLE set (future, planned, in-progress, complete, cancelled) with named subsets for active work and for searching, replacing the eight hand-written lists named above, so next_id scans planned/. A test reads the real intents/ tree and fails red when a directory is in neither the lifecycle set nor the record set, so a new folder cannot be missed silently again
+++ - [ ] G5 ONE finder, find_intent_file, locates an intent by id in the lifecycle folders and replaces the copies named above. It matches the id exactly with a `-` boundary and accepts padded or unpadded input, shown red first against the 22 of 99 short ids that collide today. A missing file is a REFUSAL, not a skip: completion never proceeds because the check could not find what it checks
+++ - [ ] G6 ONE gate-counting owner. health, predict_completion and story consume the G2 function instead of counting emoji; the three sites are 3464, 3584 and 3837 (measured at 25fc081d)
+/home/christian/0-core/zero/intents/in-progress/212-cicomplete-blocks-open-gates-but-never-requires-gates-to-exist-and-three-consumers-still-count-a-gate-format-the-ledger-stopped-using.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/212-cicomplete-blocks-open-gates-but-never-requires-gates-to-exist-and-three-consumers-still-count-a-gate-format-the-ledger-stopped-using.md: 5 line(s) replaced by 5
