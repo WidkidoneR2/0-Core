@@ -1,0 +1,51 @@
+file /home/christian/0-core/zero/tools/zero-core/src/paths.rs  sha256 009e5797c2cccce0 -> 46b61bab72209aaf
+file /home/christian/0-core/zero/shell/nsh-test/src/main.rs  sha256 af8ccbb1ac6b994e -> fad26f332a2fc3ec
+file /home/christian/0-core/zero/intents/in-progress/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md  sha256 69cad579675162ff -> 6135bed847413ad1
+--- /home/christian/0-core/zero/tools/zero-core/src/paths.rs: replacing lines 439..442 ---
+   437: }
+   438:
+>> 439: pub fn tools_dir() -> PathBuf {
+>> 440:     core_dir().join(CRATE_PARENTS[0])
+>> 441: }
+>> 442:
+   443: // ═══════════════════════════════════════════════════════════
+   444: // CRATES -- INT-267 L2: the ONE owner of where the crates live
+++ pub fn tools_dir() -> PathBuf {
+++     core_dir().join(CRATE_PARENTS[0])
+++ }
+++
+++ /// INT-293: where each active tool's record lives, one NAME.toml per tool, run by zero-sandbox
+++ /// verify. It sits with DevBox because DevBox runs it. The shell parent is named once, by
+++ /// SHELL_PARENT, so a move changes that constant and nothing here.
+++ pub fn census_dir() -> PathBuf {
+++     core_dir().join(SHELL_PARENT).join("devbox").join("census")
+++ }
+++
+--- /home/christian/0-core/zero/shell/nsh-test/src/main.rs: replacing lines 3185..3186 ---
+   3183:                 return Err("tools.toml has no active tool (deployable and not retired); a registry that yields nothing is not a pass".to_string());
+   3184:             }
+>> 3185:             let dir = std::path::Path::new(&home()).join("0-core/zero/shell/devbox/census");
+>> 3186:             if !dir.is_dir() {
+   3187:                 return Err(format!("the census directory does not exist: {}", dir.display()));
+   3188:             }
+++             let dir = zero_core::paths::census_dir();
+++
+--- /home/christian/0-core/zero/intents/in-progress/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: replacing lines 49..49 ---
+   47:       existing readers switch to it, and what a tool with no record is.
+   48: <!-- evidence: demonstrated: rulings a to f written below, after the G0 table. Christian approved the six rulings in chat on 2026-10-22 (All approved). The sentence in f that verify is not wired into the pre-push gate was added after that and is approved by applying this reviewed plan. -->
+>> 49: - [ ] G2 red. A check that fails today for at least one measured gap from G0 (for example a tool
+   50:       whose `--version` fails in a clean room, or a tool with no record).
+   51: - [ ] G3 build. G2 green, for the first record only, on the debug build; no new crates.
+++ - [x] G2 red.
+--- /home/christian/0-core/zero/intents/in-progress/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: replacing lines 51..51 ---
+   49: - [x] G2 red. A check that fails today for at least one measured gap from G0 (for example a tool
+   50:       whose `--version` fails in a clean room, or a tool with no record).
+>> 51: - [ ] G3 build. G2 green, for the first record only, on the debug build; no new crates.
+   52: - [ ] G4 per-tool intents: for every tool whose census row shows a gap, an intent exists whose gates
+   53:       close that gap; tools with no gap are listed as such, with the evidence.
+++ <!-- evidence: demonstrated: nsh-test case every_active_tool_has_a_census_record (Plan 2, Seal ea8e4d124e81c12b) failed on the debug build, 2026-10-22 01:13: 1 of 17 active tools have no census record: core. Output kept in ~/.cache/zero/int293-red.txt. The same run also failed crate_directory_has_one_owner, because that case wrote the census path as a literal outside zero_core::paths; that was this intent's own mistake and this plan fixes it with zero_core::paths::census_dir() rather than an allowance. -->
+++ - [ ] G3 build.
+/home/christian/0-core/zero/tools/zero-core/src/paths.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/main.rs: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/293-no-per-tool-record-states-what-each-active-tool-must-do-or-proves-it-works.md: 1 replaced
