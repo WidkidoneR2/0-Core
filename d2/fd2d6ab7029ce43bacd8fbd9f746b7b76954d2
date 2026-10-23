@@ -1,0 +1,58 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 5c438c35e1c9f822 -> 9f1a61cd13e30399
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3295..3301 ---
+   3293: }
+   3294: 
+>> 3295: /// INT-212 G10: the gates done by the most recently numbered complete intents that have any,
+>> 3296: /// newest first, at most `limit`. Red skeleton: finds nothing yet.
+>> 3297: fn recent_done_counts(ledger: &Path, limit: usize) -> Vec<usize> {
+>> 3298:     let _ = (ledger, limit);
+>> 3299:     Vec::new()
+>> 3300: }
+>> 3301: 
+   3302: #[cfg(test)]
+   3303: mod recent_tests {
+++ /// INT-212 G10: the gates done by the most recently numbered complete intents that have any,
+++ /// newest first, at most `limit`. The number is the digits before the first dash of the file
+++ /// name, so the sample does not depend on the order the directory lists its files.
+++ fn recent_done_counts(ledger: &Path, limit: usize) -> Vec<usize> {
+++     let number = |p: &Path| -> u64 {
+++         p.file_name()
+++             .and_then(|n| n.to_str())
+++             .and_then(|n| n.split(|c| c == char::from(45u8)).next())
+++             .and_then(|d| d.parse().ok())
+++             .unwrap_or(0)
+++     };
+++     let mut files = finder::files_in(ledger, &["complete"]);
+++     files.sort_by_key(|p| std::cmp::Reverse(number(p)));
+++     files
+++         .iter()
+++         .map(|p| gates::count(&fs::read_to_string(p).unwrap_or_default()).done)
+++         .filter(|done| *done > 0)
+++         .take(limit)
+++         .collect()
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3789..3800 ---
+   3787:     let remaining = total_gates.saturating_sub(done_gates);
+   3788:     // Get average gates completed per session from recent intents
+>> 3789:     let complete_dir = zero_core::paths::intents_dir().join("complete");
+>> 3790:     let mut gates_per_session: Vec<f64> = Vec::new();
+>> 3791:     if let Ok(entries) = std::fs::read_dir(&complete_dir) {
+>> 3792:         for entry in entries.flatten().take(10) {
+>> 3793:             let c = std::fs::read_to_string(entry.path()).unwrap_or_default();
+>> 3794:             let total = gates::count(&c).done;
+>> 3795:             if total > 0 {
+>> 3796:                 gates_per_session.push(total as f64 / 2.0);
+>> 3797:             } // assume ~2 sessions avg
+>> 3798:         }
+>> 3799:     }
+>> 3800:     let avg_gates_per_session = if gates_per_session.is_empty() {
+   3801:         3.0
+   3802:     } else {
+++     let gates_per_session: Vec<f64> = recent_done_counts(&zero_core::paths::intents_dir(), 10)
+++         .into_iter()
+++         .map(|done| done as f64 / 2.0) // assume ~2 sessions avg
+++         .collect();
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
