@@ -1,0 +1,11 @@
+file /home/christian/0-core/zero/intents/in-progress/212-cicomplete-blocks-open-gates-but-never-requires-gates-to-exist-and-three-consumers-still-count-a-gate-format-the-ledger-stopped-using.md  sha256 3aa94999df670318 -> 1b5a53a69e7a4bb1
+--- /home/christian/0-core/zero/intents/in-progress/212-cicomplete-blocks-open-gates-but-never-requires-gates-to-exist-and-three-consumers-still-count-a-gate-format-the-ledger-stopped-using.md: replacing lines 83..84 ---
+   81: The section is `## Success Criteria`. Each item is one gate: `- [ ] G<n> text`, followed by an INT-158 evidence comment. `[x]` is done, and that includes a gate closed by declining it with numbered reasons. `[~]` is retired for new intents and still reads as open. A deferral keeps its existing form. The emoji form is legacy and is read only until its consumers migrate. Why this name: the scaffold at mod.rs:3020 already writes it, decision 142 names it as file content, and the tooling needs each item to be one independently checkable condition with evidence.
+   82: 
+>> 83: ## START HERE -- written 2026-10-22 after the G5 code commit
+>> 84: 
+   85: State: G1 to G4 are ticked with evidence, committed and sealed. G5 CODE is committed as dc65a6da (Seal 26924d7479bb9bbf) but G5 is NOT ticked yet. G6 to G11 are open. Nothing from this stretch has been pushed. INT-280's lifecycle move (deleted in future/, untracked in in-progress/) is uncommitted and is not ours: leave it alone and never stage it.
+   86: 
+++ ## START HERE -- SUPERSEDED 2026-10-22: all eleven gates are ticked with evidence (last tick 634c9a13) and the findings are filed as F-0054 to F-0066, so there is no newer START HERE; the text below is history, written after the G5 code commit
+++ 
+/home/christian/0-core/zero/intents/in-progress/212-cicomplete-blocks-open-gates-but-never-requires-gates-to-exist-and-three-consumers-still-count-a-gate-format-the-ledger-stopped-using.md: 1 replaced
