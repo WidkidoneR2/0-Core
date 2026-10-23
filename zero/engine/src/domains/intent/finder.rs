@@ -6,6 +6,7 @@
 //! nothing. The id is a NUMBER: the digits before the first `-` of a `.md` file name, compared
 //! as a number, so 21, 021 and 0021 name the same file and none of them names 212.
 
+use super::folders;
 use std::fs;
 use std::path::{Path, PathBuf};
 
@@ -41,6 +42,152 @@ pub fn find_intent_file(base: &Path, id: &str, folders: &[&str]) -> Option<PathB
     }
     None
 }
+
+/// Every `.md` file directly in `folders`, folder by folder in the order given and by file name
+/// inside each. A folder that does not exist holds nothing (INT-212 G7).
+pub fn files_in(base: &Path, folders: &[&str]) -> Vec<PathBuf> {
+    let mut all = Vec::new();
+    for folder in folders {
+        let Ok(entries) = fs::read_dir(base.join(folder)) else {
+            continue;
+        };
+        let mut here: Vec<PathBuf> = entries
+            .flatten()
+            .map(|e| e.path())
+            .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("md"))
+            .collect();
+        here.sort();
+        all.extend(here);
+    }
+    all
+}
+
+/// The value of the first `status:` line, trimmed: the frontmatter status. Prose further down
+/// that mentions a status is never read.
+fn status_of(content: &str) -> &str {
+    content
+        .lines()
+        .find(|l| l.starts_with("status:"))
+        .map(|l| l.trim_start_matches("status:").trim())
+        .unwrap_or("")
+}
+
+/// The files of work in flight: every file in the ACTIVE folders whose frontmatter status line
+/// says in-progress. The folder does not decide it: cistart moves a file out of future/ only,
+/// so a started intent can still sit in planned/.
+pub fn in_progress_files(base: &Path) -> Vec<PathBuf> {
+    files_in(base, folders::ACTIVE)
+        .into_iter()
+        .filter(|p| {
+            fs::read_to_string(p)
+                .map(|c| status_of(&c) == "in-progress")
+                .unwrap_or(false)
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod files_tests {
+    use super::super::folders;
+    use super::*;
+    use std::sync::atomic::{AtomicU32, Ordering};
+
+    static N: AtomicU32 = AtomicU32::new(0);
+
+    const STARTED: &str = "---\nstatus: in-progress\n---\n";
+
+    /// A scratch ledger: (folder, file name, content) triples.
+    fn ledger(files: &[(&str, &str, &str)]) -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "zero-files-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, Ordering::SeqCst)
+        ));
+        let _ = fs::remove_dir_all(&dir);
+        for (folder, name, content) in files {
+            fs::create_dir_all(dir.join(folder)).unwrap();
+            fs::write(dir.join(folder).join(name), content).unwrap();
+        }
+        dir
+    }
+
+    /// Each path as folder/file, so an assertion reads like the ledger.
+    fn names(paths: Vec<PathBuf>) -> Vec<String> {
+        paths
+            .iter()
+            .map(|p| {
+                let folder = p.parent().unwrap().file_name().unwrap().to_string_lossy();
+                format!("{}/{}", folder, p.file_name().unwrap().to_string_lossy())
+            })
+            .collect()
+    }
+
+    #[test]
+    fn files_in_lists_md_files_in_folder_order_then_by_name() {
+        let b = ledger(&[
+            ("future", "b.md", "x"),
+            ("future", "a.md", "x"),
+            ("planned", "c.md", "x"),
+            ("future", "notes.txt", "x"),
+        ]);
+        assert_eq!(
+            names(files_in(&b, &["planned", "future"])),
+            vec!["planned/c.md", "future/a.md", "future/b.md"]
+        );
+    }
+
+    #[test]
+    fn files_in_skips_a_folder_that_does_not_exist() {
+        let b = ledger(&[("future", "a.md", "x")]);
+        assert_eq!(
+            names(files_in(&b, &["in-progress", "future"])),
+            vec!["future/a.md"]
+        );
+    }
+
+    #[test]
+    fn a_started_intent_is_found_in_every_active_folder() {
+        let b = ledger(&[
+            ("planned", "3-c.md", STARTED),
+            ("future", "2-b.md", STARTED),
+            ("in-progress", "1-a.md", STARTED),
+        ]);
+        assert_eq!(
+            names(in_progress_files(&b)),
+            vec!["in-progress/1-a.md", "future/2-b.md", "planned/3-c.md"]
+        );
+        assert_eq!(folders::ACTIVE, &["in-progress", "future", "planned"]);
+    }
+
+    #[test]
+    fn an_intent_that_is_not_started_is_not_in_flight() {
+        let b = ledger(&[
+            ("future", "1-a.md", "---\nstatus: future\n---\n"),
+            ("planned", "2-b.md", "---\nstatus: planned\n---\n"),
+        ]);
+        assert!(in_progress_files(&b).is_empty());
+    }
+
+    #[test]
+    fn a_finished_folder_is_never_in_flight() {
+        let b = ledger(&[
+            ("complete", "1-a.md", STARTED),
+            ("cancelled", "2-b.md", STARTED),
+        ]);
+        assert!(in_progress_files(&b).is_empty());
+    }
+
+    #[test]
+    fn a_prose_mention_of_the_status_is_not_a_status() {
+        let b = ledger(&[(
+            "future",
+            "1-a.md",
+            "---\nstatus: future\n---\nthe line status: in-progress is how a started intent reads\n",
+        )]);
+        assert!(in_progress_files(&b).is_empty());
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

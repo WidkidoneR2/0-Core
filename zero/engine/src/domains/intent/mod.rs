@@ -3295,19 +3295,21 @@ pub fn branch(ctx: &AppContext, id: &str) -> CoreResult<()> {
 pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
     use colored::*;
     let _root = std::path::PathBuf::from(&ctx.core_root);
-    let future_dir = zero_core::paths::intents_dir().join("future");
+    let ledger = zero_core::paths::intents_dir();
     let now = chrono::Utc::now().timestamp();
     let mut intents: Vec<(String, String, String, f64, Vec<String>)> = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(&future_dir) {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if !name.ends_with(".md") {
-                continue;
-            }
-            let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
-            if !content.contains("status: in-progress") {
-                continue;
-            }
+    let in_flight = finder::in_progress_files(&ledger);
+    if !in_flight.is_empty() {
+        for path in in_flight {
+            let name = path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            let content = std::fs::read_to_string(&path).unwrap_or_default();
+            let dir = path
+                .parent()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default();
             let id = name.split('-').next().unwrap_or("?").to_string();
             let title = content
                 .lines()
@@ -3325,15 +3327,7 @@ pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
             let gate_pct = (done_gates * 100).checked_div(total_gates).unwrap_or(0);
             let days_since: i64 = {
                 let out = std::process::Command::new("git")
-                    .args([
-                        "-C",
-                        &ctx.core_root,
-                        "log",
-                        "-1",
-                        "--format=%ct",
-                        "--",
-                        &format!("intents/future/{}", name),
-                    ])
+                    .args(["-C", &dir, "log", "-1", "--format=%ct", "--", &name])
                     .output()
                     .ok();
                 let ts = out
@@ -3408,26 +3402,14 @@ pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
 
 pub fn predict_completion(ctx: &AppContext, id: &str) -> CoreResult<()> {
     use colored::*;
-    let root = std::path::PathBuf::from(&ctx.core_root);
-
-    // Find the intent file
-    let mut intent_content = None;
-    let mut intent_name = String::new();
-    for dir in &["intents/future", "intents/complete"] {
-        if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if name.starts_with(id) && name.ends_with(".md") {
-                    intent_content = std::fs::read_to_string(entry.path()).ok();
-                    intent_name = name;
-                    break;
-                }
-            }
-        }
-        if intent_content.is_some() {
-            break;
-        }
-    }
+    // Find the intent file in every lifecycle folder, by number (INT-212 G7)
+    let found = finder::find_intent_file(&intents_dir(ctx), id, folders::LIFECYCLE);
+    let intent_name = found
+        .as_ref()
+        .and_then(|p| p.file_name())
+        .map(|n| n.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let intent_content = found.and_then(|p| std::fs::read_to_string(p).ok());
     let content = match intent_content {
         None => {
             println!("  {} Intent {} not found", "✗".bright_red(), id);
@@ -3640,24 +3622,10 @@ pub fn auto_link(ctx: &AppContext, id: &str) -> CoreResult<()> {
 pub fn story(ctx: &AppContext, id: &str) -> CoreResult<()> {
     use colored::*;
     let root = std::path::PathBuf::from(&ctx.core_root);
-    // Find intent in any directory
-    let mut intent_content = None;
-    let mut intent_path = std::path::PathBuf::new();
-    for dir in &["intents/complete", "intents/future", "intents/archive"] {
-        if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if name.starts_with(id) && name.ends_with(".md") {
-                    intent_path = entry.path();
-                    intent_content = std::fs::read_to_string(&intent_path).ok();
-                    break;
-                }
-            }
-        }
-        if intent_content.is_some() {
-            break;
-        }
-    }
+    // Find intent in every lifecycle folder, by number (INT-212 G7)
+    let intent_path =
+        finder::find_intent_file(&intents_dir(ctx), id, folders::LIFECYCLE).unwrap_or_default();
+    let intent_content = std::fs::read_to_string(&intent_path).ok();
     let content = match intent_content {
         None => {
             println!("  {} Intent {} not found", "✗".bright_red(), id);
