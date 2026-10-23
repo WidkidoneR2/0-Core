@@ -2,7 +2,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/gates.rs  sha256 4b42
 file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 b2e68c0854ddb58d -> 17ade36267cf70ce
 --- /home/christian/0-core/zero/engine/src/domains/intent/gates.rs: replacing lines 195..211 ---
    193: }
-   194:
+   194: 
 >> 195: /// How many gates an intent has and how many are done: ONE owner for the count (INT-212 G6).
 >> 196: #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 >> 197: #[allow(dead_code)] // red skeleton: the consumers migrate in the fix
@@ -12,14 +12,14 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 b2e68c
 >> 201:     /// The count came from legacy emoji marks outside any Success Criteria section.
 >> 202:     pub legacy: bool,
 >> 203: }
->> 204:
+>> 204: 
 >> 205: /// Red skeleton: counts nothing yet.
 >> 206: #[allow(dead_code)] // red skeleton: the consumers migrate in the fix
 >> 207: pub fn count(content: &str) -> GateCount {
 >> 208:     let _ = content;
 >> 209:     GateCount::default()
 >> 210: }
->> 211:
+>> 211: 
    212: /// May this intent complete? Refuses with one distinct reason, in this order: a deferral
    213: /// without its signature, no gates at all, an open gate, an open checkbox outside the section.
 ++ /// How many gates an intent has and how many are done: ONE owner for the count (INT-212 G6).
@@ -31,7 +31,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 b2e68c
 ++     /// The count came from legacy emoji marks outside any Success Criteria section.
 ++     pub legacy: bool,
 ++ }
-++
+++ 
 ++ /// Count the gates in an intent file. When the Success Criteria section holds gates, they are
 ++ /// the count. A file with none there but legacy emoji marks elsewhere is an old-format intent:
 ++ /// those marks are counted and the result says so. Anything else is zero.
@@ -52,7 +52,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 b2e68c
 ++         legacy: open + done > 0,
 ++     }
 ++ }
-++
+++ 
 --- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3322..3323 ---
    3320:                 })
    3321:                 .unwrap_or_else(|| name.clone());
@@ -76,7 +76,7 @@ file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 b2e68c
 ++                         total_gates,
 ++                         if gate_count.legacy { " legacy" } else { "" }
 ++                     ),
-++
+++ 
 --- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3447..3449 ---
    3445:                 .to_string()
    3446:         })
