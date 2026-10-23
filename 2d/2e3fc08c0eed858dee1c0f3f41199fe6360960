@@ -1,0 +1,62 @@
+file /home/christian/0-core/zero/intents/future/299-fix-health-in-welcoming-needs-to-stop-lying.md  sha256 3bff3b9af69dfe7d -> aa8188fbc333d00b
+--- /home/christian/0-core/zero/intents/future/299-fix-health-in-welcoming-needs-to-stop-lying.md: replacing lines 10..21 ---
+   8: ---
+   9: 
+>> 10: ## Vision
+>> 11: [Describe the goal and desired outcome]
+>> 12: 
+>> 13: ## The Problem
+>> 14: [What problem does this solve?]
+>> 15: 
+>> 16: ## The Solution
+>> 17: [High-level approach]
+>> 18: 
+>> 19: ## Success Criteria
+>> 20: - [ ] ...
+>> 21: 
+   22: <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
+   23: When you tick a gate, put the proof in an HTML comment on the line after it: a commit
+++ ## Vision
+++ When a terminal opens, the welcome shows a health number that was measured, or says it does not know. It never shows a number nobody measured. Opening a terminal and typing nsh show the same health, because every place that displays health asks one owner. This is the first fix held to the standard written in INT-300: unknown is a word, never a zero.
+++ 
+++ ## The Problem
+++ Seen 2026-10-22 about 22:30. Opening a terminal printed `258/258 shell 0% (red cross) health`. Typing nsh printed 89% with the warning mark. Running d reported 89%. One machine, one minute, two answers.
+++ 
+++ Measured the same evening, before any change:
+++ - The banner row reads health from the file ~/.cache/zero/health-status through core_integration::health(), which is paths::read_health() (main.rs:3447 and 3713). That reader returns None for an empty or unparseable file and the banner then prints health unknown. A file reader alone cannot print 0 unless the file holds 0.
+++ - That file has one writer: doctor/mod.rs:752, a plain std::fs::write. It truncates and then writes, with no temporary file and no rename, and it writes whatever health holds with no check that the number was measured.
+++ - 22,011 doctor runs are recorded in state.db (health_patterns). The lowest score ever recorded is 38. No run scored 0, no run had 0 passed, and the newest ten all read 89 (25 passed, 3 warned, 0 failed, 0 unknown). So no recorded run explains a 0 in the file, and the 0% is NOT yet attributed. This intent does not guess.
+++ - Zero collapses that can print 0 as a fact exist today: doctor/mod.rs:319 turns determinable == 0 into a score of 0 and line 752 would write it; prompt.rs:269 is db.health_score().unwrap_or(0) and feeds the prompt badge (INT-230 G4 named it as remaining work and left it).
+++ - health_score() (db.rs:549) takes the newest event with domain doctor of ANY action and reads detail.health. 106 of the newest 3000 doctor events have none (151 health_check_failed events exist, the last on 2026-10-01), and each of those, if it were newest, makes the prompt show 0.
+++ - Two sources of health in one startup: the banner reads the cache file, while the prompt badge and the status commands read state.db events. They agree today only because both hold 89.
+++ - Terminal-open nsh starts a detached core doctor run when the newest doctor event is older than this boot (main.rs:67 to 119). The banner shows the last known value for that launch and the file is rewritten while the session runs.
+++ - goals/mod.rs:31 reads health_cache() (cache_dir()/health.txt), which has no writer found in the tree, and falls back to 95. Four more domains use the same accessor.
+++ - Existing protection: nsh-test asserts that core doctor check does not write the health cache (nsh-test main.rs:2145).
+++ 
+++ ## The Solution
+++ Measure first, then fix only what the measurement names. One concern per change.
+++ 
+++ Rulings, written before any code (change one by editing this section and saying so in the commit):
+++ - R1 Reproduce before fixing. G1 captures what the file holds, its age and what the banner printed at terminal open, at a typed nsh and after d. G2 states the cause from evidence, or states that it did not reproduce and files that as a finding. No fix gate is ticked on a guess.
+++ - R2 One owner for what the screen says: core_integration::health(), returning Option, is the only source for the banner, the prompt badge and the health status commands. None is shown as unknown.
+++ - R3 The writer tells the truth: write to a temporary file in the same directory and rename it over health-status, so no reader ever sees a partial file; when no check was determinable, write no number and remove the stale file, so readers say unknown.
+++ - R4 health_score() only reads events whose action is run, so a newer check event cannot turn into a score.
+++ - R5 A number older than this boot is shown as stale, or as unknown, never as current.
+++ - R6 The dead health.txt readers are filed as findings with core intent find and are not fixed here.
+++ 
+++ ## Success Criteria
+++ - [ ] G1 REPRODUCE: with a read-only observer, record for three fresh terminal opens the contents and mtime of health-status, what the banner printed at open, what it printed at a typed nsh, and what d reported; say plainly whether the 0 came back
+++ - [ ] G2 ATTRIBUTE: the cause of the 0 is named in one sentence with evidence tied to a file and line, or, if it did not reproduce, that is stated and a finding is filed with core intent find; no later fix gate is ticked on a guess
+++ - [ ] G3 RED FIRST: a test names each way the screen can show 0 for health nobody measured (empty file, a 0 written by an unmeasured run, newest doctor event without detail.health, determinable == 0) and each fails before the fix, shown failing
+++ - [ ] G4 ONE OWNER: the banner, the prompt badge and the health status commands all take health from core_integration::health() as an Option; prompt.rs:269 no longer uses unwrap_or(0) and shows unknown; a search lists every caller that displays health and shows no second source
+++ - [ ] G5 health_score() reads only events with action run; a test with a newer health_check_failed event proves the score does not change
+++ - [ ] G6 THE WRITER: health-status is written to a temporary file and renamed; when determinable is 0 no number is written and the stale file is removed; one test runs a reader against the writer for 10,000 iterations with zero empty or unparseable reads, and one test makes every check unknown or blocked and shows the reader says unknown
+++ - [ ] G7 STALE: a health-status older than the current boot is shown as stale or unknown by the banner, proven by a test that injects the boot time and the file time
+++ - [ ] G8 PARITY: for the same file state the terminal-open path and the typed nsh path print the same health, proven by a test that drives both entry paths, then demonstrated in a fresh terminal on this machine
+++ - [ ] G9 UNKNOWN STAYS UNKNOWN: with no health-status in a scratch cache directory (never the real one) the banner prints health unknown, and the existing behaviour is kept
+++ - [ ] G10 FILED, NOT FIXED: goals, prioritize, tradeoffs, reaction and snapshot reading health.txt with a made-up fallback is filed as findings with core intent find, one per site, naming the class (unknown is not a number)
+++ - [ ] G11 THE CLASS: a test scans the display code for health readers that fall back to a number (unwrap_or(0), unwrap_or(95), unwrap_or(100)) and fails on any, with the known filed sites listed as exceptions so the exception list is visible
+++ - [ ] G12 doors: nsh-test all passing, d 0 failed, core intent validate exit 0; one ship at the end and the deployed nsh tested in a new terminal
+++ - [ ] G13 each gate carries evidence per INT-158; INT-300 G13 (the welcome bug line) waits for this intent to complete
+++ 
+/home/christian/0-core/zero/intents/future/299-fix-health-in-welcoming-needs-to-stop-lying.md: 1 replaced
