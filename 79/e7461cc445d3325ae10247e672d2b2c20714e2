@@ -1,0 +1,189 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 b1c9d2cfbbb85175 -> e889bc1c05ecfba5
+file /home/christian/0-core/zero/engine/src/cli/commands.rs  sha256 6726152b67869756 -> 08fa99b1b1efd923
+file /home/christian/0-core/zero/engine/src/cli/parser.rs  sha256 01c28c6dacd41b09 -> f52b6cc3c602f4af
+file /home/christian/0-core/zero/engine/src/cli/mod.rs  sha256 d7a2f4470e8523da -> 852e59ec2c8849fa
+file /home/christian/0-core/zero/engine/src/app/dispatcher.rs  sha256 e00bed126ce86a94 -> c655ef529b5ed609
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3295..3300 ---
+   3293: }
+   3294: 
+>> 3295: /// INT-212 G9: the text of core intent gates. Red skeleton: says nothing yet.
+>> 3296: fn gates_text(ledger: &Path, id: Option<&str>, unmet: bool, none: bool) -> String {
+>> 3297:     let _ = (ledger, id, unmet, none);
+>> 3298:     String::new()
+>> 3299: }
+>> 3300: 
+   3301: #[cfg(test)]
+   3302: mod gates_query_tests {
+++ /// The title line of an intent file, for listings.
+++ fn frontmatter_title(content: &str) -> String {
+++     content
+++         .lines()
+++         .find_map(|l| l.strip_prefix("title:"))
+++         .map(|t| t.trim().trim_matches(char::from(34u8)).to_string())
+++         .unwrap_or_default()
+++ }
+++ 
+++ /// The folder and file name of an intent file, as folder/name.
+++ fn folder_and_name(file: &Path) -> String {
+++     let part = |p: Option<&std::ffi::OsStr>| p.map(|n| n.to_string_lossy().to_string());
+++     format!(
+++         "{}/{}",
+++         part(file.parent().and_then(|p| p.file_name())).unwrap_or_default(),
+++         part(file.file_name()).unwrap_or_default()
+++     )
+++ }
+++ 
+++ /// INT-212 G9: the text of core intent gates. One intent: its standing and each gate. A sweep:
+++ /// the intents in the ACTIVE folders and in complete/ (never cancelled/) that have an open gate
+++ /// (unmet) or no gate at all (none). A pure function of the ledger folder.
+++ fn gates_text(ledger: &Path, id: Option<&str>, unmet: bool, none: bool) -> String {
+++     use gates::GateState;
+++     let legacy = |s: &gates::Standing| {
+++         if s.legacy {
+++             " (legacy emoji marks)"
+++         } else {
+++             ""
+++         }
+++     };
+++     if let Some(id) = id {
+++         let Some(file) = finder::find_intent_file(ledger, id, folders::LIFECYCLE) else {
+++             return format!("Intent {} not found\n", id);
+++         };
+++         let content = fs::read_to_string(&file).unwrap_or_default();
+++         let s = gates::standing(&content);
+++         let mut out = format!(
+++             "{}  {}\ngates: {}/{} done, {} open, {} deferred{}\n",
+++             folder_and_name(&file),
+++             frontmatter_title(&content),
+++             s.done,
+++             s.total,
+++             s.open,
+++             s.deferred,
+++             legacy(&s)
+++         );
+++         for g in gates::read_gates(&content).gates {
+++             let mark = match g.state {
+++                 GateState::Done => "[x]",
+++                 GateState::Open => "[ ]",
+++                 GateState::Deferred => "[~]",
+++             };
+++             let text: String = g.text.chars().take(100).collect();
+++             out.push_str(&format!("  {} {}\n", mark, text));
+++         }
+++         return out;
+++     }
+++     if !unmet && !none {
+++         return "give an intent id, or --unmet, or --none\n".to_string();
+++     }
+++     let mut swept: Vec<&str> = folders::ACTIVE.to_vec();
+++     swept.push("complete");
+++     let (mut open_rows, mut bare_rows) = (Vec::new(), Vec::new());
+++     for file in finder::files_in(ledger, &swept) {
+++         let s = gates::standing(&fs::read_to_string(&file).unwrap_or_default());
+++         let name = folder_and_name(&file);
+++         if s.open > 0 {
+++             open_rows.push(format!(
+++                 "  {}  {} open of {}{}",
+++                 name,
+++                 s.open,
+++                 s.total,
+++                 legacy(&s)
+++             ));
+++         }
+++         if s.total == 0 {
+++             bare_rows.push(format!("  {}", name));
+++         }
+++     }
+++     let mut out = String::new();
+++     if unmet {
+++         out.push_str(&format!("Intents with unmet gates: {}\n", open_rows.len()));
+++         open_rows
+++             .iter()
+++             .for_each(|r| out.push_str(&format!("{}\n", r)));
+++     }
+++     if none {
+++         out.push_str(&format!("Intents with no gates: {}\n", bare_rows.len()));
+++         bare_rows
+++             .iter()
+++             .for_each(|r| out.push_str(&format!("{}\n", r)));
+++     }
+++     out
+++ }
+++ 
+++ /// core intent gates [id] [--unmet] [--none]
+++ pub fn gates_query(ctx: &AppContext, id: Option<&str>, unmet: bool, none: bool) -> CoreResult<()> {
+++     ctx.capabilities
+++         .require("intent", &[Capability::FilesystemReadHome])?;
+++     print!("{}", gates_text(&intents_dir(ctx), id, unmet, none));
+++     Ok(())
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/commands.rs: replacing lines 345..349 ---
+   343:         id: String,
+   344:     },
+>> 345:     Story {
+>> 346:         id: String,
+>> 347:     },
+>> 348:     Blocked,
+>> 349:     Next,
+   350:     Brief,
+   351:     Graph,
+++     Story {
+++         id: String,
+++     },
+++     Gates {
+++         id: Option<String>,
+++         unmet: bool,
+++         none: bool,
+++     },
+++     Blocked,
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/parser.rs: replacing lines 707..709 ---
+   705:         id: String,
+   706:     },
+>> 707:     /// Show blocked intents and what is blocking them
+>> 708:     Blocked,
+>> 709:     /// Recommend next intent with explanation
+   710:     Next,
+   711:     /// Session brief -- active intent, velocity, what to do
+++     /// Show the gates of one intent, or sweep every intent for unmet gates or for no gates
+++     Gates {
+++         /// Intent number, for one intent
+++         id: Option<String>,
+++         /// List the active and complete intents that have an open gate
+++         #[arg(long)]
+++         unmet: bool,
+++         /// List the active and complete intents that have no gates
+++         #[arg(long)]
+++         none: bool,
+++     },
+++     /// Show blocked intents and what is blocking them
+++     Blocked,
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/mod.rs: replacing lines 239..240 ---
+   237:             IntentCommands::AutoLink { id } => IntentCommand::AutoLink { id },
+   238:             IntentCommands::Story { id } => IntentCommand::Story { id },
+>> 239:             IntentCommands::Blocked => IntentCommand::Blocked,
+>> 240:             IntentCommands::Next => IntentCommand::Next,
+   241:             IntentCommands::Brief => IntentCommand::Brief,
+   242:             IntentCommands::Graph => IntentCommand::Graph,
+++             IntentCommands::Gates { id, unmet, none } => IntentCommand::Gates { id, unmet, none },
+++             IntentCommands::Blocked => IntentCommand::Blocked,
+++ 
+--- /home/christian/0-core/zero/engine/src/app/dispatcher.rs: replacing lines 167..168 ---
+   165:                 IntentCommand::AutoLink { id } => crate::domains::intent::auto_link(ctx, &id),
+   166:                 IntentCommand::Story { id } => crate::domains::intent::story(ctx, &id),
+>> 167:                 IntentCommand::Blocked => crate::domains::intent::blocked(ctx),
+>> 168:                 IntentCommand::Next => crate::domains::intent::next_intent(ctx),
+   169:                 IntentCommand::Brief => crate::domains::intent::brief(ctx),
+   170:                 IntentCommand::Graph => crate::domains::intent::graph(ctx),
+++                 IntentCommand::Gates { id, unmet, none } => {
+++                     crate::domains::intent::gates_query(ctx, id.as_deref(), unmet, none)
+++                 }
+++                 IntentCommand::Blocked => crate::domains::intent::blocked(ctx),
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/commands.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/parser.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/app/dispatcher.rs: 1 replaced
