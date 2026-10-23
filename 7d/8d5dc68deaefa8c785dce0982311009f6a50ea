@@ -1,0 +1,205 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/finder.rs  sha256 fee330c7bb007315 -> 844ec7c940eda9f5
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 17ade36267cf70ce -> 0df6a9f36b5496cf
+--- /home/christian/0-core/zero/engine/src/domains/intent/finder.rs: replacing lines 9..11 ---
+   7: //! as a number, so 21, 021 and 0021 name the same file and none of them names 212.
+   8: 
+>> 9: use std::fs;
+>> 10: use std::path::{Path, PathBuf};
+>> 11: 
+   12: /// The digits of `s` as a number, or None when `s` is empty or holds anything but digits.
+   13: fn number_of(s: &str) -> Option<u32> {
+++ use super::folders;
+++ use std::fs;
+++ use std::path::{Path, PathBuf};
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/finder.rs: replacing lines 46..62 ---
+   44: }
+   45: 
+>> 46: /// Every `.md` file directly in `folders`, folder by folder in the order given and by file name
+>> 47: /// inside each. A folder that does not exist holds nothing (INT-212 G7).
+>> 48: #[allow(dead_code)] // red skeleton: the consumers migrate in the fix
+>> 49: pub fn files_in(base: &Path, folders: &[&str]) -> Vec<PathBuf> {
+>> 50:     let _ = (base, folders);
+>> 51:     Vec::new()
+>> 52: }
+>> 53: 
+>> 54: /// The files of work in flight: every file in the ACTIVE folders whose frontmatter status line
+>> 55: /// says in-progress. The folder does not decide it: cistart moves a file out of future/ only,
+>> 56: /// so a started intent can still sit in planned/.
+>> 57: #[allow(dead_code)] // red skeleton: the consumers migrate in the fix
+>> 58: pub fn in_progress_files(base: &Path) -> Vec<PathBuf> {
+>> 59:     let _ = base;
+>> 60:     Vec::new()
+>> 61: }
+>> 62: 
+   63: #[cfg(test)]
+   64: mod files_tests {
+++ /// Every `.md` file directly in `folders`, folder by folder in the order given and by file name
+++ /// inside each. A folder that does not exist holds nothing (INT-212 G7).
+++ pub fn files_in(base: &Path, folders: &[&str]) -> Vec<PathBuf> {
+++     let mut all = Vec::new();
+++     for folder in folders {
+++         let Ok(entries) = fs::read_dir(base.join(folder)) else {
+++             continue;
+++         };
+++         let mut here: Vec<PathBuf> = entries
+++             .flatten()
+++             .map(|e| e.path())
+++             .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("md"))
+++             .collect();
+++         here.sort();
+++         all.extend(here);
+++     }
+++     all
+++ }
+++ 
+++ /// The value of the first `status:` line, trimmed: the frontmatter status. Prose further down
+++ /// that mentions a status is never read.
+++ fn status_of(content: &str) -> &str {
+++     content
+++         .lines()
+++         .find(|l| l.starts_with("status:"))
+++         .map(|l| l.trim_start_matches("status:").trim())
+++         .unwrap_or("")
+++ }
+++ 
+++ /// The files of work in flight: every file in the ACTIVE folders whose frontmatter status line
+++ /// says in-progress. The folder does not decide it: cistart moves a file out of future/ only,
+++ /// so a started intent can still sit in planned/.
+++ pub fn in_progress_files(base: &Path) -> Vec<PathBuf> {
+++     files_in(base, folders::ACTIVE)
+++         .into_iter()
+++         .filter(|p| {
+++             fs::read_to_string(p)
+++                 .map(|c| status_of(&c) == "in-progress")
+++                 .unwrap_or(false)
+++         })
+++         .collect()
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3298..3299 ---
+   3296:     use colored::*;
+   3297:     let _root = std::path::PathBuf::from(&ctx.core_root);
+>> 3298:     let future_dir = zero_core::paths::intents_dir().join("future");
+>> 3299:     let now = chrono::Utc::now().timestamp();
+   3300:     let mut intents: Vec<(String, String, String, f64, Vec<String>)> = Vec::new();
+   3301:     if let Ok(entries) = std::fs::read_dir(&future_dir) {
+++     let ledger = zero_core::paths::intents_dir();
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3301..3311 ---
+   3299:     let now = chrono::Utc::now().timestamp();
+   3300:     let mut intents: Vec<(String, String, String, f64, Vec<String>)> = Vec::new();
+>> 3301:     if let Ok(entries) = std::fs::read_dir(&future_dir) {
+>> 3302:         for entry in entries.flatten() {
+>> 3303:             let name = entry.file_name().to_string_lossy().to_string();
+>> 3304:             if !name.ends_with(".md") {
+>> 3305:                 continue;
+>> 3306:             }
+>> 3307:             let content = std::fs::read_to_string(entry.path()).unwrap_or_default();
+>> 3308:             if !content.contains("status: in-progress") {
+>> 3309:                 continue;
+>> 3310:             }
+>> 3311:             let id = name.split('-').next().unwrap_or("?").to_string();
+   3312:             let title = content
+   3313:                 .lines()
+++     let in_flight = finder::in_progress_files(&ledger);
+++     if !in_flight.is_empty() {
+++         for path in in_flight {
+++             let name = path
+++                 .file_name()
+++                 .map(|n| n.to_string_lossy().to_string())
+++                 .unwrap_or_default();
+++             let content = std::fs::read_to_string(&path).unwrap_or_default();
+++             let dir = path
+++                 .parent()
+++                 .map(|p| p.to_string_lossy().to_string())
+++                 .unwrap_or_default();
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3330..3339 ---
+   3328:             let days_since: i64 = {
+   3329:                 let out = std::process::Command::new("git")
+>> 3330:                     .args([
+>> 3331:                         "-C",
+>> 3332:                         &ctx.core_root,
+>> 3333:                         "log",
+>> 3334:                         "-1",
+>> 3335:                         "--format=%ct",
+>> 3336:                         "--",
+>> 3337:                         &format!("intents/future/{}", name),
+>> 3338:                     ])
+>> 3339:                     .output()
+   3340:                     .ok();
+   3341:                 let ts = out
+++                     .args(["-C", &dir, "log", "-1", "--format=%ct", "--", &name])
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3405..3425 ---
+   3403: pub fn predict_completion(ctx: &AppContext, id: &str) -> CoreResult<()> {
+   3404:     use colored::*;
+>> 3405:     let root = std::path::PathBuf::from(&ctx.core_root);
+>> 3406: 
+>> 3407:     // Find the intent file
+>> 3408:     let mut intent_content = None;
+>> 3409:     let mut intent_name = String::new();
+>> 3410:     for dir in &["intents/future", "intents/complete"] {
+>> 3411:         if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
+>> 3412:             for entry in entries.flatten() {
+>> 3413:                 let name = entry.file_name().to_string_lossy().to_string();
+>> 3414:                 if name.starts_with(id) && name.ends_with(".md") {
+>> 3415:                     intent_content = std::fs::read_to_string(entry.path()).ok();
+>> 3416:                     intent_name = name;
+>> 3417:                     break;
+>> 3418:                 }
+>> 3419:             }
+>> 3420:         }
+>> 3421:         if intent_content.is_some() {
+>> 3422:             break;
+>> 3423:         }
+>> 3424:     }
+>> 3425:     let content = match intent_content {
+   3426:         None => {
+   3427:             println!("  {} Intent {} not found", "✗".bright_red(), id);
+++     // Find the intent file in every lifecycle folder, by number (INT-212 G7)
+++     let found = finder::find_intent_file(&intents_dir(ctx), id, folders::LIFECYCLE);
+++     let intent_name = found
+++         .as_ref()
+++         .and_then(|p| p.file_name())
+++         .map(|n| n.to_string_lossy().to_string())
+++         .unwrap_or_default();
+++     let intent_content = found.and_then(|p| std::fs::read_to_string(p).ok());
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3625..3643 ---
+   3623:     use colored::*;
+   3624:     let root = std::path::PathBuf::from(&ctx.core_root);
+>> 3625:     // Find intent in any directory
+>> 3626:     let mut intent_content = None;
+>> 3627:     let mut intent_path = std::path::PathBuf::new();
+>> 3628:     for dir in &["intents/complete", "intents/future", "intents/archive"] {
+>> 3629:         if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
+>> 3630:             for entry in entries.flatten() {
+>> 3631:                 let name = entry.file_name().to_string_lossy().to_string();
+>> 3632:                 if name.starts_with(id) && name.ends_with(".md") {
+>> 3633:                     intent_path = entry.path();
+>> 3634:                     intent_content = std::fs::read_to_string(&intent_path).ok();
+>> 3635:                     break;
+>> 3636:                 }
+>> 3637:             }
+>> 3638:         }
+>> 3639:         if intent_content.is_some() {
+>> 3640:             break;
+>> 3641:         }
+>> 3642:     }
+>> 3643:     let content = match intent_content {
+   3644:         None => {
+   3645:             println!("  {} Intent {} not found", "✗".bright_red(), id);
+++     // Find intent in every lifecycle folder, by number (INT-212 G7)
+++     let intent_path =
+++         finder::find_intent_file(&intents_dir(ctx), id, folders::LIFECYCLE).unwrap_or_default();
+++     let intent_content = std::fs::read_to_string(&intent_path).ok();
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/finder.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/finder.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
