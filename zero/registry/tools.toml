@@ -5,7 +5,7 @@
 
 [[tool]]
 name = "core"
-version = "4.4.4"
+version = "4.4.5"
 category = "core"
 description = "Main engine — 15 domains, capability model"
 expected_usage = "high"
@@ -51,7 +51,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "nsh"
-version = "5.3.5"
+version = "5.3.6"
 category = "shell"
 description = "NovaShell -- the structured shell of Project 0. Package: novashell."
 expected_usage = "high"

@@ -504,7 +504,7 @@ dependencies = [
 
 [[package]]
 name = "core"
-version = "4.4.4"
+version = "4.4.5"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1602,7 +1602,7 @@ dependencies = [
 
 [[package]]
 name = "novashell"
-version = "5.3.5"
+version = "5.3.6"
 dependencies = [
  "anyhow",
  "chrono",

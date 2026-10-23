@@ -3,7 +3,7 @@ id: 212
 date: 2026-08-09
 type: future
 title: "cicomplete blocks open gates but never requires gates to exist, and three consumers still count a gate format the ledger stopped using"
-status: in-progress
+status: complete
 tags: [ledger, intent, gates, enforcement]
 depends_on: [294]
 ---
@@ -128,3 +128,7 @@ SOFT (a discipline, not gate-police; nothing enforces this).
 LIGHT (trivial self-evident gates need no artifact).
 Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
 See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+
+## Versions
+- core 4.4.4 -> 4.4.5 (patch)
+- nsh 5.3.5 -> 5.3.6 (patch)
