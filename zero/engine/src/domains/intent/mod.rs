@@ -3292,6 +3292,84 @@ pub fn branch(ctx: &AppContext, id: &str) -> CoreResult<()> {
     Ok(())
 }
 
+/// INT-212 G10: the gates done by the most recently numbered complete intents that have any,
+/// newest first, at most `limit`. The number is the digits before the first dash of the file
+/// name, so the sample does not depend on the order the directory lists its files.
+fn recent_done_counts(ledger: &Path, limit: usize) -> Vec<usize> {
+    let number = |p: &Path| -> u64 {
+        p.file_name()
+            .and_then(|n| n.to_str())
+            .and_then(|n| n.split(|c| c == char::from(45u8)).next())
+            .and_then(|d| d.parse().ok())
+            .unwrap_or(0)
+    };
+    let mut files = finder::files_in(ledger, &["complete"]);
+    files.sort_by_key(|p| std::cmp::Reverse(number(p)));
+    files
+        .iter()
+        .map(|p| gates::count(&fs::read_to_string(p).unwrap_or_default()).done)
+        .filter(|done| *done > 0)
+        .take(limit)
+        .collect()
+}
+
+#[cfg(test)]
+mod recent_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    fn ledger(done_by_id: &[(u32, usize)]) -> PathBuf {
+        static N: AtomicUsize = AtomicUsize::new(0);
+        let base = std::env::temp_dir().join(format!(
+            "core-recent-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, Ordering::SeqCst)
+        ));
+        fs::create_dir_all(base.join("complete")).unwrap();
+        for (id, done) in done_by_id {
+            let gates: String = (1..=*done).map(|g| format!("- [x] G{} g\n", g)).collect();
+            let body = format!("---\ntitle: T\n---\n\n## Success Criteria\n\n{}", gates);
+            let name = format!("{:03}-t.md", id);
+            fs::write(base.join("complete").join(name), body).unwrap();
+        }
+        base
+    }
+
+    #[test]
+    fn the_ten_highest_numbers_are_sampled_newest_first() {
+        let all: Vec<(u32, usize)> = (1..=15).map(|n| (n, n as usize)).collect();
+        let l = ledger(&all);
+        let got = recent_done_counts(&l, 10);
+        let _ = fs::remove_dir_all(&l);
+        assert_eq!(got, vec![15, 14, 13, 12, 11, 10, 9, 8, 7, 6]);
+    }
+
+    #[test]
+    fn an_intent_with_no_done_gates_is_skipped_and_the_sample_stays_full() {
+        let all: Vec<(u32, usize)> = (1..=12)
+            .map(|n| (n, if n > 10 { 0 } else { n as usize }))
+            .collect();
+        let l = ledger(&all);
+        let got = recent_done_counts(&l, 10);
+        let _ = fs::remove_dir_all(&l);
+        assert_eq!(got, vec![10, 9, 8, 7, 6, 5, 4, 3, 2, 1]);
+    }
+
+    #[test]
+    fn fewer_intents_than_the_limit_returns_what_there_is() {
+        let l = ledger(&[(3, 2), (5, 1)]);
+        let got = recent_done_counts(&l, 10);
+        let _ = fs::remove_dir_all(&l);
+        assert_eq!(got, vec![1, 2]);
+    }
+
+    #[test]
+    fn a_missing_complete_folder_gives_an_empty_sample() {
+        let missing = std::env::temp_dir().join("core-recent-no-such-ledger");
+        assert!(recent_done_counts(&missing, 10).is_empty());
+    }
+}
+
 /// The title line of an intent file, for listings.
 fn frontmatter_title(content: &str) -> String {
     content
@@ -3708,17 +3786,10 @@ pub fn predict_completion(ctx: &AppContext, id: &str) -> CoreResult<()> {
     let done_gates = gate_count.done;
     let remaining = total_gates.saturating_sub(done_gates);
     // Get average gates completed per session from recent intents
-    let complete_dir = zero_core::paths::intents_dir().join("complete");
-    let mut gates_per_session: Vec<f64> = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(&complete_dir) {
-        for entry in entries.flatten().take(10) {
-            let c = std::fs::read_to_string(entry.path()).unwrap_or_default();
-            let total = gates::count(&c).done;
-            if total > 0 {
-                gates_per_session.push(total as f64 / 2.0);
-            } // assume ~2 sessions avg
-        }
-    }
+    let gates_per_session: Vec<f64> = recent_done_counts(&zero_core::paths::intents_dir(), 10)
+        .into_iter()
+        .map(|done| done as f64 / 2.0) // assume ~2 sessions avg
+        .collect();
     let avg_gates_per_session = if gates_per_session.is_empty() {
         3.0
     } else {
