@@ -80,7 +80,7 @@ The line numbers in the Evidence above date from 2026-08-09 and are stale. Measu
 
 The section is `## Success Criteria`. Each item is one gate: `- [ ] G<n> text`, followed by an INT-158 evidence comment. `[x]` is done, and that includes a gate closed by declining it with numbered reasons. `[~]` is retired for new intents and still reads as open. A deferral keeps its existing form. The emoji form is legacy and is read only until its consumers migrate. Why this name: the scaffold at mod.rs:3020 already writes it, decision 142 names it as file content, and the tooling needs each item to be one independently checkable condition with evidence.
 
-## START HERE -- written 2026-10-22 after the G5 code commit
+## START HERE -- SUPERSEDED 2026-10-22: all eleven gates are ticked with evidence (last tick 634c9a13) and the findings are filed as F-0054 to F-0066, so there is no newer START HERE; the text below is history, written after the G5 code commit
 
 State: G1 to G4 are ticked with evidence, committed and sealed. G5 CODE is committed as dc65a6da (Seal 26924d7479bb9bbf) but G5 is NOT ticked yet. G6 to G11 are open. Nothing from this stretch has been pushed. INT-280's lifecycle move (deleted in future/, untracked in in-progress/) is uncommitted and is not ours: leave it alone and never stage it.
 
