@@ -192,6 +192,37 @@ pub fn read_gates(content: &str) -> GateReport {
     report
 }
 
+/// How many gates an intent has and how many are done: ONE owner for the count (INT-212 G6).
+/// A deferred gate counts in the total and not as done.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct GateCount {
+    pub total: usize,
+    pub done: usize,
+    /// The count came from legacy emoji marks outside any Success Criteria section.
+    pub legacy: bool,
+}
+
+/// Count the gates in an intent file. When the Success Criteria section holds gates, they are
+/// the count. A file with none there but legacy emoji marks elsewhere is an old-format intent:
+/// those marks are counted and the result says so. Anything else is zero.
+pub fn count(content: &str) -> GateCount {
+    let gates = read_gates(content).gates;
+    if !gates.is_empty() {
+        return GateCount {
+            total: gates.len(),
+            done: gates.iter().filter(|g| g.state == GateState::Done).count(),
+            legacy: false,
+        };
+    }
+    let open = content.matches(LEGACY_OPEN).count();
+    let done = content.matches(LEGACY_DONE).count();
+    GateCount {
+        total: open + done,
+        done,
+        legacy: open + done > 0,
+    }
+}
+
 /// May this intent complete? Refuses with one distinct reason, in this order: a deferral
 /// without its signature, no gates at all, an open gate, an open checkbox outside the section.
 pub fn check_completion(content: &str) -> Result<(), Refusal> {
@@ -528,5 +559,54 @@ mod tests {
             states,
             vec![GateState::Open, GateState::Done, GateState::Done]
         );
+    }
+}
+
+#[cfg(test)]
+mod count_tests {
+    use super::*;
+
+    fn with_section(body: &str) -> String {
+        format!("# t\n\n## Success Criteria\n\n{}\n", body)
+    }
+
+    #[test]
+    fn markdown_gates_are_counted() {
+        let c = count(&with_section("- [x] G1 a\n- [ ] G2 b\n- [x] G3 c\n"));
+        assert_eq!((c.total, c.done, c.legacy), (3, 2, false));
+    }
+
+    #[test]
+    fn legacy_marks_inside_the_section_are_counted() {
+        let c = count(&with_section(
+            "\u{2B1C} G1 old open\n\u{2705} G2 old done\n",
+        ));
+        assert_eq!((c.total, c.done), (2, 1));
+    }
+
+    #[test]
+    fn legacy_marks_without_a_section_are_counted_and_flagged() {
+        let c = count("# old\n\n\u{2B1C} a\n\u{2705} b\n\u{2705} c\n");
+        assert_eq!((c.total, c.done, c.legacy), (3, 2, true));
+    }
+
+    #[test]
+    fn no_gates_at_all_is_zero_and_not_flagged() {
+        let c = count("# nothing here\n");
+        assert_eq!((c.total, c.done, c.legacy), (0, 0, false));
+    }
+
+    #[test]
+    fn a_stray_open_box_outside_the_section_is_not_a_gate() {
+        let c = count("- [ ] remember\n\n## Success Criteria\n\n- [x] G1 a\n");
+        assert_eq!((c.total, c.done), (1, 1));
+    }
+
+    #[test]
+    fn marks_in_prose_and_comments_do_not_count_when_the_section_has_gates() {
+        let c = count(&with_section(
+            "- [x] G1 a\n<!-- evidence: x \u{2705} y -->\nprose \u{2B1C} here\n",
+        ));
+        assert_eq!((c.total, c.done), (1, 1));
     }
 }

@@ -3319,8 +3319,9 @@ pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
                         .to_string()
                 })
                 .unwrap_or_else(|| name.clone());
-            let total_gates = content.matches("⬜").count() + content.matches("✅").count();
-            let done_gates = content.matches("✅").count();
+            let gate_count = gates::count(&content);
+            let total_gates = gate_count.total;
+            let done_gates = gate_count.done;
             let gate_pct = (done_gates * 100).checked_div(total_gates).unwrap_or(0);
             let days_since: i64 = {
                 let out = std::process::Command::new("git")
@@ -3361,7 +3362,12 @@ pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
                 intents.push((
                     id,
                     title,
-                    format!("{}/{}", done_gates, total_gates),
+                    format!(
+                        "{}/{}{}",
+                        done_gates,
+                        total_gates,
+                        if gate_count.legacy { " legacy" } else { "" }
+                    ),
                     score,
                     issues,
                 ));
@@ -3439,8 +3445,9 @@ pub fn predict_completion(ctx: &AppContext, id: &str) -> CoreResult<()> {
                 .to_string()
         })
         .unwrap_or_else(|| intent_name.clone());
-    let total_gates = content.matches("⬜").count() + content.matches("✅").count();
-    let done_gates = content.matches("✅").count();
+    let gate_count = gates::count(&content);
+    let total_gates = gate_count.total;
+    let done_gates = gate_count.done;
     let remaining = total_gates.saturating_sub(done_gates);
     // Get average gates completed per session from recent intents
     let complete_dir = zero_core::paths::intents_dir().join("complete");
@@ -3448,7 +3455,7 @@ pub fn predict_completion(ctx: &AppContext, id: &str) -> CoreResult<()> {
     if let Ok(entries) = std::fs::read_dir(&complete_dir) {
         for entry in entries.flatten().take(10) {
             let c = std::fs::read_to_string(entry.path()).unwrap_or_default();
-            let total = c.matches("✅").count();
+            let total = gates::count(&c).done;
             if total > 0 {
                 gates_per_session.push(total as f64 / 2.0);
             } // assume ~2 sessions avg
@@ -3692,8 +3699,9 @@ pub fn story(ctx: &AppContext, id: &str) -> CoreResult<()> {
                 .collect()
         })
         .unwrap_or_default();
-    let total_gates = content.matches("⬜").count() + content.matches("✅").count();
-    let done_gates = content.matches("✅").count();
+    let gate_count = gates::count(&content);
+    let total_gates = gate_count.total;
+    let done_gates = gate_count.done;
     // Get git commits touching this intent
     let commit_log = std::process::Command::new("git")
         .args([
