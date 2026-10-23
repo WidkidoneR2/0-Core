@@ -708,7 +708,7 @@ pub enum IntentCommands {
     Gates {
         /// Intent number, for one intent
         id: Option<String>,
-        /// List the active and complete intents that have an open gate
+        /// List the active and complete intents with an open gate or a stray open box
         #[arg(long)]
         unmet: bool,
         /// List the active and complete intents that have no gates

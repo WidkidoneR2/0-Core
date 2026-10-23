@@ -3312,8 +3312,9 @@ fn folder_and_name(file: &Path) -> String {
 }
 
 /// INT-212 G9: the text of core intent gates. One intent: its standing and each gate. A sweep:
-/// the intents in the ACTIVE folders and in complete/ (never cancelled/) that have an open gate
-/// (unmet) or no gate at all (none). A pure function of the ledger folder.
+/// the intents in the ACTIVE folders and in complete/ (never cancelled/) that have an open gate,
+/// or an open box outside the section, as unmet, or no gate at all as none. A pure function of
+/// the ledger folder.
 fn gates_text(ledger: &Path, id: Option<&str>, unmet: bool, none: bool) -> String {
     use gates::GateState;
     let legacy = |s: &gates::Standing| {
@@ -3329,6 +3330,7 @@ fn gates_text(ledger: &Path, id: Option<&str>, unmet: bool, none: bool) -> Strin
         };
         let content = fs::read_to_string(&file).unwrap_or_default();
         let s = gates::standing(&content);
+        let report = gates::read_gates(&content);
         let mut out = format!(
             "{}  {}\ngates: {}/{} done, {} open, {} deferred{}\n",
             folder_and_name(&file),
@@ -3339,7 +3341,7 @@ fn gates_text(ledger: &Path, id: Option<&str>, unmet: bool, none: bool) -> Strin
             s.deferred,
             legacy(&s)
         );
-        for g in gates::read_gates(&content).gates {
+        for g in report.gates {
             let mark = match g.state {
                 GateState::Done => "[x]",
                 GateState::Open => "[ ]",
@@ -3347,6 +3349,16 @@ fn gates_text(ledger: &Path, id: Option<&str>, unmet: bool, none: bool) -> Strin
             };
             let text: String = g.text.chars().take(100).collect();
             out.push_str(&format!("  {} {}\n", mark, text));
+        }
+        if !report.stray_open.is_empty() {
+            out.push_str(&format!(
+                "outside the section: {} open\n",
+                report.stray_open.len()
+            ));
+            for t in &report.stray_open {
+                let text: String = t.chars().take(100).collect();
+                out.push_str(&format!("  [ ] {}\n", text));
+            }
         }
         return out;
     }
@@ -3357,15 +3369,23 @@ fn gates_text(ledger: &Path, id: Option<&str>, unmet: bool, none: bool) -> Strin
     swept.push("complete");
     let (mut open_rows, mut bare_rows) = (Vec::new(), Vec::new());
     for file in finder::files_in(ledger, &swept) {
-        let s = gates::standing(&fs::read_to_string(&file).unwrap_or_default());
+        let content = fs::read_to_string(&file).unwrap_or_default();
+        let s = gates::standing(&content);
+        let stray = gates::read_gates(&content).stray_open.len();
         let name = folder_and_name(&file);
-        if s.open > 0 {
+        if s.open > 0 || stray > 0 {
+            let outside = if stray > 0 {
+                format!(", {} open outside the section", stray)
+            } else {
+                String::new()
+            };
             open_rows.push(format!(
-                "  {}  {} open of {}{}",
+                "  {}  {} open of {}{}{}",
                 name,
                 s.open,
                 s.total,
-                legacy(&s)
+                legacy(&s),
+                outside
             ));
         }
         if s.total == 0 {
@@ -3428,6 +3448,11 @@ mod gates_query_tests {
                 "---\ntitle: T\n---\nno gates here\n".to_string(),
             ),
             ("future", "5-delta.md", format!("{}- [x] G1 ok\n", section)),
+            (
+                "complete",
+                "20-zeta.md",
+                format!("{}- [x] G1 ok\n\n## Other\n\n- [ ] M8 left over\n", section),
+            ),
             (
                 "cancelled",
                 "9-eps.md",
@@ -3513,6 +3538,25 @@ mod gates_query_tests {
         let out = gates_text(&l, Some("999"), false, false);
         let _ = fs::remove_dir_all(&l);
         assert!(out.contains("not found"), "{}", out);
+    }
+
+    #[test]
+    fn an_open_box_outside_the_section_makes_an_intent_unmet() {
+        let l = ledger();
+        let out = gates_text(&l, None, true, false);
+        let _ = fs::remove_dir_all(&l);
+        assert!(out.contains("complete/20-zeta.md"), "{}", out);
+        assert!(out.contains("outside the section"), "{}", out);
+    }
+
+    #[test]
+    fn one_intent_lists_its_open_boxes_outside_the_section() {
+        let l = ledger();
+        let out = gates_text(&l, Some("20"), false, false);
+        let _ = fs::remove_dir_all(&l);
+        assert!(out.contains("1/1 done"), "{}", out);
+        assert!(out.contains("outside the section: 1 open"), "{}", out);
+        assert!(out.contains("M8 left over"), "{}", out);
     }
 
     #[test]
