@@ -1,0 +1,38 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/gates.rs  sha256 702214e21cd4bd9d -> 37618e974d8c3007
+--- /home/christian/0-core/zero/engine/src/domains/intent/gates.rs: replacing lines 357..362 ---
+   355: }
+   356: 
+>> 357: /// Red skeleton: reports nothing yet.
+>> 358: pub fn standing(content: &str) -> Standing {
+>> 359:     let _ = content;
+>> 360:     Standing::default()
+>> 361: }
+>> 362: 
+   363: #[cfg(test)]
+   364: mod standing_tests {
+++ /// The standing of the gates of an intent. When the Success Criteria section holds gates, they are the
+++ /// standing. A file with none there but legacy emoji marks elsewhere is an old-format intent: the
+++ /// marks are counted and the result says so. Anything else is zero.
+++ pub fn standing(content: &str) -> Standing {
+++     let gates = read_gates(content).gates;
+++     if !gates.is_empty() {
+++         let of = |s: GateState| gates.iter().filter(|g| g.state == s).count();
+++         return Standing {
+++             total: gates.len(),
+++             done: of(GateState::Done),
+++             deferred: of(GateState::Deferred),
+++             open: of(GateState::Open),
+++             legacy: false,
+++         };
+++     }
+++     let c = count(content);
+++     Standing {
+++         total: c.total,
+++         done: c.done,
+++         deferred: 0,
+++         open: c.total - c.done,
+++         legacy: c.legacy,
+++     }
+++ }
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/gates.rs: 1 replaced
