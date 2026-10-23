@@ -342,6 +342,119 @@ pub fn summary(refusal: &Refusal) -> String {
     }
 }
 
+/// One intent gate standing, for the unmet-gates query (INT-212 G9). A deferred gate counts in
+/// the total and is neither done nor open.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub struct Standing {
+    pub total: usize,
+    pub done: usize,
+    pub deferred: usize,
+    pub open: usize,
+    /// The gates are legacy emoji marks outside any Success Criteria section.
+    pub legacy: bool,
+}
+
+/// The standing of the gates of an intent. When the Success Criteria section holds gates, they are the
+/// standing. A file with none there but legacy emoji marks elsewhere is an old-format intent: the
+/// marks are counted and the result says so. Anything else is zero.
+pub fn standing(content: &str) -> Standing {
+    let gates = read_gates(content).gates;
+    if !gates.is_empty() {
+        let of = |s: GateState| gates.iter().filter(|g| g.state == s).count();
+        return Standing {
+            total: gates.len(),
+            done: of(GateState::Done),
+            deferred: of(GateState::Deferred),
+            open: of(GateState::Open),
+            legacy: false,
+        };
+    }
+    let c = count(content);
+    Standing {
+        total: c.total,
+        done: c.done,
+        deferred: 0,
+        open: c.total - c.done,
+        legacy: c.legacy,
+    }
+}
+
+#[cfg(test)]
+mod standing_tests {
+    use super::*;
+
+    fn section(gates: &[&str]) -> String {
+        format!("## Success Criteria\n\n{}\n", gates.join("\n"))
+    }
+
+    #[test]
+    fn markdown_gates_are_counted_by_state() {
+        let pause = char::from_u32(0x23F8).unwrap();
+        let deferral = format!(
+            "{} G4 later -- deferred: no time -- approved by: christian 2026-10-22",
+            pause
+        );
+        let c = section(&["- [x] G1 a", "- [x] G2 b", "- [ ] G3 c", &deferral]);
+        assert_eq!(
+            standing(&c),
+            Standing {
+                total: 4,
+                done: 2,
+                deferred: 1,
+                open: 1,
+                legacy: false
+            }
+        );
+    }
+
+    #[test]
+    fn an_intent_with_every_gate_done_has_none_open() {
+        let c = section(&["- [x] G1 a", "- [x] G2 b"]);
+        let s = standing(&c);
+        assert_eq!((s.total, s.done, s.open), (2, 2, 0));
+    }
+
+    #[test]
+    fn legacy_marks_outside_a_section_count_and_say_so() {
+        let open = char::from_u32(0x2B1C).unwrap();
+        let done = char::from_u32(0x2705).unwrap();
+        let c = format!("## Notes\n{} a\n{} b\n", open, done);
+        assert_eq!(
+            standing(&c),
+            Standing {
+                total: 2,
+                done: 1,
+                deferred: 0,
+                open: 1,
+                legacy: true
+            }
+        );
+    }
+
+    #[test]
+    fn an_intent_with_no_gates_has_a_zero_standing() {
+        assert_eq!(standing("## Notes\nsome text\n"), Standing::default());
+    }
+
+    #[test]
+    fn a_stray_checkbox_outside_the_section_is_not_a_gate() {
+        let c = "## Notes\n- [ ] stray\n## Success Criteria\n- [x] G1 a\n";
+        let s = standing(c);
+        assert_eq!((s.total, s.done, s.open), (1, 1, 0));
+    }
+
+    #[test]
+    fn the_section_wins_over_legacy_marks_in_prose() {
+        let done = char::from_u32(0x2705).unwrap();
+        let c = format!(
+            "## Notes\n{} prose\n## Success Criteria\n- [ ] G1 a\n",
+            done
+        );
+        let s = standing(&c);
+        assert_eq!((s.total, s.done, s.open, s.legacy), (1, 0, 1, false));
+    }
+}
+
 #[cfg(test)]
 mod explain_tests {
     use super::*;
