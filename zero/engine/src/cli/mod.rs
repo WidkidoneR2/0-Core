@@ -236,6 +236,7 @@ pub fn parse() -> Command {
             IntentCommands::Predict { id } => IntentCommand::Predict { id },
             IntentCommands::AutoLink { id } => IntentCommand::AutoLink { id },
             IntentCommands::Story { id } => IntentCommand::Story { id },
+            IntentCommands::Gates { id, unmet, none } => IntentCommand::Gates { id, unmet, none },
             IntentCommands::Blocked => IntentCommand::Blocked,
             IntentCommands::Next => IntentCommand::Next,
             IntentCommands::Brief => IntentCommand::Brief,

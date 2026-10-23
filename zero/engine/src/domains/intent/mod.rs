@@ -3292,6 +3292,238 @@ pub fn branch(ctx: &AppContext, id: &str) -> CoreResult<()> {
     Ok(())
 }
 
+/// The title line of an intent file, for listings.
+fn frontmatter_title(content: &str) -> String {
+    content
+        .lines()
+        .find_map(|l| l.strip_prefix("title:"))
+        .map(|t| t.trim().trim_matches(char::from(34u8)).to_string())
+        .unwrap_or_default()
+}
+
+/// The folder and file name of an intent file, as folder/name.
+fn folder_and_name(file: &Path) -> String {
+    let part = |p: Option<&std::ffi::OsStr>| p.map(|n| n.to_string_lossy().to_string());
+    format!(
+        "{}/{}",
+        part(file.parent().and_then(|p| p.file_name())).unwrap_or_default(),
+        part(file.file_name()).unwrap_or_default()
+    )
+}
+
+/// INT-212 G9: the text of core intent gates. One intent: its standing and each gate. A sweep:
+/// the intents in the ACTIVE folders and in complete/ (never cancelled/) that have an open gate
+/// (unmet) or no gate at all (none). A pure function of the ledger folder.
+fn gates_text(ledger: &Path, id: Option<&str>, unmet: bool, none: bool) -> String {
+    use gates::GateState;
+    let legacy = |s: &gates::Standing| {
+        if s.legacy {
+            " (legacy emoji marks)"
+        } else {
+            ""
+        }
+    };
+    if let Some(id) = id {
+        let Some(file) = finder::find_intent_file(ledger, id, folders::LIFECYCLE) else {
+            return format!("Intent {} not found\n", id);
+        };
+        let content = fs::read_to_string(&file).unwrap_or_default();
+        let s = gates::standing(&content);
+        let mut out = format!(
+            "{}  {}\ngates: {}/{} done, {} open, {} deferred{}\n",
+            folder_and_name(&file),
+            frontmatter_title(&content),
+            s.done,
+            s.total,
+            s.open,
+            s.deferred,
+            legacy(&s)
+        );
+        for g in gates::read_gates(&content).gates {
+            let mark = match g.state {
+                GateState::Done => "[x]",
+                GateState::Open => "[ ]",
+                GateState::Deferred => "[~]",
+            };
+            let text: String = g.text.chars().take(100).collect();
+            out.push_str(&format!("  {} {}\n", mark, text));
+        }
+        return out;
+    }
+    if !unmet && !none {
+        return "give an intent id, or --unmet, or --none\n".to_string();
+    }
+    let mut swept: Vec<&str> = folders::ACTIVE.to_vec();
+    swept.push("complete");
+    let (mut open_rows, mut bare_rows) = (Vec::new(), Vec::new());
+    for file in finder::files_in(ledger, &swept) {
+        let s = gates::standing(&fs::read_to_string(&file).unwrap_or_default());
+        let name = folder_and_name(&file);
+        if s.open > 0 {
+            open_rows.push(format!(
+                "  {}  {} open of {}{}",
+                name,
+                s.open,
+                s.total,
+                legacy(&s)
+            ));
+        }
+        if s.total == 0 {
+            bare_rows.push(format!("  {}", name));
+        }
+    }
+    let mut out = String::new();
+    if unmet {
+        out.push_str(&format!("Intents with unmet gates: {}\n", open_rows.len()));
+        open_rows
+            .iter()
+            .for_each(|r| out.push_str(&format!("{}\n", r)));
+    }
+    if none {
+        out.push_str(&format!("Intents with no gates: {}\n", bare_rows.len()));
+        bare_rows
+            .iter()
+            .for_each(|r| out.push_str(&format!("{}\n", r)));
+    }
+    out
+}
+
+/// core intent gates [id] [--unmet] [--none]
+pub fn gates_query(ctx: &AppContext, id: Option<&str>, unmet: bool, none: bool) -> CoreResult<()> {
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemReadHome])?;
+    print!("{}", gates_text(&intents_dir(ctx), id, unmet, none));
+    Ok(())
+}
+
+#[cfg(test)]
+mod gates_query_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    fn ledger() -> PathBuf {
+        static N: AtomicUsize = AtomicUsize::new(0);
+        let base = std::env::temp_dir().join(format!(
+            "core-gates-query-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, Ordering::SeqCst)
+        ));
+        let open = char::from_u32(0x2B1C).unwrap();
+        let done = char::from_u32(0x2705).unwrap();
+        let section = "---\ntitle: T\n---\n\n## Success Criteria\n\n";
+        let files = [
+            (
+                "in-progress",
+                "212-alpha.md",
+                format!("{}- [x] G1 first\n- [ ] G2 second\n", section),
+            ),
+            (
+                "complete",
+                "196-beta.md",
+                format!("{}- [ ] G1 left open\n", section),
+            ),
+            (
+                "complete",
+                "10-gamma.md",
+                "---\ntitle: T\n---\nno gates here\n".to_string(),
+            ),
+            ("future", "5-delta.md", format!("{}- [x] G1 ok\n", section)),
+            (
+                "cancelled",
+                "9-eps.md",
+                format!("{}- [ ] G1 never\n", section),
+            ),
+            (
+                "complete",
+                "7-legacy.md",
+                format!("---\ntitle: T\n---\n{} a\n{} b\n", open, done),
+            ),
+        ];
+        for (folder, name, body) in files {
+            fs::create_dir_all(base.join(folder)).unwrap();
+            fs::write(base.join(folder).join(name), body).unwrap();
+        }
+        base
+    }
+
+    #[test]
+    fn the_unmet_sweep_lists_open_gates_in_active_and_complete() {
+        let l = ledger();
+        let out = gates_text(&l, None, true, false);
+        let _ = fs::remove_dir_all(&l);
+        for want in [
+            "in-progress/212-alpha.md",
+            "complete/196-beta.md",
+            "complete/7-legacy.md",
+        ] {
+            assert!(out.contains(want), "{} missing: {}", want, out);
+        }
+        for not in [
+            "future/5-delta.md",
+            "complete/10-gamma.md",
+            "cancelled/9-eps.md",
+        ] {
+            assert!(!out.contains(not), "{} listed: {}", not, out);
+        }
+    }
+
+    #[test]
+    fn the_none_sweep_lists_intents_with_no_gates_only() {
+        let l = ledger();
+        let out = gates_text(&l, None, false, true);
+        let _ = fs::remove_dir_all(&l);
+        assert!(out.contains("complete/10-gamma.md"), "{}", out);
+        for not in [
+            "in-progress/212-alpha.md",
+            "complete/196-beta.md",
+            "cancelled/9-eps.md",
+        ] {
+            assert!(!out.contains(not), "{} listed: {}", not, out);
+        }
+    }
+
+    #[test]
+    fn one_intent_prints_its_standing_and_each_gate() {
+        let l = ledger();
+        let out = gates_text(&l, Some("212"), false, false);
+        let _ = fs::remove_dir_all(&l);
+        for want in [
+            "in-progress/212-alpha.md",
+            "1/2 done",
+            "1 open",
+            "[x] G1 first",
+            "[ ] G2 second",
+        ] {
+            assert!(out.contains(want), "{} missing: {}", want, out);
+        }
+    }
+
+    #[test]
+    fn a_legacy_intent_says_its_marks_are_emoji() {
+        let l = ledger();
+        let out = gates_text(&l, Some("7"), false, false);
+        let _ = fs::remove_dir_all(&l);
+        assert!(out.contains("1/2 done"), "{}", out);
+        assert!(out.contains("legacy emoji marks"), "{}", out);
+    }
+
+    #[test]
+    fn an_unknown_intent_is_reported_not_found() {
+        let l = ledger();
+        let out = gates_text(&l, Some("999"), false, false);
+        let _ = fs::remove_dir_all(&l);
+        assert!(out.contains("not found"), "{}", out);
+    }
+
+    #[test]
+    fn no_id_and_no_flag_says_what_to_give() {
+        let l = ledger();
+        let out = gates_text(&l, None, false, false);
+        let _ = fs::remove_dir_all(&l);
+        assert!(out.contains("give an intent id"), "{}", out);
+    }
+}
+
 pub fn health(ctx: &AppContext, stale_only: bool) -> CoreResult<()> {
     use colored::*;
     let _root = std::path::PathBuf::from(&ctx.core_root);

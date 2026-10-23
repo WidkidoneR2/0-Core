@@ -704,6 +704,17 @@ pub enum IntentCommands {
     Edit {
         id: String,
     },
+    /// Show the gates of one intent, or sweep every intent for unmet gates or for no gates
+    Gates {
+        /// Intent number, for one intent
+        id: Option<String>,
+        /// List the active and complete intents that have an open gate
+        #[arg(long)]
+        unmet: bool,
+        /// List the active and complete intents that have no gates
+        #[arg(long)]
+        none: bool,
+    },
     /// Show blocked intents and what is blocking them
     Blocked,
     /// Recommend next intent with explanation

@@ -345,6 +345,11 @@ pub enum IntentCommand {
     Story {
         id: String,
     },
+    Gates {
+        id: Option<String>,
+        unmet: bool,
+        none: bool,
+    },
     Blocked,
     Next,
     Brief,
