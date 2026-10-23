@@ -1,0 +1,114 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/gates.rs  sha256 4b424f03390145f8 -> 8f265a122c2b1d6d
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 b2e68c0854ddb58d -> 17ade36267cf70ce
+--- /home/christian/0-core/zero/engine/src/domains/intent/gates.rs: replacing lines 195..211 ---
+   193: }
+   194:
+>> 195: /// How many gates an intent has and how many are done: ONE owner for the count (INT-212 G6).
+>> 196: #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+>> 197: #[allow(dead_code)] // red skeleton: the consumers migrate in the fix
+>> 198: pub struct GateCount {
+>> 199:     pub total: usize,
+>> 200:     pub done: usize,
+>> 201:     /// The count came from legacy emoji marks outside any Success Criteria section.
+>> 202:     pub legacy: bool,
+>> 203: }
+>> 204:
+>> 205: /// Red skeleton: counts nothing yet.
+>> 206: #[allow(dead_code)] // red skeleton: the consumers migrate in the fix
+>> 207: pub fn count(content: &str) -> GateCount {
+>> 208:     let _ = content;
+>> 209:     GateCount::default()
+>> 210: }
+>> 211:
+   212: /// May this intent complete? Refuses with one distinct reason, in this order: a deferral
+   213: /// without its signature, no gates at all, an open gate, an open checkbox outside the section.
+++ /// How many gates an intent has and how many are done: ONE owner for the count (INT-212 G6).
+++ /// A deferred gate counts in the total and not as done.
+++ #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+++ pub struct GateCount {
+++     pub total: usize,
+++     pub done: usize,
+++     /// The count came from legacy emoji marks outside any Success Criteria section.
+++     pub legacy: bool,
+++ }
+++
+++ /// Count the gates in an intent file. When the Success Criteria section holds gates, they are
+++ /// the count. A file with none there but legacy emoji marks elsewhere is an old-format intent:
+++ /// those marks are counted and the result says so. Anything else is zero.
+++ pub fn count(content: &str) -> GateCount {
+++     let gates = read_gates(content).gates;
+++     if !gates.is_empty() {
+++         return GateCount {
+++             total: gates.len(),
+++             done: gates.iter().filter(|g| g.state == GateState::Done).count(),
+++             legacy: false,
+++         };
+++     }
+++     let open = content.matches(LEGACY_OPEN).count();
+++     let done = content.matches(LEGACY_DONE).count();
+++     GateCount {
+++         total: open + done,
+++         done,
+++         legacy: open + done > 0,
+++     }
+++ }
+++
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3322..3323 ---
+   3320:                 })
+   3321:                 .unwrap_or_else(|| name.clone());
+>> 3322:             let total_gates = content.matches("⬜").count() + content.matches("✅").count();
+>> 3323:             let done_gates = content.matches("✅").count();
+   3324:             let gate_pct = (done_gates * 100).checked_div(total_gates).unwrap_or(0);
+   3325:             let days_since: i64 = {
+++             let gate_count = gates::count(&content);
+++             let total_gates = gate_count.total;
+++             let done_gates = gate_count.done;
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3365..3366 ---
+   3363:                     id,
+   3364:                     title,
+>> 3365:                     format!("{}/{}", done_gates, total_gates),
+>> 3366:                     score,
+   3367:                     issues,
+   3368:                 ));
+++                     format!(
+++                         "{}/{}{}",
+++                         done_gates,
+++                         total_gates,
+++                         if gate_count.legacy { " legacy" } else { "" }
+++                     ),
+++
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3447..3449 ---
+   3445:                 .to_string()
+   3446:         })
+>> 3447:         .unwrap_or_else(|| intent_name.clone());
+>> 3448:     let total_gates = content.matches("⬜").count() + content.matches("✅").count();
+>> 3449:     let done_gates = content.matches("✅").count();
+   3450:     let remaining = total_gates.saturating_sub(done_gates);
+   3451:     // Get average gates completed per session from recent intents
+++         .unwrap_or_else(|| intent_name.clone());
+++     let gate_count = gates::count(&content);
+++     let total_gates = gate_count.total;
+++     let done_gates = gate_count.done;
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3458..3458 ---
+   3456:         for entry in entries.flatten().take(10) {
+   3457:             let c = std::fs::read_to_string(entry.path()).unwrap_or_default();
+>> 3458:             let total = c.matches("✅").count();
+   3459:             if total > 0 {
+   3460:                 gates_per_session.push(total as f64 / 2.0);
+++             let total = gates::count(&c).done;
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3702..3703 ---
+   3700:         })
+   3701:         .unwrap_or_default();
+>> 3702:     let total_gates = content.matches("⬜").count() + content.matches("✅").count();
+>> 3703:     let done_gates = content.matches("✅").count();
+   3704:     // Get git commits touching this intent
+   3705:     let commit_log = std::process::Command::new("git")
+++     let gate_count = gates::count(&content);
+++     let total_gates = gate_count.total;
+++     let done_gates = gate_count.done;
+/home/christian/0-core/zero/engine/src/domains/intent/gates.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 2 line(s) replaced by 3
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 3 line(s) replaced by 4
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 line(s) replaced by 1
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 2 line(s) replaced by 3
