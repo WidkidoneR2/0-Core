@@ -1,0 +1,110 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 f7a75db745f32899 -> ef271f68784ba59c
+file /home/christian/0-core/zero/engine/src/cli/parser.rs  sha256 f52b6cc3c602f4af -> c6ba56910068a8a3
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3331..3333 ---
+   3329:         };
+   3330:         let content = fs::read_to_string(&file).unwrap_or_default();
+>> 3331:         let s = gates::standing(&content);
+>> 3332:         let mut out = format!(
+>> 3333:             "{}  {}\ngates: {}/{} done, {} open, {} deferred{}\n",
+   3334:             folder_and_name(&file),
+   3335:             frontmatter_title(&content),
+++         let s = gates::standing(&content);
+++         let report = gates::read_gates(&content);
+++         let mut out = format!(
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3343..3344 ---
+   3341:             legacy(&s)
+   3342:         );
+>> 3343:         for g in gates::read_gates(&content).gates {
+>> 3344:             let mark = match g.state {
+   3345:                 GateState::Done => "[x]",
+   3346:                 GateState::Open => "[ ]",
+++         for g in report.gates {
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3350..3353 ---
+   3348:             };
+   3349:             let text: String = g.text.chars().take(100).collect();
+>> 3350:             out.push_str(&format!("  {} {}\n", mark, text));
+>> 3351:         }
+>> 3352:         return out;
+>> 3353:     }
+   3354:     if !unmet && !none {
+   3355:         return "give an intent id, or --unmet, or --none\n".to_string();
+++             out.push_str(&format!("  {} {}\n", mark, text));
+++         }
+++         if !report.stray_open.is_empty() {
+++             out.push_str(&format!(
+++                 "outside the section: {} open\n",
+++                 report.stray_open.len()
+++             ));
+++             for t in &report.stray_open {
+++                 let text: String = t.chars().take(100).collect();
+++                 out.push_str(&format!("  [ ] {}\n", text));
+++             }
+++         }
+++         return out;
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3371..3382 ---
+   3369:     let (mut open_rows, mut bare_rows) = (Vec::new(), Vec::new());
+   3370:     for file in finder::files_in(ledger, &swept) {
+>> 3371:         let s = gates::standing(&fs::read_to_string(&file).unwrap_or_default());
+>> 3372:         let name = folder_and_name(&file);
+>> 3373:         if s.open > 0 {
+>> 3374:             open_rows.push(format!(
+>> 3375:                 "  {}  {} open of {}{}",
+>> 3376:                 name,
+>> 3377:                 s.open,
+>> 3378:                 s.total,
+>> 3379:                 legacy(&s)
+>> 3380:             ));
+>> 3381:         }
+>> 3382:         if s.total == 0 {
+   3383:             bare_rows.push(format!("  {}", name));
+   3384:         }
+++         let content = fs::read_to_string(&file).unwrap_or_default();
+++         let s = gates::standing(&content);
+++         let stray = gates::read_gates(&content).stray_open.len();
+++         let name = folder_and_name(&file);
+++         if s.open > 0 || stray > 0 {
+++             let outside = if stray > 0 {
+++                 format!(", {} open outside the section", stray)
+++             } else {
+++                 String::new()
+++             };
+++             open_rows.push(format!(
+++                 "  {}  {} open of {}{}{}",
+++                 name,
+++                 s.open,
+++                 s.total,
+++                 legacy(&s),
+++                 outside
+++             ));
+++         }
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 3315..3317 ---
+   3313: 
+   3314: /// INT-212 G9: the text of core intent gates. One intent: its standing and each gate. A sweep:
+>> 3315: /// the intents in the ACTIVE folders and in complete/ (never cancelled/) that have an open gate
+>> 3316: /// (unmet) or no gate at all (none). A pure function of the ledger folder.
+>> 3317: fn gates_text(ledger: &Path, id: Option<&str>, unmet: bool, none: bool) -> String {
+   3318:     use gates::GateState;
+   3319:     let legacy = |s: &gates::Standing| {
+++ /// the intents in the ACTIVE folders and in complete/ (never cancelled/) that have an open gate,
+++ /// or an open box outside the section, as unmet, or no gate at all as none. A pure function of
+++ /// the ledger folder.
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/parser.rs: replacing lines 711..712 ---
+   709:         /// Intent number, for one intent
+   710:         id: Option<String>,
+>> 711:         /// List the active and complete intents that have an open gate
+>> 712:         #[arg(long)]
+   713:         unmet: bool,
+   714:         /// List the active and complete intents that have no gates
+++         /// List the active and complete intents with an open gate or a stray open box
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/parser.rs: 1 replaced
