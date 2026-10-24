@@ -275,6 +275,16 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
+/// Health percentage from counts. None means nothing was determinable, which is not a score.
+/// INT-299 G3. run computes the score here and nowhere else.
+pub(crate) fn health_percent(passed: u32, determinable: u32, critical_broken: bool) -> Option<u32> {
+    if determinable == 0 {
+        return None;
+    }
+    let raw = passed * 100 / determinable;
+    Some(if critical_broken { raw.min(50) } else { raw })
+}
+
 pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     ctx.capabilities.require(
         "doctor",
@@ -316,7 +326,6 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     // INT-148: Unknown (couldn't-run) and Blocked checks are excluded from the ratio --
     // "couldn't determine" and "blocked" are not failures and must not drag health down.
     let determinable = total.saturating_sub(unknown).saturating_sub(blocked);
-    let raw = (passed * 100).checked_div(determinable).unwrap_or(0);
 
     // ⭐ A CRITICAL FAILURE CAPS HEALTH AT 50 (INT-222, decided 2026-09-04).
     //
@@ -340,7 +349,32 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
         c.tier == Tier::Critical
             && matches!(c.status, Status::Fail | Status::Unknown | Status::Blocked)
     });
-    let health = if critical_broken { raw.min(50) } else { raw };
+    let health = match health_percent(passed, determinable, critical_broken) {
+        Some(h) => h,
+        None => {
+            // INT-299 G3 and G6: no check could be determined, so there is no score. Say so,
+            // remove the stale number so every reader says unknown, and record the run with no
+            // health. Nothing after this point scores, predicts or notifies on a made-up 0.
+            println!(
+                "  Health: unknown -- no check could be determined ({} unknown, {} blocked of {})",
+                unknown, blocked, total
+            );
+            println!("  No health was recorded and the cached number was removed.");
+            let _ = zero_core::paths::write_health(&zero_core::paths::health_status_file(), None);
+            let writer = crate::runtime::EventWriter::new(&ctx.runtime.db);
+            writer.write(
+                "doctor",
+                "run",
+                "core doctor run",
+                "warn",
+                Some(&format!(
+                    r#"{{"health":null,"passed":{},"warnings":{},"failed":{}}}"#,
+                    passed, warnings, failed
+                )),
+            );
+            return Ok(());
+        }
+    };
 
     // Run integrity quick scan (safe auto-fixes only)
     let (integrity_pct, int_fixed, int_proposed, int_alerts) =
@@ -745,11 +779,7 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     // the same accessor its fourteen readers use. Before this, the writer built the directory by
     // hand and every reader built the file by hand -- so nothing tied them together except the
     // same cache-directory string, repeated fifteen times.
-    let health_file = zero_core::paths::health_status_file();
-    if let Some(dir) = health_file.parent() {
-        let _ = std::fs::create_dir_all(dir);
-    }
-    let _ = std::fs::write(&health_file, format!("{}", health));
+    let _ = zero_core::paths::write_health(&zero_core::paths::health_status_file(), Some(health));
 
     // Event Ledger
     let writer = crate::runtime::EventWriter::new(&ctx.runtime.db);
@@ -1303,6 +1333,364 @@ mod forecast_tests {
         assert_eq!(
             forecast_lines(&[90, 90, 90], 90, 0, 0, &[], &[]),
             lines(&["   Forecast  not enough history (3 runs)"])
+        );
+    }
+}
+
+#[cfg(test)]
+mod health_class_tests {
+    use std::collections::BTreeMap;
+    use std::path::{Path, PathBuf};
+
+    /// INT-299 G11. Display code that reads a health value must not turn "no health" into a
+    /// number. Every site below is a KNOWN, FILED one: (tree:file, the fallback line, how many,
+    /// why). The list may only shrink. A new site fails the test; a fixed site must be removed.
+    const KNOWN: &[(&str, &str, usize, &str)] = &[
+        (
+            "engine:domains/daemon/mod.rs",
+            r#"let health = fc["health"].as_u64().unwrap_or(0);"#,
+            1,
+            "F-0078",
+        ),
+        (
+            "engine:domains/decisions/mod.rs",
+            r#".unwrap_or(95);"#,
+            1,
+            "F-0077",
+        ),
+        (
+            "engine:domains/doctor/mod.rs",
+            r#".unwrap_or(0);"#,
+            1,
+            "F-0079",
+        ),
+        (
+            "engine:domains/doctor/mod.rs",
+            r#"let current = points.last().map(|p| p.health).unwrap_or(0);"#,
+            1,
+            "F-0079",
+        ),
+        (
+            "engine:domains/doctor/mod.rs",
+            r#"let first = points.first().map(|p| p.health).unwrap_or(0);"#,
+            1,
+            "F-0079",
+        ),
+        (
+            "engine:domains/doctor/mod.rs",
+            r#"let max = points.iter().map(|p| p.health).max().unwrap_or(0);"#,
+            1,
+            "F-0079",
+        ),
+        (
+            "engine:domains/doctor/mod.rs",
+            r#"let min = points.iter().map(|p| p.health).min().unwrap_or(0);"#,
+            1,
+            "F-0079",
+        ),
+        (
+            "engine:domains/events/mod.rs",
+            r#".unwrap_or(95))"#,
+            1,
+            "F-0074",
+        ),
+        (
+            "engine:domains/events/mod.rs",
+            r#".unwrap_or(95);"#,
+            4,
+            "F-0074",
+        ),
+        (
+            "engine:domains/events/mod.rs",
+            r#"let health: i64 = health_str.parse().unwrap_or(0);"#,
+            1,
+            "F-0074",
+        ),
+        (
+            "engine:domains/goals/mod.rs",
+            r#".unwrap_or(95)"#,
+            1,
+            "F-0069",
+        ),
+        (
+            "engine:domains/goals/mod.rs",
+            r#".unwrap_or_else(|_| "95".to_string())"#,
+            1,
+            "F-0069",
+        ),
+        (
+            "engine:domains/predict/mod.rs",
+            r#".unwrap_or(95);"#,
+            2,
+            "F-0075",
+        ),
+        (
+            "engine:domains/prioritize/mod.rs",
+            r#".unwrap_or(95)"#,
+            1,
+            "F-0070",
+        ),
+        (
+            "engine:domains/prioritize/mod.rs",
+            r#".unwrap_or_else(|_| "95".to_string())"#,
+            1,
+            "F-0070",
+        ),
+        (
+            "engine:domains/reaction/mod.rs",
+            r#".unwrap_or(95)"#,
+            1,
+            "F-0072",
+        ),
+        (
+            "engine:domains/reaction/mod.rs",
+            r#".unwrap_or(95))"#,
+            1,
+            "F-0076",
+        ),
+        (
+            "engine:domains/reaction/mod.rs",
+            r#".unwrap_or_else(|_| "95".to_string())"#,
+            1,
+            "F-0072",
+        ),
+        (
+            "engine:domains/snapshot/mod.rs",
+            r#".unwrap_or(95);"#,
+            1,
+            "F-0073",
+        ),
+        (
+            "engine:domains/tradeoffs/mod.rs",
+            r#".unwrap_or(95)"#,
+            1,
+            "F-0071",
+        ),
+        (
+            "engine:domains/tradeoffs/mod.rs",
+            r#".unwrap_or_else(|_| "95".to_string())"#,
+            1,
+            "F-0071",
+        ),
+        ("shell:commands/mod.rs", r#".unwrap_or(0);"#, 1, "F-0080"),
+        ("shell:commands/mod.rs", r#".unwrap_or(95);"#, 1, "F-0080"),
+        (
+            "shell:commands/mod.rs",
+            r#"let first_h = health_events.first().map(|e| e.0).unwrap_or(95);"#,
+            1,
+            "F-0080",
+        ),
+        (
+            "shell:commands/mod.rs",
+            r#"let last_h = health_events.last().map(|e| e.0).unwrap_or(95);"#,
+            1,
+            "F-0080",
+        ),
+    ];
+
+    const READS: &[&str] = &[
+        r#"["health"]"#,
+        "health_cache()",
+        "health_status_file()",
+        "p.health",
+        "health_str",
+        "health_events",
+        "read_health(",
+        r#""health_score""#,
+    ];
+
+    fn is_fallback(line: &str) -> bool {
+        ["0", "95", "100"].iter().any(|n| {
+            line.contains(&format!("unwrap_or({})", n))
+                || line.contains(&format!("unwrap_or_else(|_| \"{}\"", n))
+        })
+    }
+
+    fn rs_files(dir: &Path, out: &mut Vec<PathBuf>) {
+        let Ok(rd) = std::fs::read_dir(dir) else {
+            return;
+        };
+        for e in rd.flatten() {
+            let p = e.path();
+            if p.is_dir() {
+                rs_files(&p, out);
+            } else if p.extension().is_some_and(|x| x == "rs") {
+                out.push(p);
+            }
+        }
+    }
+
+    fn found() -> BTreeMap<(String, String), usize> {
+        let here = Path::new(env!("CARGO_MANIFEST_DIR"));
+        let roots = [
+            ("engine", here.join("src")),
+            ("shell", here.join("../shell/novashell/src")),
+        ];
+        let mut out = BTreeMap::new();
+        for (tree, root) in roots {
+            let mut files = Vec::new();
+            rs_files(&root, &mut files);
+            for f in files {
+                let mut text = std::fs::read_to_string(&f).unwrap_or_default();
+                if let Some(at) = text.find(concat!("mod health_class", "_tests {")) {
+                    text.truncate(at);
+                }
+                let lines: Vec<&str> = text.lines().collect();
+                let rel = f
+                    .strip_prefix(&root)
+                    .unwrap()
+                    .to_string_lossy()
+                    .replace('\\', "/");
+                let mut seen = std::collections::BTreeSet::new();
+                for i in 0..lines.len() {
+                    if lines[i].trim_start().starts_with("//")
+                        || !READS.iter().any(|n| lines[i].contains(n))
+                    {
+                        continue;
+                    }
+                    for j in i..(i + 8).min(lines.len()) {
+                        if lines[j].trim_start().starts_with("//") {
+                            continue;
+                        }
+                        if is_fallback(lines[j]) && seen.insert(j) {
+                            let key = (format!("{}:{}", tree, rel), lines[j].trim().to_string());
+                            *out.entry(key).or_insert(0) += 1;
+                        }
+                        if lines[j].trim_end().ends_with(';') {
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn g11_no_health_read_falls_back_to_a_number_except_the_known_filed_sites() {
+        let found = found();
+        let mut bad = Vec::new();
+        for ((file, line), n) in &found {
+            let allowed = KNOWN
+                .iter()
+                .find(|k| k.0 == file && k.1 == line)
+                .map_or(0, |k| k.2);
+            if *n > allowed {
+                bad.push(format!(
+                    "NEW  {} x{} (allowed {}): {}",
+                    file, n, allowed, line
+                ));
+            }
+        }
+        for k in KNOWN {
+            let n = found
+                .get(&(k.0.to_string(), k.1.to_string()))
+                .copied()
+                .unwrap_or(0);
+            if n < k.2 {
+                bad.push(format!(
+                    "GONE {} x{} (listed {}): {} -- remove it from KNOWN",
+                    k.0, n, k.2, k.1
+                ));
+            }
+        }
+        assert!(
+            bad.is_empty(),
+            "health falls back to a number:\n{}",
+            bad.join("\n")
+        );
+    }
+}
+
+#[cfg(test)]
+mod health_write_tests {
+    use super::health_percent;
+
+    fn scratch(tag: &str) -> std::path::PathBuf {
+        std::env::temp_dir().join(format!("int299-{}-{}", tag, std::process::id()))
+    }
+
+    // INT-299 G3: nothing determinable is not 0%.
+    #[test]
+    fn g3_nothing_determinable_is_unknown_not_zero() {
+        assert_eq!(health_percent(0, 0, false), None);
+        assert_eq!(health_percent(0, 0, true), None);
+    }
+
+    // INT-299 G3: checks ran and none passed is a real 0.
+    #[test]
+    fn g3_a_measured_zero_stays_zero() {
+        assert_eq!(health_percent(0, 5, false), Some(0));
+    }
+
+    // INT-299 G3: measured numbers do not move.
+    #[test]
+    fn g3_measured_numbers_are_unchanged() {
+        assert_eq!(health_percent(25, 28, false), Some(89));
+        assert_eq!(health_percent(25, 28, true), Some(50));
+        assert_eq!(health_percent(28, 28, false), Some(100));
+    }
+
+    // INT-299 G6: unmeasured writes no number and removes the stale file.
+    #[test]
+    fn g6_unmeasured_leaves_no_number_and_removes_the_stale_file() {
+        let dir = scratch("none");
+        let _ = std::fs::remove_dir_all(&dir);
+        let f = dir.join("health-status");
+        zero_core::paths::write_health(&f, Some(89)).unwrap();
+        assert_eq!(zero_core::paths::read_health_at(&f), Some(89));
+        zero_core::paths::write_health(&f, None).unwrap();
+        let after = zero_core::paths::read_health_at(&f);
+        let exists = f.exists();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(after, None, "an unmeasured run left a number behind");
+        assert!(!exists, "the stale health file was not removed");
+    }
+
+    // INT-299 G6: 10,000 reads against a writer running flat out, none empty or unparseable.
+    #[test]
+    fn g6_a_reader_never_sees_a_partial_file_while_the_writer_rewrites_it() {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        use std::sync::Arc;
+        let dir = scratch("race");
+        let _ = std::fs::remove_dir_all(&dir);
+        let f = dir.join("health-status");
+        zero_core::paths::write_health(&f, Some(89)).unwrap();
+        let stop = Arc::new(AtomicBool::new(false));
+        let (f2, stop2) = (f.clone(), stop.clone());
+        let writer = std::thread::spawn(move || {
+            let mut i: u32 = 0;
+            while !stop2.load(Ordering::Relaxed) {
+                let _ = zero_core::paths::write_health(&f2, Some(if i % 2 == 0 { 89 } else { 90 }));
+                i += 1;
+            }
+        });
+        let mut bad = 0u32;
+        for _ in 0..10_000 {
+            if zero_core::paths::read_health_at(&f).is_none() {
+                bad += 1;
+            }
+        }
+        stop.store(true, Ordering::Relaxed);
+        writer.join().unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(bad, 0, "reads that saw no number while the writer ran");
+    }
+
+    // INT-299 G6: run uses the one writer and the one score. Scans the code above this module.
+    #[test]
+    fn g6_run_uses_the_one_writer_and_the_one_score() {
+        let src = include_str!("mod.rs");
+        let code = src.split("mod health_write_tests").next().unwrap();
+        let in_place = ["std::fs", "::write(&health_file"].concat();
+        let collapse = ["checked_div", "(determinable)"].concat();
+        assert!(
+            !code.contains(&in_place),
+            "run still writes the health cache in place"
+        );
+        assert!(
+            !code.contains(&collapse),
+            "the score still collapses nothing determinable into a number"
         );
     }
 }

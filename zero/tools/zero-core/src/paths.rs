@@ -374,8 +374,39 @@ pub fn health_status_file() -> PathBuf {
 /// display, which is the same rule INT-148 gave the doctor: could-not-determine
 /// is not a passing grade.
 pub fn read_health() -> Option<u8> {
-    let raw = std::fs::read_to_string(health_status_file()).ok()?;
+    read_health_at(&health_status_file())
+}
+
+/// read_health for any path, so a test can read a scratch file. INT-299.
+pub fn read_health_at(path: &std::path::Path) -> Option<u8> {
+    let raw = std::fs::read_to_string(path).ok()?;
     raw.trim().trim_end_matches('%').parse().ok()
+}
+
+/// Write the health the doctor measured, or record that nothing was measured. INT-299 G6.
+///
+/// Some writes a temporary file beside the target and renames it over the target, so a reader
+/// sees the old number or the new one and never a partial file. None removes the file, so every
+/// reader says unknown. A missing file is already unknown and is not an error.
+pub fn write_health(path: &std::path::Path, health: Option<u32>) -> std::io::Result<()> {
+    match health {
+        None => match std::fs::remove_file(path) {
+            Ok(()) => Ok(()),
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+            Err(e) => Err(e),
+        },
+        Some(h) => {
+            if let Some(dir) = path.parent() {
+                std::fs::create_dir_all(dir)?;
+            }
+            let tmp = path.with_extension(format!("tmp{}", std::process::id()));
+            std::fs::write(&tmp, format!("{}", h))?;
+            std::fs::rename(&tmp, path).map_err(|e| {
+                let _ = std::fs::remove_file(&tmp);
+                e
+            })
+        }
+    }
 }
 
 /// Friday's diagnostic log. Append-only, and three sites write to it.

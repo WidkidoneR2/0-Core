@@ -70,7 +70,7 @@ fn refresh_health_if_stale(core_root: &str, db: &crate::db::StateDb) {
     let last_event_ts: i64 = db
         .conn
         .query_row(
-            "SELECT timestamp FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 1",
+            "SELECT timestamp FROM events WHERE domain='doctor' AND action='run' ORDER BY timestamp DESC LIMIT 1",
             [],
             |r| r.get(0),
         )
@@ -116,6 +116,25 @@ fn refresh_health_if_stale(core_root: &str, db: &crate::db::StateDb) {
         std::thread::spawn(move || {
             let _ = child.wait();
         });
+    }
+}
+
+/// INT-299 G5: the refresh decides whether health is stale from doctor RUN events only. Any other
+/// doctor event (health_check_failed carries no health) would make a stale number look fresh.
+#[cfg(test)]
+mod health_refresh_tests {
+    #[test]
+    fn g5_refresh_decides_staleness_from_run_events_only() {
+        let src = include_str!("main.rs");
+        let start = src
+            .find(concat!("fn refresh_health_", "if_stale("))
+            .expect("the refresh exists");
+        let rest = &src[start..];
+        let end = rest.find("\n}\n").unwrap_or(rest.len());
+        assert!(
+            rest[..end].contains("action='run'"),
+            "the refresh must look at run events only"
+        );
     }
 }
 

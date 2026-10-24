@@ -9,6 +9,42 @@ pub struct StateDb {
     pub core_root: String,
 }
 
+/// INT-299 G4 and G5: the health a caller gets comes from the one owner, never from the event
+/// stream, so a newer event of another action can never become the health.
+#[cfg(test)]
+mod health_owner_tests {
+    fn health_score_body() -> String {
+        let src = include_str!("db.rs");
+        let start = src
+            .find(concat!("pub fn ", "health_score"))
+            .expect("the health reader exists");
+        let rest = &src[start..];
+        let end = rest[1..]
+            .find("pub fn ")
+            .map(|i| i + 1)
+            .unwrap_or(rest.len());
+        rest[..end].to_string()
+    }
+
+    #[test]
+    fn g5_health_score_does_not_read_the_event_stream() {
+        let body = health_score_body();
+        assert!(
+            !body.contains(concat!("FROM ", "events")),
+            "the health reader must not read events: any newer doctor event becomes the health"
+        );
+    }
+
+    #[test]
+    fn g4_health_score_asks_the_one_owner() {
+        let body = health_score_body();
+        assert!(
+            body.contains("core_integration::health()"),
+            "the health reader must ask core_integration::health()"
+        );
+    }
+}
+
 /// INT-191: the SQLite boundary for an execution id.
 ///
 /// ⚠️ Saturates rather than panicking -- telemetry must never take the shell down -- but LOGS,
@@ -546,16 +582,11 @@ impl StateDb {
         Ok(())
     }
 
+    /// The health the doctor last measured, or None when it measured none. INT-299 G4/G5.
+    /// One owner: this asks core_integration::health() and reads no event, so a newer event of
+    /// another action can never become the health and an unmeasured run reads as unknown.
     pub fn health_score(&self) -> Option<i64> {
-        self.conn
-            .query_row(
-                "SELECT payload FROM events WHERE domain='doctor' ORDER BY timestamp DESC LIMIT 1",
-                [],
-                |r| r.get::<_, String>(0),
-            )
-            .ok()
-            .and_then(|p| serde_json::from_str::<serde_json::Value>(&p).ok())
-            .and_then(|v| v["detail"]["health"].as_i64())
+        crate::core_integration::health().map(i64::from)
     }
 
     /// INT-322 Phase 4: capture a lightweight snapshot before destructive commands

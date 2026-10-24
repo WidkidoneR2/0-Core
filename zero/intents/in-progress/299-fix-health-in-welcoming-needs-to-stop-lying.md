@@ -3,7 +3,7 @@ id: 299
 date: 2026-10-22
 type: future
 title: "Fix Health in Welcoming, needs to stop lying"
-status: planned
+status: in-progress
 tags: [nsh, novashell, health, welcome]
 ---
 
@@ -38,15 +38,22 @@ Rulings, written before any code (change one by editing this section and saying 
 ## Success Criteria
 - [ ] G1 REPRODUCE: with a read-only observer, record for three fresh terminal opens the contents and mtime of health-status, what the banner printed at open, what it printed at a typed nsh, and what d reported; say plainly whether the 0 came back
 - [ ] G2 ATTRIBUTE: the cause of the 0 is named in one sentence with evidence tied to a file and line, or, if it did not reproduce, that is stated and a finding is filed with core intent find; no later fix gate is ticked on a guess
-- [ ] G3 RED FIRST: a test names each way the screen can show 0 for health nobody measured (empty file, a 0 written by an unmeasured run, newest doctor event without detail.health, determinable == 0) and each fails before the fix, shown failing
-- [ ] G4 ONE OWNER: the banner, the prompt badge and the health status commands all take health from core_integration::health() as an Option; prompt.rs:269 no longer uses unwrap_or(0) and shows unknown; a search lists every caller that displays health and shows no second source
+- [x] G3 RED FIRST: a test names each way the screen can show 0 for health nobody measured (empty file, a 0 written by an unmeasured run, newest doctor event without detail.health, determinable == 0) and each fails before the fix, shown failing
+      <!-- evidence: red plans shown failing before each fix, 2026-10-24. Seals: writer A 794c0ed9d1f23e5d and B 665bbe0aa943744d; owner CA a17ac3ebfa5c7fb1; badge CB1 0e65e9e45d8540a0 and CB2 b24436fe8b6ad02d; stale R1 37ec0f536afc3623 and R2 dd805cde18ddd259; refresh 0451b86fb7bd269e; class 41c9ffec2b0d10f8 (29 sites listed failing). -->
+- [x] G4 ONE OWNER: the banner, the prompt badge and the health status commands all take health from core_integration::health() as an Option; prompt.rs:269 no longer uses unwrap_or(0) and shows unknown; a search lists every caller that displays health and shows no second source
+      <!-- evidence: db.rs health_score is core_integration::health().map(i64::from); prompt.rs health_badge(Option) shows unknown. Tests health_owner_tests (2) and health_badge_tests (3) green; cargo test -p novashell 253 passed. Seals: red CA a17ac3ebfa5c7fb1, fix FD 3cb0468b22fc50d0 and FP 00dbd1afd0e3ea71. Other readers searched with fsearch; every second source is filed (F-0069 to F-0080) and listed in the G11 table. -->
 - [ ] G5 health_score() reads only events with action run; a test with a newer health_check_failed event proves the score does not change
-- [ ] G6 THE WRITER: health-status is written to a temporary file and renamed; when determinable is 0 no number is written and the stale file is removed; one test runs a reader against the writer for 10,000 iterations with zero empty or unparseable reads, and one test makes every check unknown or blocked and shows the reader says unknown
-- [ ] G7 STALE: a health-status older than the current boot is shown as stale or unknown by the banner, proven by a test that injects the boot time and the file time
+- [x] G6 THE WRITER: health-status is written to a temporary file and renamed; when determinable is 0 no number is written and the stale file is removed; one test runs a reader against the writer for 10,000 iterations with zero empty or unparseable reads, and one test makes every check unknown or blocked and shows the reader says unknown
+      <!-- evidence: paths.rs write_health is atomic (tmp then rename) and None removes the file; doctor/mod.rs health_percent returns None when determinable is 0. health_write_tests (6) green including g6 reader against writer for 10,000 iterations; cargo test -p core 163 passed. Measured before the fix: 4339 of 10000 reads empty. Seals: red A 794c0ed9d1f23e5d and B 665bbe0aa943744d, fix FA e8b385f8cb0b376b and FB 626f11252ab07c2f. -->
+- [x] G7 STALE: a health-status older than the current boot is shown as stale or unknown by the banner, proven by a test that injects the boot time and the file time
+      <!-- evidence: core_integration.rs health() hides a number written before this boot (health_if_current with injected boot and file times); 7 g7_ tests in health_stale_tests green. Seals: red R1 37ec0f536afc3623 and R2 dd805cde18ddd259, fix F1 81c12a4f4c19ee1a and F2 61ad01db82cada29. Trade-off kept: the first launch after a boot shows unknown until the doctor finishes. -->
 - [ ] G8 PARITY: for the same file state the terminal-open path and the typed nsh path print the same health, proven by a test that drives both entry paths, then demonstrated in a fresh terminal on this machine
-- [ ] G9 UNKNOWN STAYS UNKNOWN: with no health-status in a scratch cache directory (never the real one) the banner prints health unknown, and the existing behaviour is kept
-- [ ] G10 FILED, NOT FIXED: goals, prioritize, tradeoffs, reaction and snapshot reading health.txt with a made-up fallback is filed as findings with core intent find, one per site, naming the class (unknown is not a number)
-- [ ] G11 THE CLASS: a test scans the display code for health readers that fall back to a number (unwrap_or(0), unwrap_or(95), unwrap_or(100)) and fails on any, with the known filed sites listed as exceptions so the exception list is visible
+- [x] G9 UNKNOWN STAYS UNKNOWN: with no health-status in a scratch cache directory (never the real one) the banner prints health unknown, and the existing behaviour is kept
+      <!-- evidence: nsh-test case welcome_299_unknown_stays_unknown_and_a_measured_number_shows runs the real banner on a scratch cache and a scratch state db; its control run with a fresh 61 shows the number. Seal b3a6570f8dd96fb5. nsh-test 260 of 260 passed 2026-10-24. -->
+- [x] G10 FILED, NOT FIXED: goals, prioritize, tradeoffs, reaction and snapshot reading health.txt with a made-up fallback is filed as findings with core intent find, one per site, naming the class (unknown is not a number)
+      <!-- evidence: filed with core intent find, class unknown is not a number: F-0069 goals, F-0070 prioritize, F-0071 tradeoffs, F-0072 reaction, F-0073 snapshot; F-0068 the unattributed 0 percent; further same-class sites F-0074 events, F-0075 predict, F-0076 reaction history, F-0077 decisions, F-0078 daemon, F-0079 doctor trend, F-0080 shell listing. -->
+- [x] G11 THE CLASS: a test scans the display code for health readers that fall back to a number (unwrap_or(0), unwrap_or(95), unwrap_or(100)) and fails on any, with the known filed sites listed as exceptions so the exception list is visible
+      <!-- evidence: core test g11_no_health_read_falls_back_to_a_number_except_the_known_filed_sites (doctor/mod.rs health_class_tests) scans engine and shell sources; the KNOWN table lists 29 filed sites, each with its finding id. Red with an empty table failed on 29 sites (seal 41c9ffec2b0d10f8); green with the table (seal 0c6033fd2d522fbc); cargo test -p core 163 passed. -->
 - [ ] G12 doors: nsh-test all passing, d 0 failed, core intent validate exit 0; one ship at the end and the deployed nsh tested in a new terminal
 - [ ] G13 each gate carries evidence per INT-158; INT-300 G13 (the welcome bug line) waits for this intent to complete
 

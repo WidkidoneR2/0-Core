@@ -3980,6 +3980,128 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(test(
+        "welcome_299_unknown_stays_unknown_and_a_measured_number_shows",
+        Category::Repl,
+        || {
+            // INT-299 G9. With no health-status in the cache the welcome says it does not know;
+            // with a fresh one it shows that number. Each half has its OWN scratch cache and state
+            // db, never the real ones, and the second half is the control: it proves this case can
+            // see a number, so the first half cannot pass by seeing nothing.
+            let scratch = |tag: &str| -> Result<(String, std::path::PathBuf), String> {
+                let dir = std::env::temp_dir().join(format!(
+                    "nsh-test-health-{}-{}",
+                    tag,
+                    std::process::id()
+                ));
+                let _ = std::fs::remove_dir_all(&dir);
+                std::fs::create_dir_all(dir.join("zero"))
+                    .map_err(|e| format!("mkdir {}: {}", dir.display(), e))?;
+                Ok((dir.to_string_lossy().to_string(), dir))
+            };
+            let (cache_a, dir_a) = scratch("none")?;
+            let (cache_b, dir_b) = scratch("some")?;
+            let db_a = repl::case_db_path();
+            let db_b = repl::case_db_path();
+            let result = (|| -> Result<(), String> {
+                let env_a = [
+                    ("XDG_CACHE_HOME", cache_a.as_str()),
+                    ("ZERO_STATE_DB", db_a.as_str()),
+                ];
+                let (_, banner) = repl::run_repl_lines_banner(&["true"], &env_a)?;
+                expect_contains(&banner, "health unknown")?;
+                std::fs::write(dir_b.join("zero").join("health-status"), "61")
+                    .map_err(|e| format!("write health-status: {}", e))?;
+                let env_b = [
+                    ("XDG_CACHE_HOME", cache_b.as_str()),
+                    ("ZERO_STATE_DB", db_b.as_str()),
+                ];
+                let (_, banner) = repl::run_repl_lines_banner(&["true"], &env_b)?;
+                if banner.contains("health unknown") {
+                    return Err(format!(
+                        "a fresh measured 61 was shown as unknown: {:?}",
+                        banner
+                    ));
+                }
+                expect_contains(&banner, "61")
+            })();
+            let _ = std::fs::remove_dir_all(&dir_a);
+            let _ = std::fs::remove_dir_all(&dir_b);
+            result
+        },
+    ));
+    results.push(test(
+        "welcome_299_parity_every_route_to_the_same_file_prints_the_same_health",
+        Category::Repl,
+        || {
+            // INT-299 G8. However nsh is reached it starts the same way and prints its welcome
+            // from ONE call, which asks ONE owner for the health. Two halves. (1) The welcome has
+            // exactly one call site. (2) For the same file state, the two ways of locating the
+            // cache -- XDG_CACHE_HOME set, and unset so the home default applies -- print the same
+            // health: a number when the file holds one, "unknown" when it does not. Scratch dirs
+            // only, never the real cache.
+            let src = include_str!("../../novashell/src/main.rs");
+            let calls =
+                src.matches("print_welcome(").count() - src.matches("fn print_welcome(").count();
+            if calls != 1 {
+                return Err(format!(
+                    "print_welcome has {} call sites, expected exactly 1",
+                    calls
+                ));
+            }
+            let base = std::env::temp_dir().join(format!("nsh-test-parity-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&base);
+            let run = |tag: &str, value: Option<&str>| -> Result<(), String> {
+                let xdg = base.join(tag).join("xdg");
+                let home = base.join(tag).join("home");
+                for d in [xdg.join("zero"), home.join(".cache").join("zero")] {
+                    std::fs::create_dir_all(&d)
+                        .map_err(|e| format!("mkdir {}: {}", d.display(), e))?;
+                    if let Some(v) = value {
+                        std::fs::write(d.join("health-status"), v)
+                            .map_err(|e| format!("write health-status: {}", e))?;
+                    }
+                }
+                let xdg_s = xdg.to_string_lossy().to_string();
+                let home_s = home.to_string_lossy().to_string();
+                let db_a = repl::case_db_path();
+                let db_b = repl::case_db_path();
+                let env_a = [
+                    ("XDG_CACHE_HOME", xdg_s.as_str()),
+                    ("ZERO_STATE_DB", db_a.as_str()),
+                ];
+                let env_b = [
+                    ("XDG_CACHE_HOME", ""),
+                    ("HOME", home_s.as_str()),
+                    ("ZERO_STATE_DB", db_b.as_str()),
+                ];
+                let (_, a) = repl::run_repl_lines_banner(&["true"], &env_a)?;
+                let (_, b) = repl::run_repl_lines_banner(&["true"], &env_b)?;
+                let needle = match value {
+                    Some(v) => format!("{}%", v),
+                    None => "health unknown".to_string(),
+                };
+                for (route, banner) in [("explicit cache dir", &a), ("home default", &b)] {
+                    if !banner.contains(&needle) {
+                        return Err(format!(
+                            "{}: with health {:?} the banner lacks {:?}: {:?}",
+                            route, value, needle, banner
+                        ));
+                    }
+                    if value.is_some() && banner.contains("health unknown") {
+                        return Err(format!(
+                            "{}: a measured {:?} was shown as unknown",
+                            route, value
+                        ));
+                    }
+                }
+                Ok(())
+            };
+            let result = run("none", None).and_then(|_| run("some", Some("73")));
+            let _ = std::fs::remove_dir_all(&base);
+            result
+        },
+    ));
+    results.push(test(
         "discover_262_where_and_explain_know_persist",
         Category::Vocabulary,
         || {

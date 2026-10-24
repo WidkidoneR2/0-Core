@@ -142,7 +142,104 @@ const RELEASE_SEPARATOR: char = '—';
 /// missing file are gone. This wraps for the 0-Core presence check only, and
 /// deliberately does not change what any caller displays.
 pub fn health() -> Option<u8> {
-    zero_core::paths::read_health()
+    health_if_current(
+        zero_core::paths::read_health(),
+        file_written_secs(&zero_core::paths::health_status_file()),
+        boot_time_secs(),
+    )
+}
+
+#[cfg(test)]
+mod health_stale_tests {
+    use super::*;
+
+    #[test]
+    fn g7_a_number_older_than_this_boot_is_not_current() {
+        assert_eq!(health_if_current(Some(89), Some(100), Some(200)), None);
+    }
+
+    #[test]
+    fn g7_a_number_written_at_or_after_boot_is_kept() {
+        assert_eq!(health_if_current(Some(89), Some(300), Some(200)), Some(89));
+        assert_eq!(health_if_current(Some(89), Some(200), Some(200)), Some(89));
+    }
+
+    #[test]
+    fn g7_an_age_that_cannot_be_proven_keeps_the_number() {
+        assert_eq!(health_if_current(Some(89), None, Some(200)), Some(89));
+        assert_eq!(health_if_current(Some(89), Some(100), None), Some(89));
+    }
+
+    #[test]
+    fn g7_btime_is_read_from_proc_stat() {
+        let stat = "cpu  1 2 3\nbtime 1700000000\nprocesses 5\n";
+        assert_eq!(parse_btime(stat), Some(1_700_000_000));
+        assert_eq!(parse_btime("cpu  1 2 3\nprocesses 5\n"), None);
+        assert_eq!(parse_btime("btime soon\n"), None);
+    }
+
+    #[test]
+    fn g7_the_file_time_comes_from_the_file() {
+        let dir = std::env::temp_dir().join(format!("nsh-g7-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let f = dir.join("health-status");
+        std::fs::write(&f, "89").unwrap();
+        let t = file_written_secs(&f).expect("a written file has a time");
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        assert!(
+            t + 5 >= now && t <= now + 5,
+            "file time {t} is not near now {now}"
+        );
+        assert_eq!(file_written_secs(&dir.join("absent")), None);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[cfg(target_os = "linux")]
+    #[test]
+    fn g7_this_machine_reports_a_boot_time() {
+        assert!(boot_time_secs().is_some());
+    }
+
+    #[test]
+    fn g7_no_number_stays_no_number() {
+        assert_eq!(health_if_current(None, Some(300), Some(200)), None);
+        assert_eq!(health_if_current(None, Some(100), Some(200)), None);
+    }
+}
+
+/// INT-299 G7 (R5). A number written before this boot is not current. Pure, so a test can inject
+/// the file time and the boot time. When either time is unknown the age cannot be proven, so the
+/// number is kept: it is hidden only on evidence that it is old.
+pub(crate) fn health_if_current(
+    value: Option<u8>,
+    written: Option<u64>,
+    boot: Option<u64>,
+) -> Option<u8> {
+    match (written, boot) {
+        (Some(w), Some(b)) if w < b => None,
+        _ => value,
+    }
+}
+
+/// When the health file was last written, in seconds since the epoch.
+fn file_written_secs(path: &std::path::Path) -> Option<u64> {
+    let modified = std::fs::metadata(path).ok()?.modified().ok()?;
+    let since = modified.duration_since(std::time::UNIX_EPOCH).ok()?;
+    Some(since.as_secs())
+}
+
+/// The btime line of /proc/stat: when this boot started, in seconds since the epoch.
+pub(crate) fn parse_btime(stat: &str) -> Option<u64> {
+    stat.lines()
+        .find_map(|l| l.strip_prefix("btime "))
+        .and_then(|v| v.trim().parse().ok())
+}
+
+fn boot_time_secs() -> Option<u64> {
+    parse_btime(&std::fs::read_to_string("/proc/stat").ok()?)
 }
 
 /// The intent `cistart` last focused, when 0-Core is present.

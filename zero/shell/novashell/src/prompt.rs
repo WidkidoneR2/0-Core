@@ -173,6 +173,44 @@ fn cwd_color() -> (u8, u8, u8) {
         C_DIR_ROOT
     }
 }
+/// INT-299 G4. The prompt badge for a health that may not exist. No health says unknown and
+/// never shows a number nobody measured.
+fn health_badge(health: Option<i64>) -> String {
+    match health {
+        Some(h) => health_str(h),
+        None => fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "unknown"),
+    }
+}
+
+#[cfg(test)]
+mod health_badge_tests {
+    use super::*;
+
+    #[test]
+    fn g4_unmeasured_health_says_unknown_not_zero() {
+        let badge = health_badge(None);
+        assert!(
+            badge.contains("unknown"),
+            "no health must say unknown: {badge:?}"
+        );
+        assert!(
+            !badge.contains("0%"),
+            "no health must not show a number: {badge:?}"
+        );
+    }
+
+    #[test]
+    fn g4_a_measured_zero_stays_zero() {
+        assert!(health_badge(Some(0)).contains("0%"));
+    }
+
+    #[test]
+    fn g4_measured_numbers_are_unchanged() {
+        assert!(health_badge(Some(89)).contains("89%"));
+        assert!(health_badge(Some(100)).contains("100%"));
+    }
+}
+
 fn health_str(health: i64) -> String {
     let text = format!("{}%", health);
     if health >= 95 {
@@ -259,14 +297,14 @@ pub fn render_context(db: &StateDb, ctx: &PromptContext) {
     let _ = ctx;
     let is_friday = theme == "friday";
     let cwd = cwd_str(35);
+    // INT-299 G4: the badge takes an Option; the history below is why.
     // INT-230 G4: was unwrap_or(95). On a machine that has never run the
     // doctor this asserted 95% health ON EVERY PROMPT. The August work
     // fixed the FILE reader (read_health, Option in all three callers)
     // and left this SCORE reader four lines away still fabricating.
     // ⚠️ 0 is not honest either -- it is less wrong than 95. Threading
-    // Option through the powerline badge is a display redesign and is
-    // named as remaining G4 work rather than done here.
-    let health = db.health_score().unwrap_or(0);
+    // Option through the powerline badge: done, health_badge shows unknown for None.
+    let health = db.health_score();
     let git = git_info();
 
     // ── Line 1: candy powerline (INT-103) -- directory / repo / devshell ──
@@ -363,7 +401,7 @@ pub fn render_context(db: &StateDb, ctx: &PromptContext) {
         ));
     }
     // ── Line 2: health · intent · commits ───────────────────────────────
-    let h_str = health_str(health);
+    let h_str = health_badge(health);
     let intent = active_intent(db);
     let today_commits = commits_today(db);
 
