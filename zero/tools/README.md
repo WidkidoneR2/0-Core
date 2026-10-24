@@ -10,7 +10,7 @@ Project 0's tool ecosystem: 17 active tools (plus 0 retired), each a purpose-bui
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| [`core`](../engine/) | 4.4.5 | The single Rust engine at the heart of Project 0 -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary. |
+| [`core`](../engine/) | 4.4.6 | The single Rust engine at the heart of Project 0 -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary. |
 | [`zero-daemon`](./zero-daemon/) | 4.0.2 | Background daemon for Project 0 operations |
 
 ## Development
@@ -18,7 +18,7 @@ Project 0's tool ecosystem: 17 active tools (plus 0 retired), each a purpose-bui
 | Tool | Version | Description |
 |------|---------|-------------|
 | [`db-browse`](./db-browse/) | 2.1.2 | - |
-| [`nsh-test`](../shell/nsh-test/) | 2.0.9 | nsh permanent regression suite |
+| [`nsh-test`](../shell/nsh-test/) | 2.0.10 | nsh permanent regression suite |
 | [`ship`](./ship/) | 1.0.2 | Build the workspace and place binaries where PATH can see them |
 | [`teach`](./teach/) | 4.0.2 | Live system narrator — adapts to newcomer or expert |
 | [`zero-deadwood`](./zero-deadwood/) | 1.0.2 | - |
@@ -51,7 +51,7 @@ Project 0's tool ecosystem: 17 active tools (plus 0 retired), each a purpose-bui
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| [`novashell`](../shell/novashell/) | 5.3.6 | The shell of Project 0 -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution. |
+| [`novashell`](../shell/novashell/) | 5.3.7 | The shell of Project 0 -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution. |
 
 ---
 

@@ -3,7 +3,7 @@ id: 299
 date: 2026-10-22
 type: future
 title: "Fix Health in Welcoming, needs to stop lying"
-status: in-progress
+status: complete
 tags: [nsh, novashell, health, welcome]
 ---
 
@@ -71,3 +71,9 @@ SOFT (a discipline, not gate-police; nothing enforces this).
 LIGHT (trivial self-evident gates need no artifact).
 Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
 See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+
+## Versions
+- core 4.4.5 -> 4.4.6 (patch)
+- nsh 5.3.6 -> 5.3.7 (patch)
+- nsh-test 2.0.9 -> 2.0.10 (patch)
+- zero-core 1.0.3 -> 1.0.4 (patch)

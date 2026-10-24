@@ -504,7 +504,7 @@ dependencies = [
 
 [[package]]
 name = "core"
-version = "4.4.5"
+version = "4.4.6"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1602,7 +1602,7 @@ dependencies = [
 
 [[package]]
 name = "novashell"
-version = "5.3.6"
+version = "5.3.7"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1626,7 +1626,7 @@ dependencies = [
 
 [[package]]
 name = "nsh-test"
-version = "2.0.9"
+version = "2.0.10"
 dependencies = [
  "chrono",
  "colored",
@@ -3622,7 +3622,7 @@ dependencies = [
 
 [[package]]
 name = "zero-core"
-version = "1.0.3"
+version = "1.0.4"
 dependencies = [
  "fontdue",
  "libc",
