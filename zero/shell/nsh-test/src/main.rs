@@ -3590,9 +3590,7 @@ print('CLASS-DONE')"##;
     // `exit 7` at the prompt ended the process with 0, alone and through the handoff. The code
     // is stored (engine.rs, the Exit arm) and the REPL's break drops it. The last line is the
     // exit itself, so the shell ends by its own hand and `end.exit` is nsh's OWN status. The
-    // `false` before it proves the status is the one typed, not a leftover from before. ONE
-    // session on purpose: a shell that ends the session never prints the 133;D mark the harness
-    // waits for, so each such session costs the full 30s wait (wait_line_end).
+    // `false` before it proves the status is the one typed, not a leftover from before.
     results.push(test(
         "repl_f0089_typed_exit_code_is_the_process_status",
         Category::Repl,
@@ -3606,6 +3604,33 @@ print('CLASS-DONE')"##;
                     "{:?}: want exit 7; got exit {:?}, signal {:?}",
                     cmds, end.exit, end.signal
                 ))
+            }
+        },
+    ));
+
+    // F-0090: A SESSION THE SHELL ENDS ITSELF RETURNS WHEN THE SHELL IS GONE. A shell that ends
+    // the session never prints the 133;D mark the harness waits for, and the harness itself held
+    // the pty's slave side open, so the wait ran to its 30s limit every time (measured 30191 ms for
+    // F-0089). The limit here is 10s: far under the old 30s and far over what a healthy run costs.
+    results.push(test(
+        "repl_f0090_session_ended_by_the_shell_returns_promptly",
+        Category::Repl,
+        || {
+            let started = std::time::Instant::now();
+            let end = repl::run_repl_gated(&["exit 3"], &[], repl::Terminal::Owned, None)?;
+            let took = started.elapsed();
+            if end.exit != Some(3) {
+                Err(format!(
+                    "want exit 3; got exit {:?}, signal {:?}",
+                    end.exit, end.signal
+                ))
+            } else if took > std::time::Duration::from_secs(10) {
+                Err(format!(
+                    "the shell ended the session but the harness took {:?} to notice",
+                    took
+                ))
+            } else {
+                Ok(())
             }
         },
     ));

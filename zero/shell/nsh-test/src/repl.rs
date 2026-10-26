@@ -681,6 +681,10 @@ fn run_session_full(
         .stderr(Stdio::from(s_err))
         .spawn()
         .map_err(|e| format!("spawn nsh: {}", e))?;
+    // F-0090: the Command still owns the three slave descriptors it was given, and they stay open
+    // until it is dropped. While the harness holds them the pty never closes, the reader never
+    // sees EIO, and a session the shell ends itself waits out the full 30s in wait_line_end.
+    drop(cmd);
     drop(pty.slave);
 
     let mut master = std::fs::File::from(pty.master);
@@ -833,7 +837,14 @@ fn run_session_full(
                 // INT-286: a shell that ENDED mid-session is the result of an owned-mode case.
                 // INT-289: owned is the default now, so a shell that is still alive and silent is
                 // a hang, and a hang is a failure, as it always was. Inherited keeps its error.
-                let ended = matches!(child.try_wait(), Ok(Some(_)));
+                // F-0090: the pty closes a moment before the kernel lets the exit be collected, so a
+                // shell that has just ended can still look alive here. Give it a short moment.
+                let settle = Instant::now() + Duration::from_secs(2);
+                let mut ended = matches!(child.try_wait(), Ok(Some(_)));
+                while !ended && Instant::now() < settle {
+                    std::thread::sleep(Duration::from_millis(10));
+                    ended = matches!(child.try_wait(), Ok(Some(_)));
+                }
                 if terminal == Terminal::Inherited || !ended {
                     return Err(format!("timed out waiting for the prompt after: {cmd}"));
                 }
