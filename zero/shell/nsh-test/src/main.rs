@@ -3586,6 +3586,29 @@ print('CLASS-DONE')"##;
             }
         },
     ));
+    // F-0089: A TYPED exit N IS THE SHELL'S EXIT STATUS. Found at INT-277 G2: with the real nsh,
+    // `exit 7` at the prompt ended the process with 0, alone and through the handoff. The code
+    // is stored (engine.rs, the Exit arm) and the REPL's break drops it. The last line is the
+    // exit itself, so the shell ends by its own hand and `end.exit` is nsh's OWN status. The
+    // `false` before it proves the status is the one typed, not a leftover from before. ONE
+    // session on purpose: a shell that ends the session never prints the 133;D mark the harness
+    // waits for, so each such session costs the full 30s wait (wait_line_end).
+    results.push(test(
+        "repl_f0089_typed_exit_code_is_the_process_status",
+        Category::Repl,
+        || {
+            let cmds = ["false", "exit 7"];
+            let end = repl::run_repl_gated(&cmds, &[], repl::Terminal::Owned, None)?;
+            if end.exit == Some(7) {
+                Ok(())
+            } else {
+                Err(format!(
+                    "{:?}: want exit 7; got exit {:?}, signal {:?}",
+                    cmds, end.exit, end.signal
+                ))
+            }
+        },
+    ));
     // INT-290 G2: A CLOSED WINDOW IS A HANG-UP, NOT A LOST TERMINAL. The harness closes the pty
     // master (run_repl_hangup), which is what a window close does. On 5.3.2 nsh has no SIGHUP
     // handler: the default action ends it, the exit path never runs and no record is written.

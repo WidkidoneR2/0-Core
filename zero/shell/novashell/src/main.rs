@@ -2784,6 +2784,9 @@ fn repl_main() -> Result<()> {
     }
     let mut eio_retries: u32 = 0;
     let mut gave_up: Option<i32> = None;
+    // F-0089: the status a typed `exit N` asked for. The engine stores it in last_exit before it
+    // returns ExitShell, and the break below is the one place that knows the loop ended that way.
+    let mut typed_exit: Option<i32> = None;
     'repl: loop {
         // INT-290: a hang-up that arrived while a command ran is taken here, before a prompt.
         if hangup_seen() {
@@ -3308,7 +3311,10 @@ fn repl_main() -> Result<()> {
                     &mut last_friday_intent,
                     _session_commands,
                 ) {
-                    crate::engine::SegmentOutcome::ExitShell => break 'repl,
+                    crate::engine::SegmentOutcome::ExitShell => {
+                        typed_exit = engine.last_exit();
+                        break 'repl;
+                    }
                     crate::engine::SegmentOutcome::Next => {}
                 }
             }
@@ -3440,7 +3446,8 @@ fn repl_main() -> Result<()> {
     mark("EXIT: main returning");
     // INT-286: a REPL that gave up on its terminal exits 74, never 0. main() does nothing after
     // this thread returns, so exiting here skips nothing but the line editor's drop.
-    if let Some(code) = gave_up {
+    // F-0089: a typed `exit N` leaves through here too, with the status it asked for.
+    if let Some(code) = gave_up.or(typed_exit) {
         std::process::exit(code);
     }
     Ok(())
