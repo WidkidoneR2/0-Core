@@ -4395,6 +4395,124 @@ print('CLASS-DONE')"##;
         },
     ));
 
+    // INT-277 G6: TERMINAL INTEGRATION. A terminal learns the shell's cwd (OSC 7) and the window
+    // title (OSC 2) from the shell's own output at every prompt. Omarchy's bash emits both; nsh
+    // emitted neither (F-0099, F-0100). The bytes are read RAW: strip_ansi removes them from every
+    // transcript, which is why no earlier case could have seen them.
+    fn g6_host() -> String {
+        std::fs::read_to_string("/proc/sys/kernel/hostname")
+            .map(|h| h.trim().to_string())
+            .unwrap_or_default()
+    }
+    fn g6_has(raw: &[u8], needle: &str) -> bool {
+        let n = needle.as_bytes();
+        raw.windows(n.len()).any(|w| w == n)
+    }
+    fn g6_tail(raw: &[u8]) -> String {
+        String::from_utf8_lossy(&raw[raw.len().saturating_sub(700)..]).replace('\x1b', "ESC")
+    }
+
+    results.push(test(
+        "repl_277_g6_prompt_tells_the_terminal_the_cwd_and_the_title",
+        Category::Repl,
+        || {
+            let dir = g5_scratch("g6osc")?;
+            let host = g6_host();
+            let end = repl::run_repl_gated(
+                &["cd /usr", "echo g6-ready"],
+                &[("ZERO_STATE_DIR", dir.as_str()), ("USER", "g6user")],
+                repl::Terminal::Owned,
+                None,
+            )?;
+            let want7 = format!("\x1b]7;file://{host}/usr\x1b\\");
+            let want2 = format!("\x1b]2;g6user@{host}:/usr\x1b\\");
+            if g6_has(&end.raw, &want7) && g6_has(&end.raw, &want2) {
+                return Ok(());
+            }
+            Err(format!(
+                "want OSC 7 and OSC 2 after cd /usr ({want7:?}, {want2:?}); raw tail {}",
+                g6_tail(&end.raw)
+            ))
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g6_a_dumb_terminal_is_sent_no_osc_7_or_title",
+        Category::Repl,
+        || {
+            let dir = g5_scratch("g6dumb")?;
+            let end = repl::run_repl_gated(
+                &[],
+                &[("ZERO_STATE_DIR", dir.as_str()), ("TERM", "dumb")],
+                repl::Terminal::Owned,
+                None,
+            )?;
+            if end.prompted && !g6_has(&end.raw, "\x1b]7;") && !g6_has(&end.raw, "\x1b]2;") {
+                return Ok(());
+            }
+            Err(format!(
+                "want a prompt and no OSC 7 or OSC 2 on TERM=dumb; prompted {}; raw tail {}",
+                end.prompted,
+                g6_tail(&end.raw)
+            ))
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g6_cwd_is_percent_encoded_and_the_title_keeps_the_path",
+        Category::Repl,
+        || {
+            let dir = g5_scratch("g6enc")?;
+            let host = g6_host();
+            let odd = format!("{dir}/g6 dir \u{e9}");
+            std::fs::create_dir_all(&odd).map_err(|e| format!("scratch {odd}: {e}"))?;
+            let cd = format!("cd '{odd}'");
+            let end = repl::run_repl_gated(
+                &[cd.as_str(), "echo g6-ready"],
+                &[("ZERO_STATE_DIR", dir.as_str()), ("USER", "g6user")],
+                repl::Terminal::Owned,
+                None,
+            )?;
+            let want7 = format!("\x1b]7;file://{host}{dir}/g6%20dir%20%C3%A9\x1b\\");
+            let want2 = format!("\x1b]2;g6user@{host}:{odd}\x1b\\");
+            if g6_has(&end.raw, &want7) && g6_has(&end.raw, &want2) {
+                return Ok(());
+            }
+            Err(format!(
+                "want {want7:?} and {want2:?} in a directory with a space and a non-ASCII byte; raw tail {}",
+                g6_tail(&end.raw)
+            ))
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g6_title_shows_a_path_under_home_with_a_tilde",
+        Category::Repl,
+        || {
+            let dir = g5_scratch("g6home")?;
+            let host = g6_host();
+            std::fs::create_dir_all(format!("{dir}/sub")).map_err(|e| format!("scratch: {e}"))?;
+            let end = repl::run_repl_gated(
+                &["cd ~/sub", "echo g6-ready"],
+                &[
+                    ("ZERO_STATE_DIR", dir.as_str()),
+                    ("USER", "g6user"),
+                    ("HOME", dir.as_str()),
+                ],
+                repl::Terminal::Owned,
+                None,
+            )?;
+            let want2 = format!("\x1b]2;g6user@{host}:~/sub\x1b\\");
+            if g6_has(&end.raw, &want2) {
+                return Ok(());
+            }
+            Err(format!(
+                "want {want2:?} for a directory under HOME; raw tail {}",
+                g6_tail(&end.raw)
+            ))
+        },
+    ));
+
     // F-0096: A PANIC ON THE REPL THREAD ENDS THE PROCESS WITH 101, the status the bash handoff
     // falls back on. main() used to turn the panic into an ordinary error and exit 1, so a REPL
     // panic ended the bash session instead of landing in bash. The panic is made by the real

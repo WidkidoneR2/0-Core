@@ -424,6 +424,9 @@ pub struct SessionEnd {
     /// Owned modes only (empty for Inherited): every line nsh printed after its first prompt
     /// until it exited, the harness's own teardown included.
     pub transcript: Vec<String>,
+    /// INT-277 G6: every byte nsh wrote, escape sequences intact (strip_ansi removes the OSC
+    /// marks from every other field). Owned modes only; empty for Inherited.
+    pub raw: Vec<u8>,
 }
 
 /// Submit lines to nsh on a pty it owns or does not own, and say how the session ended.
@@ -1156,17 +1159,18 @@ fn run_session_full(
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty())
         .collect();
-    let transcript: Vec<String> = if terminal == Terminal::Inherited {
+    let raw_all: Vec<u8> = if terminal == Terminal::Inherited {
         Vec::new()
     } else {
         let mut all = raw.clone();
         all.extend_from_slice(&late);
-        strip_ansi(&all)
-            .split('\n')
-            .map(|s| s.trim().to_string())
-            .filter(|s| !s.is_empty())
-            .collect()
+        all
     };
+    let transcript: Vec<String> = strip_ansi(&raw_all)
+        .split('\n')
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .collect();
     Ok(SessionEnd {
         lines,
         status,
@@ -1175,6 +1179,7 @@ fn run_session_full(
         signal,
         prompted,
         transcript,
+        raw: raw_all,
     })
 }
 
