@@ -3926,6 +3926,62 @@ print('CLASS-DONE')"##;
             }
         },
     ));
+
+    // F-0096: A PANIC ON THE REPL THREAD ENDS THE PROCESS WITH 101, the status the bash handoff
+    // falls back on. main() used to turn the panic into an ordinary error and exit 1, so a REPL
+    // panic ended the bash session instead of landing in bash. The panic is made by the real
+    // shell with nothing added to it: stdout is /dev/full, so every println! fails with ENOSPC
+    // and panics on the nsh-repl thread. Scratch HOME and state, never the real ones.
+    results.push(test(
+        "repl_f0096_a_repl_thread_panic_exits_101",
+        Category::Repl,
+        || {
+            use std::io::Write;
+            let dir = format!("{}/f0096", repl::case_db_dir());
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).map_err(|e| format!("scratch dir: {e}"))?;
+            let full = std::fs::OpenOptions::new()
+                .write(true)
+                .open("/dev/full")
+                .map_err(|e| format!("open /dev/full: {e}"))?;
+            let mut child = std::process::Command::new(repl::fsh_bin())
+                .env("HOME", &dir)
+                .env("XDG_STATE_HOME", format!("{dir}/state"))
+                .env("ZERO_STATE_DB", format!("{dir}/state.db"))
+                .env("NSH_KEEP_CWD", "1")
+                .env_remove("NSH_ACTIVE")
+                .current_dir(&dir)
+                .stdin(std::process::Stdio::piped())
+                .stdout(full)
+                .stderr(std::process::Stdio::null())
+                .spawn()
+                .map_err(|e| format!("spawn nsh: {e}"))?;
+            if let Some(mut stdin) = child.stdin.take() {
+                let _ = stdin.write_all(b"echo hello\nexit 0\n");
+            }
+            let until = std::time::Instant::now() + std::time::Duration::from_secs(25);
+            let status = loop {
+                match child.try_wait().map_err(|e| format!("wait: {e}"))? {
+                    Some(s) => break s,
+                    None if std::time::Instant::now() > until => {
+                        let _ = child.kill();
+                        return Err("nsh did not end within 25s with a dead stdout".to_string());
+                    }
+                    None => std::thread::sleep(std::time::Duration::from_millis(50)),
+                }
+            };
+            if status.code() == Some(101) {
+                Ok(())
+            } else {
+                Err(format!(
+                    "want exit 101 for a REPL-thread panic; got code {:?}, signal {:?}",
+                    status.code(),
+                    std::os::unix::process::ExitStatusExt::signal(&status)
+                ))
+            }
+        },
+    ));
+
     // INT-290 G2: A CLOSED WINDOW IS A HANG-UP, NOT A LOST TERMINAL. The harness closes the pty
     // master (run_repl_hangup), which is what a window close does. On 5.3.2 nsh has no SIGHUP
     // handler: the default action ends it, the exit path never runs and no record is written.
