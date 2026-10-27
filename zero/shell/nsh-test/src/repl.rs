@@ -444,6 +444,120 @@ thread_local! {
     static HANGUP_ENDING: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
+/// INT-277 G5: where the handoff session starts from. Set for the length of one session by
+/// run_repl_handoff and read by the one place that spawns the shell.
+#[derive(Clone)]
+struct HandoffPaths {
+    rc: String,
+    home: String,
+}
+
+thread_local! {
+    static HANDOFF: std::cell::RefCell<Option<HandoffPaths>> = const { std::cell::RefCell::new(None) };
+}
+
+/// What the harness puts at `$HOME/.local/bin/nsh` for the handoff block to run.
+pub enum HandoffNsh {
+    /// The shell under test.
+    Real,
+    /// A stand-in that only exits with this status, to drive the block's own arms.
+    Exits(i32),
+}
+
+/// One handoff session: bash with the block as its rc file, the way a terminal window starts it.
+pub struct HandoffRun {
+    pub nsh: HandoffNsh,
+    /// Create `~/.config/nsh/off` first.
+    pub off_switch: bool,
+    /// End the session by closing the pty master, as a closed window does.
+    pub hangup: bool,
+    pub delivery: InputDelivery,
+}
+
+impl HandoffRun {
+    /// The plain run: the real nsh, no off switch, ended by a typed exit.
+    pub fn new(nsh: HandoffNsh) -> Self {
+        HandoffRun {
+            nsh,
+            off_switch: false,
+            hangup: false,
+            delivery: InputDelivery::Incremental,
+        }
+    }
+}
+
+/// The block exactly as it goes into ~/.bashrc, from the one file that holds it.
+const HANDOFF_BLOCK: &str = include_str!("../../novashell/handoff/bashrc-handoff.sh");
+
+/// Added after the block by the harness only. Bash prints no 133 marks of its own and the session
+/// protocol waits on them, so a line typed at bash itself would wait out the limit.
+const HANDOFF_MARKS: &str =
+    "PROMPT_COMMAND='printf \"\\033]133;D;%s\\007\\033]133;A\\007\" \"$?\"'\n";
+
+/// The command every session spawns: the shell under test, or bash with the handoff block when a
+/// handoff session is running. NSH_ACTIVE is removed so a harness started from nsh cannot skip
+/// the block, and HOME points at the scratch directory the block looks in.
+fn session_command() -> Command {
+    match HANDOFF.with(|h| h.borrow().clone()) {
+        Some(h) => {
+            let mut c = Command::new("bash");
+            c.args(["--rcfile", h.rc.as_str(), "-i"]);
+            c.env_remove("NSH_ACTIVE");
+            c.env("HOME", h.home.as_str());
+            c
+        }
+        None => Command::new(fsh_bin()),
+    }
+}
+
+/// INT-277 G5: run the bash-to-nsh handoff as a window runs it. Bash starts as the session
+/// leader on the pty with the block as its rc file; the block runs nsh as its child. The scratch
+/// home is removed afterwards whether the session passed or not.
+pub fn run_repl_handoff(cmds: &[&str], run: HandoffRun) -> Result<SessionEnd, String> {
+    use std::os::unix::fs::PermissionsExt;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+    static N: AtomicUsize = AtomicUsize::new(0);
+    let home = format!(
+        "{}/handoff{}",
+        case_db_dir(),
+        N.fetch_add(1, Ordering::SeqCst)
+    );
+    let bin = format!("{}/.local/bin", home);
+    std::fs::create_dir_all(&bin).map_err(|e| format!("handoff home: {e}"))?;
+    let nsh = format!("{}/nsh", bin);
+    match run.nsh {
+        HandoffNsh::Real => {
+            std::os::unix::fs::symlink(fsh_bin(), &nsh).map_err(|e| format!("link nsh: {e}"))?;
+        }
+        HandoffNsh::Exits(code) => {
+            std::fs::write(&nsh, format!("#!/bin/sh\nexit {code}\n"))
+                .map_err(|e| format!("stand-in nsh: {e}"))?;
+            std::fs::set_permissions(&nsh, std::fs::Permissions::from_mode(0o755))
+                .map_err(|e| format!("stand-in nsh mode: {e}"))?;
+        }
+    }
+    if run.off_switch {
+        let cfg = format!("{}/.config/nsh", home);
+        std::fs::create_dir_all(&cfg).map_err(|e| format!("off switch dir: {e}"))?;
+        std::fs::write(format!("{}/off", cfg), "").map_err(|e| format!("off switch: {e}"))?;
+    }
+    let rc = format!("{}/rc.bashrc", home);
+    std::fs::write(&rc, format!("{}{}", HANDOFF_BLOCK, HANDOFF_MARKS))
+        .map_err(|e| format!("rc file: {e}"))?;
+    HANDOFF.with(|h| {
+        *h.borrow_mut() = Some(HandoffPaths {
+            rc,
+            home: home.clone(),
+        })
+    });
+    HANGUP_ENDING.with(|c| c.set(run.hangup));
+    let end = run_session_full(cmds, &[], None, run.delivery, Terminal::Owned, None);
+    HANGUP_ENDING.with(|c| c.set(false));
+    HANDOFF.with(|h| *h.borrow_mut() = None);
+    let _ = std::fs::remove_dir_all(&home);
+    end
+}
+
 /// INT-290: run an owned session and END it the way a closed window does: no `exit` is typed,
 /// the pty master is closed and the kernel hangs the shell up. `SessionEnd.signal` says what
 /// ended it. The flag is thread-local, so cases running side by side cannot affect each other.
@@ -656,7 +770,7 @@ fn run_session_full(
             nix::libc::fcntl(master_fd, nix::libc::F_SETFD, nix::libc::FD_CLOEXEC);
         }
     }
-    let mut cmd = Command::new(fsh_bin());
+    let mut cmd = session_command();
     own_terminal(&mut cmd, terminal);
     let mut child = cmd
         // INT-206: the harness default goes FIRST so a case can override it. fsh starts in the

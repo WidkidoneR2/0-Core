@@ -3634,6 +3634,153 @@ print('CLASS-DONE')"##;
             }
         },
     ));
+
+    // INT-277 G5: THE BASH-TO-NSH HANDOFF, RUN THE WAY A WINDOW RUNS IT. Bash starts on the pty
+    // with the block (novashell/handoff/bashrc-handoff.sh) as its rc file and the block runs nsh as
+    // its child. The block is the file that goes into ~/.bashrc, so a change to it is a change to
+    // what these cases run. Each case is one row of the contract in the intent.
+
+    // A typed exit N in the real nsh ends bash with N: the block's `exit "$nsh_status"` arm.
+    results.push(test(
+        "repl_277_handoff_typed_exit_is_the_session_status",
+        Category::Repl,
+        || {
+            let run = repl::HandoffRun::new(repl::HandoffNsh::Real);
+            let cmds = ["false", "exit 7"];
+            let end = repl::run_repl_handoff(&cmds, run)?;
+            if end.exit == Some(7) {
+                Ok(())
+            } else {
+                Err(format!(
+                    "{:?}: want exit 7; got exit {:?}, signal {:?}",
+                    cmds, end.exit, end.signal
+                ))
+            }
+        },
+    ));
+
+    // A closed window hangs up bash and everything under it. The real nsh holds a background job
+    // when the pty master closes; bash ends by SIGHUP and the job is gone. The sleep argument is
+    // one no other process on the machine carries.
+    results.push(test(
+        "repl_277_handoff_window_close_hangs_up_bash_and_leaves_no_job",
+        Category::Repl,
+        || {
+            let run = repl::HandoffRun {
+                hangup: true,
+                ..repl::HandoffRun::new(repl::HandoffNsh::Real)
+            };
+            let end = repl::run_repl_handoff(&["sleep 987.65 &"], run)?;
+            let mut left = repl::live_pids_with_cmdline("987.65");
+            let until = std::time::Instant::now() + std::time::Duration::from_secs(3);
+            while !left.is_empty() && std::time::Instant::now() < until {
+                std::thread::sleep(std::time::Duration::from_millis(50));
+                left = repl::live_pids_with_cmdline("987.65");
+            }
+            for pid in &left {
+                unsafe {
+                    nix::libc::kill(*pid, nix::libc::SIGKILL);
+                }
+            }
+            if end.signal != Some(1) {
+                Err(format!(
+                    "want bash ended by SIGHUP (1); got exit {:?}, signal {:?}",
+                    end.exit, end.signal
+                ))
+            } else if !left.is_empty() {
+                Err(format!("the job outlived the window: pids {:?}", left))
+            } else {
+                Ok(())
+            }
+        },
+    ));
+
+    // The off switch keeps the session in bash and says so. Bash answers [unset] because nsh never
+    // ran, so the block never exported NSH_ACTIVE.
+    results.push(test(
+        "repl_277_handoff_off_switch_stays_in_bash",
+        Category::Repl,
+        || {
+            let run = repl::HandoffRun {
+                off_switch: true,
+                ..repl::HandoffRun::new(repl::HandoffNsh::Real)
+            };
+            let end = repl::run_repl_handoff(&["echo \"[${NSH_ACTIVE:-unset}]\""], run)?;
+            if !end.banner.contains("nsh handoff is off") {
+                Err(format!("no off notice before the prompt: {:?}", end.banner))
+            } else if !end.lines.iter().any(|l| l.contains("[unset]")) {
+                Err(format!("want bash to answer [unset]; got {:?}", end.lines))
+            } else {
+                Ok(())
+            }
+        },
+    ));
+
+    // The block's status table, driven by a stand-in nsh that only exits. The five crash statuses
+    // leave the session in bash with the notice; every other status ends bash with that status.
+    results.push(test(
+        "repl_277_handoff_crash_codes_fall_back_and_other_codes_exit",
+        Category::Repl,
+        || {
+            let crash = [
+                (101, "panic"),
+                (132, "SIGILL"),
+                (134, "SIGABRT"),
+                (135, "SIGBUS"),
+                (139, "SIGSEGV"),
+            ];
+            for (code, why) in crash {
+                let run = repl::HandoffRun::new(repl::HandoffNsh::Exits(code));
+                let end = repl::run_repl_handoff(&["echo still-bash"], run)?;
+                let want = format!("nsh crashed ({why}, status {code}); staying in bash.");
+                if !end.banner.contains(&want) {
+                    return Err(format!(
+                        "status {code}: want {want:?}; got {:?}",
+                        end.banner
+                    ));
+                }
+                if !end.lines.iter().any(|l| l.contains("still-bash")) {
+                    return Err(format!(
+                        "status {code}: bash did not answer: {:?}",
+                        end.lines
+                    ));
+                }
+            }
+            for code in [0, 1, 7, 100, 102, 130, 137] {
+                let run = repl::HandoffRun::new(repl::HandoffNsh::Exits(code));
+                let end = repl::run_repl_handoff(&["echo unreachable"], run)?;
+                if end.exit != Some(code) {
+                    return Err(format!(
+                        "status {code}: want bash to exit {code}; got exit {:?}, signal {:?}",
+                        end.exit, end.signal
+                    ));
+                }
+            }
+            Ok(())
+        },
+    ));
+
+    // The exec reload (C9): nsh replaces itself in place, still the child of the same bash, and
+    // the session carries on to its own exit. Measured 2026-10-26: nsh answers the exec line with
+    // a 133;D before the new shell prompts, so it is an ordinary line. A first version declared it
+    // held and the harness refused that, which is what the guard is for.
+    results.push(test(
+        "repl_277_handoff_exec_reload_keeps_the_session",
+        Category::Repl,
+        || {
+            let run = repl::HandoffRun::new(repl::HandoffNsh::Real);
+            let cmds = ["exec \"$HOME/.local/bin/nsh\"", "exit 3"];
+            let end = repl::run_repl_handoff(&cmds, run)?;
+            if end.exit == Some(3) {
+                Ok(())
+            } else {
+                Err(format!(
+                    "{:?}: want exit 3; got exit {:?}, signal {:?}",
+                    cmds, end.exit, end.signal
+                ))
+            }
+        },
+    ));
     // INT-290 G2: A CLOSED WINDOW IS A HANG-UP, NOT A LOST TERMINAL. The harness closes the pty
     // master (run_repl_hangup), which is what a window close does. On 5.3.2 nsh has no SIGHUP
     // handler: the default action ends it, the exit path never runs and no record is written.
