@@ -4471,11 +4471,12 @@ fn execute_dispatch(
                         };
                         let p = std::path::PathBuf::from(&expanded);
                         if p.exists()
-                            && p.is_dir()
+                            && (p.is_dir() || p.is_file())
                             && search_root.is_none()
                             && !pattern_parts.is_empty()
                         {
-                            // Only treat as path if it's a directory AND we already have a pattern
+                            // Only treat as path if it is a directory or a file AND we already
+                            // have a pattern (F-0093: a file used to be joined into the pattern)
                             search_root = Some(p);
                         } else {
                             pattern_parts.push(arg.to_string());
@@ -4491,7 +4492,12 @@ fn execute_dispatch(
             if pattern_parts.is_empty() {
                 return CommandResult::Error(FSEARCH_USAGE.to_string().into(), 1);
             }
-            let pattern = pattern_parts.join(" ").to_lowercase();
+            // F-0092: the typed pattern becomes its list of alternatives ONCE, here. Both search
+            // sites below test lines against that list, so the rule has one owner.
+            let alternatives = match fsearch_alternatives(&pattern_parts.join(" ")) {
+                Ok(alternatives) => alternatives,
+                Err(message) => return CommandResult::Error(message.into(), 1),
+            };
             if !unknown.is_empty() {
                 eprintln!(
                     "  {} fsearch ignored unknown argument(s): {}",
@@ -4510,7 +4516,7 @@ fn execute_dispatch(
                 Vec::new();
             fn walk_dir(
                 dir: &std::path::Path,
-                pattern: &str,
+                alternatives: &[String],
                 filter_type: Option<&str>,
                 filter_file: Option<&str>,
                 exclude_history: bool,
@@ -4538,7 +4544,7 @@ fn execute_dispatch(
                     if path.is_dir() {
                         walk_dir(
                             &path,
-                            pattern,
+                            alternatives,
                             filter_type,
                             filter_file,
                             exclude_history,
@@ -4582,13 +4588,9 @@ fn execute_dispatch(
                         if let Ok(content) = std::fs::read_to_string(&path) {
                             for (lineno, line) in content.lines().enumerate() {
                                 let line_lower = line.to_lowercase();
-                                let matched = if pattern.contains('|') {
-                                    pattern
-                                        .split('|')
-                                        .any(|alt| line_lower.contains(alt.trim()))
-                                } else {
-                                    line_lower.contains(pattern)
-                                };
+                                let matched = alternatives
+                                    .iter()
+                                    .any(|alt| line_lower.contains(alt.as_str()));
                                 if matched {
                                     let rel = path
                                         .strip_prefix(std::env::current_dir().unwrap_or_default())
@@ -4607,13 +4609,9 @@ fn execute_dispatch(
                 if let Ok(content) = std::fs::read_to_string(&cwd) {
                     for (lineno, line) in content.lines().enumerate() {
                         let line_lower = line.to_lowercase();
-                        let matched = if pattern.contains('|') {
-                            pattern
-                                .split('|')
-                                .any(|alt| line_lower.contains(alt.trim()))
-                        } else {
-                            line_lower.contains(&pattern)
-                        };
+                        let matched = alternatives
+                            .iter()
+                            .any(|alt| line_lower.contains(alt.as_str()));
                         if matched {
                             let rel = cwd
                                 .strip_prefix(std::env::current_dir().unwrap_or_default())
@@ -4632,7 +4630,7 @@ fn execute_dispatch(
             } else {
                 walk_dir(
                     &cwd,
-                    &pattern,
+                    &alternatives,
                     filter_type,
                     filter_file,
                     exclude_history,
@@ -8412,8 +8410,12 @@ fn cd(args: &[&str]) -> CommandResult {
 
 /// INT-259: ONE usage string. There were two, and the first named a command that does not exist
 /// ("usage: search ..."), so half the time the builtin told you to run something else.
-const FSEARCH_USAGE: &str =
-    "usage: fsearch <pattern> [--type ext] [--file name] [--live] [--intent] [--all|--scripts]";
+const FSEARCH_USAGE: &str = concat!(
+    "usage: fsearch <pattern> [dir|file] [--type ext] [--file name] [--live] [--intent] ",
+    "[--all|--scripts]\n",
+    "  pattern: plain text, ignoring case. a|b matches either; a backslash makes the next ",
+    "character literal (\\| \\( \\\\)"
+);
 
 fn parse_since_time(arg: &str) -> i64 {
     let now = chrono::Local::now().timestamp();
@@ -17127,4 +17129,48 @@ fn fsearch_row(
     row.insert("line".to_string(), Value::Int(line as i64));
     row.insert("text".to_string(), Value::Text(text.to_string()));
     row
+}
+
+/// F-0092: turn what the person typed after `fsearch` into the alternatives a line is tested
+/// against. One owner for the rule, so the directory walk and the single-file scan cannot drift.
+///
+///   a|b     either a or b (| separates alternatives; spaces around a | are dropped)
+///   \|      a literal |    (a backslash makes the next character literal)
+///   \(  \)  a literal paren (parens were always plain characters; the escape is allowed)
+///   \\      a literal backslash
+///   a\      a lone trailing backslash stays a backslash
+///
+/// An empty alternative -- `a|`, `|a`, `a||b` -- is REFUSED. It would match every line, and
+/// "every line contains it" is an answer to a search nobody asked for. Matching ignores case, so
+/// every alternative comes back lowercased.
+fn fsearch_alternatives(typed: &str) -> Result<Vec<String>, String> {
+    let mut alternatives: Vec<String> = Vec::new();
+    let mut current = String::new();
+    let mut chars = typed.chars();
+    while let Some(c) = chars.next() {
+        match c {
+            '\\' => current.push(chars.next().unwrap_or('\\')),
+            '|' => alternatives.push(std::mem::take(&mut current)),
+            _ => current.push(c),
+        }
+    }
+    alternatives.push(current);
+    // A pattern with no | keeps its spaces, as it always did; only alternatives are trimmed.
+    let several = alternatives.len() > 1;
+    let mut out = Vec::new();
+    for alt in alternatives {
+        let alt = if several {
+            alt.trim().to_lowercase()
+        } else {
+            alt.to_lowercase()
+        };
+        if alt.is_empty() {
+            return Err(format!(
+                "  fsearch: empty alternative in pattern '{}' -- a | with nothing on one side would match every line",
+                typed
+            ));
+        }
+        out.push(alt);
+    }
+    Ok(out)
 }
