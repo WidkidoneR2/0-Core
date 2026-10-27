@@ -114,6 +114,20 @@ impl StateDb {
 
         let conn = Connection::open(&db_path)
             .with_context(|| format!("Cannot open state.db at {:?}", db_path))?;
+        Self::init(conn, core_root)
+    }
+
+    /// F-0097: the temporary database a session runs on when state.db cannot be used. Same
+    /// schema through the same init, so nothing downstream can tell the two apart; only the
+    /// caller knows it fell back, and says so.
+    pub fn open_in_memory() -> Result<Self> {
+        let conn = Connection::open_in_memory().context("Cannot open an in-memory database")?;
+        Self::init(conn, zero_core::paths::core_root_string())
+    }
+
+    /// Everything that makes a connection a state.db: the checkpoint, the schema and the
+    /// migrations. Split from open() so the file and the temporary database share one owner.
+    fn init(conn: Connection, core_root: String) -> Result<Self> {
         // INT-249b put a checkpoint here so morning-after-suspend does not hit
         // SQLITE_READONLY from accumulated WAL frames. That reason still holds. What
         // changed is WHICH checkpoint, and it depends on which door opened the database.

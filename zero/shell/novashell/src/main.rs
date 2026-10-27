@@ -1023,7 +1023,11 @@ fn main() -> Result<()> {
                 cfg,
                 applied: _,
                 diagnostics,
+                degraded,
             } = runtime_init()?;
+            if let Some(why) = &degraded {
+                eprintln!("{}", degraded_notice(why));
+            }
             // Diagnostics on stderr: stdout belongs to the program, which is what keeps
             // `fsh -c 'echo hi' | wc -l` answering 1.
             match &diagnostics {
@@ -1333,6 +1337,18 @@ struct RuntimeInit {
     cfg: config::ShellConfig,
     applied: config::ApplyReport,
     diagnostics: zero_core::check::Checked<Vec<String>>,
+    /// F-0097: why state.db could not be used, when this run is on a temporary database.
+    degraded: Option<String>,
+}
+
+/// F-0097: the one line a caller prints when runtime_init fell back to a temporary database.
+/// A shell that cannot read its history still owes the user a prompt, and the user a reason.
+fn degraded_notice(why: &str) -> String {
+    format!(
+        "  {} state.db is unusable ({}); history and session memory last only for this session. The file was left untouched.",
+        colored::Colorize::bright_yellow("!"),
+        why
+    )
 }
 
 fn runtime_init() -> Result<RuntimeInit> {
@@ -1340,7 +1356,13 @@ fn runtime_init() -> Result<RuntimeInit> {
     // kept in the message so the stage is still named, but the NUMBER now shares one origin with
     // every other boot mark, which is what makes them comparable.
     let mark = |what: &str| crate::mark(&format!("runtime_init: {}", what));
-    let db = db::StateDb::open()?;
+    // F-0097: an unusable state.db no longer ends the process. Under the bash handoff an end
+    // with any status outside 101, 132, 134, 135 and 139 exits bash, so the terminal would close
+    // with no prompt. The file is left exactly as it was; nothing here writes to it.
+    let (db, degraded) = match db::StateDb::open() {
+        Ok(db) => (db, None),
+        Err(e) => (db::StateDb::open_in_memory()?, Some(format!("{:#}", e))),
+    };
     mark("db open");
     let created = config::ensure_default();
     mark("ensure_default");
@@ -1357,6 +1379,7 @@ fn runtime_init() -> Result<RuntimeInit> {
         cfg,
         applied,
         diagnostics,
+        degraded,
     })
 }
 
@@ -2493,7 +2516,11 @@ fn repl_main() -> Result<()> {
         cfg,
         applied,
         diagnostics,
+        degraded,
     } = runtime_init()?;
+    if let Some(why) = &degraded {
+        eprintln!("{}", degraded_notice(why));
+    }
     // ⚠️ INT-204: SAY IT WHEN THE DATABASE IS NOT THE CANONICAL ONE. ZERO_STATE_DB exists so the
     // test harness can give each run its own database instead of borrowing the user's, but a variable
     // that redirects the database is the more dangerous cousin of the one that started this intent --
