@@ -4143,6 +4143,106 @@ print('CLASS-DONE')"##;
         },
     ));
 
+    // INT-277 G4: EXEC RESOLVES PATH. A bare `exec nsh` re-executes the deployed shell, `exec` of
+    // a bare command finds it on PATH the way bash does (a file that is not executable is not a
+    // match), and an `exec` that cannot run reports and keeps the shell. Each PATH row builds its
+    // own tool in a scratch directory, so it proves the search and not what the box has installed.
+    fn g4_scratch(tag: &str) -> Result<String, String> {
+        let dir = format!("{}/g4-{}", repl::case_db_dir(), tag);
+        std::fs::create_dir_all(&dir).map_err(|e| format!("scratch {dir}: {e}"))?;
+        Ok(dir)
+    }
+    fn g4_tool(dir: &str, sub: &str, mode: u32) -> Result<(), String> {
+        use std::os::unix::fs::PermissionsExt;
+        let bin = format!("{dir}/{sub}");
+        std::fs::create_dir_all(&bin).map_err(|e| format!("make {bin}: {e}"))?;
+        let tool = format!("{bin}/g4tool");
+        std::fs::write(&tool, "#!/bin/sh\nexit 6\n").map_err(|e| format!("write {tool}: {e}"))?;
+        std::fs::set_permissions(&tool, std::fs::Permissions::from_mode(mode))
+            .map_err(|e| format!("chmod {tool}: {e}"))
+    }
+    fn g4_exits_6(row: &str, dir: &str, path: &str) -> Result<(), String> {
+        let end = repl::run_repl_gated(
+            &["exec g4tool"],
+            &[("PATH", path), ("ZERO_STATE_DIR", dir)],
+            repl::Terminal::Owned,
+            None,
+        )?;
+        if end.exit == Some(6) {
+            return Ok(());
+        }
+        Err(format!(
+            "{row}: want exit 6 from the tool; got exit {:?}, signal {:?}; transcript {:?}",
+            end.exit, end.signal, end.transcript
+        ))
+    }
+
+    results.push(test(
+        "repl_277_g4_exec_nsh_by_bare_name_keeps_the_session",
+        Category::Repl,
+        || {
+            let run = repl::HandoffRun::new(repl::HandoffNsh::Real);
+            let cmds = ["exec nsh", "exit 3"];
+            let end = repl::run_repl_handoff(&cmds, run)?;
+            if end.exit == Some(3) {
+                return Ok(());
+            }
+            Err(format!(
+                "{:?}: want exit 3; got exit {:?}, signal {:?}",
+                cmds, end.exit, end.signal
+            ))
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g4_exec_finds_a_command_on_path",
+        Category::Repl,
+        || {
+            let dir = g4_scratch("path")?;
+            g4_tool(&dir, "bin", 0o755)?;
+            let path = format!("{dir}/bin:/usr/bin:/bin");
+            g4_exits_6("exec on PATH", &dir, &path)
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g4_exec_skips_a_file_on_path_that_is_not_executable",
+        Category::Repl,
+        || {
+            let dir = g4_scratch("skip")?;
+            g4_tool(&dir, "first", 0o644)?;
+            g4_tool(&dir, "second", 0o755)?;
+            let path = format!("{dir}/first:{dir}/second:/usr/bin:/bin");
+            g4_exits_6("exec past a non-executable", &dir, &path)
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g4_exec_of_a_missing_command_keeps_the_shell",
+        Category::Repl,
+        || {
+            let dir = g4_scratch("missing")?;
+            let end = repl::run_repl_gated(
+                &["exec g4-no-such-command-zz", "echo g4-alive"],
+                &[("ZERO_STATE_DIR", dir.as_str())],
+                repl::Terminal::Owned,
+                None,
+            )?;
+            let said = end
+                .transcript
+                .iter()
+                .any(|l| l.contains("g4-no-such-command-zz") && l.contains("No such file"));
+            let alive = end.lines.iter().any(|l| l.trim() == "g4-alive");
+            if said && alive {
+                return Ok(());
+            }
+            Err(format!(
+                "reported {said}, shell kept {alive}; exit {:?}, signal {:?}; transcript {:?}",
+                end.exit, end.signal, end.transcript
+            ))
+        },
+    ));
+
     // F-0096: A PANIC ON THE REPL THREAD ENDS THE PROCESS WITH 101, the status the bash handoff
     // falls back on. main() used to turn the panic into an ordinary error and exit 1, so a REPL
     // panic ended the bash session instead of landing in bash. The panic is made by the real
