@@ -457,6 +457,24 @@ thread_local! {
     static HANDOFF: std::cell::RefCell<Option<HandoffPaths>> = const { std::cell::RefCell::new(None) };
 }
 
+thread_local! {
+    static LAUNCH_DIR: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+/// INT-277 G3: as run_repl_gated, but nsh is launched with `dir` as its working directory and
+/// `dir` is removed between the chdir and the exec, so the shell starts in a directory that no
+/// longer exists, the way a terminal opened from a folder that was then deleted does.
+pub fn run_repl_gated_deleted_cwd(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+    dir: &str,
+) -> Result<SessionEnd, String> {
+    LAUNCH_DIR.with(|l| *l.borrow_mut() = Some(dir.to_string()));
+    let got = run_repl_gated(cmds, env, Terminal::Owned, None);
+    LAUNCH_DIR.with(|l| *l.borrow_mut() = None);
+    got
+}
+
 /// What the harness puts at `$HOME/.local/bin/nsh` for the handoff block to run.
 pub enum HandoffNsh {
     /// The shell under test.
@@ -780,6 +798,20 @@ fn run_session_full(
     }
     let mut cmd = session_command();
     own_terminal(&mut cmd, terminal);
+    let launch = LAUNCH_DIR.with(|l| l.borrow().clone());
+    if let Some(dir) = &launch {
+        use std::os::unix::process::CommandExt;
+        // Built BEFORE the fork: the closure below may only make async-signal-safe calls, and
+        // rmdir is one while allocating a CString is not.
+        let gone = std::ffi::CString::new(dir.as_str()).map_err(|e| e.to_string())?;
+        // SAFETY: only rmdir runs between fork and exec, and its result is deliberately ignored.
+        unsafe {
+            cmd.pre_exec(move || {
+                nix::libc::rmdir(gone.as_ptr());
+                Ok(())
+            });
+        }
+    }
     let mut child = cmd
         // INT-206: the harness default goes FIRST so a case can override it. fsh starts in the
         // repo home deliberately (it once also restored its last directory), so the current_dir below
@@ -797,7 +829,7 @@ fn run_session_full(
         // more moving parts than it is worth.
         .env("ZERO_STATE_DB", case_db_path())
         .envs(env.iter().copied())
-        .current_dir("/tmp")
+        .current_dir(launch.as_deref().unwrap_or("/tmp"))
         .stdin(Stdio::from(s_in))
         .stdout(Stdio::from(s_out))
         .stderr(Stdio::from(s_err))

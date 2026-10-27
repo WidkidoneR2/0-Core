@@ -4110,6 +4110,39 @@ print('CLASS-DONE')"##;
         },
     ));
 
+    results.push(test(
+        "repl_277_g3_launch_directory_deleted_still_starts",
+        Category::Repl,
+        || {
+            let dir = g3_scratch("cwd")?;
+            let gone = format!("{dir}/launch");
+            std::fs::create_dir_all(&gone).map_err(|e| format!("make {gone}: {e}"))?;
+            let end = repl::run_repl_gated_deleted_cwd(
+                &["readlink /proc/self/cwd", "echo g3-up"],
+                &[("ZERO_STATE_DIR", dir.as_str())],
+                &gone,
+            )?;
+            // The control: without it the row could pass with the directory still there.
+            if std::path::Path::new(&gone).exists() {
+                return Err(format!("{gone} still exists; the row would test nothing"));
+            }
+            // nsh quotes a path that holds spaces, so the marker is matched anywhere in the line.
+            if !end.transcript.iter().any(|l| l.contains("(deleted)")) {
+                return Err(format!(
+                    "nsh did not start in a deleted directory; transcript {:?}",
+                    end.transcript
+                ));
+            }
+            if end.prompted && end.transcript.iter().any(|l| l.trim() == "g3-up") {
+                return Ok(());
+            }
+            Err(format!(
+                "launch directory deleted: prompted {}, exit {:?}, signal {:?}; transcript {:?}; banner {:?}",
+                end.prompted, end.exit, end.signal, end.transcript, end.banner
+            ))
+        },
+    ));
+
     // F-0096: A PANIC ON THE REPL THREAD ENDS THE PROCESS WITH 101, the status the bash handoff
     // falls back on. main() used to turn the panic into an ordinary error and exit 1, so a REPL
     // panic ended the bash session instead of landing in bash. The panic is made by the real
