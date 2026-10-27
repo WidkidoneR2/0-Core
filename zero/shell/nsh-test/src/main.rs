@@ -4243,6 +4243,158 @@ print('CLASS-DONE')"##;
         },
     ));
 
+    // INT-277 G5: TERMINAL AND JOB-CONTROL MATRIX. Each row drives the real nsh on a pty and sends
+    // the keys a person would: Ctrl-C (ETX) and Ctrl-Z (SUB) go to the pty as raw bytes, and the
+    // harness steps in repl.rs (a leading \u{1} sends keys, \u{2} submits without waiting for the
+    // prompt, \u{3} waits for text) let a row act while a foreground command is still running. Every
+    // marker a row waits for is COMPUTED by the child (`c5-$((40+2))-up`), so the pty's echo of the
+    // typed line can never satisfy the wait early.
+    fn g5_scratch(tag: &str) -> Result<String, String> {
+        let dir = format!("{}/g5-{}", repl::case_db_dir(), tag);
+        std::fs::create_dir_all(&dir).map_err(|e| format!("scratch {dir}: {e}"))?;
+        Ok(dir)
+    }
+    fn g5_gone(needle: &str) -> Result<(), String> {
+        let mut alive = repl::live_pids_with_cmdline(needle);
+        let until = std::time::Instant::now() + std::time::Duration::from_secs(3);
+        while !alive.is_empty() && std::time::Instant::now() < until {
+            std::thread::sleep(std::time::Duration::from_millis(50));
+            alive = repl::live_pids_with_cmdline(needle);
+        }
+        for pid in &alive {
+            unsafe {
+                nix::libc::kill(*pid, nix::libc::SIGKILL);
+            }
+        }
+        if alive.is_empty() {
+            Ok(())
+        } else {
+            Err(format!("a job outlived the row: pids {alive:?}"))
+        }
+    }
+    fn g5_said(end: &repl::SessionEnd, what: &str) -> bool {
+        end.transcript.iter().any(|l| l.contains(what))
+    }
+
+    results.push(test(
+        "repl_277_g5_ctrl_c_ends_the_foreground_child_not_the_shell",
+        Category::Repl,
+        || {
+            let dir = g5_scratch("ctrlc")?;
+            let end = repl::run_repl_gated(
+                &[
+                    "\u{2}sh -c 'echo c5-$((40+2))-up; sleep 30.2771'",
+                    "\u{3}c5-42-up",
+                    "\u{1}\u{3}",
+                    "echo c5-alive",
+                ],
+                &[("ZERO_STATE_DIR", dir.as_str())],
+                repl::Terminal::Owned,
+                None,
+            )?;
+            g5_gone("30.2771")?;
+            if end.transcript.iter().any(|l| l.trim() == "c5-alive") && end.exit == Some(0) {
+                return Ok(());
+            }
+            Err(format!(
+                "want the shell alive after Ctrl-C; got exit {:?}, signal {:?}; transcript {:?}",
+                end.exit, end.signal, end.transcript
+            ))
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g5_ctrl_z_stops_jobs_shows_it_and_fg_resumes_it_with_the_terminal",
+        Category::Repl,
+        || {
+            let dir = g5_scratch("ctrlz")?;
+            let end = repl::run_repl_gated(
+                &[
+                    "\u{2}sh -c 'echo z5-$((40+2))-up; while :; do sleep 1.2772; echo z5-t$((1+1))ck; done'",
+                    "\u{3}z5-t2ck",
+                    "\u{1}\u{1a}",
+                    "jobs",
+                    "\u{2}fg 1",
+                    "\u{3}z5-t2ck",
+                    "\u{1}\u{3}",
+                    "echo z5-alive",
+                ],
+                &[("ZERO_STATE_DIR", dir.as_str())],
+                repl::Terminal::Owned,
+                None,
+            )?;
+            g5_gone("1.2772")?;
+            let announced = g5_said(&end, "-- suspended");
+            let listed = end
+                .transcript
+                .iter()
+                .any(|l| l.contains("stopped") && l.contains("elapsed"));
+            let alive = end.transcript.iter().any(|l| l.trim() == "z5-alive");
+            if announced && listed && alive && end.exit == Some(0) {
+                return Ok(());
+            }
+            Err(format!(
+                "stop announced {announced}, listed as stopped {listed}, shell alive after fg and Ctrl-C {alive}; exit {:?}, signal {:?}; transcript {:?}",
+                end.exit, end.signal, end.transcript
+            ))
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g5_bg_continues_a_stopped_job_and_the_shell_answers",
+        Category::Repl,
+        || {
+            let dir = g5_scratch("bg")?;
+            let end = repl::run_repl_gated(
+                &[
+                    "\u{2}sh -c 'echo b5-$((40+2))-up; while :; do sleep 1.2773; echo b5-t$((1+1))ck; done'",
+                    "\u{3}b5-t2ck",
+                    "\u{1}\u{1a}",
+                    "bg 1",
+                    "\u{3}b5-t2ck",
+                    "echo b5-alive",
+                    "kill %1",
+                ],
+                &[("ZERO_STATE_DIR", dir.as_str())],
+                repl::Terminal::Owned,
+                None,
+            )?;
+            g5_gone("1.2773")?;
+            let continued = g5_said(&end, "continued in the background");
+            let alive = end.transcript.iter().any(|l| l.trim() == "b5-alive");
+            if continued && alive {
+                return Ok(());
+            }
+            Err(format!(
+                "bg reported continuing {continued}, shell answered while the job ran {alive}; exit {:?}, signal {:?}; transcript {:?}",
+                end.exit, end.signal, end.transcript
+            ))
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g5_yes_piped_to_head_returns_and_the_shell_survives",
+        Category::Repl,
+        || {
+            let dir = g5_scratch("yes")?;
+            let end = repl::run_repl_gated(
+                &["yes | head -3", "echo y5-alive"],
+                &[("ZERO_STATE_DIR", dir.as_str())],
+                repl::Terminal::Owned,
+                None,
+            )?;
+            let ys = end.transcript.iter().filter(|l| l.trim() == "y").count();
+            let alive = end.transcript.iter().any(|l| l.trim() == "y5-alive");
+            if ys == 3 && alive && end.exit == Some(0) {
+                return Ok(());
+            }
+            Err(format!(
+                "want exactly three y lines and a live shell; got {ys} y lines, alive {alive}, exit {:?}, signal {:?}; transcript {:?}",
+                end.exit, end.signal, end.transcript
+            ))
+        },
+    ));
+
     // F-0096: A PANIC ON THE REPL THREAD ENDS THE PROCESS WITH 101, the status the bash handoff
     // falls back on. main() used to turn the panic into an ordinary error and exit 1, so a REPL
     // panic ended the bash session instead of landing in bash. The panic is made by the real

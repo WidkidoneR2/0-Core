@@ -475,6 +475,19 @@ pub fn run_repl_gated_deleted_cwd(
     got
 }
 
+/// INT-277 G5: a command string can be a STEP instead of a command, so a case can act while a
+/// foreground command is still running. The harness waits for the prompt after every line, which
+/// a running child never gives back; these three markers are the way around that.
+///   STEP_KEYS      the rest of the string goes to the pty as raw bytes (Ctrl-C is \u{3}, Ctrl-Z
+///                  is \u{1a}), then the harness waits for the shell to prompt again.
+///   STEP_NO_WAIT   the rest is submitted as a line, and the harness does not wait for the prompt.
+///   STEP_WAIT_FOR  wait until the rest appears in what nsh prints AFTER this point. A marker the
+///                  command line itself contains would be satisfied by the pty's echo, so a case
+///                  makes the child compute it (`echo c5-$((40+2))-up`).
+const STEP_KEYS: char = '\u{1}';
+const STEP_NO_WAIT: char = '\u{2}';
+const STEP_WAIT_FOR: char = '\u{3}';
+
 /// What the harness puts at `$HOME/.local/bin/nsh` for the handoff block to run.
 pub enum HandoffNsh {
     /// The shell under test.
@@ -932,6 +945,31 @@ fn run_session_full(
         }
         let answer = if idx + 1 == cmds.len() { answer } else { None };
         let mark = raw.len();
+        let cmd: &str = cmd;
+        if let Some(text) = cmd.strip_prefix(STEP_WAIT_FOR) {
+            wait_for(
+                &rx,
+                &mut raw,
+                text.as_bytes(),
+                mark,
+                Duration::from_secs(20),
+            )
+            .ok_or_else(|| format!("never saw {text:?} at step {idx}"))?;
+            continue;
+        }
+        if let Some(keys) = cmd.strip_prefix(STEP_KEYS) {
+            master
+                .write_all(keys.as_bytes())
+                .map_err(|e| e.to_string())?;
+            wait_for(&rx, &mut raw, READY, mark, Duration::from_secs(20)).ok_or_else(|| {
+                format!("the shell did not prompt again after the keys at step {idx}")
+            })?;
+            continue;
+        }
+        let (cmd, no_wait) = match cmd.strip_prefix(STEP_NO_WAIT) {
+            Some(rest) => (rest, true),
+            None => (cmd, false),
+        };
         // PASTE THE LINE, DO NOT TYPE IT. fsh's highlighter repaints the whole line for every
         // byte it receives, so a harness writing 37 characters at once pays 37 full redraws back
         // to back. Measured 2026-08-05 on the debug binary: the same 37-character line takes
@@ -948,6 +986,9 @@ fn run_session_full(
         master
             .write_all(b"\x1b[201~\n")
             .map_err(|e| e.to_string())?;
+        if no_wait {
+            continue;
+        }
         if let Some((needle, reply)) = answer {
             wait_for(
                 &rx,
