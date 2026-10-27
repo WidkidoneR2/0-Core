@@ -1113,10 +1113,20 @@ fn main() -> Result<()> {
         .spawn(|| repl_main())?;
     // INT-290: the thread has inherited an open mask; this thread now leaves SIGHUP to it.
     block_hangup_on_this_thread();
-    let result = repl
-        .join()
-        .map_err(|_| anyhow::anyhow!("REPL thread panicked"))?;
-    result
+    // F-0096: A PANIC ON THE REPL THREAD ENDS THE PROCESS WITH 101, the status the bash handoff
+    // falls back on. It used to come back from here as an ordinary error and end the process with
+    // 1, so a REPL panic ended the bash session and closed the window instead of landing in bash.
+    // The message is written without a macro that panics: a panic is likely to mean the terminal
+    // is gone, and a failed write here must not turn 101 into 1 again.
+    const REPL_PANIC_STATUS: i32 = 101;
+    match repl.join() {
+        Ok(result) => result,
+        Err(_) => {
+            let _ =
+                std::io::Write::write_all(&mut std::io::stderr(), b"Error: REPL thread panicked\n");
+            std::process::exit(REPL_PANIC_STATUS)
+        }
+    }
 }
 
 /// INT-286: is this read error the kernel saying the terminal is no longer this shell's?
