@@ -2784,6 +2784,9 @@ fn repl_main() -> Result<()> {
     }
     let mut eio_retries: u32 = 0;
     let mut gave_up: Option<i32> = None;
+    // F-0091: set when the read ended because the terminal itself is gone (EIO after the
+    // retries), so the exit path tells the jobs and writes nothing to that terminal.
+    let mut terminal_lost = false;
     // F-0089: the status a typed `exit N` asked for. The engine stores it in last_exit before it
     // returns ExitShell, and the break below is the one place that knows the loop ended that way.
     let mut typed_exit: Option<i32> = None;
@@ -3330,9 +3333,16 @@ fn repl_main() -> Result<()> {
                 // INT-286: the REPL gives up. Today's stderr line stays; the reason also goes to a
                 // record that outlives the window, and the shell exits 74 after its exit path --
                 // never 0, which told a person and INT-277's fallback that nothing went wrong.
-                eprintln!("Error: {}", e);
+                // F-0091: this write cannot panic. A closed window makes stderr fail with EIO, and
+                // eprintln! panics on a failed write: that panic ended the REPL thread before the
+                // record below was written, and main turned it into exit status 1.
+                let _ = std::io::Write::write_fmt(
+                    &mut std::io::stderr(),
+                    format_args!("Error: {}\n", e),
+                );
                 record_gave_up(&e, eio_retries);
                 gave_up = Some(74);
+                terminal_lost = is_eio(&e);
                 break;
             }
         }
@@ -3342,8 +3352,15 @@ fn repl_main() -> Result<()> {
     // The jobs are told first and the record is written before the slow steps, so a hard kill
     // that follows the hang-up still leaves it. Nothing here prints: the terminal is gone.
     let hung_up = hangup_seen();
-    if hung_up {
+    // F-0091: a terminal lost with EIO is a window that closed while this shell was not the
+    // session leader (the bash handoff), so no SIGHUP came. Its jobs are told here, and nothing
+    // below writes to the dead terminal. Only a real hang-up is recorded as one: the give-up
+    // record was already written.
+    let terminal_gone = hung_up || terminal_lost;
+    if terminal_gone {
         job_table.hangup_all();
+    }
+    if hung_up {
         record_hangup();
     }
     // Write journal daily summary on exit
@@ -3362,7 +3379,7 @@ fn repl_main() -> Result<()> {
     let hour = chrono::Local::now().hour() as i64;
     // Compute focus_score: 1.0 = all commits on one intent, lower = spread across many
     let session_start_ts = now - (_session_duration as i64 * 60);
-    if !hung_up {
+    if !terminal_gone {
         mark("EXIT: start");
     }
     let distinct_intents: i64 = engine.db().conn.query_row(
@@ -3393,11 +3410,11 @@ fn repl_main() -> Result<()> {
         "INSERT OR REPLACE INTO session_patterns (id, day_of_week, hour_start, hour_end, commit_count, recorded_at, focus_score, deploy_count, command_count, duration_minutes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         rusqlite::params![now.to_string(), dow, hour, hour, _session_commits as i64, now, focus_score, _session_deploys as i64, _session_commands as i64, _session_duration as i64],
     );
-    if !hung_up {
+    if !terminal_gone {
         mark("EXIT: session_patterns written");
     }
     // INT-229: Session summary on exit (INT-290: skipped on a hang-up, it is only for the eye)
-    if !hung_up {
+    if !terminal_gone {
         use colored::Colorize;
         let dur_str = if _session_duration >= 60 {
             format!("{}h{}m", _session_duration / 60, _session_duration % 60)
@@ -3441,6 +3458,11 @@ fn repl_main() -> Result<()> {
     }
     if hung_up {
         raise_hangup();
+    }
+    // F-0091: no farewell line to a terminal that is gone (the write would panic and the exit
+    // status would be lost); leave with the status the give-up chose.
+    if terminal_lost {
+        std::process::exit(gave_up.unwrap_or(74));
     }
     println!("{}", colored::Colorize::dimmed("  Project 0 remembers."));
     mark("EXIT: main returning");
