@@ -450,6 +450,7 @@ thread_local! {
 struct HandoffPaths {
     rc: String,
     home: String,
+    door: bool,
 }
 
 thread_local! {
@@ -471,6 +472,8 @@ pub struct HandoffRun {
     pub off_switch: bool,
     /// End the session by closing the pty master, as a closed window does.
     pub hangup: bool,
+    /// Launch with NSH_ACTIVE=1 in the environment: the always-bash door.
+    pub door: bool,
     pub delivery: InputDelivery,
 }
 
@@ -481,6 +484,7 @@ impl HandoffRun {
             nsh,
             off_switch: false,
             hangup: false,
+            door: false,
             delivery: InputDelivery::Incremental,
         }
     }
@@ -503,6 +507,9 @@ fn session_command() -> Command {
             let mut c = Command::new("bash");
             c.args(["--rcfile", h.rc.as_str(), "-i"]);
             c.env_remove("NSH_ACTIVE");
+            if h.door {
+                c.env("NSH_ACTIVE", "1");
+            }
             c.env("HOME", h.home.as_str());
             c
         }
@@ -548,6 +555,7 @@ pub fn run_repl_handoff(cmds: &[&str], run: HandoffRun) -> Result<SessionEnd, St
         *h.borrow_mut() = Some(HandoffPaths {
             rc,
             home: home.clone(),
+            door: run.door,
         })
     });
     HANGUP_ENDING.with(|c| c.set(run.hangup));

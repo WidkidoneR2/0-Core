@@ -3861,6 +3861,30 @@ print('CLASS-DONE')"##;
         },
     ));
 
+    // THE ALWAYS-BASH DOOR: a launch with NSH_ACTIVE=1 in its environment lands in bash, never in
+    // nsh. A stand-in that exits 7 would end bash with 7 if the block ran it; the real nsh would
+    // answer without BASH_VERSION. Both must leave bash answering with no crash notice.
+    results.push(test(
+        "repl_277_handoff_always_bash_door_lands_in_bash",
+        Category::Repl,
+        || {
+            for nsh in [repl::HandoffNsh::Exits(7), repl::HandoffNsh::Real] {
+                let run = repl::HandoffRun {
+                    door: true,
+                    ..repl::HandoffRun::new(nsh)
+                };
+                let end = repl::run_repl_handoff(&["echo \"[${BASH_VERSION:+bash}]\""], run)?;
+                if end.banner.contains("nsh crashed") || end.banner.contains("handoff is off") {
+                    return Err(format!("the handoff ran: {:?}", end.banner));
+                }
+                if !end.lines.iter().any(|l| l.contains("[bash]")) {
+                    return Err(format!("want bash to answer [bash]; got {:?}", end.lines));
+                }
+            }
+            Ok(())
+        },
+    ));
+
     // The block's status table, driven by a stand-in nsh that only exits. The five crash statuses
     // leave the session in bash with the notice; every other status ends bash with that status.
     results.push(test(
