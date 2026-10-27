@@ -2872,6 +2872,7 @@ fn repl_main() -> Result<()> {
             last_exit_code: engine.last_exit(),
             job_count: job_table.job_count(),
         };
+        print!("{}", prompt::terminal_marks());
         print!("{}", prompt::OSC133_PROMPT_START);
         prompt::render_context(engine.db(), &ctx);
 

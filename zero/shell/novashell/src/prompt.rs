@@ -14,6 +14,71 @@ pub fn osc133_command_end(exit_code: i32) -> String {
     format!("\x1b]133;D;{}\x1b\\", exit_code)
 }
 
+/// INT-277 G6 (F-0099): OSC 7 tells the terminal the shell's cwd, so a new window or split can
+/// open there (foot's spawn-terminal, ghostty splits). Every byte outside the URI unreserved set
+/// and `/` is percent-encoded, so a space or a UTF-8 byte cannot end the sequence or change the path.
+pub fn osc7_cwd(host: &str, cwd: &str) -> String {
+    let mut path = String::with_capacity(cwd.len());
+    for b in cwd.bytes() {
+        match b {
+            b'A'..=b'Z' | b'a'..=b'z' | b'0'..=b'9' | b'/' | b'-' | b'.' | b'_' | b'~' => {
+                path.push(b as char)
+            }
+            _ => path.push_str(&format!("%{:02X}", b)),
+        }
+    }
+    format!("\x1b]7;file://{}{}\x1b\\", host, path)
+}
+
+/// INT-277 G6 (F-0100): OSC 2 sets the window title to `user@host:cwd`, the form Omarchy's bash
+/// gives, with a path under `home` shown as `~/...`. Control characters are dropped so a
+/// directory name cannot inject a second escape sequence into the terminal.
+pub fn osc2_title(user: &str, host: &str, cwd: &str, home: &str) -> String {
+    let shown = match cwd.strip_prefix(home) {
+        Some("") if !home.is_empty() => "~".to_string(),
+        Some(rest) if !home.is_empty() && rest.starts_with('/') => format!("~{rest}"),
+        _ => cwd.to_string(),
+    };
+    let title: String = format!("{user}@{host}:{shown}")
+        .chars()
+        .filter(|c| !c.is_control())
+        .collect();
+    format!("\x1b]2;{}\x1b\\", title)
+}
+
+fn hostname() -> String {
+    let mut buf = [0u8; 256];
+    let rc = unsafe { libc::gethostname(buf.as_mut_ptr() as *mut libc::c_char, buf.len()) };
+    if rc != 0 {
+        return String::new();
+    }
+    let end = buf.iter().position(|&b| b == 0).unwrap_or(buf.len());
+    String::from_utf8_lossy(&buf[..end]).to_string()
+}
+
+/// What the terminal reads at each prompt: the title and the cwd. Nothing for TERM unset or
+/// `dumb`, which cannot use them, and nothing when the cwd cannot be read (a deleted directory).
+pub fn terminal_marks() -> String {
+    let term = std::env::var("TERM").unwrap_or_default();
+    if term.is_empty() || term == "dumb" {
+        return String::new();
+    }
+    let cwd = match std::env::current_dir() {
+        Ok(p) => p.to_string_lossy().to_string(),
+        Err(_) => return String::new(),
+    };
+    let user = std::env::var("USER")
+        .or_else(|_| std::env::var("LOGNAME"))
+        .unwrap_or_else(|_| "user".to_string());
+    let home = std::env::var("HOME").unwrap_or_default();
+    let host = hostname();
+    format!(
+        "{}{}",
+        osc2_title(&user, &host, &cwd, &home),
+        osc7_cwd(&host, &cwd)
+    )
+}
+
 // ── Truecolor helpers ───────────────────────────────────────────────────────
 fn fc(r: u8, g: u8, b: u8, text: &str) -> String {
     format!("\x1b[38;2;{};{};{}m{}\x1b[0m", r, g, b, text)
