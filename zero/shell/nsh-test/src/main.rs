@@ -1180,6 +1180,151 @@ fn all_tests() -> Vec<TestResult> {
             "expand_braces",
         )
     }));
+    // F-0092 and F-0093: the pattern rules of fsearch and its file argument.
+    //
+    // Each case builds its own small fixture directory (four short lines, so the table never
+    // truncates what an assertion looks for) and removes it afterwards. Rows are asserted by the
+    // line TEXT, which is the part of a row the table keeps whole.
+    //
+    // RED FIRST: written before the fix. Measured 2026-10-26 on the shell as it was: an escaped
+    // paren or pipe never matched, a trailing | matched every line (19 of 19 on a 19-line file),
+    // and a file after the pattern was joined into the pattern and answered "No results".
+    fn fsearch_fixture(tag: &str) -> Result<std::path::PathBuf, String> {
+        let dir = std::env::temp_dir().join(format!("nsh_fsearch_{}_{}", tag, std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).map_err(|e| format!("fixture dir: {e}"))?;
+        std::fs::write(
+            dir.join("sample.txt"),
+            "call(a)\npipe a|b here\nback\\slash\nplain line\n",
+        )
+        .map_err(|e| format!("fixture file: {e}"))?;
+        Ok(dir)
+    }
+    fn fsearch_says(after_fsearch: &str) -> Result<String, String> {
+        let line = format!("fsearch {}", after_fsearch);
+        let (lines, _) = repl::run_repl_lines_status(&[&line], &[])?;
+        Ok(lines.join("\n"))
+    }
+    fn excerpt(s: &str) -> String {
+        s.chars().take(300).collect()
+    }
+    results.push(test(
+        "repl_f0092_escaped_paren_is_a_literal_paren",
+        Category::Repl,
+        || {
+            let dir = fsearch_fixture("paren")?;
+            let out = fsearch_says(&format!("'call\\(a\\)' {}", dir.display()));
+            let _ = std::fs::remove_dir_all(&dir);
+            let out = out?;
+            if !out.contains("call(a)") || out.contains("plain line") {
+                return Err(format!("want only the call(a) row; got: {}", excerpt(&out)));
+            }
+            Ok(())
+        },
+    ));
+    results.push(test(
+        "repl_f0092_escaped_pipe_is_a_literal_pipe",
+        Category::Repl,
+        || {
+            let dir = fsearch_fixture("pipe")?;
+            let out = fsearch_says(&format!("'a\\|b' {}", dir.display()));
+            let _ = std::fs::remove_dir_all(&dir);
+            let out = out?;
+            // Before the fix `a\|b` split into `a\` and `b`, which also matched the back\slash
+            // line; an escaped pipe must search for the three characters a|b and nothing else.
+            if !out.contains("pipe a|b here")
+                || out.contains("back\\slash")
+                || out.contains("plain line")
+                || out.contains("call(a)")
+            {
+                return Err(format!("want only the a|b row; got: {}", excerpt(&out)));
+            }
+            Ok(())
+        },
+    ));
+    results.push(test(
+        "repl_f0092_escaped_backslash_is_a_literal_backslash",
+        Category::Repl,
+        || {
+            let dir = fsearch_fixture("slash")?;
+            let out = fsearch_says(&format!("'back\\\\slash' {}", dir.display()));
+            let _ = std::fs::remove_dir_all(&dir);
+            let out = out?;
+            // Two backslashes in a pattern are one literal backslash. The other half of the rule,
+            // a lone trailing backslash staying a backslash, is not exercised here: the REPL does
+            // not accept a single-quoted word that ends in one (the first version of this case
+            // timed out for 30 s waiting for a prompt that never came).
+            if !out.contains("back\\slash") || out.contains("plain line") {
+                return Err(format!(
+                    "want only the back\\slash row; got: {}",
+                    excerpt(&out)
+                ));
+            }
+            Ok(())
+        },
+    ));
+    results.push(test(
+        "repl_f0092_alternation_and_plain_parens_are_unchanged",
+        Category::Repl,
+        || {
+            let dir = fsearch_fixture("alt")?;
+            let out = fsearch_says(&format!("'call(a)|plain' {}", dir.display()));
+            let _ = std::fs::remove_dir_all(&dir);
+            let out = out?;
+            // The guard for what already worked: | still means "or", and an unescaped paren is
+            // still a plain character.
+            if !out.contains("call(a)")
+                || !out.contains("plain line")
+                || out.contains("pipe a|b here")
+                || out.contains("back\\slash")
+            {
+                return Err(format!(
+                    "want the call(a) and plain rows; got: {}",
+                    excerpt(&out)
+                ));
+            }
+            Ok(())
+        },
+    ));
+    results.push(test(
+        "repl_f0092_empty_alternative_is_refused_not_matched_everywhere",
+        Category::Repl,
+        || {
+            let dir = fsearch_fixture("empty")?;
+            let mut verdict = Ok(());
+            for pat in ["'zzqq|'", "'|zzqq'", "'a||b'"] {
+                let out = fsearch_says(&format!("{} {}", pat, dir.display()));
+                match out {
+                    Ok(out) if out.contains("empty alternative") && !out.contains("plain line") => {
+                    }
+                    Ok(out) => {
+                        verdict = Err(format!("{pat}: want a refusal; got: {}", excerpt(&out)));
+                        break;
+                    }
+                    Err(e) => {
+                        verdict = Err(e);
+                        break;
+                    }
+                }
+            }
+            let _ = std::fs::remove_dir_all(&dir);
+            verdict
+        },
+    ));
+    results.push(test(
+        "repl_f0093_a_file_after_the_pattern_is_the_search_root",
+        Category::Repl,
+        || {
+            let dir = fsearch_fixture("file")?;
+            let out = fsearch_says(&format!("plain {}/sample.txt", dir.display()));
+            let _ = std::fs::remove_dir_all(&dir);
+            let out = out?;
+            if !out.contains("plain line") || out.contains("pipe a|b here") {
+                return Err(format!("want only the plain row; got: {}", excerpt(&out)));
+            }
+            Ok(())
+        },
+    ));
     results.push(test("grep_in_and_chain", Category::Regression, || {
         let home = fixture_home()?;
         expect_contains(
