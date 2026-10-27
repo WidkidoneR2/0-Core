@@ -12732,25 +12732,11 @@ fn exec_cmd(args: &[&str]) -> CommandResult {
     } else if cmd.starts_with("~/") {
         cmd.replacen("~/", &format!("{}/", home), 1)
     } else {
-        // Search PATH manually
-        let path_env = std::env::var("PATH").unwrap_or_default();
-        let found = path_env
-            .split(':')
-            .map(|dir| format!("{}/{}", dir, cmd))
-            .find(|p| std::path::Path::new(p).exists());
-        match found {
-            Some(p) => p,
-            None => {
-                // Last resort: try current_exe for any shell-like name
-                if matches!(*cmd, "nsh" | "shell") {
-                    std::env::current_exe()
-                        .map(|p| p.to_string_lossy().to_string())
-                        .unwrap_or_else(|_| cmd.to_string())
-                } else {
-                    cmd.to_string()
-                }
-            }
-        }
+        // F-0098: the OS searches PATH for a bare name and skips a file that is not executable,
+        // which is what bash does. The search that stood here took the first file that merely
+        // existed, so a non-executable earlier on PATH ended the exec with Permission denied.
+        // The nsh and shell names never reach this branch, so its last resort was dead code.
+        cmd.to_string()
     };
     let err = std::process::Command::new(&resolved)
         .args(&args[1..])
