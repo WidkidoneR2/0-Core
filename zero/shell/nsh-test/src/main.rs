@@ -3951,6 +3951,165 @@ print('CLASS-DONE')"##;
         },
     ));
 
+    // INT-277 G3: STARTUP RESILIENCE. Under a hostile start nsh either reaches a prompt that
+    // answers. Ending before the first prompt is the failure at ANY status: under the bash handoff
+    // every status outside 101, 132, 134, 135 and 139 exits bash, so the terminal closes with no
+    // prompt. An earlier draft also accepted a non-zero end; F-0097 showed that clause hid a real
+    // defect (a bad state.db ended nsh with exit 1). Every row points
+    // ZERO_STATE_DIR at a scratch directory, so a failing row cannot touch the real state.
+    fn g3_scratch(tag: &str) -> Result<String, String> {
+        let dir = format!("{}/g3-{}", repl::case_db_dir(), tag);
+        std::fs::create_dir_all(&dir).map_err(|e| format!("scratch {dir}: {e}"))?;
+        Ok(dir)
+    }
+    fn g3_startup(row: &str, env: &[(&str, &str)]) -> Result<(), String> {
+        let end = repl::run_repl_gated(&["echo g3-up"], env, repl::Terminal::Owned, None)?;
+        if end.prompted {
+            if end.lines.iter().any(|l| l.trim() == "g3-up") {
+                return Ok(());
+            }
+            return Err(format!(
+                "{row}: prompted but did not answer: {:?}",
+                end.lines
+            ));
+        }
+        Err(format!(
+            "{row}: ended before the first prompt with exit {:?}, signal {:?}; lines {:?}; banner {:?}",
+            end.exit, end.signal, end.lines, end.banner
+        ))
+    }
+
+    results.push(test(
+        "repl_277_g3_corrupt_state_db_still_starts",
+        Category::Repl,
+        || {
+            let dir = g3_scratch("corrupt")?;
+            let db = format!("{dir}/state.db");
+            std::fs::write(&db, vec![b'x'; 4096]).map_err(|e| format!("plant {db}: {e}"))?;
+            g3_startup(
+                "corrupt state.db",
+                &[
+                    ("ZERO_STATE_DIR", dir.as_str()),
+                    ("ZERO_STATE_DB", db.as_str()),
+                ],
+            )
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g3_read_only_state_dir_still_starts",
+        Category::Repl,
+        || {
+            use std::os::unix::fs::PermissionsExt;
+            let dir = g3_scratch("readonly")?;
+            std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o555))
+                .map_err(|e| format!("chmod {dir}: {e}"))?;
+            // An empty ZERO_STATE_DB is ignored by state_db(), so the database resolves into the
+            // read-only directory instead of the harness's scratch file.
+            let got = g3_startup(
+                "read-only state dir",
+                &[("ZERO_STATE_DIR", dir.as_str()), ("ZERO_STATE_DB", "")],
+            );
+            let _ = std::fs::set_permissions(&dir, std::fs::Permissions::from_mode(0o755));
+            got
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g3_config_syntax_error_still_starts",
+        Category::Repl,
+        || {
+            let dir = g3_scratch("config")?;
+            let cfg = format!("{dir}/config.nsh");
+            std::fs::write(&cfg, "}}} not valid <<<\nalias = = =\n[[[ unterminated\n")
+                .map_err(|e| format!("plant {cfg}: {e}"))?;
+            g3_startup(
+                "config.nsh syntax error",
+                &[
+                    ("ZERO_STATE_DIR", dir.as_str()),
+                    ("NSH_CONFIG", cfg.as_str()),
+                ],
+            )
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g3_empty_home_still_starts",
+        Category::Repl,
+        || {
+            let dir = g3_scratch("home")?;
+            g3_startup(
+                "empty HOME",
+                &[("HOME", ""), ("ZERO_STATE_DIR", dir.as_str())],
+            )
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g3_path_usr_bin_only_still_starts",
+        Category::Repl,
+        || {
+            let dir = g3_scratch("path")?;
+            g3_startup(
+                "PATH=/usr/bin only",
+                &[("PATH", "/usr/bin"), ("ZERO_STATE_DIR", dir.as_str())],
+            )
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g3_term_dumb_still_starts",
+        Category::Repl,
+        || {
+            let dir = g3_scratch("term")?;
+            // A dumb terminal is sent no escape sequences, so the harness reads the prompt glyph
+            // instead of ?2004h (repl.rs) and this row submits no command. That nsh ANSWERS under
+            // TERM=dumb was measured by the G3 probe on 2026-10-27; this row holds the part a
+            // harness can: the shell reaches a prompt, and ends 0 when told to exit.
+            let end = repl::run_repl_gated(
+                &[],
+                &[("TERM", "dumb"), ("ZERO_STATE_DIR", dir.as_str())],
+                repl::Terminal::Owned,
+                None,
+            )?;
+            if end.prompted && end.exit == Some(0) {
+                Ok(())
+            } else {
+                Err(format!(
+                    "TERM=dumb: prompted {}, exit {:?}, signal {:?}; banner {:?}",
+                    end.prompted, end.exit, end.signal, end.banner
+                ))
+            }
+        },
+    ));
+
+    results.push(test(
+        "repl_277_g3_core_absent_from_path_still_starts",
+        Category::Repl,
+        || {
+            let dir = g3_scratch("nocore")?;
+            let path = std::env::var("PATH")
+                .unwrap_or_default()
+                .split(':')
+                .filter(|d| !d.ends_with("/.local/bin"))
+                .collect::<Vec<_>>()
+                .join(":");
+            // The control: without it the row could pass with core still on the path.
+            if let Some(d) = path
+                .split(':')
+                .find(|d| std::path::Path::new(d).join("core").exists())
+            {
+                return Err(format!(
+                    "core still resolves from {d}; the row would test nothing"
+                ));
+            }
+            g3_startup(
+                "core absent from PATH",
+                &[("PATH", path.as_str()), ("ZERO_STATE_DIR", dir.as_str())],
+            )
+        },
+    ));
+
     // F-0096: A PANIC ON THE REPL THREAD ENDS THE PROCESS WITH 101, the status the bash handoff
     // falls back on. main() used to turn the panic into an ordinary error and exit 1, so a REPL
     // panic ended the bash session instead of landing in bash. The panic is made by the real

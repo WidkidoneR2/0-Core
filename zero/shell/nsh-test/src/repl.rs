@@ -854,7 +854,13 @@ fn run_session_full(
     let mut raw: Vec<u8> = Vec::new();
     // INT-286: on a terminal it does not own nsh may end before any prompt, and that ending is
     // what such a case asserts on -- an error here would hide it. Inherited keeps the error.
-    let prompted = wait_for(&rx, &mut raw, READY, 0, Duration::from_secs(20)).is_some();
+    // INT-277 G3: a dumb terminal is sent no escape sequences, so the line editor never prints
+    // ?2004h there, and the first prompt is recognised by its glyph instead. Only THIS wait
+    // changes. The per-line wait below still listens for READY, so a row on TERM=dumb submits
+    // no command.
+    let dumb = env.iter().any(|(k, v)| *k == "TERM" && *v == "dumb");
+    let first_ready: &[u8] = if dumb { &b"\xe2\x9d\xaf"[..] } else { READY };
+    let prompted = wait_for(&rx, &mut raw, first_ready, 0, Duration::from_secs(20)).is_some();
     if !prompted && terminal == Terminal::Inherited {
         return Err("nsh never reached its first prompt".to_string());
     }
