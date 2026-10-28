@@ -3929,6 +3929,74 @@ print('CLASS-DONE')"##;
         },
     ));
 
+    // MISE ON PATH (G1 row 7). Bash's `mise activate` puts the install dirs ahead of the shims, and
+    // nsh never re-runs that hook, so a version pinned for the folder the terminal opened in would
+    // stay fixed for the whole session. The block starts nsh with the install dirs removed when the
+    // shims are on PATH, and leaves bash's own PATH alone.
+    results.push(test(
+        "repl_277_handoff_nsh_gets_the_mise_shims_and_not_the_install_dirs",
+        Category::Repl,
+        || {
+            let run = repl::HandoffRun {
+                mise: repl::HandoffMise::ShimsAndInstalls,
+                ..repl::HandoffRun::new(repl::HandoffNsh::Real)
+            };
+            let end = repl::run_repl_handoff(&["echo path-is:$PATH"], run)?;
+            let said = repl::handoff_path_answer(&end)
+                .ok_or_else(|| format!("no PATH answer in {:?}", end.lines))?;
+            if !said.contains("/mise/shims") {
+                Err(format!("the shims are gone from nsh's PATH: {said}"))
+            } else if said.contains("/mise/installs/") {
+                Err(format!("nsh still has the install dirs: {said}"))
+            } else {
+                Ok(())
+            }
+        },
+    ));
+
+    // After a crash the session is bash again, and bash keeps the PATH it had: the install dirs
+    // are removed for nsh only, as a prefix on the one command.
+    results.push(test(
+        "repl_277_handoff_bash_keeps_its_own_path_after_a_crash",
+        Category::Repl,
+        || {
+            let run = repl::HandoffRun {
+                mise: repl::HandoffMise::ShimsAndInstalls,
+                ..repl::HandoffRun::new(repl::HandoffNsh::Exits(134))
+            };
+            let end = repl::run_repl_handoff(&["echo path-is:$PATH"], run)?;
+            let said = repl::handoff_path_answer(&end)
+                .ok_or_else(|| format!("bash did not answer: {:?}", end.lines))?;
+            if !said.contains("/mise/installs/") || !said.contains("/mise/shims") {
+                Err(format!(
+                    "bash lost part of its PATH after the crash: {said}"
+                ))
+            } else {
+                Ok(())
+            }
+        },
+    ));
+
+    // Without a shims dir on PATH the install dirs are the only way to the tools, so they stay.
+    results.push(test(
+        "repl_277_handoff_install_dirs_stay_when_there_is_no_shims_dir",
+        Category::Repl,
+        || {
+            let run = repl::HandoffRun {
+                mise: repl::HandoffMise::InstallsOnly,
+                ..repl::HandoffRun::new(repl::HandoffNsh::Real)
+            };
+            let end = repl::run_repl_handoff(&["echo path-is:$PATH"], run)?;
+            let said = repl::handoff_path_answer(&end)
+                .ok_or_else(|| format!("no PATH answer in {:?}", end.lines))?;
+            if said.contains("/mise/installs/") {
+                Ok(())
+            } else {
+                Err(format!("the only route to the tools was removed: {said}"))
+            }
+        },
+    ));
+
     // The exec reload (C9): nsh replaces itself in place, still the child of the same bash, and
     // the session carries on to its own exit. Measured 2026-10-26: nsh answers the exec line with
     // a 133;D before the new shell prompts, so it is an ordinary line. A first version declared it

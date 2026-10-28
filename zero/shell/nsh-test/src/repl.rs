@@ -499,6 +499,27 @@ pub enum HandoffNsh {
     Exits(i32),
 }
 
+/// What `mise activate` has put on PATH by the time the block runs, written into the rc file ahead
+/// of the block the way a real ~/.bashrc does it. The install dirs do not exist; only the names
+/// matter to the block.
+pub enum HandoffMise {
+    /// Nothing: PATH is whatever the harness was started with.
+    Off,
+    /// Two install dirs ahead of the shims dir, as `mise activate bash` leaves them.
+    ShimsAndInstalls,
+    /// An install dir and no shims dir.
+    InstallsOnly,
+}
+
+/// The PATH a handoff session answered with for `echo path-is:$PATH`: the output line, not the
+/// echo of the command, which still holds the literal `$PATH`.
+pub fn handoff_path_answer(end: &SessionEnd) -> Option<String> {
+    end.lines
+        .iter()
+        .find(|l| l.contains("path-is:/") && !l.contains("$PATH"))
+        .cloned()
+}
+
 /// One handoff session: bash with the block as its rc file, the way a terminal window starts it.
 pub struct HandoffRun {
     pub nsh: HandoffNsh,
@@ -509,6 +530,8 @@ pub struct HandoffRun {
     /// Launch with NSH_ACTIVE=1 in the environment: the always-bash door.
     pub door: bool,
     pub delivery: InputDelivery,
+    /// What mise has put on PATH before the block runs.
+    pub mise: HandoffMise,
 }
 
 impl HandoffRun {
@@ -520,6 +543,7 @@ impl HandoffRun {
             hangup: false,
             door: false,
             delivery: InputDelivery::Incremental,
+            mise: HandoffMise::Off,
         }
     }
 }
@@ -583,7 +607,25 @@ pub fn run_repl_handoff(cmds: &[&str], run: HandoffRun) -> Result<SessionEnd, St
         std::fs::write(format!("{}/off", cfg), "").map_err(|e| format!("off switch: {e}"))?;
     }
     let rc = format!("{}/rc.bashrc", home);
-    std::fs::write(&rc, format!("{}{}", HANDOFF_BLOCK, HANDOFF_MARKS))
+    let head = match run.mise {
+        HandoffMise::Off => String::new(),
+        HandoffMise::ShimsAndInstalls => format!(
+            "export PATH=\"{h}/.local/share/mise/installs/node/9.9.9/bin:{h}/.local/share/mise/installs/gh/9.9.9/bin:{h}/.local/share/mise/shims:$PATH\"\n",
+            h = home
+        ),
+        // The inherited PATH may already hold mise entries; this case has to start without a shims dir.
+        HandoffMise::InstallsOnly => format!(
+            "export PATH=\"{h}/.local/share/mise/installs/node/9.9.9/bin:{rest}\"\n",
+            h = home,
+            rest = std::env::var("PATH")
+                .unwrap_or_default()
+                .split(':')
+                .filter(|d| !d.contains("/mise/"))
+                .collect::<Vec<_>>()
+                .join(":")
+        ),
+    };
+    std::fs::write(&rc, format!("{}{}{}", head, HANDOFF_BLOCK, HANDOFF_MARKS))
         .map_err(|e| format!("rc file: {e}"))?;
     HANDOFF.with(|h| {
         *h.borrow_mut() = Some(HandoffPaths {
