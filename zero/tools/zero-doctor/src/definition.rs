@@ -84,6 +84,10 @@ pub enum DefinitionError {
         id: String,
         offending: Vec<Severity>,
     },
+    /// ⚠️ A probe name this build does not know: checks.toml came from a NEWER core than the
+    /// binary reading it. Refused alone, so the other checks still run and `d` names this one,
+    /// instead of one unknown name blanking the whole health report.
+    UnknownProbe { id: String, probe: String },
 }
 
 impl std::fmt::Display for DefinitionError {
@@ -107,6 +111,12 @@ impl std::fmt::Display for DefinitionError {
                 )
             }
             DefinitionError::Empty { field } => write!(f, "definition: {} is empty", field),
+            DefinitionError::UnknownProbe { id, probe } => write!(
+                f,
+                "definition {}: probe `{}` is not known to this build -- the installed core is \
+                 older than checks.toml; ship to update it",
+                id, probe
+            ),
             DefinitionError::JudgingInfoTier { id, offending } => write!(
                 f,
                 "definition {}: tier is info -- which never judges -- but it declares {:?}. \

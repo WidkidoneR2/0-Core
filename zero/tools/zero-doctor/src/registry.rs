@@ -13,7 +13,7 @@ use serde::Deserialize;
 #[derive(Debug, Deserialize)]
 struct File {
     #[serde(default)]
-    check: Vec<Definition>,
+    check: Vec<toml::Value>,
 }
 
 /// What a load produced: the definitions that hold up, and every one that did not.
@@ -69,6 +69,39 @@ impl std::fmt::Display for LoadError {
     }
 }
 
+/// One check as declared: readable, or readable except for a probe name this build lacks.
+enum Declared {
+    Known(Definition),
+    UnknownProbe { id: String, probe: String },
+}
+
+/// Read one check on its own, so a check this build cannot fully read does not take the whole
+/// file down with it.
+///
+/// ⚠️ A check that fails to read but reads once its `probe` key is removed has exactly one
+/// problem: a probe name from a newer core than this binary. That check is refused by name and
+/// the rest of the set still runs. Any other fault stays a fatal `Malformed`, as before.
+fn read_definition(v: toml::Value, path: &str) -> Result<Declared, LoadError> {
+    match v.clone().try_into::<Definition>() {
+        Ok(d) => Ok(Declared::Known(d)),
+        Err(e) => {
+            let id = v.get("id").and_then(|i| i.as_str()).map(str::to_string);
+            let probe = v.get("probe").and_then(|p| p.as_str()).map(str::to_string);
+            let mut without = v;
+            if let Some(table) = without.as_table_mut() {
+                table.remove("probe");
+            }
+            match (id, probe, without.try_into::<Definition>()) {
+                (Some(id), Some(probe), Ok(_)) => Ok(Declared::UnknownProbe { id, probe }),
+                _ => Err(LoadError::Malformed {
+                    path: path.into(),
+                    why: e.to_string(),
+                }),
+            }
+        }
+    }
+}
+
 impl Registry {
     /// Parse a check set and validate every definition in it.
     ///
@@ -82,18 +115,31 @@ impl Registry {
         if file.check.is_empty() {
             return Err(LoadError::Empty { path: path.into() });
         }
+        let mut declared = Vec::new();
+        for v in file.check {
+            declared.push(read_definition(v, path)?);
+        }
         let mut seen = std::collections::HashSet::new();
-        for d in &file.check {
-            if !seen.insert(d.id.clone()) {
-                return Err(LoadError::DuplicateId { id: d.id.clone() });
+        for d in &declared {
+            let id = match d {
+                Declared::Known(d) => &d.id,
+                Declared::UnknownProbe { id, .. } => id,
+            };
+            if !seen.insert(id.clone()) {
+                return Err(LoadError::DuplicateId { id: id.clone() });
             }
         }
         let mut checks = Vec::new();
         let mut refused = Vec::new();
-        for d in file.check {
-            match d.validate() {
-                Ok(()) => checks.push(d),
-                Err(e) => refused.push((d.id.clone(), e)),
+        for d in declared {
+            match d {
+                Declared::Known(d) => match d.validate() {
+                    Ok(()) => checks.push(d),
+                    Err(e) => refused.push((d.id.clone(), e)),
+                },
+                Declared::UnknownProbe { id, probe } => {
+                    refused.push((id.clone(), DefinitionError::UnknownProbe { id, probe }))
+                }
             }
         }
         Ok(Registry { checks, refused })
@@ -170,6 +216,80 @@ mod tests {
         assert!(matches!(
             Registry::parse("", "empty.toml"),
             Err(LoadError::Empty { .. })
+        ));
+    }
+
+    #[test]
+    fn a_probe_this_build_does_not_know_refuses_that_check_and_not_the_file() {
+        let text = r#"
+[[check]]
+id = "old"
+name = "Old"
+section = "S"
+tier = "user"
+probe = "disk_space"
+severities = ["pass", "warn"]
+
+[[check]]
+id = "from_the_future"
+name = "Future"
+section = "S"
+tier = "user"
+probe = "a_probe_from_a_newer_core"
+severities = ["pass", "warn"]
+"#;
+        let r = Registry::parse(text, "t").expect("one unknown probe must not fail the load");
+        assert_eq!(r.checks.len(), 1);
+        assert_eq!(r.checks[0].id, "old");
+        assert_eq!(r.refused.len(), 1);
+        assert_eq!(r.refused[0].0, "from_the_future");
+        assert!(matches!(
+            r.refused[0].1,
+            DefinitionError::UnknownProbe { .. }
+        ));
+    }
+
+    #[test]
+    fn a_newer_checks_toml_never_blanks_an_older_binary() {
+        let path = concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../registry/doctor/checks.toml"
+        );
+        let text = std::fs::read_to_string(path).expect("the real check set is readable");
+        let future: String = text
+            .lines()
+            .map(|l| match l.starts_with("probe = \"") {
+                true => l.replacen("probe = \"", "probe = \"newer_core_", 1),
+                false => l.to_string(),
+            })
+            .collect::<Vec<_>>()
+            .join("\n");
+        let total = text.lines().filter(|l| l.starts_with("[[check]]")).count();
+        let probed = text.lines().filter(|l| l.starts_with("probe = \"")).count();
+        assert!(probed > 0, "the real set declares probes");
+        let r = Registry::parse(&future, "future").expect("unknown probes must not fail the load");
+        assert_eq!(r.refused.len(), probed);
+        assert_eq!(r.checks.len(), total - probed);
+        assert!(r
+            .refused
+            .iter()
+            .all(|(_, e)| matches!(e, DefinitionError::UnknownProbe { .. })));
+    }
+
+    #[test]
+    fn an_unknown_probe_does_not_excuse_another_fault_in_the_same_check() {
+        let text = r#"
+[[check]]
+id = "both_wrong"
+name = "Both"
+section = "S"
+tier = "nonsense"
+probe = "a_probe_from_a_newer_core"
+severities = ["pass"]
+"#;
+        assert!(matches!(
+            Registry::parse(text, "t"),
+            Err(LoadError::Malformed { .. })
         ));
     }
 
