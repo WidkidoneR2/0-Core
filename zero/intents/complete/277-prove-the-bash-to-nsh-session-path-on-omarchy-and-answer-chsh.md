@@ -3,7 +3,7 @@ id: 277
 date: 2026-10-05
 type: future
 title: "Prove the bash-to-nsh session path on Omarchy and answer chsh"
-status: in-progress
+status: complete
 tags: [nsh, omarchy, login, session, resilience, bashrc, handoff, chsh, sddm, uwsm, ghostty, mise, recovery]
 depends_on: [286, 287, 289, 290]
 ---
@@ -435,3 +435,8 @@ the registry until core integrity proposal #22 caught it (2026-10-06).
 Carried method: a payload that spans two steps finds its first step by a
 marker that survives rustfmt, never by its bytes; one ship at the end of
 a fix series; after ship, reload with a second window open.
+
+## Versions
+- nsh 5.3.7 -> 5.3.8 (patch)
+- nsh-test 2.0.10 -> 2.0.11 (patch)
+- zero-core 1.0.4 -> 1.0.5 (patch)
