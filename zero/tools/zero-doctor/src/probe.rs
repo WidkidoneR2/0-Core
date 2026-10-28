@@ -86,6 +86,8 @@ pub enum Probe {
     VmState,
     /// This machine and tree against the recorded fingerprint (INT-269).
     Fingerprint,
+    /// The bash handoff block is in .bashrc, intact, with nsh executable and nothing below it (INT-277).
+    ShellHandoff,
 }
 
 impl Probe {
@@ -120,6 +122,7 @@ impl Probe {
             Probe::Network => "network",
             Probe::VmState => "vm_state",
             Probe::Fingerprint => "fingerprint",
+            Probe::ShellHandoff => "shell_handoff",
         }
     }
 
@@ -154,6 +157,7 @@ impl Probe {
             Probe::Network,
             Probe::VmState,
             Probe::Fingerprint,
+            Probe::ShellHandoff,
         ]
     }
 }

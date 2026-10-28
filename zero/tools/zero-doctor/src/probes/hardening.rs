@@ -3,6 +3,98 @@
 use crate::measurement::Measurement;
 use std::process::Command;
 
+/// INT-277 G7: THE BASH HANDOFF SURVIVES OMARCHY UPDATES, OR THE DOCTOR SAYS IT DID NOT.
+///
+/// `omarchy-reinstall-configs` overwrites `~/.bashrc` with no backup, and two installers append
+/// below whatever is there. Neither tells anyone, and the first sign would be a terminal that
+/// quietly opens bash. This measures three things: the block is in `.bashrc` and identical to the
+/// canonical file, `~/.local/bin/nsh` can run, and nothing but blank lines and comments sits
+/// below the block. A line appended below it runs only when nsh is off or has crashed, so an
+/// nsh session never sees the PATH or activation lines an installer added there.
+///
+/// ⚠️ NEVER `fail`. The handoff is a choice, and a machine that has not adopted it is not broken.
+/// It warns, and the recovery text says how to restore it.
+const HANDOFF_IN_CRATE: &str = "handoff/bashrc-handoff.sh";
+
+/// The verdict from three texts and one fact, so every case is testable without a home directory.
+fn assess_handoff(rc: &str, block: &str, target_runs: bool) -> Measurement {
+    let want: Vec<&str> = block.lines().collect();
+    let have: Vec<&str> = rc.lines().collect();
+    let first = match want.first() {
+        Some(first) => *first,
+        None => return Measurement::unknown("the canonical handoff block is empty"),
+    };
+    let start = match have.iter().position(|line| *line == first) {
+        Some(start) => start,
+        None => return Measurement::warn("the handoff is not in .bashrc; terminals open bash"),
+    };
+    let end = start + want.len();
+    if have.len() < end || have[start..end] != want[..] {
+        return Measurement::warn(
+            "the handoff block in .bashrc differs from the canonical block (edited, or only partly restored)",
+        );
+    }
+    if !target_runs {
+        return Measurement::warn(
+            "~/.local/bin/nsh is missing or not executable; terminals stay in bash",
+        );
+    }
+    let below: Vec<&str> = have[end..]
+        .iter()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .collect();
+    if !below.is_empty() {
+        return Measurement::warn(format!(
+            "{} line(s) below the handoff run only when nsh is off or has crashed; nsh sessions never see them; first: {}",
+            below.len(),
+            below[0]
+        ));
+    }
+    Measurement::pass("handoff block intact in .bashrc; nsh is executable; nothing below it")
+}
+
+/// `ZERO_DOCTOR_BASHRC` names the rc file to judge instead of `~/.bashrc`, so a copy can be
+/// checked without touching the real one.
+pub fn shell_handoff() -> Measurement {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let rc_path = match std::env::var("ZERO_DOCTOR_BASHRC") {
+        Ok(path) if !path.is_empty() => path,
+        _ => format!("{}/.bashrc", home),
+    };
+    let crate_dir = match zero_core::paths::crate_rel_dir("novashell") {
+        Some(dir) => dir,
+        None => return Measurement::unknown("could not locate the novashell crate"),
+    };
+    let block_path = format!(
+        "{}/{}/{}",
+        zero_core::paths::core_root_string(),
+        crate_dir,
+        HANDOFF_IN_CRATE
+    );
+    let rc = match std::fs::read_to_string(&rc_path) {
+        Ok(text) => text,
+        Err(e) => return Measurement::unknown(format!("could not read {} ({})", rc_path, e)),
+    };
+    let block = match std::fs::read_to_string(&block_path) {
+        Ok(text) => text,
+        Err(e) => {
+            return Measurement::unknown(format!(
+                "could not read the canonical handoff {} ({})",
+                block_path, e
+            ))
+        }
+    };
+    let target = format!("{}/.local/bin/nsh", home);
+    let runs = std::fs::metadata(&target)
+        .map(|m| {
+            use std::os::unix::fs::PermissionsExt;
+            m.is_file() && m.permissions().mode() & 0o111 != 0
+        })
+        .unwrap_or(false);
+    assess_handoff(&rc, &block, runs)
+}
+
 /// Units that enforce a firewall.
 ///
 /// ⚠️ "firewall" IS ONE DISTRIBUTION'S UNIT NAME, NOT THE QUESTION. One OS called it
@@ -233,6 +325,68 @@ mod tests {
                 r
             );
         }
+    }
+
+    fn handoff_canonical() -> String {
+        std::fs::read_to_string(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../shell/novashell/handoff/bashrc-handoff.sh"
+        ))
+        .expect("the canonical handoff block")
+    }
+
+    fn handoff_rc(above: &str, block: &str, below: &str) -> String {
+        format!("{above}\n{block}{below}")
+    }
+
+    #[test]
+    fn shell_handoff_intact_block_passes() {
+        let b = handoff_canonical();
+        let m = assess_handoff(&handoff_rc("# omarchy\nsource x", &b, ""), &b, true);
+        assert_eq!(m.status, Status::Pass, "{}", m.message);
+    }
+
+    #[test]
+    fn shell_handoff_missing_block_warns() {
+        let b = handoff_canonical();
+        let m = assess_handoff("# omarchy\nsource x\n", &b, true);
+        assert_eq!(m.status, Status::Warn);
+        assert!(m.message.contains("not in .bashrc"), "{}", m.message);
+    }
+
+    #[test]
+    fn shell_handoff_edited_block_warns() {
+        let b = handoff_canonical();
+        let edited = b.replace("exit \"$nsh_status\"", "true");
+        assert_ne!(edited, b, "the edit must change the block");
+        let m = assess_handoff(&handoff_rc("# omarchy", &edited, ""), &b, true);
+        assert_eq!(m.status, Status::Warn);
+        assert!(m.message.contains("differs"), "{}", m.message);
+    }
+
+    #[test]
+    fn shell_handoff_a_line_appended_below_warns_and_names_it() {
+        let b = handoff_canonical();
+        let rc = handoff_rc("# omarchy", &b, "export PATH=\"$HOME/.cargo/bin:$PATH\"\n");
+        let m = assess_handoff(&rc, &b, true);
+        assert_eq!(m.status, Status::Warn);
+        assert!(m.message.contains(".cargo/bin"), "{}", m.message);
+    }
+
+    #[test]
+    fn shell_handoff_blank_lines_and_comments_below_are_fine() {
+        let b = handoff_canonical();
+        let rc = handoff_rc("# omarchy", &b, "\n# a note\n   \n");
+        let m = assess_handoff(&rc, &b, true);
+        assert_eq!(m.status, Status::Pass, "{}", m.message);
+    }
+
+    #[test]
+    fn shell_handoff_a_target_that_cannot_run_warns() {
+        let b = handoff_canonical();
+        let m = assess_handoff(&handoff_rc("# omarchy", &b, ""), &b, false);
+        assert_eq!(m.status, Status::Warn);
+        assert!(m.message.contains("not executable"), "{}", m.message);
     }
 
     #[test]

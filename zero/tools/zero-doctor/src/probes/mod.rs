@@ -57,6 +57,7 @@ pub fn run(p: Probe) -> Measurement {
         Probe::DeadwoodScan => internals::deadwood_scan(),
         Probe::OrphanPackages => internals::orphan_packages(),
         Probe::Fingerprint => identity::fingerprint(),
+        Probe::ShellHandoff => hardening::shell_handoff(),
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
         Probe::SecurityHardening => hardening::security_hardening(),

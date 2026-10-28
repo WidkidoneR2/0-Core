@@ -264,6 +264,15 @@ severities = ["pass", "warn"]
 recovery = "Resolve the above first"
 
 [[check]]
+id = "shell_handoff"
+name = "Shell Handoff"
+section = "\U0001F4E6 System State"
+tier = "user"
+probe = "shell_handoff"
+severities = ["pass", "warn"]
+recovery = "Back up ~/.bashrc, then restore the block from zero/shell/novashell/handoff/bashrc-handoff.sh and keep it below any other startup lines"
+
+[[check]]
 id = "package_cache"
 name = "Package Cache"
 section = "\U0001F4E6 System State"
