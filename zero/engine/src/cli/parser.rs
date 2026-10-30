@@ -772,6 +772,9 @@ pub enum IntentCommands {
         /// The intent that found it; defaults to the focused intent
         #[arg(long)]
         by: Option<String>,
+        /// How serious it is: unrated, low, medium or high; filed as unrated when omitted
+        #[arg(long)]
+        severity: Option<String>,
     },
 }
 

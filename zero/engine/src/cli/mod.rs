@@ -244,7 +244,17 @@ pub fn parse() -> Command {
             IntentCommands::Defer { id, reason } => IntentCommand::Defer { id, reason },
             IntentCommands::Cancel { id, reason } => IntentCommand::Cancel { id, reason },
             IntentCommands::Override { id, reason } => IntentCommand::Override { id, reason },
-            IntentCommands::Find { what, at, by } => IntentCommand::Find { what, at, by },
+            IntentCommands::Find {
+                what,
+                at,
+                by,
+                severity,
+            } => IntentCommand::Find {
+                what,
+                at,
+                by,
+                severity,
+            },
             IntentCommands::Trace { target } => IntentCommand::Trace { target },
             IntentCommands::Seals { n, intent } => IntentCommand::Seals { n, intent },
         }),

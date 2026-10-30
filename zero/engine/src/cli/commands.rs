@@ -377,6 +377,7 @@ pub enum IntentCommand {
         what: String,
         at: Option<String>,
         by: Option<String>,
+        severity: Option<String>,
     },
 }
 #[derive(Debug)]

@@ -71,17 +71,52 @@ pub fn highest_number(dir: &Path) -> Result<u32, WriteError> {
     Ok(max)
 }
 
+/// The four severity levels ruled for INT-300 (R2), in the order they read: a finding nobody has
+/// rated is unrated, never a guessed medium. One owner: filing and rating both ask this list.
+pub const SEVERITIES: [&str; 4] = ["unrated", "low", "medium", "high"];
+
+/// A level exactly as the ledger spells it. Anything else is refused, naming the four.
+pub fn severity_level(s: &str) -> Result<&'static str, String> {
+    SEVERITIES
+        .iter()
+        .copied()
+        .find(|level| *level == s)
+        .ok_or_else(|| {
+            format!(
+                "{:?} is not a severity level; the four are {}",
+                s,
+                SEVERITIES.join(", ")
+            )
+        })
+}
+
+/// What a filing asks for: no flag is unrated, and a flag is trimmed and then read as a level.
+pub fn resolve_severity(arg: Option<&str>) -> Result<&'static str, String> {
+    match arg {
+        None => Ok(SEVERITIES[0]),
+        Some(s) => severity_level(s.trim()),
+    }
+}
+
 /// The record body. Every field is written: a field nobody gave reads `unknown`, never empty
 /// (INT-192). Fixed is not a field -- it is derived from Fixes: trailers. The one stored part
 /// of a finding's state is the closure decision, and at filing no decision has been made.
-pub fn render(id: &str, what: &str, at: Option<&str>, by: Option<&str>, on: &str) -> String {
+pub fn render(
+    id: &str,
+    what: &str,
+    at: Option<&str>,
+    by: Option<&str>,
+    on: &str,
+    severity: &str,
+) -> String {
     format!(
-        "---\nid: {}\nwhat: {}\nat: {}\nfound_by: {}\nfound_on: {}\nclosed_without_fix: no\nseverity: unrated\n---\n",
+        "---\nid: {}\nwhat: {}\nat: {}\nfound_by: {}\nfound_on: {}\nclosed_without_fix: no\nseverity: {}\n---\n",
         id,
         what,
         at.unwrap_or("unknown"),
         by.unwrap_or("unknown"),
-        on
+        on,
+        severity
     )
 }
 
@@ -165,9 +200,17 @@ fn refuse(message: String) -> CoreError {
     }
 }
 
-/// `core intent find "<what>" [--at <file:line>] [--by <intent>]` -- file one finding.
+/// `core intent find "<what>" [--at <file:line>] [--by <intent>] [--severity <level>]` -- file
+/// one finding. The level is one of unrated, low, medium or high; no flag files it unrated, and
+/// any other word refuses before anything is written.
 /// `--by` defaults to the focused intent, read the way `core intent status` reads it.
-pub fn find(ctx: &AppContext, what: &str, at: Option<&str>, by: Option<&str>) -> CoreResult<()> {
+pub fn find(
+    ctx: &AppContext,
+    what: &str,
+    at: Option<&str>,
+    by: Option<&str>,
+    severity: Option<&str>,
+) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
         &[
@@ -179,6 +222,7 @@ pub fn find(ctx: &AppContext, what: &str, at: Option<&str>, by: Option<&str>) ->
     if what.is_empty() {
         return Err(refuse("a finding must say what was found".to_string()));
     }
+    let severity = resolve_severity(severity).map_err(refuse)?;
     let at = at.map(str::trim).filter(|s| !s.is_empty());
     let (by_id, from_focus) = match by.map(str::trim).filter(|s| !s.is_empty()) {
         Some(b) => (Some(b.trim_start_matches("INT-").to_string()), false),
@@ -197,7 +241,7 @@ pub fn find(ctx: &AppContext, what: &str, at: Option<&str>, by: Option<&str>) ->
     for _ in 0..5 {
         let n = highest_number(&dir).map_err(|e| refuse(format!("{:?}", e)))? + 1;
         let id = finding_id(n);
-        let body = render(&id, &what, at, by_label.as_deref(), &on);
+        let body = render(&id, &what, at, by_label.as_deref(), &on, severity);
         match write_record(&dir, &id, &body) {
             Ok(path) => {
                 println!("  {} {} filed", "✅".green(), id.bright_white());
@@ -209,6 +253,7 @@ pub fn find(ctx: &AppContext, what: &str, at: Option<&str>, by: Option<&str>) ->
                     ),
                 }
                 println!("     at {}", at.unwrap_or("unknown"));
+                println!("     severity {}", severity);
                 println!("     {}", path.display().to_string().dimmed());
                 return Ok(());
             }
@@ -270,6 +315,7 @@ mod read_tests {
             None,
             Some("INT-266"),
             "2026-10-04",
+            "unrated",
         );
         assert_eq!(
             parse_record(&body),
@@ -338,6 +384,64 @@ mod read_tests {
     }
 }
 
+/// INT-300 G10: the four levels have one owner. A missing flag files unrated and never a guess,
+/// a level nobody ruled is refused with the words that are, and a filed record carries the level
+/// it was given.
+#[cfg(test)]
+mod severity_tests {
+    use super::{parse_record, render, resolve_severity, severity_level, SEVERITIES};
+
+    #[test]
+    fn every_ruled_level_reads_as_itself() {
+        for level in SEVERITIES {
+            assert_eq!(severity_level(level), Ok(level), "{}", level);
+        }
+    }
+
+    #[test]
+    fn a_level_nobody_ruled_is_refused_and_names_the_four() {
+        for bad in ["urgent", "High", "", " low", "critical"] {
+            let msg = severity_level(bad).expect_err("a level nobody ruled must be refused");
+            assert!(
+                msg.contains("unrated, low, medium, high"),
+                "{:?} was refused without naming the four levels: {}",
+                bad,
+                msg
+            );
+        }
+    }
+
+    #[test]
+    fn no_flag_files_unrated() {
+        assert_eq!(resolve_severity(None), Ok("unrated"));
+    }
+
+    #[test]
+    fn a_flag_is_trimmed_and_an_empty_or_unknown_one_is_refused() {
+        assert_eq!(resolve_severity(Some(" high ")), Ok("high"));
+        assert!(resolve_severity(Some("")).is_err(), "an empty level");
+        assert!(resolve_severity(Some("   ")).is_err(), "a blank level");
+        assert!(
+            resolve_severity(Some("urgent")).is_err(),
+            "an unruled level"
+        );
+    }
+
+    #[test]
+    fn a_filed_record_carries_the_level_it_was_given() {
+        for level in SEVERITIES {
+            let body = render("F-0001", "x", None, None, "2026-10-30", level);
+            assert!(
+                body.contains(&format!("\nseverity: {}\n", level)),
+                "{} not written:\n{}",
+                level,
+                body
+            );
+            assert_eq!(parse_record(&body).severity, level);
+        }
+    }
+}
+
 #[cfg(test)]
 mod record_tests {
     /// INT-266 gate 5: A FIELD THAT IS NOT KNOWN SAYS SO. A record filed without --at or --by
@@ -346,7 +450,14 @@ mod record_tests {
     /// default, and this test caught it.
     #[test]
     fn a_missing_field_reads_unknown_never_empty() {
-        let body = super::render("F-0001", "something broke", None, None, "2026-10-04");
+        let body = super::render(
+            "F-0001",
+            "something broke",
+            None,
+            None,
+            "2026-10-04",
+            "unrated",
+        );
         for field in [
             "id",
             "what",
