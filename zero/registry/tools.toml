@@ -285,7 +285,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "zero-doctor"
-version = "0.1.2"
+version = "0.1.3"
 category = "core"
 description = "The doctor engine library -- definition format, states, tiers, probe registry, validation; shared by core doctor and nsh doctor (lib, not a binary)"
 expected_usage = "medium"

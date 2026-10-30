@@ -3,7 +3,7 @@ id: 280
 date: 2026-10-07
 type: fix
 title: "Update Readiness gates Omarchy updates on the 0-core tree, which the Omarchy updater never touches"
-status: in-progress
+status: complete
 tags: [doctor, update-readiness, omarchy, fix]
 depends_on: []
 ---
@@ -115,3 +115,6 @@ made from a reviewed plan carries Seal: and its note in refs/notes/seals.
 - [x] G7: doors. nsh-test all passing against the deployed binaries, d 0 failed, cargo doc 0
   warnings for zero-doctor, commits carry Intent: INT-280.
 <!-- evidence 2026-10-30 (G7), nsh-test 298 of 298 against the deployed binaries before the source commit, whose files are those same files. d 0 failed. cargo doc for zero-doctor 0 warnings. cargo test for zero-doctor 68 passed. Commits 33ef8a5d 089b10a3 e525e01a 60939fb2 751693da carry Intent: INT-280. -->
+
+## Versions
+- zero-doctor 0.1.2 -> 0.1.3 (patch)
