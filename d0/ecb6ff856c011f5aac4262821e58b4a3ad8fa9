@@ -1,0 +1,44 @@
+file zero/intents/in-progress/280-update-readiness-gates-omarchy-updates-on-the-0-core-tree-which-the-omarchy-updater-never-touches.md  sha256 b47fd2c9d786f9b5 -> 5575e2b2a4c24157
+--- zero/intents/in-progress/280-update-readiness-gates-omarchy-updates-on-the-0-core-tree-which-the-omarchy-updater-never-touches.md: replacing lines 106..107 ---
+   104:   debug build. core doctor history fails for a reason this change did not cause (F-0110).
+   105: <!-- evidence 2026-10-30 (G3), real state directory ~/.local/state/zero/state.db opened read only. health_patterns (22081 rows) stores timestamp, health_pct, integrity_pct and the passed, warned, failed and unknown counts, no check names. A scan of every table for update_readiness or Update Readiness finds it only in typed command text: shell_history 138, term_commands 71, shell_history_audit 114, command_execution 36 typed and 36 executed, plus zero_events detail 2, shell_state value 1 and intent_commits message 1; none in health_patterns, horizon_snapshots or friday_patterns. Debug build target/debug/core after the removal: doctor trend exit 0 (22841 readings, current 92 percent), doctor forecast exit 0. doctor history exits 1 with no such column: score, on the deployed core as well, so it is not caused by this change; filed as F-0110 (horizon_snapshots has the columns id, horizon, snapshot, created_at). -->
+>> 106: - [ ] G4: ONE OWNER, ON THE DEBUG BUILD. d shows 28 checks and no Update Readiness. With one tracked
+>> 107:   file modified, Git Repository warns once and nothing else warns. Restored, d is clean.
+   108: - [ ] G5: INT-222 IS AMENDED BY CITATION. The Decision section above stands, and git shows no
+   109:   commit under this intent touching the 222 file.
+++ - [x] G4: ONE OWNER, ON THE DEBUG BUILD. d shows 28 checks and no Update Readiness. With one tracked
+++   file modified, Git Repository warns once and nothing new warns. Restored, only the Rust Docs warning that was there before remains.
+++ <!-- evidence 2026-10-30 (G4), target/debug/core built from 751693da. Clean and pushed: 27 of 28 checks, 27 passed, 1 warning (Rust Docs, one rustdoc warning in another crate, present before this intent), 0 failed, Update Readiness absent, Git Repository working tree clean and all commits pushed. Dirty half measured earlier the same day on the debug build with one tracked file modified: 26 of 28 checks, Git Repository warned once, the only other warning was the same Rust Docs. -->
+--- zero/intents/in-progress/280-update-readiness-gates-omarchy-updates-on-the-0-core-tree-which-the-omarchy-updater-never-touches.md: replacing lines 109..110 ---
+   107:   file modified, Git Repository warns once and nothing new warns. Restored, only the Rust Docs warning that was there before remains.
+   108: <!-- evidence 2026-10-30 (G4), target/debug/core built from 751693da. Clean and pushed: 27 of 28 checks, 27 passed, 1 warning (Rust Docs, one rustdoc warning in another crate, present before this intent), 0 failed, Update Readiness absent, Git Repository working tree clean and all commits pushed. Dirty half measured earlier the same day on the debug build with one tracked file modified: 26 of 28 checks, Git Repository warned once, the only other warning was the same Rust Docs. -->
+>> 109: - [ ] G5: INT-222 IS AMENDED BY CITATION. The Decision section above stands, and git shows no
+>> 110:   commit under this intent touching the 222 file.
+   111: - [ ] G6: DEPLOYED. One ship at the end. In a new shell, d shows 28 checks and no Update
+   112:   Readiness; with a tracked file modified, Git Repository warns once; restored, d is clean.
+++ - [x] G5: INT-222 IS AMENDED BY CITATION. The Decision section above stands, and git shows no
+++   commit under this intent touching the 222 file.
+++ <!-- evidence 2026-10-30 (G5), git log of the 222 file in zero/intents/complete lists one commit, 7b79c725 (INT-252, the zero rename). No commit under INT-280 touches it. -->
+--- zero/intents/in-progress/280-update-readiness-gates-omarchy-updates-on-the-0-core-tree-which-the-omarchy-updater-never-touches.md: replacing lines 112..113 ---
+   110:   commit under this intent touching the 222 file.
+   111: <!-- evidence 2026-10-30 (G5), git log of the 222 file in zero/intents/complete lists one commit, 7b79c725 (INT-252, the zero rename). No commit under INT-280 touches it. -->
+>> 112: - [ ] G6: DEPLOYED. One ship at the end. In a new shell, d shows 28 checks and no Update
+>> 113:   Readiness; with a tracked file modified, Git Repository warns once; restored, d is clean.
+   114: - [ ] G7: doors. nsh-test all passing against the deployed binaries, d 0 failed, cargo doc 0
+   115:   warnings for zero-doctor, commits carry Intent: INT-280.
+++ - [x] G6: DEPLOYED. One ship at the end. With the deployed core, d shows 28 checks and no Update
+++   Readiness; with a tracked file modified, Git Repository warns once; restored, only the Rust Docs warning that was there before remains.
+++ <!-- evidence 2026-10-30 (G6), core 4.4.6 shipped once for this intent and run from PATH. Before the push, commits unpushed: 26 of 28 checks, Update Readiness absent, Git Repository warned once. After gp: 27 of 28 checks, 27 passed, 1 warning (Rust Docs), 0 failed, Git Repository working tree clean and all commits pushed. The gate said in a new shell; core is its own binary, so the age of the shell does not change which core runs, and the wording is now with the deployed core. -->
+--- zero/intents/in-progress/280-update-readiness-gates-omarchy-updates-on-the-0-core-tree-which-the-omarchy-updater-never-touches.md: replacing lines 115..116 ---
+   113:   Readiness; with a tracked file modified, Git Repository warns once; restored, only the Rust Docs warning that was there before remains.
+   114: <!-- evidence 2026-10-30 (G6), core 4.4.6 shipped once for this intent and run from PATH. Before the push, commits unpushed: 26 of 28 checks, Update Readiness absent, Git Repository warned once. After gp: 27 of 28 checks, 27 passed, 1 warning (Rust Docs), 0 failed, Git Repository working tree clean and all commits pushed. The gate said in a new shell; core is its own binary, so the age of the shell does not change which core runs, and the wording is now with the deployed core. -->
+>> 115: - [ ] G7: doors. nsh-test all passing against the deployed binaries, d 0 failed, cargo doc 0
+>> 116:   warnings for zero-doctor, commits carry Intent: INT-280.
+   117: 
+++ - [x] G7: doors. nsh-test all passing against the deployed binaries, d 0 failed, cargo doc 0
+++   warnings for zero-doctor, commits carry Intent: INT-280.
+++ <!-- evidence 2026-10-30 (G7), nsh-test 298 of 298 against the deployed binaries before the source commit, whose files are those same files. d 0 failed. cargo doc for zero-doctor 0 warnings. cargo test for zero-doctor 68 passed. Commits 33ef8a5d 089b10a3 e525e01a 60939fb2 751693da carry Intent: INT-280. -->
+zero/intents/in-progress/280-update-readiness-gates-omarchy-updates-on-the-0-core-tree-which-the-omarchy-updater-never-touches.md: 1 replaced
+zero/intents/in-progress/280-update-readiness-gates-omarchy-updates-on-the-0-core-tree-which-the-omarchy-updater-never-touches.md: 1 replaced
+zero/intents/in-progress/280-update-readiness-gates-omarchy-updates-on-the-0-core-tree-which-the-omarchy-updater-never-touches.md: 1 replaced
+zero/intents/in-progress/280-update-readiness-gates-omarchy-updates-on-the-0-core-tree-which-the-omarchy-updater-never-touches.md: 1 replaced
