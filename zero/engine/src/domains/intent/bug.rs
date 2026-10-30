@@ -4,7 +4,7 @@
 //! terminal screen, a bar, a script) reads the same rows this one prints.
 
 use super::findings::{severity_level, Record};
-use super::trace::{state_of, State};
+use super::trace::{check_commit_seal, git_read, seal_notes, state_of, SealCheck, State};
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
@@ -271,14 +271,165 @@ fn list_answer(
     Ok(got.code)
 }
 
+/// One commit that fixed a finding, as its story tells it: the day it was committed, its subject,
+/// and its seal re-checked against the plan text kept for it.
+#[derive(Debug, PartialEq)]
+pub struct FixFacts {
+    pub hash: String,
+    pub day: String,
+    pub subject: String,
+    pub seal: SealCheck,
+}
+
+/// What `core bug show` prints and the exit it ends with, as a value: 0 shown, 1 a seal is broken,
+/// 3 the story could not be told.
+pub struct Story {
+    pub text: String,
+    pub code: i32,
+}
+
+/// A seal in the report's own words. A fix with no Seal reads unsealed, whether it predates the
+/// rule or never carried one (G7); only an intact seal checks out.
+pub fn seal_phrase(check: &SealCheck) -> String {
+    match check {
+        SealCheck::Intact(s) => format!(
+            "seal {} intact -- the plan kept in refs/notes/seals hashes to it",
+            s
+        ),
+        SealCheck::Broken { seal, got } => format!(
+            "seal {} BROKEN -- the plan kept in refs/notes/seals hashes to {}",
+            seal, got
+        ),
+        SealCheck::NoNote(s) => format!(
+            "seal {} recorded, no plan kept in refs/notes/seals -- cannot be re-checked",
+            s
+        ),
+        SealCheck::Legacy(f) => format!(
+            "unsealed -- the commit predates the Seal rule (Fingerprint {})",
+            f
+        ),
+        SealCheck::NoSeal => "unsealed -- no Seal recorded on this commit".to_string(),
+    }
+}
+
+/// One finding's whole story as a value: the record, then a timeline from found to solved to
+/// sealed. Unknown is a word here: a record with no fix has no solved day, git that could not be
+/// read says unknown and ends 3, and nothing prints a zero or a default (G7).
+pub fn story(record: &Record, state: &State, facts: &[FixFacts]) -> Story {
+    let mut sorted: Vec<&FixFacts> = facts.iter().collect();
+    sorted.sort_by(|a, b| a.day.cmp(&b.day));
+    let mut code = 0;
+    let mut t = format!("{}  {}\n", record.id, record.what);
+    t.push_str(&format!("  where     {}\n", record.at));
+    t.push_str(&format!("  severity  {}\n", record.severity));
+    t.push_str(&format!("  state     {}\n", state_word(state)));
+    match state {
+        State::Open => t.push_str(&format!(
+            "  solved    none -- no commit on HEAD carries Fixes: {}\n",
+            record.id
+        )),
+        State::Closed(why) => {
+            t.push_str(&format!("  closed    {}\n", why));
+            t.push_str("  solved    none -- closed without a fix\n");
+        }
+        State::Unread(e) => {
+            t.push_str(&format!(
+                "  solved    unknown -- git could not be read ({})\n",
+                e
+            ));
+            code = 3;
+        }
+        State::Fixed(_) => match sorted.first() {
+            Some(first) => t.push_str(&format!("  solved    {}\n", first.day)),
+            None => {
+                t.push_str("  solved    unknown -- the fixing commit could not be shown\n");
+                code = 3;
+            }
+        },
+    }
+    t.push_str("  timeline\n");
+    t.push_str(&format!(
+        "    {:10}  found by {}\n",
+        record.found_on, record.found_by
+    ));
+    for f in &sorted {
+        t.push_str(&format!(
+            "    {:10}  fixed by {}  {}\n",
+            f.day, f.hash, f.subject
+        ));
+        t.push_str(&format!("    {:10}  {}\n", "", seal_phrase(&f.seal)));
+        if matches!(f.seal, SealCheck::Broken { .. }) && code == 0 {
+            code = 1;
+        }
+    }
+    Story { text: t, code }
+}
+
+/// The facts of each fixing commit: its committed day and subject from git, its seal re-checked
+/// by the one reader in trace.rs. Err when git cannot show one.
+fn fix_facts(core: &str, hashes: &[String]) -> Result<Vec<FixFacts>, String> {
+    let notes = seal_notes(core).map_err(|e| format!("the seal notes could not be read: {}", e))?;
+    hashes
+        .iter()
+        .map(|h| {
+            let head = git_read(core, &["log", "-1", "--format=%cs%x09%s", h.as_str()])?;
+            let (day, subject) = head
+                .trim()
+                .split_once('\t')
+                .ok_or_else(|| format!("git log gave no header for {}", h))?;
+            Ok(FixFacts {
+                hash: h.clone(),
+                day: day.to_string(),
+                subject: subject.to_string(),
+                seal: check_commit_seal(core, &notes, h)?,
+            })
+        })
+        .collect()
+}
+
+/// `core bug show F-NNNN` -- INT-300 G6. One finding's whole story. The domain owns its exit:
+/// 0 shown, 1 a seal is broken, 3 the finding or git could not be read.
+pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    let code = match show_answer(ctx, id) {
+        Ok(code) => code,
+        Err(e) => {
+            eprintln!("{} {}", "\u{2717}".bright_red(), e);
+            3
+        }
+    };
+    if code != 0 {
+        std::process::exit(code);
+    }
+    Ok(())
+}
+
+fn show_answer(ctx: &AppContext, id: &str) -> Result<i32, String> {
+    let dir = super::intents_dir(ctx).join("findings");
+    let records = super::findings::read_records(&dir)?;
+    let record = records
+        .iter()
+        .find(|r| r.id == id)
+        .ok_or_else(|| format!("{} names no finding in {}", id, dir.display()))?;
+    let core: &str = &ctx.core_root;
+    let named = super::trace::fixes(core);
+    let state = state_of(record, &named);
+    let facts = match &state {
+        State::Fixed(hashes) => fix_facts(core, hashes)?,
+        _ => Vec::new(),
+    };
+    let got = story(record, &state, &facts);
+    print!("{}", got.text);
+    Ok(got.code)
+}
+
 #[cfg(test)]
 mod bug_tests {
     use super::{
         counts, files_on_disk, filter_from, render_list, render_summary, report, rows, select,
-        state_word, Counts, Row,
+        state_word, story, Counts, FixFacts, Row,
     };
     use crate::domains::intent::findings::{parse_record, read_records, Record};
-    use crate::domains::intent::trace::State;
+    use crate::domains::intent::trace::{SealCheck, State};
 
     fn rec(id: &str, closed: &str, severity: &str, day: &str, what: &str) -> Record {
         parse_record(&format!(
@@ -556,6 +707,164 @@ mod bug_tests {
         assert!(
             got.text
                 .contains("0 findings: 0 open, 0 solved, 0 closed, 0 unknown -- showing 0"),
+            "{}",
+            got.text
+        );
+    }
+
+    fn fact(hash: &str, day: &str, subject: &str, seal: SealCheck) -> FixFacts {
+        FixFacts {
+            hash: hash.to_string(),
+            day: day.to_string(),
+            subject: subject.to_string(),
+            seal,
+        }
+    }
+
+    fn at(text: &str, needle: &str) -> usize {
+        text.find(needle)
+            .unwrap_or_else(|| panic!("{:?} is not in:\n{}", needle, text))
+    }
+
+    /// INT-300 G6: a fixed finding tells found, then fixed, then sealed, in that order, with the
+    /// fixing commit's subject and the day it was solved.
+    #[test]
+    fn a_fixed_finding_tells_found_then_solved_then_sealed() {
+        let r = rec("F-0049", "no", "unrated", "2026-10-21", "a thing");
+        let state = State::Fixed(vec!["825e4803".to_string()]);
+        let facts = vec![fact(
+            "825e4803",
+            "2026-10-22",
+            "fix the thing",
+            SealCheck::Intact("eb4f6f578bcc9321".to_string()),
+        )];
+        let got = story(&r, &state, &facts);
+        assert_eq!(got.code, 0, "{}", got.text);
+        assert!(got.text.starts_with("F-0049  a thing\n"), "{}", got.text);
+        assert!(got.text.contains("  state     solved\n"), "{}", got.text);
+        assert!(
+            got.text.contains("  solved    2026-10-22\n"),
+            "{}",
+            got.text
+        );
+        let found = at(&got.text, "2026-10-21  found by INT-1");
+        let fixed = at(&got.text, "2026-10-22  fixed by 825e4803  fix the thing");
+        let sealed = at(&got.text, "seal eb4f6f578bcc9321 intact");
+        assert!(found < fixed && fixed < sealed, "{}", got.text);
+    }
+
+    /// INT-300 G6, G7: an unrated bug reads unrated, and a bug with no fix has no solved day: no
+    /// date, no zero, no default after the word solved.
+    #[test]
+    fn an_open_unrated_finding_has_no_solved_day() {
+        let r = rec("F-0001", "no", "unrated", "2026-10-04", "w");
+        let got = story(&r, &State::Open, &[]);
+        assert_eq!(got.code, 0, "{}", got.text);
+        assert!(got.text.contains("  severity  unrated\n"), "{}", got.text);
+        assert!(got.text.contains("  solved    none -- "), "{}", got.text);
+        assert!(!got.text.contains("fixed by"), "{}", got.text);
+        assert!(!got.text.contains("medium"), "{}", got.text);
+    }
+
+    /// INT-300 G7: a fix that carries no Seal reads unsealed, whether it predates the rule or
+    /// never had one, and does not read intact.
+    #[test]
+    fn a_fix_without_a_seal_reads_unsealed() {
+        let r = rec("F-0002", "no", "low", "2026-10-04", "w");
+        let state = State::Fixed(vec!["abc1234".to_string(), "def5678".to_string()]);
+        let facts = vec![
+            fact("abc1234", "2026-10-05", "old", SealCheck::NoSeal),
+            fact(
+                "def5678",
+                "2026-10-06",
+                "older",
+                SealCheck::Legacy("a b c".to_string()),
+            ),
+        ];
+        let got = story(&r, &state, &facts);
+        assert_eq!(got.code, 0, "{}", got.text);
+        assert_eq!(got.text.matches("unsealed").count(), 2, "{}", got.text);
+        assert!(!got.text.contains("intact"), "{}", got.text);
+    }
+
+    /// INT-300 G6: a seal whose kept plan hashes to something else reads BROKEN and the story
+    /// ends 1; a seal with no kept plan says it cannot be re-checked and does not end 1.
+    #[test]
+    fn a_broken_seal_ends_1_and_a_missing_plan_says_so() {
+        let r = rec("F-0003", "no", "low", "2026-10-04", "w");
+        let state = State::Fixed(vec!["abc1234".to_string()]);
+        let broken = vec![fact(
+            "abc1234",
+            "2026-10-05",
+            "s",
+            SealCheck::Broken {
+                seal: "aaaa".to_string(),
+                got: "bbbb".to_string(),
+            },
+        )];
+        let got = story(&r, &state, &broken);
+        assert_eq!(got.code, 1, "{}", got.text);
+        assert!(got.text.contains("BROKEN"), "{}", got.text);
+        let missing = vec![fact(
+            "abc1234",
+            "2026-10-05",
+            "s",
+            SealCheck::NoNote("aaaa".to_string()),
+        )];
+        let got = story(&r, &state, &missing);
+        assert_eq!(got.code, 0, "{}", got.text);
+        assert!(got.text.contains("cannot be re-checked"), "{}", got.text);
+    }
+
+    /// INT-300 G7: git that cannot be read says unknown, never open and never a date, and the
+    /// story ends 3.
+    #[test]
+    fn git_that_cannot_be_read_says_unknown_and_ends_3() {
+        let r = rec("F-0004", "no", "low", "2026-10-04", "w");
+        let got = story(&r, &State::Unread("boom".to_string()), &[]);
+        assert_eq!(got.code, 3, "{}", got.text);
+        assert!(got.text.contains("  state     unknown\n"), "{}", got.text);
+        assert!(
+            got.text
+                .contains("  solved    unknown -- git could not be read (boom)\n"),
+            "{}",
+            got.text
+        );
+        assert!(!got.text.contains("none"), "{}", got.text);
+    }
+
+    /// INT-300 G6: a closed finding shows its reason and has no solved day.
+    #[test]
+    fn a_closed_finding_shows_its_reason_and_no_solved_day() {
+        let r = rec("F-0005", "duplicate of F-0002", "low", "2026-10-04", "w");
+        let got = story(&r, &State::Closed("duplicate of F-0002".to_string()), &[]);
+        assert_eq!(got.code, 0, "{}", got.text);
+        assert!(
+            got.text.contains("  closed    duplicate of F-0002\n"),
+            "{}",
+            got.text
+        );
+        assert!(got.text.contains("  solved    none -- "), "{}", got.text);
+    }
+
+    /// INT-300 G6: with more than one fixing commit the solved day is the earliest, and the
+    /// timeline lists them oldest first whatever order they came in.
+    #[test]
+    fn the_solved_day_is_the_earliest_fix_and_the_timeline_runs_oldest_first() {
+        let r = rec("F-0006", "no", "low", "2026-10-04", "w");
+        let state = State::Fixed(vec!["bbbb".to_string(), "aaaa".to_string()]);
+        let facts = vec![
+            fact("bbbb", "2026-10-25", "second", SealCheck::NoSeal),
+            fact("aaaa", "2026-10-22", "first", SealCheck::NoSeal),
+        ];
+        let got = story(&r, &state, &facts);
+        assert!(
+            got.text.contains("  solved    2026-10-22\n"),
+            "{}",
+            got.text
+        );
+        assert!(
+            at(&got.text, "fixed by aaaa") < at(&got.text, "fixed by bbbb"),
             "{}",
             got.text
         );

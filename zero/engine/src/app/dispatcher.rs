@@ -215,6 +215,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                     severity.as_deref(),
                     all,
                 ),
+                crate::cli::commands::BugCommand::Show { id } => {
+                    crate::domains::intent::bug::show(ctx, &id)
+                }
             }
         }
 

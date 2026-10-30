@@ -397,6 +397,9 @@ pub enum BugCommand {
         severity: Option<String>,
         all: bool,
     },
+    Show {
+        id: String,
+    },
 }
 
 #[derive(Debug)]

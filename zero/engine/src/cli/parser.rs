@@ -806,6 +806,11 @@ pub enum BugCommands {
         #[arg(long)]
         all: bool,
     },
+    /// One finding's whole story: the record, then found to solved to sealed
+    Show {
+        /// The finding, e.g. F-0049
+        id: String,
+    },
 }
 
 #[derive(Subcommand)]

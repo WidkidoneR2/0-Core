@@ -406,12 +406,12 @@ fn seal_line(check: SealCheck) -> String {
 
 /// The seal notes: one line per kept plan, the note blob, a space, the full commit hash. A repository
 /// with no notes answers an empty list; git that cannot be read answers Err.
-fn seal_notes(core_root: &str) -> Result<String, String> {
+pub fn seal_notes(core_root: &str) -> Result<String, String> {
     git_read(core_root, &["notes", "--ref=seals", "list"])
 }
 
 /// A commit's seal, re-checked against the plan text kept for it.
-fn check_commit_seal(core_root: &str, notes: &str, hash: &str) -> Result<SealCheck, String> {
+pub fn check_commit_seal(core_root: &str, notes: &str, hash: &str) -> Result<SealCheck, String> {
     let seal = trailer(core_root, hash, "Seal")?;
     let fingerprint = trailer(core_root, hash, "Fingerprint")?;
     let note = match note_for(notes, hash) {

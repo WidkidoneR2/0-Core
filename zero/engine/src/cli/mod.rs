@@ -289,6 +289,7 @@ pub fn parse() -> Command {
                 severity,
                 all,
             },
+            parser::BugCommands::Show { id } => commands::BugCommand::Show { id },
         }),
         Commands::Profile { command } => Command::Profile(match command {
             ProfileCommands::List => ProfileCommand::List,
