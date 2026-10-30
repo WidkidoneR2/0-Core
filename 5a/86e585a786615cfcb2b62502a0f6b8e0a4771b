@@ -1,0 +1,109 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/findings.rs  sha256 ec34b52635a7cc37 -> 119ee45c0dd02f2f
+file /home/christian/0-core/zero/engine/src/domains/intent/trace.rs  sha256 38838451e1452fa6 -> 66936e3728441107
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 130..131 ---
+   128:         found_on: get("found_on"),
+   129:         closed_without_fix: get("closed_without_fix"),
+>> 130:         severity: get("severity"),
+>> 131:     }
+   132: }
+   133: 
+++ severity: match get("severity").as_str() {
+++             "unknown" => "unrated".to_string(),
+++             other => other.to_string(),
+++         },
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 79..79 ---
+   77: pub fn render(id: &str, what: &str, at: Option<&str>, by: Option<&str>, on: &str) -> String {
+   78:     format!(
+>> 79:         "---\nid: {}\nwhat: {}\nat: {}\nfound_by: {}\nfound_on: {}\nclosed_without_fix: no\n---\n",
+   80:         id,
+   81:         what,
+++ closed_without_fix: no\nseverity: unrated\n---\n",
+--- /home/christian/0-core/zero/engine/src/domains/intent/trace.rs: replacing lines 66..67 ---
+   64: }
+   65: 
+>> 66: /// One line per commit: the hash, a TAB, then the ids its Fixes: trailers name, comma-separated.
+>> 67: fn parse_fixes(text: &str) -> Vec<(String, String)> {
+   68:     let mut named = Vec::new();
+   69:     for line in text.lines() {
+++ /// A finding id as ruled 2026-10-04: F- and exactly four digits, nothing after. INT-300 R4: a
+++ /// Fixes value that is anything else names no finding, so prose after an id counts for nothing.
+++ fn is_finding_id(s: &str) -> bool {
+++     s.len() == 6 && s.starts_with("F-") && s[2..].bytes().all(|b| b.is_ascii_digit())
+++ }
+++ 
+++ /// One line per commit: the hash, a TAB, then the ids its Fixes: trailers name, comma-separated.
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/trace.rs: replacing lines 77..77 ---
+   75:     for line in text.lines() {
+   76:         if let Some((hash, ids)) = line.split_once('\t') {
+>> 77:             for id in ids.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+   78:                 named.push((id.to_string(), hash.to_string()));
+   79:             }
+++ ids.split(',').map(str::trim).filter(|s| is_finding_id(s))
+--- /home/christian/0-core/zero/engine/src/domains/intent/trace.rs: replacing lines 98..99 ---
+   96: }
+   97: 
+>> 98: /// Closed is a stored fact and needs no git. Open and Fixed need git to have answered.
+>> 99: pub fn state_of(record: &Record, fixes: &Result<Vec<(String, String)>, String>) -> State {
+   100:     let closed = record.closed_without_fix.as_str();
+   101:     if closed != "no" && closed != "unknown" {
+++ /// INT-300 R3: a fix wins over a closure. A commit that names the finding is the stronger fact, so
+++ /// the finding reads Fixed even when its record says closed. Closed is a stored fact: when git
+++ /// cannot be read it still reads Closed, and Open needs git to have answered.
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/trace.rs: replacing lines 102..120 ---
+   100: /// cannot be read it still reads Closed, and Open needs git to have answered.
+   101: pub fn state_of(record: &Record, fixes: &Result<Vec<(String, String)>, String>) -> State {
+>> 102:     let closed = record.closed_without_fix.as_str();
+>> 103:     if closed != "no" && closed != "unknown" {
+>> 104:         return State::Closed(closed.to_string());
+>> 105:     }
+>> 106:     let named = match fixes {
+>> 107:         Ok(named) => named,
+>> 108:         Err(e) => return State::Unread(e.clone()),
+>> 109:     };
+>> 110:     let by: Vec<String> = named
+>> 111:         .iter()
+>> 112:         .filter(|(id, _)| id == &record.id)
+>> 113:         .map(|(_, hash)| hash.clone())
+>> 114:         .collect();
+>> 115:     if by.is_empty() {
+>> 116:         State::Open
+>> 117:     } else {
+>> 118:         State::Fixed(by)
+>> 119:     }
+>> 120: }
+   121: 
+   122: fn could_not(message: String) -> CoreError {
+++ let closed = record.closed_without_fix.as_str();
+++     let is_closed = closed != "no" && closed != "unknown";
+++     let named = match fixes {
+++         Ok(named) => named,
+++         Err(e) => {
+++             return if is_closed {
+++                 State::Closed(closed.to_string())
+++             } else {
+++                 State::Unread(e.clone())
+++             };
+++         }
+++     };
+++     let by: Vec<String> = named
+++         .iter()
+++         .filter(|(id, _)| id == &record.id)
+++         .map(|(_, hash)| hash.clone())
+++         .collect();
+++     if !by.is_empty() {
+++         State::Fixed(by)
+++     } else if is_closed {
+++         State::Closed(closed.to_string())
+++     } else {
+++         State::Open
+++     }
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/trace.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/trace.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/trace.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/trace.rs: 1 replaced
