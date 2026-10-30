@@ -1,0 +1,333 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/findings.rs  sha256 10d14c976c5ae764 -> a5a9ef1a17720e14
+file /home/christian/0-core/zero/engine/src/domains/intent/bug.rs  sha256 0e5f9240007cc1a1 -> e68acca7e7809f46
+file /home/christian/0-core/zero/engine/src/cli/parser.rs  sha256 00a98f7fd54e2f13 -> d6b13665d0678e07
+file /home/christian/0-core/zero/engine/src/cli/commands.rs  sha256 d12082458b58fbd3 -> 261886cf26bf19c8
+file /home/christian/0-core/zero/engine/src/cli/mod.rs  sha256 9328bc28c3ae035c -> acc9deaeb1096528
+file /home/christian/0-core/zero/engine/src/app/dispatcher.rs  sha256 2e3e2885df44666c -> b80a636d84b7fc38
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 172..176 ---
+   170: }
+   171: 
+>> 172: pub fn with_severity(_body: &str, _level: &str) -> Result<(String, Option<String>), String> {
+>> 173:     Err("not written".to_string())
+>> 174: }
+>> 175: 
+>> 176: /// Every record in `dir`, in id order. An absent folder truly holds none; a folder or record
+   177: /// that cannot be read is an error, never an empty list (INT-192). Only F-NNNN.md is read.
+   178: pub fn read_records(dir: &Path) -> Result<Vec<Record>, String> {
+++ /// The record body with its severity set to `level`, and the old severity line if it had one. Only
+++ /// the frontmatter is touched: the first `severity:` line is replaced, and a record that has none
+++ /// (every record filed before INT-300 G3) gets one before the closing `---`. Every other byte stays.
+++ pub fn with_severity(body: &str, level: &str) -> Result<(String, Option<String>), String> {
+++     let level = severity_level(level)?;
+++     let lines: Vec<&str> = body.split_inclusive('\n').collect();
+++     if lines.first().map(|l| l.trim()) != Some("---") {
+++         return Err("the record has no frontmatter, so no severity can be set".to_string());
+++     }
+++     let close = lines
+++         .iter()
+++         .skip(1)
+++         .position(|l| l.trim() == "---")
+++         .map(|i| i + 1)
+++         .ok_or_else(|| "the record's frontmatter is never closed".to_string())?;
+++     let new_line = format!("severity: {}\n", level);
+++     let mut out = String::new();
+++     let mut old = None;
+++     for (i, line) in lines.iter().enumerate() {
+++         let is_severity = i > 0
+++             && i < close
+++             && old.is_none()
+++             && line.split_once(':').map(|(k, _)| k.trim()) == Some("severity");
+++         if is_severity {
+++             old = Some(line.trim().to_string());
+++             out.push_str(&new_line);
+++             continue;
+++         }
+++         if i == close && old.is_none() {
+++             out.push_str(&new_line);
+++         }
+++         out.push_str(line);
+++     }
+++     Ok((out, old))
+++ }
+++ 
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 6..7 ---
+   4: //! terminal screen, a bar, a script) reads the same rows this one prints.
+   5: 
+>> 6: use super::findings::{severity_level, Record};
+>> 7: use super::trace::{check_commit_seal, git_read, seal_notes, state_of, SealCheck, State, Trailers};
+   8: use crate::app::context::AppContext;
+   9: use crate::errors::CoreResult;
+++ use super::findings::{severity_level, with_severity, Record};
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 7..8 ---
+   5: 
+   6: use super::findings::{severity_level, with_severity, Record};
+>> 7: use super::trace::{check_commit_seal, git_read, seal_notes, state_of, SealCheck, State, Trailers};
+>> 8: use crate::app::context::AppContext;
+   9: use crate::errors::CoreResult;
+   10: use colored::*;
+++ use super::trace::{
+++     check_commit_seal, git_read, seal_digest, seal_notes, state_of, SealCheck, State, Trailers,
+++ };
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 13..14 ---
+   11: use crate::errors::CoreResult;
+   12: use colored::*;
+>> 13: use std::path::Path;
+>> 14: 
+   15: /// The four words a finding's state is ever called. `unknown` is a word, not a blank (G7).
+   16: pub const STATES: [&str; 4] = ["open", "solved", "closed", "unknown"];
+++ use std::fs;
+++ use std::path::Path;
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 602..619 ---
+   600: }
+   601: 
+>> 602: pub fn rate_plan(
+>> 603:     _path: &str,
+>> 604:     _record: &Record,
+>> 605:     _old_body: &str,
+>> 606:     _level: &str,
+>> 607: ) -> Result<RatePlan, String> {
+>> 608:     Err("not written".to_string())
+>> 609: }
+>> 610: 
+>> 611: pub fn rate(_dir: &Path, _id: &str, _level: &str, _apply: &[String]) -> Result<Rated, String> {
+>> 612:     Err("not written".to_string())
+>> 613: }
+>> 614: 
+>> 615: pub fn rated_text(_got: &Rated, _id: &str, _level: &str) -> (String, i32) {
+>> 616:     (String::new(), 99)
+>> 617: }
+>> 618: 
+>> 619: #[cfg(test)]
+   620: mod bug_tests {
+   621:     use super::{
+++ /// The plan for rating one finding: refuses a level nobody ruled and a level the record already
+++ /// has, otherwise names the change, the file's hash before and after, and the Seal of that text.
+++ pub fn rate_plan(
+++     path: &str,
+++     record: &Record,
+++     old_body: &str,
+++     level: &str,
+++ ) -> Result<RatePlan, String> {
+++     let level = severity_level(level.trim())?;
+++     if record.severity == level {
+++         return Err(format!(
+++             "{} already reads {}; there is nothing to rate",
+++             record.id, level
+++         ));
+++     }
+++     let (new_body, old_line) = with_severity(old_body, level)?;
+++     let minus = old_line.unwrap_or_else(|| "(no severity line -- it reads unrated)".to_string());
+++     let text = format!(
+++         "rate {}: severity {} -> {}\nfile {}  sha256 {} -> {}\n-- {}\n++ severity: {}",
+++         record.id,
+++         record.severity,
+++         level,
+++         path,
+++         seal_digest(old_body.as_bytes()),
+++         seal_digest(new_body.as_bytes()),
+++         minus,
+++         level
+++     );
+++     let seal = seal_digest(text.as_bytes());
+++     Ok(RatePlan {
+++         text,
+++         seal,
+++         new_body,
+++     })
+++ }
+++ 
+++ /// `core bug rate` as a value. With no words after the level it plans; with `apply SEAL` it
+++ /// rebuilds the plan from the file as it is now and writes only if that plan still has the given
+++ /// Seal. Refused means nothing was written; Err means the ledger could not be read or written.
+++ pub fn rate(dir: &Path, id: &str, level: &str, apply: &[String]) -> Result<Rated, String> {
+++     let seal = match apply {
+++         [] => None,
+++         [word, seal] if word == "apply" => Some(seal.as_str()),
+++         _ => {
+++             return Ok(Rated::Refused(
+++                 "after the level say nothing to see the plan, or: apply SEAL".to_string(),
+++             ));
+++         }
+++     };
+++     let level = match severity_level(level.trim()) {
+++         Ok(l) => l,
+++         Err(e) => return Ok(Rated::Refused(e)),
+++     };
+++     let records = super::findings::read_records(dir)?;
+++     let record = records
+++         .iter()
+++         .find(|r| r.id == id)
+++         .ok_or_else(|| format!("{} names no finding in {}", id, dir.display()))?;
+++     let path = dir.join(format!("{}.md", id));
+++     let old_body = fs::read_to_string(&path)
+++         .map_err(|e| format!("could not read {}: {}", path.display(), e))?;
+++     let plan = match rate_plan(&path.display().to_string(), record, &old_body, level) {
+++         Ok(p) => p,
+++         Err(e) => return Ok(Rated::Refused(e)),
+++     };
+++     match seal {
+++         None => Ok(Rated::Planned(plan)),
+++         Some(given) if given == plan.seal => {
+++             write_rated(&path, &plan)?;
+++             Ok(Rated::Applied(plan))
+++         }
+++         Some(given) => Ok(Rated::Refused(format!(
+++             "the plan now hashes to {}, not {}: the record or the level changed",
+++             plan.seal, given
+++         ))),
+++     }
+++ }
+++ 
+++ /// Write the planned body beside the record, move it into place and read it back. A record is
+++ /// never left half written.
+++ fn write_rated(path: &Path, plan: &RatePlan) -> Result<(), String> {
+++     let tmp = path.with_extension("md.tmp");
+++     fs::write(&tmp, &plan.new_body)
+++         .map_err(|e| format!("could not write {}: {}", tmp.display(), e))?;
+++     fs::rename(&tmp, path).map_err(|e| {
+++         let _ = fs::remove_file(&tmp);
+++         format!("could not replace {}: {}", path.display(), e)
+++     })?;
+++     let back = fs::read_to_string(path)
+++         .map_err(|e| format!("could not read back {}: {}", path.display(), e))?;
+++     if back != plan.new_body {
+++         return Err(format!(
+++             "{} does not read back as the plan wrote it",
+++             path.display()
+++         ));
+++     }
+++     Ok(())
+++ }
+++ 
+++ /// What `core bug rate` prints and the exit it ends with: the plan with its Seal and the line
+++ /// that applies it, the applied change, or a refusal.
+++ pub fn rated_text(got: &Rated, id: &str, level: &str) -> (String, i32) {
+++     match got {
+++         Rated::Planned(p) => (
+++             format!(
+++                 "{}\nDRY RUN -- nothing written. Seal: {}\nto write it: core bug rate {} {} apply {}\n",
+++                 p.text,
+++                 p.seal,
+++                 id,
+++                 level.trim(),
+++                 p.seal
+++             ),
+++             0,
+++         ),
+++         Rated::Applied(p) => (
+++             format!("{}\nOK {} rated, verified on disk\n", p.text, id),
+++             0,
+++         ),
+++         Rated::Refused(why) => (format!("REFUSE {}. Nothing was written.\n", why), 1),
+++     }
+++ }
+++ 
+++ /// `core bug rate F-NNNN LEVEL [apply SEAL]` -- INT-300 G9. The domain owns its exit: 0 planned
+++ /// or applied, 1 refused (nothing written), 3 the finding or ledger could not be read or written.
+++ pub fn rate_ledger(ctx: &AppContext, id: &str, level: &str, apply: &[String]) -> CoreResult<()> {
+++     let dir = super::intents_dir(ctx).join("findings");
+++     let code = match rate(&dir, id, level, apply) {
+++         Ok(got) => {
+++             let (text, code) = rated_text(&got, id, level);
+++             if code == 0 {
+++                 print!("{}", text);
+++             } else {
+++                 eprint!("{}", text);
+++             }
+++             code
+++         }
+++         Err(e) => {
+++             eprintln!("{} {}", "\u{2717}".bright_red(), e);
+++             3
+++         }
+++     };
+++     if code != 0 {
+++         std::process::exit(code);
+++     }
+++     Ok(())
+++ }
+++ 
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/parser.rs: replacing lines 814..816 ---
+   812:         id: String,
+   813:     },
+>> 814:     /// Check the ledger against git: bad Fixes values, missing records, stale closures, empty fields
+>> 815:     Check,
+>> 816: }
+   817: 
+   818: #[derive(Subcommand)]
+++     /// Check the ledger against git: bad Fixes values, missing records, stale closures, empty fields
+++     Check,
+++     /// Rate a finding: show the plan, then write it with `apply SEAL`
+++     Rate {
+++         /// The finding, e.g. F-0111
+++         id: String,
+++         /// The level: unrated, low, medium or high
+++         level: String,
+++         /// Nothing to see the plan, or `apply SEAL` to write it
+++         apply: Vec<String>,
+++     },
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/commands.rs: replacing lines 400..405 ---
+   398:         all: bool,
+   399:     },
+>> 400:     Show {
+>> 401:         id: String,
+>> 402:     },
+>> 403:     Check,
+>> 404: }
+>> 405: 
+   406: #[derive(Debug)]
+   407: pub enum SecurityCommand {
+++     Show {
+++         id: String,
+++     },
+++     Check,
+++     Rate {
+++         id: String,
+++         level: String,
+++         apply: Vec<String>,
+++     },
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/mod.rs: replacing lines 293..294 ---
+   291:             },
+   292:             parser::BugCommands::Show { id } => commands::BugCommand::Show { id },
+>> 293:             parser::BugCommands::Check => commands::BugCommand::Check,
+>> 294:         }),
+   295:         Commands::Profile { command } => Command::Profile(match command {
+   296:             ProfileCommands::List => ProfileCommand::List,
+++             parser::BugCommands::Check => commands::BugCommand::Check,
+++             parser::BugCommands::Rate { id, level, apply } => {
+++                 commands::BugCommand::Rate { id, level, apply }
+++             }
+++ 
+--- /home/christian/0-core/zero/engine/src/app/dispatcher.rs: replacing lines 221..224 ---
+   219:                     crate::domains::intent::bug::show(ctx, &id)
+   220:                 }
+>> 221:                 crate::cli::commands::BugCommand::Check => {
+>> 222:                     crate::domains::intent::bug::check_ledger(ctx)
+>> 223:                 }
+>> 224:             }
+   225:         }
+   226: 
+++                 crate::cli::commands::BugCommand::Check => {
+++                     crate::domains::intent::bug::check_ledger(ctx)
+++                 }
+++                 crate::cli::commands::BugCommand::Rate { id, level, apply } => {
+++                     crate::domains::intent::bug::rate_ledger(ctx, &id, &level, &apply)
+++                 }
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/parser.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/commands.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/app/dispatcher.rs: 1 replaced
