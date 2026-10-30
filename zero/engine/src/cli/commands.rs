@@ -400,6 +400,7 @@ pub enum BugCommand {
     Show {
         id: String,
     },
+    Check,
 }
 
 #[derive(Debug)]

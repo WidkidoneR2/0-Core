@@ -290,6 +290,7 @@ pub fn parse() -> Command {
                 all,
             },
             parser::BugCommands::Show { id } => commands::BugCommand::Show { id },
+            parser::BugCommands::Check => commands::BugCommand::Check,
         }),
         Commands::Profile { command } => Command::Profile(match command {
             ProfileCommands::List => ProfileCommand::List,

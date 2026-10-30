@@ -218,6 +218,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 crate::cli::commands::BugCommand::Show { id } => {
                     crate::domains::intent::bug::show(ctx, &id)
                 }
+                crate::cli::commands::BugCommand::Check => {
+                    crate::domains::intent::bug::check_ledger(ctx)
+                }
             }
         }
 

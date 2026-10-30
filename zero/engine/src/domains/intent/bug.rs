@@ -4,7 +4,7 @@
 //! terminal screen, a bar, a script) reads the same rows this one prints.
 
 use super::findings::{severity_level, Record};
-use super::trace::{check_commit_seal, git_read, seal_notes, state_of, SealCheck, State};
+use super::trace::{check_commit_seal, git_read, seal_notes, state_of, SealCheck, State, Trailers};
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
@@ -422,14 +422,171 @@ fn show_answer(ctx: &AppContext, id: &str) -> Result<i32, String> {
     Ok(got.code)
 }
 
+/// The kinds of trouble `core bug check` reports, in the order its totals line counts them.
+pub const KINDS: [&str; 5] = [
+    "malformed-fixes",
+    "fixes-no-record",
+    "closed-and-fixed",
+    "missing-field",
+    "no-location",
+];
+
+/// One thing `core bug check` found wrong: the finding or commit it is about, its kind, and the
+/// detail that lets a person go and look.
+#[derive(Debug, PartialEq)]
+pub struct Problem {
+    pub subject: String,
+    pub kind: &'static str,
+    pub detail: String,
+}
+
+/// What `core bug check` prints and the exit it ends with, as a value: 0 clean, 1 problems
+/// found, 3 the ledger could not be checked.
+pub struct Checked {
+    pub problems: Vec<Problem>,
+    pub text: String,
+    pub code: i32,
+}
+
+/// INT-300 G8. The ledger checked against itself and git: every Fixes value is exactly one
+/// finding id, every id a Fixes names has a record, no closed finding also has a fix (R3: the fix
+/// wins, so the closure is stale), and every record holds its fields and a location. Unknown is a
+/// word: git that could not be read ends 3 and says so, never a clean ledger.
+pub fn check(records: &[Record], trailers: &Result<Trailers, String>) -> Checked {
+    let t = match trailers {
+        Ok(t) => t,
+        Err(e) => {
+            return Checked {
+                problems: Vec::new(),
+                text: format!(
+                    "unknown -- git could not be read ({}); nothing was checked\n",
+                    e
+                ),
+                code: 3,
+            };
+        }
+    };
+    let mut problems = Vec::new();
+    for (value, hash) in &t.other {
+        problems.push(Problem {
+            subject: hash.clone(),
+            kind: "malformed-fixes",
+            detail: format!(
+                "Fixes: {} is not exactly F-NNNN, so it names no finding",
+                value
+            ),
+        });
+    }
+    for (id, hash) in &t.named {
+        if !records.iter().any(|r| &r.id == id) {
+            problems.push(Problem {
+                subject: hash.clone(),
+                kind: "fixes-no-record",
+                detail: format!("Fixes: {} names a finding with no record", id),
+            });
+        }
+    }
+    let nothing_fixed: Result<Vec<(String, String)>, String> = Ok(Vec::new());
+    for r in records {
+        let fixed = t.named.iter().any(|(id, _)| id == &r.id);
+        if fixed && matches!(state_of(r, &nothing_fixed), State::Closed(_)) {
+            problems.push(Problem {
+                subject: r.id.clone(),
+                kind: "closed-and-fixed",
+                detail: "closed without a fix, yet a commit fixes it; the fix wins".to_string(),
+            });
+        }
+        for (name, value) in [
+            ("what", &r.what),
+            ("found_by", &r.found_by),
+            ("found_on", &r.found_on),
+        ]
+        .iter()
+        {
+            if value.as_str() == "unknown" {
+                problems.push(Problem {
+                    subject: r.id.clone(),
+                    kind: "missing-field",
+                    detail: format!("{} is missing from the record", name),
+                });
+            }
+        }
+        if r.at == "unknown" {
+            problems.push(Problem {
+                subject: r.id.clone(),
+                kind: "no-location",
+                detail: "no location (at) recorded".to_string(),
+            });
+        }
+    }
+    let mut text = String::new();
+    for p in &problems {
+        text.push_str(&format!("{:16}  {:8}  {}\n", p.kind, p.subject, p.detail));
+    }
+    if problems.is_empty() {
+        text.push_str(&format!(
+            "clean -- {} records and {} Fixes values read, nothing wrong\n",
+            records.len(),
+            t.named.len() + t.other.len()
+        ));
+    } else {
+        let per: Vec<String> = KINDS
+            .iter()
+            .map(|k| format!("{} {}", problems.iter().filter(|p| p.kind == *k).count(), k))
+            .collect();
+        let noun = if problems.len() == 1 {
+            "problem"
+        } else {
+            "problems"
+        };
+        text.push_str(&format!(
+            "{} {} -- {}\n",
+            problems.len(),
+            noun,
+            per.join(", ")
+        ));
+    }
+    let code = if problems.is_empty() { 0 } else { 1 };
+    Checked {
+        problems,
+        text,
+        code,
+    }
+}
+
+/// `core bug check` -- INT-300 G8. The domain owns its exit: 0 clean, 1 problems found, 3 the
+/// ledger or git could not be read.
+pub fn check_ledger(ctx: &AppContext) -> CoreResult<()> {
+    let code = match check_answer(ctx) {
+        Ok(code) => code,
+        Err(e) => {
+            eprintln!("{} {}", "\u{2717}".bright_red(), e);
+            3
+        }
+    };
+    if code != 0 {
+        std::process::exit(code);
+    }
+    Ok(())
+}
+
+fn check_answer(ctx: &AppContext) -> Result<i32, String> {
+    let dir = super::intents_dir(ctx).join("findings");
+    let records = super::findings::read_records(&dir)?;
+    let core: &str = &ctx.core_root;
+    let got = check(&records, &super::trace::trailers(core));
+    print!("{}", got.text);
+    Ok(got.code)
+}
+
 #[cfg(test)]
 mod bug_tests {
     use super::{
-        counts, files_on_disk, filter_from, render_list, render_summary, report, rows, select,
-        state_word, story, Counts, FixFacts, Row,
+        check, counts, files_on_disk, filter_from, render_list, render_summary, report, rows,
+        select, state_word, story, Counts, FixFacts, Row,
     };
     use crate::domains::intent::findings::{parse_record, read_records, Record};
-    use crate::domains::intent::trace::{SealCheck, State};
+    use crate::domains::intent::trace::{SealCheck, State, Trailers};
 
     fn rec(id: &str, closed: &str, severity: &str, day: &str, what: &str) -> Record {
         parse_record(&format!(
@@ -707,6 +864,139 @@ mod bug_tests {
         assert!(
             got.text
                 .contains("0 findings: 0 open, 0 solved, 0 closed, 0 unknown -- showing 0"),
+            "{}",
+            got.text
+        );
+    }
+
+    fn full(id: &str, closed: &str, at: &str) -> Record {
+        parse_record(&format!(
+            "---\nid: {}\nwhat: w\nat: {}\nfound_by: INT-1\nfound_on: 2026-10-30\nclosed_without_fix: {}\nseverity: low\n---\n",
+            id, at, closed
+        ))
+    }
+
+    fn trailers(named: &[(&str, &str)], other: &[(&str, &str)]) -> Result<Trailers, String> {
+        let own = |v: &[(&str, &str)]| -> Vec<(String, String)> {
+            v.iter()
+                .map(|(a, b)| (a.to_string(), b.to_string()))
+                .collect()
+        };
+        Ok(Trailers {
+            named: own(named),
+            other: own(other),
+        })
+    }
+
+    /// INT-300 G8: a ledger with nothing wrong ends 0 and says what it read, so clean is a count
+    /// and never silence.
+    #[test]
+    fn a_clean_ledger_ends_0_and_counts_what_it_read() {
+        let records = vec![
+            full("F-0001", "no", "a.rs:1"),
+            full("F-0002", "no", "b.rs:2"),
+        ];
+        let got = check(&records, &trailers(&[("F-0001", "abc1234")], &[]));
+        assert_eq!(got.code, 0, "{}", got.text);
+        assert!(got.problems.is_empty());
+        assert!(
+            got.text
+                .contains("clean -- 2 records and 1 Fixes values read, nothing wrong"),
+            "{}",
+            got.text
+        );
+    }
+
+    /// INT-300 G8, R4: a Fixes value that is not exactly F-NNNN is reported with the commit that
+    /// carries it, as 23c7310e carries F-0046 with prose after it.
+    #[test]
+    fn a_malformed_fixes_value_is_reported_with_its_commit() {
+        let records = vec![full("F-0046", "no", "a.rs:1")];
+        let got = check(&records, &trailers(&[], &[("F-0046 later", "23c7310e")]));
+        assert_eq!(got.code, 1);
+        assert_eq!(got.problems.len(), 1);
+        assert_eq!(got.problems[0].kind, "malformed-fixes");
+        assert_eq!(got.problems[0].subject, "23c7310e");
+        assert!(got.text.contains("F-0046 later"), "{}", got.text);
+    }
+
+    /// INT-300 G8: a Fixes that names a finding nobody filed is reported with its commit.
+    #[test]
+    fn a_fixes_naming_a_finding_with_no_record_is_reported() {
+        let records = vec![full("F-0001", "no", "a.rs:1")];
+        let got = check(&records, &trailers(&[("F-0099", "abc1234")], &[]));
+        assert_eq!(got.code, 1);
+        assert_eq!(got.problems.len(), 1);
+        assert_eq!(got.problems[0].kind, "fixes-no-record");
+        assert_eq!(got.problems[0].subject, "abc1234");
+    }
+
+    /// INT-300 G8, R3: a closure that also has a fix is reported. A closure with no fix, and a
+    /// fix on an open record, are not.
+    #[test]
+    fn a_closure_that_also_has_a_fix_is_reported_and_a_plain_closure_is_not() {
+        let records = vec![
+            full("F-0001", "duplicate of F-0002", "a.rs:1"),
+            full("F-0002", "not a bug", "b.rs:2"),
+            full("F-0003", "no", "c.rs:3"),
+        ];
+        let named = [("F-0001", "abc1234"), ("F-0003", "def5678")];
+        let got = check(&records, &trailers(&named, &[]));
+        assert_eq!(got.problems.len(), 1, "{}", got.text);
+        assert_eq!(got.problems[0].kind, "closed-and-fixed");
+        assert_eq!(got.problems[0].subject, "F-0001");
+    }
+
+    /// INT-300 G8: a record that lacks a field says which, and a record with no location is its
+    /// own kind. Nothing is filled in with a default.
+    #[test]
+    fn a_record_missing_a_field_or_a_location_is_reported() {
+        let bare = parse_record("---\nid: F-0001\nat: a.rs:1\n---\n");
+        let records = vec![bare, full("F-0002", "no", "unknown")];
+        let got = check(&records, &trailers(&[], &[]));
+        let kinds: Vec<(&str, &str)> = got
+            .problems
+            .iter()
+            .map(|p| (p.subject.as_str(), p.kind))
+            .collect();
+        assert_eq!(
+            kinds,
+            vec![
+                ("F-0001", "missing-field"),
+                ("F-0001", "missing-field"),
+                ("F-0001", "missing-field"),
+                ("F-0002", "no-location"),
+            ]
+        );
+        assert!(got.text.contains("what is missing"), "{}", got.text);
+        assert_eq!(got.code, 1);
+    }
+
+    /// INT-300 G7, G8: git that could not be read is not a clean ledger. It says unknown and
+    /// ends 3, and finds no problems it did not see.
+    #[test]
+    fn an_unreadable_ledger_is_unknown_not_clean_and_ends_3() {
+        let records = vec![full("F-0001", "no", "a.rs:1")];
+        let got = check(&records, &Err("no git here".to_string()));
+        assert_eq!(got.code, 3);
+        assert!(got.problems.is_empty());
+        assert!(got.text.contains("unknown"), "{}", got.text);
+        assert!(got.text.contains("no git here"), "{}", got.text);
+        assert!(!got.text.contains("clean"), "{}", got.text);
+    }
+
+    /// INT-300 G8: the totals line counts each kind, so a number always explains itself.
+    #[test]
+    fn the_totals_line_counts_each_kind() {
+        let records = vec![full("F-0001", "no", "a.rs:1")];
+        let got = check(
+            &records,
+            &trailers(&[("F-0099", "abc1234")], &[("F-0046 later", "23c7310e")]),
+        );
+        assert!(
+            got.text.contains(
+                "2 problems -- 1 malformed-fixes, 1 fixes-no-record, 0 closed-and-fixed, 0 missing-field, 0 no-location"
+            ),
             "{}",
             got.text
         );

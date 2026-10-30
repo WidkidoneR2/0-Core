@@ -52,6 +52,12 @@ fn run_bytes(program: &str, core_root: &str, args: &[&str]) -> Result<Vec<u8>, S
 /// Every finding id a Fixes: trailer names on the current branch, with the commit that named it.
 /// Err when git could not be read.
 pub fn fixes(core_root: &str) -> Result<Vec<(String, String)>, String> {
+    trailers(core_root).map(|t| t.named)
+}
+
+/// Every Fixes: value on the current branch, named or not, read once. Err when git could not be
+/// read.
+pub fn trailers(core_root: &str) -> Result<Trailers, String> {
     let text = git_read(
         core_root,
         &[
@@ -60,7 +66,7 @@ pub fn fixes(core_root: &str) -> Result<Vec<(String, String)>, String> {
             "HEAD",
         ],
     )?;
-    Ok(parse_fixes(&text))
+    Ok(split_trailers(&text))
 }
 
 /// A finding id as ruled 2026-10-04: F- and exactly four digits, nothing after. INT-300 R4: a
@@ -71,15 +77,37 @@ fn is_finding_id(s: &str) -> bool {
 
 /// One line per commit: the hash, a TAB, then the ids its Fixes: trailers name, comma-separated.
 fn parse_fixes(text: &str) -> Vec<(String, String)> {
-    let mut named = Vec::new();
+    split_trailers(text).named
+}
+
+/// The Fixes: values of every commit on the branch, split once by the one reader of them
+/// (INT-300 G4, G8). `named` holds each finding id a value names, with its commit. `other` holds
+/// each value that names no finding (prose, a short id), with its commit, so `core bug check`
+/// can say so instead of the value vanishing.
+#[derive(Debug, Default, PartialEq)]
+pub struct Trailers {
+    pub named: Vec<(String, String)>,
+    pub other: Vec<(String, String)>,
+}
+
+/// Split the log text once: per line the hash, a TAB, then the values of its Fixes: trailers,
+/// comma-separated. A value that is exactly F-NNNN is named. Any other non-empty value is kept in
+/// `other` with its commit: never dropped silently and never counted as a fix (R4).
+fn split_trailers(text: &str) -> Trailers {
+    let mut got = Trailers::default();
     for line in text.lines() {
-        if let Some((hash, ids)) = line.split_once('\t') {
-            for id in ids.split(',').map(str::trim).filter(|s| is_finding_id(s)) {
-                named.push((id.to_string(), hash.to_string()));
+        if let Some((hash, values)) = line.split_once('\t') {
+            for value in values.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+                let pair = (value.to_string(), hash.to_string());
+                if is_finding_id(value) {
+                    got.named.push(pair);
+                } else {
+                    got.other.push(pair);
+                }
             }
         }
     }
-    named
+    got
 }
 
 /// A finding's state, derived when asked and never stored (decision 142).
@@ -1119,7 +1147,7 @@ mod reader_tests {
 /// INT-266 question a. Gate 9 at the query: git that cannot be read never makes a finding open.
 #[cfg(test)]
 mod state_tests {
-    use super::{parse_fixes, state_of, State};
+    use super::{parse_fixes, split_trailers, state_of, State};
     use crate::domains::intent::findings::parse_record;
 
     fn record(closed: &str) -> super::Record {
@@ -1182,6 +1210,42 @@ mod state_tests {
     fn a_fixes_value_with_prose_counts_for_nothing() {
         let got = parse_fixes("abc1234\tF-0046 later\ndef5678\tF-0002\n");
         assert_eq!(got, vec![("F-0002".to_string(), "def5678".to_string())]);
+    }
+
+    /// INT-300 G8: the one reader keeps what it does not count. A value that is not exactly
+    /// F-NNNN lands in `other` with its commit, a value that is lands in `named`, and an empty
+    /// value is nothing.
+    #[test]
+    fn values_that_name_no_finding_are_kept_not_dropped() {
+        let got = split_trailers("abc1234\tF-0046 later\ndef5678\tF-0002, junk\nfff0000\t\n");
+        assert_eq!(
+            got.named,
+            vec![("F-0002".to_string(), "def5678".to_string())]
+        );
+        assert_eq!(
+            got.other,
+            vec![
+                ("F-0046 later".to_string(), "abc1234".to_string()),
+                ("junk".to_string(), "def5678".to_string()),
+            ]
+        );
+    }
+
+    /// INT-300 G8: lower case, a short number and a long number are not finding ids either, and a
+    /// stray comma makes no empty value.
+    #[test]
+    fn near_misses_are_other_and_empty_values_are_nothing() {
+        let got = split_trailers("a1\t,F-0001,f-0002,F-3,F-00045,\n");
+        assert_eq!(got.named, vec![("F-0001".to_string(), "a1".to_string())]);
+        let other: Vec<&str> = got.other.iter().map(|(v, _)| v.as_str()).collect();
+        assert_eq!(other, vec!["f-0002", "F-3", "F-00045"]);
+    }
+
+    /// INT-300 G4, G8: parse_fixes is the named half of the one reader, never a second parse.
+    #[test]
+    fn parse_fixes_is_the_named_half_of_the_one_reader() {
+        let text = "abc1234\tF-0001,F-0046 later\ndef5678\tF-0002\n";
+        assert_eq!(parse_fixes(text), split_trailers(text).named);
     }
 }
 

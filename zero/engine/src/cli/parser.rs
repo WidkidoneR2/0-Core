@@ -811,6 +811,8 @@ pub enum BugCommands {
         /// The finding, e.g. F-0049
         id: String,
     },
+    /// Check the ledger against git: bad Fixes values, missing records, stale closures, empty fields
+    Check,
 }
 
 #[derive(Subcommand)]
