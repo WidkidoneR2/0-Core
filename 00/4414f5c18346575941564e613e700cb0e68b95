@@ -1,0 +1,259 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/bug.rs  sha256 b1fbab7b28989c13 -> 17df874a52aa6824
+file /home/christian/0-core/zero/engine/src/cli/parser.rs  sha256 61b0b73c44b953ef -> 487813300486d610
+file /home/christian/0-core/zero/engine/src/cli/mod.rs  sha256 31b7486322f15e86 -> a64af9a62ac8bf56
+file /home/christian/0-core/zero/engine/src/cli/commands.rs  sha256 f5b6a9b6e78b543a -> e0ca9c5112364ee0
+file /home/christian/0-core/zero/engine/src/app/dispatcher.rs  sha256 f2e34e21e261511a -> 57829e46f34452d9
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 7..9 ---
+   5: 
+   6: use super::findings::{severity_level, Record};
+>> 7: use super::trace::{state_of, State};
+>> 8: use std::path::Path;
+>> 9: 
+   10: /// The four words a finding's state is ever called. `unknown` is a word, not a blank (G7).
+   11: pub const STATES: [&str; 4] = ["open", "solved", "closed", "unknown"];
+++ use super::trace::{state_of, State};
+++ use crate::app::context::AppContext;
+++ use crate::errors::CoreResult;
+++ use colored::*;
+++ use std::path::Path;
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 204..215 ---
+   202: }
+   203: 
+>> 204: pub fn report(
+>> 205:     _records: &[Record],
+>> 206:     _fixes: &Result<Vec<(String, String)>, String>,
+>> 207:     _filter: &Filter,
+>> 208:     _on_disk: usize,
+>> 209: ) -> Report {
+>> 210:     Report {
+>> 211:         text: String::new(),
+>> 212:         code: 99,
+>> 213:     }
+>> 214: }
+>> 215: 
+   216: #[cfg(test)]
+   217: mod bug_tests {
+++ pub fn report(
+++     records: &[Record],
+++     fixes: &Result<Vec<(String, String)>, String>,
+++     filter: &Filter,
+++     on_disk: usize,
+++ ) -> Report {
+++     let all = rows(records, fixes);
+++     let c = counts(&all);
+++     let shown = select(all, filter);
+++     let mut text = render_list(&shown);
+++     text.push_str(&render_summary(&c, shown.len()));
+++     text.push('\n');
+++     let agree = on_disk == records.len();
+++     text.push_str(&format!(
+++         "recount: {} finding files on disk, {} records read -- they {}\n",
+++         on_disk,
+++         records.len(),
+++         if agree { "agree" } else { "disagree" }
+++     ));
+++     let mut code = if agree { 0 } else { 1 };
+++     if let Err(e) = fixes {
+++         text.push_str(&format!(
+++             "git could not be read ({}): open findings read unknown\n",
+++             e
+++         ));
+++         code = 3;
+++     }
+++     Report { text, code }
+++ }
+++ 
+++ /// `core bug list [--state S] [--severity L] [--all]` -- INT-300 G5. The findings ledger as a
+++ /// report: the unresolved first, worst first, with the count line and its recount. The domain
+++ /// owns its exit, as `core intent seals` does: 0 clean, 1 the recount disagrees, 3 could not
+++ /// answer.
+++ pub fn list(
+++     ctx: &AppContext,
+++     state: Option<&str>,
+++     severity: Option<&str>,
+++     all: bool,
+++ ) -> CoreResult<()> {
+++     let code = match list_answer(ctx, state, severity, all) {
+++         Ok(code) => code,
+++         Err(e) => {
+++             eprintln!("{} {}", "\u{2717}".bright_red(), e);
+++             3
+++         }
+++     };
+++     if code != 0 {
+++         std::process::exit(code);
+++     }
+++     Ok(())
+++ }
+++ 
+++ fn list_answer(
+++     ctx: &AppContext,
+++     state: Option<&str>,
+++     severity: Option<&str>,
+++     all: bool,
+++ ) -> Result<i32, String> {
+++     let filter = filter_from(state, severity, all)?;
+++     let dir = super::intents_dir(ctx).join("findings");
+++     let records = super::findings::read_records(&dir)?;
+++     let on_disk = files_on_disk(&dir)?;
+++     let core: &str = &ctx.core_root;
+++     let named = super::trace::fixes(core);
+++     let got = report(&records, &named, &filter, on_disk);
+++     print!("{}", got.text);
+++     Ok(got.code)
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/parser.rs: replacing lines 71..75 ---
+   69:         command: IntentCommands,
+   70:     },
+>> 71:     Profile {
+>> 72:         #[command(subcommand)]
+>> 73:         command: ProfileCommands,
+>> 74:     },
+>> 75:     Security {
+   76:         #[command(subcommand)]
+   77:         command: SecurityCommands,
+++     Bug {
+++         #[command(subcommand)]
+++         command: BugCommands,
+++     },
+++     Profile {
+++         #[command(subcommand)]
+++         command: ProfileCommands,
+++     },
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/parser.rs: replacing lines 786..793 ---
+   784: 
+   785: #[derive(Subcommand)]
+>> 786: pub enum ProfileCommands {
+>> 787:     List,
+>> 788:     Status,
+>> 789:     Switch { name: String },
+>> 790:     History,
+>> 791:     Health,
+>> 792: }
+>> 793: 
+   794: #[derive(Subcommand)]
+   795: pub enum SecurityCommands {
+++ pub enum ProfileCommands {
+++     List,
+++     Status,
+++     Switch { name: String },
+++     History,
+++     Health,
+++ }
+++ 
+++ /// INT-300 -- the bug report: the findings ledger read as a report.
+++ #[derive(Subcommand)]
+++ pub enum BugCommands {
+++     /// The findings still unresolved, worst first; --all shows every one
+++     List {
+++         /// Only this state: open, solved, closed or unknown
+++         #[arg(long)]
+++         state: Option<String>,
+++         /// Only this severity: unrated, low, medium or high
+++         #[arg(long)]
+++         severity: Option<String>,
+++         /// Show every finding, solved and closed too
+++         #[arg(long)]
+++         all: bool,
+++     },
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/mod.rs: replacing lines 282..283 ---
+   280:             DelegateCommands::Activate { contract } => DelegateCommand::Activate { contract },
+   281:         }),
+>> 282:         Commands::Profile { command } => Command::Profile(match command {
+>> 283:             ProfileCommands::List => ProfileCommand::List,
+   284:             ProfileCommands::Status => ProfileCommand::Status,
+   285:             ProfileCommands::Switch { name } => ProfileCommand::Switch { name },
+++         Commands::Bug { command } => Command::Bug(match command {
+++             parser::BugCommands::List {
+++                 state,
+++                 severity,
+++                 all,
+++             } => commands::BugCommand::List {
+++                 state,
+++                 severity,
+++                 all,
+++             },
+++         }),
+++         Commands::Profile { command } => Command::Profile(match command {
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/commands.rs: replacing lines 147..149 ---
+   145:         health: bool,
+   146:     },
+>> 147:     Intent(IntentCommand),
+>> 148:     Profile(ProfileCommand),
+>> 149:     Security(SecurityCommand),
+   150:     Sandbox(SandboxCommand),
+   151:     Fetch {
+++     Intent(IntentCommand),
+++     Bug(BugCommand),
+++     Profile(ProfileCommand),
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/commands.rs: replacing lines 385..392 ---
+   383: }
+   384: #[derive(Debug)]
+>> 385: pub enum ProfileCommand {
+>> 386:     List,
+>> 387:     Status,
+>> 388:     Switch { name: String },
+>> 389:     History,
+>> 390:     Health,
+>> 391: }
+>> 392: 
+   393: #[derive(Debug)]
+   394: pub enum SecurityCommand {
+++ pub enum ProfileCommand {
+++     List,
+++     Status,
+++     Switch { name: String },
+++     History,
+++     Health,
+++ }
+++ 
+++ #[derive(Debug)]
+++ pub enum BugCommand {
+++     List {
+++         state: Option<String>,
+++         severity: Option<String>,
+++         all: bool,
+++     },
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/app/dispatcher.rs: replacing lines 204..205 ---
+   202:         }
+   203: 
+>> 204:         Command::Profile(c) => {
+>> 205:             ctx.capabilities.require(
+   206:                 "profile",
+   207:                 &[
+++         Command::Bug(c) => {
+++             ctx.capabilities
+++                 .require("intent", &[Capability::FilesystemReadHome])?;
+++             match c {
+++                 crate::cli::commands::BugCommand::List {
+++                     state,
+++                     severity,
+++                     all,
+++                 } => crate::domains::intent::bug::list(
+++                     ctx,
+++                     state.as_deref(),
+++                     severity.as_deref(),
+++                     all,
+++                 ),
+++             }
+++         }
+++ 
+++         Command::Profile(c) => {
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/parser.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/parser.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/commands.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/commands.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/app/dispatcher.rs: 1 replaced
