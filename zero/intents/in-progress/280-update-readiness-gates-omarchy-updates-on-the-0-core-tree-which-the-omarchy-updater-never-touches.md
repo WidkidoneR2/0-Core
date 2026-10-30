@@ -44,12 +44,13 @@ What that costs today:
 
 ## The Solution
 
-- RETIRE THE CHECK. Remove the registry entry (checks.toml:257-264), the probe
-  (hardening.rs:151-201), the Probe::UpdateReadiness variant, name map and list entry
-  (probe.rs:76,116,150), the dispatch (probes/mod.rs:63) and the live test (hardening.rs:239-249).
+- RETIRE THE CHECK. Remove the registry entry (zero/registry/doctor/checks.toml:257-264), the probe
+  and its doc comment (hardening.rs:243-293), the Probe::UpdateReadiness variant (probe.rs:75-76),
+  name map (probe.rs:118), list entry (probe.rs:153), the dispatch (probes/mod.rs:64) and the live
+  test (hardening.rs:392 to the end of that test). Lines measured 2026-10-30.
 - ONE OWNER PER FACT. Git Repository owns the tree and Reboot Needed owns the kernel. Neither
   changes.
-- NOTHING ELSE MOVES. d goes from 28 checks to 27. The score formula and forecast are untouched.
+- NOTHING ELSE MOVES. d goes from 29 checks to 28. The score formula and forecast are untouched.
 - HISTORY STAYS READABLE. Stored runs that name the retired check still read.
 
 ## Decision
@@ -83,25 +84,30 @@ depends_on is empty on purpose: nothing has to finish before this can start.
 Each gate is watched failing before it is watched passing. Anchors stay ASCII-only. Every commit
 made from a reviewed plan carries Seal: and its note in refs/notes/seals.
 
-- [ ] G0: recon recorded, each finding with file:line. (a) The probe, its blockers, unread
+- [x] G0: recon recorded, each finding with file:line. (a) The probe, its blockers, unread
   branch and messages (hardening.rs:150-201). (b) The registry entry and what its severities
   permit (checks.toml:257-264, definition.rs:175-179). (c) Every consumer of update_readiness or
   its message (fsearch, including ship, nsh and scripts). (d) Omarchy's update path, read only:
   what it reads and writes, and whether any of it touches ~/0-core or ~/.local/bin.
   (e) That reboot_needed reads the same running_kernel and installed_kernels.
-- [ ] G1: RED FIRST. At HEAD, d lists Update Readiness. With one tracked file in 0-core modified,
-  d shows two warnings for that one change, Git Repository and Update Readiness. Saved as
-  evidence before anything changes.
-- [ ] G2: REMOVED. The registry entry, probe, variant, name map, list entry, dispatch and live
+<!-- evidence 2026-10-30 (G0), all measured: (a) probe hardening.rs:250-293, doc comment 243-249. It reads running_kernel and installed_kernels, then runs git diff against HEAD in quiet mode. A kernel mismatch or a failed diff becomes a hold off blocker, an unreadable signal becomes unknown, otherwise pass with the message safe to update, kernel current, tree clean. (b) registry entry zero/registry/doctor/checks.toml:257-264 declares severities pass and warn. definition.rs:175-177 is_label is true only for pass alone, so this entry is judged, not a label; per the comment at definition.rs:185-186 unknown and blocked are always permitted; it can never report fail. (c) consumers: probe.rs:76,118,153, probes/mod.rs:64, hardening.rs:393-394 and one history comment at ship/src/main.rs:158; no script, alias or nsh reference outside the intent files. (d) read only scan of 832 files under /usr/share/omarchy: 21 omarchy-update scripts and 0 mentions of 0-core or of nsh, ship, core, d, fpatch, fsearch, ints, inta. 14 lines name local/bin: PATH setup (default/bash/env-bootstrap and envs, hypr envs.lua and helpers.lua, install/config/ssh-command-path.sh) and six migrations: one loop over local/bin that acts only on scripts holding a mise use line (1784909971, recorded as already run in the Omarchy state), removals of omp and herdr, a cursor-agent comment, an ssh PATH default and a security comment. (e) reboot_needed calls running_kernel and installed_kernels at system.rs:39 and 43, defined at system.rs:171 and 185; this probe calls the same two at hardening.rs:255-256. -->
+- [x] G1: RED FIRST. At HEAD, d lists Update Readiness. With one tracked file in 0-core modified,
+  d warns under Git Repository while Update Readiness still passes (F-0109: its git diff exits 0
+  inside the doctor, 1 by hand). Saved as evidence before anything changes.
+<!-- evidence 2026-10-30 (G1): deployed core, copied 2026-10-27 after the last commit of the probe. At HEAD d lists Update Readiness, 28 passed of 29 determinable, tree clean. One blank line appended to Cargo.lock and restored with git checkout (0 changed files after each run): d showed Git Repository uncommitted changes while Update Readiness stayed safe to update, 27 passed and 2 warnings (Rust Docs the other), also on a plain terminal. By hand git diff against HEAD in quiet mode exits 1 with stdout inherited, piped or devnull and stdin devnull. Under GIT_TRACE2_EVENT the call made by the doctor exited 0 while its git status porcelain saw the change. Filed as F-0109, cause not found. The premise of two warnings did not hold, so the gate was reworded to the measured red. -->
+- [x] G2: REMOVED. The registry entry, probe, variant, name map, list entry, dispatch and live
   test are gone. fsearch finds no live reference (history excepted). cargo build -p zero-doctor
   and cargo test -p zero-doctor pass on the debug build.
-- [ ] G3: HISTORY. Run history that names update_readiness still reads after the change, proven on
-  the real state directory.
-- [ ] G4: ONE OWNER, ON THE DEBUG BUILD. d shows 27 checks and no Update Readiness. With one tracked
+<!-- evidence 2026-10-30 (G2), plan Seal 73284b793de5d1eb plus 2231113f78998a4d: registry entry, probe with its doc comment, the Probe::UpdateReadiness variant, name map line, list line, dispatch line and the live test are removed in zero/registry/doctor/checks.toml and zero-doctor probe.rs, probes/mod.rs and probes/hardening.rs. Two tests that pinned the old counts were updated: registry.rs all checks 29 to 28 and judging 27 to 26, definition.rs probes 29 to 28. fsearch update_readiness or UpdateReadiness in rs: only the history comment at ship/src/main.rs:158; in toml: no results. cargo build -p zero-doctor finished; cargo test -p zero-doctor 68 passed, 0 failed (one failure on the first run, the judging count, found and fixed). cargo doc -p zero-doctor --no-deps: 0 warnings. -->
+- [x] G3: HISTORY. No stored run names update_readiness (health_patterns holds counts only), and the
+  history readers still read the real state directory: core doctor trend and forecast exit 0 on the
+  debug build. core doctor history fails for a reason this change did not cause (F-0110).
+<!-- evidence 2026-10-30 (G3), real state directory ~/.local/state/zero/state.db opened read only. health_patterns (22081 rows) stores timestamp, health_pct, integrity_pct and the passed, warned, failed and unknown counts, no check names. A scan of every table for update_readiness or Update Readiness finds it only in typed command text: shell_history 138, term_commands 71, shell_history_audit 114, command_execution 36 typed and 36 executed, plus zero_events detail 2, shell_state value 1 and intent_commits message 1; none in health_patterns, horizon_snapshots or friday_patterns. Debug build target/debug/core after the removal: doctor trend exit 0 (22841 readings, current 92 percent), doctor forecast exit 0. doctor history exits 1 with no such column: score, on the deployed core as well, so it is not caused by this change; filed as F-0110 (horizon_snapshots has the columns id, horizon, snapshot, created_at). -->
+- [ ] G4: ONE OWNER, ON THE DEBUG BUILD. d shows 28 checks and no Update Readiness. With one tracked
   file modified, Git Repository warns once and nothing else warns. Restored, d is clean.
 - [ ] G5: INT-222 IS AMENDED BY CITATION. The Decision section above stands, and git shows no
   commit under this intent touching the 222 file.
-- [ ] G6: DEPLOYED. One ship at the end. In a new shell, d shows 27 checks and no Update
+- [ ] G6: DEPLOYED. One ship at the end. In a new shell, d shows 28 checks and no Update
   Readiness; with a tracked file modified, Git Repository warns once; restored, d is clean.
 - [ ] G7: doors. nsh-test all passing against the deployed binaries, d 0 failed, cargo doc 0
   warnings for zero-doctor, commits carry Intent: INT-280.

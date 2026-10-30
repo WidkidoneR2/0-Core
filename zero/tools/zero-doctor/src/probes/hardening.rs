@@ -240,58 +240,6 @@ pub fn firewall_recovery() -> String {
     "Install a firewall (ufw, firewalld or nftables), then enable it".to_string()
 }
 
-/// Whether it is safe to update: kernel current, working tree clean.
-///
-/// ⚠️ EVERY SIGNAL PRODUCES A BLOCKER, AN UNREADABLE ENTRY, OR A PASS -- none may go quiet. The
-/// old body read two paths from the previous OS that both Err here, `.ok()` turned them into None, the
-/// if-let never matched, and NO BLOCKER WAS PUSHED: it reported "safe to update" having measured
-/// only the git half. A MISSING MEASUREMENT RENDERED AS A PASS, which is quieter and therefore
-/// worse than a false amber.
-pub fn update_readiness() -> Measurement {
-    let mut blockers: Vec<String> = Vec::new();
-    let mut unreadable: Vec<String> = Vec::new();
-
-    match (
-        super::system::running_kernel(),
-        super::system::installed_kernels(),
-    ) {
-        (Ok(r), Ok(i)) => {
-            if !i.iter().any(|k| k == &r) {
-                blockers.push(format!(
-                    "reboot -- running {}, installed {}",
-                    r,
-                    i.join(", ")
-                ));
-            }
-        }
-        (Err(why), _) | (_, Err(why)) => unreadable.push(format!("kernel state ({})", why)),
-    }
-
-    let root = zero_core::paths::core_root_string();
-    match Command::new("git")
-        .args(["-C", &root, "diff", "--quiet", "HEAD"])
-        .status()
-    {
-        Ok(s) => {
-            if !s.success() {
-                blockers.push("commit or stash tracked changes".to_string());
-            }
-        }
-        Err(e) => unreadable.push(format!("git worktree ({})", e)),
-    }
-
-    if !blockers.is_empty() {
-        Measurement::warn(format!("hold off -- {}", blockers.join("; ")))
-    } else if !unreadable.is_empty() {
-        Measurement::unknown(format!(
-            "could not judge -- unread: {}",
-            unreadable.join("; ")
-        ))
-    } else {
-        Measurement::pass("safe to update -- kernel current, tree clean")
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -387,18 +335,5 @@ mod tests {
         let m = assess_handoff(&handoff_rc("# omarchy", &b, ""), &b, false);
         assert_eq!(m.status, Status::Warn);
         assert!(m.message.contains("not executable"), "{}", m.message);
-    }
-
-    #[test]
-    fn update_readiness_never_passes_on_an_unread_signal() {
-        let m = update_readiness();
-        assert!(!m.message.is_empty());
-        if m.status == Status::Pass {
-            assert!(
-                !m.message.contains("could not"),
-                "a pass may not carry an unread signal: {}",
-                m.message
-            );
-        }
     }
 }

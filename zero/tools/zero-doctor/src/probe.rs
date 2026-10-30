@@ -72,8 +72,6 @@ pub enum Probe {
     BootTime,
     /// The running kernel against the installed one.
     RebootNeeded,
-    /// Whether it is safe to update -- kernel current, tree clean.
-    UpdateReadiness,
     /// Size and count of the package cache.
     PackageCache,
     /// Packages nothing depends on.
@@ -115,7 +113,6 @@ impl Probe {
             Probe::BootErrors => "boot_errors",
             Probe::BootTime => "boot_time",
             Probe::RebootNeeded => "reboot_needed",
-            Probe::UpdateReadiness => "update_readiness",
             Probe::PackageCache => "package_cache",
             Probe::OrphanPackages => "orphan_packages",
             Probe::Friday => "friday",
@@ -150,7 +147,6 @@ impl Probe {
             Probe::BootErrors,
             Probe::BootTime,
             Probe::RebootNeeded,
-            Probe::UpdateReadiness,
             Probe::PackageCache,
             Probe::OrphanPackages,
             Probe::Friday,

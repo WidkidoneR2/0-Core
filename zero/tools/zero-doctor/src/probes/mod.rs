@@ -61,6 +61,5 @@ pub fn run(p: Probe) -> Measurement {
 
         // ── not yet ported ─────────────────────────────────────────────────────────────
         Probe::SecurityHardening => hardening::security_hardening(),
-        Probe::UpdateReadiness => hardening::update_readiness(),
     }
 }

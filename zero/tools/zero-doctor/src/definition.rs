@@ -349,8 +349,8 @@ mod tests {
         let all = Probe::all();
         assert_eq!(
             all.len(),
-            29,
-            "one probe per measurement -- 29 checks in all_checks(), 29 probes",
+            28,
+            "one probe per measurement -- 28 checks in all_checks(), 28 probes",
         );
         let mut seen = std::collections::HashSet::new();
         for p in all {

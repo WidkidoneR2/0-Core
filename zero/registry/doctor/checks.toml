@@ -255,15 +255,6 @@ severities = ["pass", "warn"]
 recovery = "Reboot to load the installed kernel"
 
 [[check]]
-id = "update_readiness"
-name = "Update Readiness"
-section = "\U0001F4E6 System State"
-tier = "user"
-probe = "update_readiness"
-severities = ["pass", "warn"]
-recovery = "Resolve the above first"
-
-[[check]]
 id = "shell_handoff"
 name = "Shell Handoff"
 section = "\U0001F4E6 System State"
