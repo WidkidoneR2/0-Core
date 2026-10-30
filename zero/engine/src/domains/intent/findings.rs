@@ -76,7 +76,7 @@ pub fn highest_number(dir: &Path) -> Result<u32, WriteError> {
 /// of a finding's state is the closure decision, and at filing no decision has been made.
 pub fn render(id: &str, what: &str, at: Option<&str>, by: Option<&str>, on: &str) -> String {
     format!(
-        "---\nid: {}\nwhat: {}\nat: {}\nfound_by: {}\nfound_on: {}\nclosed_without_fix: no\n---\n",
+        "---\nid: {}\nwhat: {}\nat: {}\nfound_by: {}\nfound_on: {}\nclosed_without_fix: no\nseverity: unrated\n---\n",
         id,
         what,
         at.unwrap_or("unknown"),
@@ -95,6 +95,7 @@ pub struct Record {
     pub found_by: String,
     pub found_on: String,
     pub closed_without_fix: String,
+    pub severity: String,
 }
 
 /// Parse a record body as render writes it. Only the frontmatter is read.
@@ -126,6 +127,10 @@ pub fn parse_record(body: &str) -> Record {
         found_by: get("found_by"),
         found_on: get("found_on"),
         closed_without_fix: get("closed_without_fix"),
+        severity: match get("severity").as_str() {
+            "unknown" => "unrated".to_string(),
+            other => other.to_string(),
+        },
     }
 }
 
@@ -275,6 +280,7 @@ mod read_tests {
                 found_by: "INT-266".to_string(),
                 found_on: "2026-10-04".to_string(),
                 closed_without_fix: "no".to_string(),
+                severity: "unrated".to_string(),
             }
         );
     }
@@ -285,6 +291,30 @@ mod read_tests {
         assert_eq!(got.id, "F-0003");
         assert_eq!(got.what, "unknown", "a missing what must read unknown");
         assert_eq!(got.closed_without_fix, "unknown");
+    }
+
+    /// INT-300 G3: a record filed before severity existed reads unrated, never unknown.
+    #[test]
+    fn a_record_with_no_severity_reads_unrated() {
+        let old = "---\nid: F-0049\nwhat: x\nat: unknown\nfound_by: INT-292\nfound_on: 2026-10-21\nclosed_without_fix: no\n---\n";
+        assert_eq!(parse_record(old).severity, "unrated");
+    }
+
+    /// INT-300 G3: every record in the real tree reads one of the four severities. The path is
+    /// built from this crate's manifest folder, so the test reads the real ledger, not a copy.
+    #[test]
+    fn every_real_record_reads_a_severity_never_unknown() {
+        let dir = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../intents/findings");
+        let records = read_records(&dir).expect("the real findings folder reads");
+        assert!(!records.is_empty(), "the real folder holds records");
+        for r in &records {
+            assert!(
+                ["unrated", "low", "medium", "high"].contains(&r.severity.as_str()),
+                "{} reads severity {}",
+                r.id,
+                r.severity
+            );
+        }
     }
 
     #[test]

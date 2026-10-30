@@ -63,12 +63,18 @@ pub fn fixes(core_root: &str) -> Result<Vec<(String, String)>, String> {
     Ok(parse_fixes(&text))
 }
 
+/// A finding id as ruled 2026-10-04: F- and exactly four digits, nothing after. INT-300 R4: a
+/// Fixes value that is anything else names no finding, so prose after an id counts for nothing.
+fn is_finding_id(s: &str) -> bool {
+    s.len() == 6 && s.starts_with("F-") && s[2..].bytes().all(|b| b.is_ascii_digit())
+}
+
 /// One line per commit: the hash, a TAB, then the ids its Fixes: trailers name, comma-separated.
 fn parse_fixes(text: &str) -> Vec<(String, String)> {
     let mut named = Vec::new();
     for line in text.lines() {
         if let Some((hash, ids)) = line.split_once('\t') {
-            for id in ids.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+            for id in ids.split(',').map(str::trim).filter(|s| is_finding_id(s)) {
                 named.push((id.to_string(), hash.to_string()));
             }
         }
@@ -89,25 +95,33 @@ pub enum State {
     Unread(String),
 }
 
-/// Closed is a stored fact and needs no git. Open and Fixed need git to have answered.
+/// INT-300 R3: a fix wins over a closure. A commit that names the finding is the stronger fact, so
+/// the finding reads Fixed even when its record says closed. Closed is a stored fact: when git
+/// cannot be read it still reads Closed, and Open needs git to have answered.
 pub fn state_of(record: &Record, fixes: &Result<Vec<(String, String)>, String>) -> State {
     let closed = record.closed_without_fix.as_str();
-    if closed != "no" && closed != "unknown" {
-        return State::Closed(closed.to_string());
-    }
+    let is_closed = closed != "no" && closed != "unknown";
     let named = match fixes {
         Ok(named) => named,
-        Err(e) => return State::Unread(e.clone()),
+        Err(e) => {
+            return if is_closed {
+                State::Closed(closed.to_string())
+            } else {
+                State::Unread(e.clone())
+            };
+        }
     };
     let by: Vec<String> = named
         .iter()
         .filter(|(id, _)| id == &record.id)
         .map(|(_, hash)| hash.clone())
         .collect();
-    if by.is_empty() {
-        State::Open
-    } else {
+    if !by.is_empty() {
         State::Fixed(by)
+    } else if is_closed {
+        State::Closed(closed.to_string())
+    } else {
+        State::Open
     }
 }
 
@@ -1149,6 +1163,25 @@ mod state_tests {
                 ("F-0002".to_string(), "abc1234".to_string()),
             ]
         );
+    }
+
+    /// INT-300 R3: a fix wins over a closure. A finding closed without a fix that a commit then
+    /// fixed reads fixed, because the commit is the stronger fact.
+    #[test]
+    fn a_fix_wins_over_a_closure() {
+        let named = Ok(vec![("F-0001".to_string(), "abc1234".to_string())]);
+        assert_eq!(
+            state_of(&record("duplicate of F-0002"), &named),
+            State::Fixed(vec!["abc1234".to_string()])
+        );
+    }
+
+    /// INT-300 R4: a Fixes value counts only when it is exactly F-NNNN. A value with prose after
+    /// the id counts for nothing, so a filing commit cannot mark a finding fixed.
+    #[test]
+    fn a_fixes_value_with_prose_counts_for_nothing() {
+        let got = parse_fixes("abc1234\tF-0046 later\ndef5678\tF-0002\n");
+        assert_eq!(got, vec![("F-0002".to_string(), "def5678".to_string())]);
     }
 }
 
