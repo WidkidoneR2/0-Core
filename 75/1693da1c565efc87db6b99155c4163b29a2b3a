@@ -1,0 +1,159 @@
+file zero/tools/zero-doctor/src/probes/hardening.rs  sha256 2aa9baaea509e105 -> 52acb294f65d6af7
+file zero/tools/zero-doctor/src/probe.rs  sha256 f90dc33af8b24b82 -> e6dcd71dd578d62a
+file zero/tools/zero-doctor/src/probes/mod.rs  sha256 a589a0bc3082dbc9 -> fe099106ee61fea9
+file zero/tools/zero-doctor/src/registry.rs  sha256 9cc5cad4274227d0 -> 11e64707d396406d
+file zero/tools/zero-doctor/src/definition.rs  sha256 036ad786a06a5fbe -> dd57118ee6165d5c
+file zero/registry/doctor/checks.toml  sha256 2f48e8bf5a7aec10 -> 90baf175b724c8d0
+--- zero/tools/zero-doctor/src/probes/hardening.rs: replacing lines 243..294 ---
+   241: }
+   242: 
+>> 243: /// Whether it is safe to update: kernel current, working tree clean.
+>> 244: ///
+>> 245: /// ⚠️ EVERY SIGNAL PRODUCES A BLOCKER, AN UNREADABLE ENTRY, OR A PASS -- none may go quiet. The
+>> 246: /// old body read two paths from the previous OS that both Err here, `.ok()` turned them into None, the
+>> 247: /// if-let never matched, and NO BLOCKER WAS PUSHED: it reported "safe to update" having measured
+>> 248: /// only the git half. A MISSING MEASUREMENT RENDERED AS A PASS, which is quieter and therefore
+>> 249: /// worse than a false amber.
+>> 250: pub fn update_readiness() -> Measurement {
+>> 251:     let mut blockers: Vec<String> = Vec::new();
+>> 252:     let mut unreadable: Vec<String> = Vec::new();
+>> 253: 
+>> 254:     match (
+>> 255:         super::system::running_kernel(),
+>> 256:         super::system::installed_kernels(),
+>> 257:     ) {
+>> 258:         (Ok(r), Ok(i)) => {
+>> 259:             if !i.iter().any(|k| k == &r) {
+>> 260:                 blockers.push(format!(
+>> 261:                     "reboot -- running {}, installed {}",
+>> 262:                     r,
+>> 263:                     i.join(", ")
+>> 264:                 ));
+>> 265:             }
+>> 266:         }
+>> 267:         (Err(why), _) | (_, Err(why)) => unreadable.push(format!("kernel state ({})", why)),
+>> 268:     }
+>> 269: 
+>> 270:     let root = zero_core::paths::core_root_string();
+>> 271:     match Command::new("git")
+>> 272:         .args(["-C", &root, "diff", "--quiet", "HEAD"])
+>> 273:         .status()
+>> 274:     {
+>> 275:         Ok(s) => {
+>> 276:             if !s.success() {
+>> 277:                 blockers.push("commit or stash tracked changes".to_string());
+>> 278:             }
+>> 279:         }
+>> 280:         Err(e) => unreadable.push(format!("git worktree ({})", e)),
+>> 281:     }
+>> 282: 
+>> 283:     if !blockers.is_empty() {
+>> 284:         Measurement::warn(format!("hold off -- {}", blockers.join("; ")))
+>> 285:     } else if !unreadable.is_empty() {
+>> 286:         Measurement::unknown(format!(
+>> 287:             "could not judge -- unread: {}",
+>> 288:             unreadable.join("; ")
+>> 289:         ))
+>> 290:     } else {
+>> 291:         Measurement::pass("safe to update -- kernel current, tree clean")
+>> 292:     }
+>> 293: }
+>> 294: 
+   295: #[cfg(test)]
+   296: mod tests {
+--- zero/tools/zero-doctor/src/probes/hardening.rs: replacing lines 337..351 ---
+   335:         let m = assess_handoff(&handoff_rc("# omarchy", &b, ""), &b, false);
+   336:         assert_eq!(m.status, Status::Warn);
+>> 337:         assert!(m.message.contains("not executable"), "{}", m.message);
+>> 338:     }
+>> 339: 
+>> 340:     #[test]
+>> 341:     fn update_readiness_never_passes_on_an_unread_signal() {
+>> 342:         let m = update_readiness();
+>> 343:         assert!(!m.message.is_empty());
+>> 344:         if m.status == Status::Pass {
+>> 345:             assert!(
+>> 346:                 !m.message.contains("could not"),
+>> 347:                 "a pass may not carry an unread signal: {}",
+>> 348:                 m.message
+>> 349:             );
+>> 350:         }
+>> 351:     }
+   352: }
+   353: 
+++         assert!(m.message.contains("not executable"), "{}", m.message);
+++     }
+--- zero/tools/zero-doctor/src/probe.rs: replacing lines 75..77 ---
+   73:     /// The running kernel against the installed one.
+   74:     RebootNeeded,
+>> 75:     /// Whether it is safe to update -- kernel current, tree clean.
+>> 76:     UpdateReadiness,
+>> 77:     /// Size and count of the package cache.
+   78:     PackageCache,
+   79:     /// Packages nothing depends on.
+++     /// Size and count of the package cache.
+--- zero/tools/zero-doctor/src/probe.rs: replacing lines 115..116 ---
+   113:             Probe::BootErrors => "boot_errors",
+   114:             Probe::BootTime => "boot_time",
+>> 115:             Probe::RebootNeeded => "reboot_needed",
+>> 116:             Probe::UpdateReadiness => "update_readiness",
+   117:             Probe::PackageCache => "package_cache",
+   118:             Probe::OrphanPackages => "orphan_packages",
+++             Probe::RebootNeeded => "reboot_needed",
+--- zero/tools/zero-doctor/src/probe.rs: replacing lines 149..150 ---
+   147:             Probe::BootErrors,
+   148:             Probe::BootTime,
+>> 149:             Probe::RebootNeeded,
+>> 150:             Probe::UpdateReadiness,
+   151:             Probe::PackageCache,
+   152:             Probe::OrphanPackages,
+++             Probe::RebootNeeded,
+--- zero/tools/zero-doctor/src/probes/mod.rs: replacing lines 63..64 ---
+   61: 
+   62:         // ── not yet ported ─────────────────────────────────────────────────────────────
+>> 63:         Probe::SecurityHardening => hardening::security_hardening(),
+>> 64:         Probe::UpdateReadiness => hardening::update_readiness(),
+   65:     }
+   66: }
+++         Probe::SecurityHardening => hardening::security_hardening(),
+--- zero/tools/zero-doctor/src/registry.rs: replacing lines 199..199 ---
+   197:             r.refused
+   198:         );
+>> 199:         assert_eq!(r.checks.len(), 29, "all 29 registered checks are declared");
+   200:     }
+   201: 
+++         assert_eq!(r.checks.len(), 28, "all 28 registered checks are declared");
+--- zero/tools/zero-doctor/src/definition.rs: replacing lines 352..353 ---
+   350:         assert_eq!(
+   351:             all.len(),
+>> 352:             29,
+>> 353:             "one probe per measurement -- 29 checks in all_checks(), 29 probes",
+   354:         );
+   355:         let mut seen = std::collections::HashSet::new();
+++             28,
+++             "one probe per measurement -- 28 checks in all_checks(), 28 probes",
+--- zero/registry/doctor/checks.toml: replacing lines 257..266 ---
+   255: recovery = "Reboot to load the installed kernel"
+   256: 
+>> 257: [[check]]
+>> 258: id = "update_readiness"
+>> 259: name = "Update Readiness"
+>> 260: section = "\U0001F4E6 System State"
+>> 261: tier = "user"
+>> 262: probe = "update_readiness"
+>> 263: severities = ["pass", "warn"]
+>> 264: recovery = "Resolve the above first"
+>> 265: 
+>> 266: [[check]]
+   267: id = "shell_handoff"
+   268: name = "Shell Handoff"
+++ [[check]]
+zero/tools/zero-doctor/src/probes/hardening.rs: 52 line(s) replaced by 0
+zero/tools/zero-doctor/src/probes/hardening.rs: 1 replaced
+zero/tools/zero-doctor/src/probe.rs: 1 replaced
+zero/tools/zero-doctor/src/probe.rs: 1 replaced
+zero/tools/zero-doctor/src/probe.rs: 1 replaced
+zero/tools/zero-doctor/src/probes/mod.rs: 1 replaced
+zero/tools/zero-doctor/src/registry.rs: 1 replaced
+zero/tools/zero-doctor/src/definition.rs: 1 replaced
+zero/registry/doctor/checks.toml: 1 replaced
