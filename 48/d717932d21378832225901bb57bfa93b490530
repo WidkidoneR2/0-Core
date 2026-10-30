@@ -1,0 +1,271 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/bug.rs  sha256 40a8226d9edae793 -> c1b0da45f739b465
+file /home/christian/0-core/zero/engine/src/domains/intent/trace.rs  sha256 66936e3728441107 -> f6a47d0f4527bbbe
+file /home/christian/0-core/zero/engine/src/cli/parser.rs  sha256 487813300486d610 -> 175101c4e2202179
+file /home/christian/0-core/zero/engine/src/cli/commands.rs  sha256 e0ca9c5112364ee0 -> 4f3b3463a3d53468
+file /home/christian/0-core/zero/engine/src/cli/mod.rs  sha256 a64af9a62ac8bf56 -> d2eaeb559b523c68
+file /home/christian/0-core/zero/engine/src/app/dispatcher.rs  sha256 57829e46f34452d9 -> d4b4a6e471fb29c7
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 7..8 ---
+   5: 
+   6: use super::findings::{severity_level, Record};
+>> 7: use super::trace::{state_of, SealCheck, State};
+>> 8: use crate::app::context::AppContext;
+   9: use crate::errors::CoreResult;
+   10: use colored::*;
+++ use super::trace::{check_commit_seal, git_read, seal_notes, state_of, SealCheck, State};
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 291..298 ---
+   289: }
+   290: 
+>> 291: pub fn story(_record: &Record, _state: &State, _facts: &[FixFacts]) -> Story {
+>> 292:     Story {
+>> 293:         text: String::new(),
+>> 294:         code: 99,
+>> 295:     }
+>> 296: }
+>> 297: 
+>> 298: #[cfg(test)]
+   299: mod bug_tests {
+   300:     use super::{
+++ /// A seal in the report's own words. A fix with no Seal reads unsealed, whether it predates the
+++ /// rule or never carried one (G7); only an intact seal checks out.
+++ pub fn seal_phrase(check: &SealCheck) -> String {
+++     match check {
+++         SealCheck::Intact(s) => format!(
+++             "seal {} intact -- the plan kept in refs/notes/seals hashes to it",
+++             s
+++         ),
+++         SealCheck::Broken { seal, got } => format!(
+++             "seal {} BROKEN -- the plan kept in refs/notes/seals hashes to {}",
+++             seal, got
+++         ),
+++         SealCheck::NoNote(s) => format!(
+++             "seal {} recorded, no plan kept in refs/notes/seals -- cannot be re-checked",
+++             s
+++         ),
+++         SealCheck::Legacy(f) => format!(
+++             "unsealed -- the commit predates the Seal rule (Fingerprint {})",
+++             f
+++         ),
+++         SealCheck::NoSeal => "unsealed -- no Seal recorded on this commit".to_string(),
+++     }
+++ }
+++ 
+++ /// One finding's whole story as a value: the record, then a timeline from found to solved to
+++ /// sealed. Unknown is a word here: a record with no fix has no solved day, git that could not be
+++ /// read says unknown and ends 3, and nothing prints a zero or a default (G7).
+++ pub fn story(record: &Record, state: &State, facts: &[FixFacts]) -> Story {
+++     let mut sorted: Vec<&FixFacts> = facts.iter().collect();
+++     sorted.sort_by(|a, b| a.day.cmp(&b.day));
+++     let mut code = 0;
+++     let mut t = format!("{}  {}\n", record.id, record.what);
+++     t.push_str(&format!("  where     {}\n", record.at));
+++     t.push_str(&format!("  severity  {}\n", record.severity));
+++     t.push_str(&format!("  state     {}\n", state_word(state)));
+++     match state {
+++         State::Open => t.push_str(&format!(
+++             "  solved    none -- no commit on HEAD carries Fixes: {}\n",
+++             record.id
+++         )),
+++         State::Closed(why) => {
+++             t.push_str(&format!("  closed    {}\n", why));
+++             t.push_str("  solved    none -- closed without a fix\n");
+++         }
+++         State::Unread(e) => {
+++             t.push_str(&format!(
+++                 "  solved    unknown -- git could not be read ({})\n",
+++                 e
+++             ));
+++             code = 3;
+++         }
+++         State::Fixed(_) => match sorted.first() {
+++             Some(first) => t.push_str(&format!("  solved    {}\n", first.day)),
+++             None => {
+++                 t.push_str("  solved    unknown -- the fixing commit could not be shown\n");
+++                 code = 3;
+++             }
+++         },
+++     }
+++     t.push_str("  timeline\n");
+++     t.push_str(&format!(
+++         "    {:10}  found by {}\n",
+++         record.found_on, record.found_by
+++     ));
+++     for f in &sorted {
+++         t.push_str(&format!(
+++             "    {:10}  fixed by {}  {}\n",
+++             f.day, f.hash, f.subject
+++         ));
+++         t.push_str(&format!("    {:10}  {}\n", "", seal_phrase(&f.seal)));
+++         if matches!(f.seal, SealCheck::Broken { .. }) && code == 0 {
+++             code = 1;
+++         }
+++     }
+++     Story { text: t, code }
+++ }
+++ 
+++ /// The facts of each fixing commit: its committed day and subject from git, its seal re-checked
+++ /// by the one reader in trace.rs. Err when git cannot show one.
+++ fn fix_facts(core: &str, hashes: &[String]) -> Result<Vec<FixFacts>, String> {
+++     let notes = seal_notes(core).map_err(|e| format!("the seal notes could not be read: {}", e))?;
+++     hashes
+++         .iter()
+++         .map(|h| {
+++             let head = git_read(core, &["log", "-1", "--format=%cs%x09%s", h.as_str()])?;
+++             let (day, subject) = head
+++                 .trim()
+++                 .split_once('\t')
+++                 .ok_or_else(|| format!("git log gave no header for {}", h))?;
+++             Ok(FixFacts {
+++                 hash: h.clone(),
+++                 day: day.to_string(),
+++                 subject: subject.to_string(),
+++                 seal: check_commit_seal(core, &notes, h)?,
+++             })
+++         })
+++         .collect()
+++ }
+++ 
+++ /// `core bug show F-NNNN` -- INT-300 G6. One finding's whole story. The domain owns its exit:
+++ /// 0 shown, 1 a seal is broken, 3 the finding or git could not be read.
+++ pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
+++     let code = match show_answer(ctx, id) {
+++         Ok(code) => code,
+++         Err(e) => {
+++             eprintln!("{} {}", "\u{2717}".bright_red(), e);
+++             3
+++         }
+++     };
+++     if code != 0 {
+++         std::process::exit(code);
+++     }
+++     Ok(())
+++ }
+++ 
+++ fn show_answer(ctx: &AppContext, id: &str) -> Result<i32, String> {
+++     let dir = super::intents_dir(ctx).join("findings");
+++     let records = super::findings::read_records(&dir)?;
+++     let record = records
+++         .iter()
+++         .find(|r| r.id == id)
+++         .ok_or_else(|| format!("{} names no finding in {}", id, dir.display()))?;
+++     let core: &str = &ctx.core_root;
+++     let named = super::trace::fixes(core);
+++     let state = state_of(record, &named);
+++     let facts = match &state {
+++         State::Fixed(hashes) => fix_facts(core, hashes)?,
+++         _ => Vec::new(),
+++     };
+++     let got = story(record, &state, &facts);
+++     print!("{}", got.text);
+++     Ok(got.code)
+++ }
+++ 
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/trace.rs: replacing lines 409..410 ---
+   407: /// The seal notes: one line per kept plan, the note blob, a space, the full commit hash. A repository
+   408: /// with no notes answers an empty list; git that cannot be read answers Err.
+>> 409: fn seal_notes(core_root: &str) -> Result<String, String> {
+>> 410:     git_read(core_root, &["notes", "--ref=seals", "list"])
+   411: }
+   412: 
+++ pub fn seal_notes(core_root: &str) -> Result<String, String> {
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/trace.rs: replacing lines 414..415 ---
+   412: 
+   413: /// A commit's seal, re-checked against the plan text kept for it.
+>> 414: fn check_commit_seal(core_root: &str, notes: &str, hash: &str) -> Result<SealCheck, String> {
+>> 415:     let seal = trailer(core_root, hash, "Seal")?;
+   416:     let fingerprint = trailer(core_root, hash, "Fingerprint")?;
+   417:     let note = match note_for(notes, hash) {
+++ pub fn check_commit_seal(core_root: &str, notes: &str, hash: &str) -> Result<SealCheck, String> {
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/parser.rs: replacing lines 805..809 ---
+   803:         #[arg(long)]
+   804:         severity: Option<String>,
+>> 805:         /// Show every finding, solved and closed too
+>> 806:         #[arg(long)]
+>> 807:         all: bool,
+>> 808:     },
+>> 809: }
+   810: 
+   811: #[derive(Subcommand)]
+++         /// Show every finding, solved and closed too
+++         #[arg(long)]
+++         all: bool,
+++     },
+++     /// One finding's whole story: the record, then found to solved to sealed
+++     Show {
+++         /// The finding, e.g. F-0049
+++         id: String,
+++     },
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/commands.rs: replacing lines 394..401 ---
+   392: 
+   393: #[derive(Debug)]
+>> 394: pub enum BugCommand {
+>> 395:     List {
+>> 396:         state: Option<String>,
+>> 397:         severity: Option<String>,
+>> 398:         all: bool,
+>> 399:     },
+>> 400: }
+>> 401: 
+   402: #[derive(Debug)]
+   403: pub enum SecurityCommand {
+++ pub enum BugCommand {
+++     List {
+++         state: Option<String>,
+++         severity: Option<String>,
+++         all: bool,
+++     },
+++     Show {
+++         id: String,
+++     },
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/mod.rs: replacing lines 287..293 ---
+   285:                 severity,
+   286:                 all,
+>> 287:             } => commands::BugCommand::List {
+>> 288:                 state,
+>> 289:                 severity,
+>> 290:                 all,
+>> 291:             },
+>> 292:         }),
+>> 293:         Commands::Profile { command } => Command::Profile(match command {
+   294:             ProfileCommands::List => ProfileCommand::List,
+   295:             ProfileCommands::Status => ProfileCommand::Status,
+++             } => commands::BugCommand::List {
+++                 state,
+++                 severity,
+++                 all,
+++             },
+++             parser::BugCommands::Show { id } => commands::BugCommand::Show { id },
+++         }),
+++ 
+--- /home/christian/0-core/zero/engine/src/app/dispatcher.rs: replacing lines 215..219 ---
+   213:                     ctx,
+   214:                     state.as_deref(),
+>> 215:                     severity.as_deref(),
+>> 216:                     all,
+>> 217:                 ),
+>> 218:             }
+>> 219:         }
+   220: 
+   221:         Command::Profile(c) => {
+++                     severity.as_deref(),
+++                     all,
+++                 ),
+++                 crate::cli::commands::BugCommand::Show { id } => {
+++                     crate::domains::intent::bug::show(ctx, &id)
+++                 }
+++             }
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/trace.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/trace.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/parser.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/commands.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/app/dispatcher.rs: 1 replaced
