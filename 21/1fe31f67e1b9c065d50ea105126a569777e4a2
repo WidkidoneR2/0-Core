@@ -1,0 +1,212 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/findings.rs  sha256 95354629147388a4 -> 9426fb1f0a55b7b5
+file /home/christian/0-core/zero/engine/src/cli/parser.rs  sha256 c6ba56910068a8a3 -> 61b0b73c44b953ef
+file /home/christian/0-core/zero/engine/src/cli/mod.rs  sha256 852e59ec2c8849fa -> 31b7486322f15e86
+file /home/christian/0-core/zero/engine/src/cli/commands.rs  sha256 08fa99b1b1efd923 -> f5b6a9b6e78b543a
+file /home/christian/0-core/zero/engine/src/app/dispatcher.rs  sha256 c655ef529b5ed609 -> f2e34e21e261511a
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 79..81 ---
+   77: 
+   78: /// A level exactly as the ledger spells it. Anything else is refused, naming the four.
+>> 79: pub fn severity_level(_s: &str) -> Result<&'static str, String> {
+>> 80:     Err("severity_level is not written yet".to_string())
+>> 81: }
+   82: 
+   83: /// What a filing asks for: no flag is unrated, and a flag is trimmed and then read as a level.
+++ pub fn severity_level(s: &str) -> Result<&'static str, String> {
+++     SEVERITIES
+++         .iter()
+++         .copied()
+++         .find(|level| *level == s)
+++         .ok_or_else(|| {
+++             format!(
+++                 "{:?} is not a severity level; the four are {}",
+++                 s,
+++                 SEVERITIES.join(", ")
+++             )
+++         })
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 94..96 ---
+   92: 
+   93: /// What a filing asks for: no flag is unrated, and a flag is trimmed and then read as a level.
+>> 94: pub fn resolve_severity(_arg: Option<&str>) -> Result<&'static str, String> {
+>> 95:     Err("resolve_severity is not written yet".to_string())
+>> 96: }
+   97: 
+   98: /// The record body. Every field is written: a field nobody gave reads `unknown`, never empty
+++ pub fn resolve_severity(arg: Option<&str>) -> Result<&'static str, String> {
+++     match arg {
+++         None => Ok(SEVERITIES[0]),
+++         Some(s) => severity_level(s.trim()),
+++     }
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 110..111 ---
+   108:     by: Option<&str>,
+   109:     on: &str,
+>> 110:     _severity: &str,
+>> 111: ) -> String {
+   112:     format!(
+   113:         "---\nid: {}\nwhat: {}\nat: {}\nfound_by: {}\nfound_on: {}\nclosed_without_fix: no\nseverity: unrated\n---\n",
+++     severity: &str,
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 113..113 ---
+   111: ) -> String {
+   112:     format!(
+>> 113:         "---\nid: {}\nwhat: {}\nat: {}\nfound_by: {}\nfound_on: {}\nclosed_without_fix: no\nseverity: unrated\n---\n",
+   114:         id,
+   115:         what,
+++ closed_without_fix: no\nseverity: {}\n---\n",
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 118..120 ---
+   116:         at.unwrap_or("unknown"),
+   117:         by.unwrap_or("unknown"),
+>> 118:         on
+>> 119:     )
+>> 120: }
+   121: 
+   122: /// One finding, read back from its record. A field the file does not hold reads `unknown`, the
+++         on,
+++         severity
+++     )
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 203..204 ---
+   201: }
+   202: 
+>> 203: /// `core intent find "<what>" [--at <file:line>] [--by <intent>]` -- file one finding.
+>> 204: /// `--by` defaults to the focused intent, read the way `core intent status` reads it.
+   205: pub fn find(ctx: &AppContext, what: &str, at: Option<&str>, by: Option<&str>) -> CoreResult<()> {
+   206:     ctx.capabilities.require(
+++ /// `core intent find "<what>" [--at <file:line>] [--by <intent>] [--severity <level>]` -- file
+++ /// one finding. The level is one of unrated, low, medium or high; no flag files it unrated, and
+++ /// any other word refuses before anything is written.
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 207..208 ---
+   205: /// any other word refuses before anything is written.
+   206: /// `--by` defaults to the focused intent, read the way `core intent status` reads it.
+>> 207: pub fn find(ctx: &AppContext, what: &str, at: Option<&str>, by: Option<&str>) -> CoreResult<()> {
+>> 208:     ctx.capabilities.require(
+   209:         "intent",
+   210:         &[
+++ pub fn find(
+++     ctx: &AppContext,
+++     what: &str,
+++     at: Option<&str>,
+++     by: Option<&str>,
+++     severity: Option<&str>,
+++ ) -> CoreResult<()> {
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 223..225 ---
+   221:     let what = what.split_whitespace().collect::<Vec<_>>().join(" ");
+   222:     if what.is_empty() {
+>> 223:         return Err(refuse("a finding must say what was found".to_string()));
+>> 224:     }
+>> 225:     let at = at.map(str::trim).filter(|s| !s.is_empty());
+   226:     let (by_id, from_focus) = match by.map(str::trim).filter(|s| !s.is_empty()) {
+   227:         Some(b) => (Some(b.trim_start_matches("INT-").to_string()), false),
+++ return Err(refuse("a finding must say what was found".to_string()));
+++     }
+++     let severity = resolve_severity(severity).map_err(refuse)?;
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 244..245 ---
+   242:         let n = highest_number(&dir).map_err(|e| refuse(format!("{:?}", e)))? + 1;
+   243:         let id = finding_id(n);
+>> 244:         let body = render(&id, &what, at, by_label.as_deref(), &on, "unrated");
+>> 245:         match write_record(&dir, &id, &body) {
+   246:             Ok(path) => {
+   247:                 println!("  {} {} filed", "✅".green(), id.bright_white());
+++ let body = render(&id, &what, at, by_label.as_deref(), &on, severity);
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 255..256 ---
+   253:                     ),
+   254:                 }
+>> 255:                 println!("     at {}", at.unwrap_or("unknown"));
+>> 256:                 println!("     {}", path.display().to_string().dimmed());
+   257:                 return Ok(());
+   258:             }
+++ println!("     at {}", at.unwrap_or("unknown"));
+++                 println!("     severity {}", severity);
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/parser.rs: replacing lines 772..775 ---
+   770:         #[arg(long)]
+   771:         at: Option<String>,
+>> 772:         /// The intent that found it; defaults to the focused intent
+>> 773:         #[arg(long)]
+>> 774:         by: Option<String>,
+>> 775:     },
+   776: }
+   777: 
+++ /// The intent that found it; defaults to the focused intent
+++         #[arg(long)]
+++         by: Option<String>,
+++         /// How serious it is: unrated, low, medium or high; filed as unrated when omitted
+++         #[arg(long)]
+++         severity: Option<String>,
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/mod.rs: replacing lines 247..248 ---
+   245:             IntentCommands::Cancel { id, reason } => IntentCommand::Cancel { id, reason },
+   246:             IntentCommands::Override { id, reason } => IntentCommand::Override { id, reason },
+>> 247:             IntentCommands::Find { what, at, by } => IntentCommand::Find { what, at, by },
+>> 248:             IntentCommands::Trace { target } => IntentCommand::Trace { target },
+   249:             IntentCommands::Seals { n, intent } => IntentCommand::Seals { n, intent },
+   250:         }),
+++ IntentCommands::Find {
+++                 what,
+++                 at,
+++                 by,
+++                 severity,
+++             } => IntentCommand::Find {
+++                 what,
+++                 at,
+++                 by,
+++                 severity,
+++             },
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/commands.rs: replacing lines 378..382 ---
+   376:     Find {
+   377:         what: String,
+>> 378:         at: Option<String>,
+>> 379:         by: Option<String>,
+>> 380:     },
+>> 381: }
+>> 382: #[derive(Debug)]
+   383: pub enum ProfileCommand {
+   384:     List,
+++ at: Option<String>,
+++         by: Option<String>,
+++         severity: Option<String>,
+++     },
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/app/dispatcher.rs: replacing lines 183..186 ---
+   181:                     crate::domains::intent::override_intent(ctx, &id, &reason)
+   182:                 }
+>> 183:                 IntentCommand::Find { what, at, by } => {
+>> 184:                     crate::domains::intent::findings::find(ctx, &what, at.as_deref(), by.as_deref())
+>> 185:                 }
+>> 186:                 IntentCommand::Trace { target } => {
+   187:                     crate::domains::intent::trace::trace(ctx, &target)
+   188:                 }
+++ IntentCommand::Find {
+++                     what,
+++                     at,
+++                     by,
+++                     severity,
+++                 } => crate::domains::intent::findings::find(
+++                     ctx,
+++                     &what,
+++                     at.as_deref(),
+++                     by.as_deref(),
+++                     severity.as_deref(),
+++                 ),
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/parser.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/commands.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/app/dispatcher.rs: 1 replaced
