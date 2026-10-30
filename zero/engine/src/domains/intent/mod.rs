@@ -7,6 +7,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
 
+/// INT-300: the bug report -- findings read as a derived report.
+pub mod bug;
 pub mod finder;
 /// INT-266: findings -- one record per file under intents/findings/.
 pub mod findings;

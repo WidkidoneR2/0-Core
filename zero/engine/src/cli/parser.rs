@@ -68,6 +68,10 @@ pub enum Commands {
         #[command(subcommand)]
         command: IntentCommands,
     },
+    Bug {
+        #[command(subcommand)]
+        command: BugCommands,
+    },
     Profile {
         #[command(subcommand)]
         command: ProfileCommands,
@@ -785,6 +789,23 @@ pub enum ProfileCommands {
     Switch { name: String },
     History,
     Health,
+}
+
+/// INT-300 -- the bug report: the findings ledger read as a report.
+#[derive(Subcommand)]
+pub enum BugCommands {
+    /// The findings still unresolved, worst first; --all shows every one
+    List {
+        /// Only this state: open, solved, closed or unknown
+        #[arg(long)]
+        state: Option<String>,
+        /// Only this severity: unrated, low, medium or high
+        #[arg(long)]
+        severity: Option<String>,
+        /// Show every finding, solved and closed too
+        #[arg(long)]
+        all: bool,
+    },
 }
 
 #[derive(Subcommand)]

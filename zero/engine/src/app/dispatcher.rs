@@ -201,6 +201,23 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             }
         }
 
+        Command::Bug(c) => {
+            ctx.capabilities
+                .require("intent", &[Capability::FilesystemReadHome])?;
+            match c {
+                crate::cli::commands::BugCommand::List {
+                    state,
+                    severity,
+                    all,
+                } => crate::domains::intent::bug::list(
+                    ctx,
+                    state.as_deref(),
+                    severity.as_deref(),
+                    all,
+                ),
+            }
+        }
+
         Command::Profile(c) => {
             ctx.capabilities.require(
                 "profile",

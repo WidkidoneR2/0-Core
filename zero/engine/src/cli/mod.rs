@@ -279,6 +279,17 @@ pub fn parse() -> Command {
             DelegateCommands::AccuracyReport => DelegateCommand::AccuracyReport,
             DelegateCommands::Activate { contract } => DelegateCommand::Activate { contract },
         }),
+        Commands::Bug { command } => Command::Bug(match command {
+            parser::BugCommands::List {
+                state,
+                severity,
+                all,
+            } => commands::BugCommand::List {
+                state,
+                severity,
+                all,
+            },
+        }),
         Commands::Profile { command } => Command::Profile(match command {
             ProfileCommands::List => ProfileCommand::List,
             ProfileCommands::Status => ProfileCommand::Status,

@@ -145,6 +145,7 @@ pub enum Command {
         health: bool,
     },
     Intent(IntentCommand),
+    Bug(BugCommand),
     Profile(ProfileCommand),
     Security(SecurityCommand),
     Sandbox(SandboxCommand),
@@ -387,6 +388,15 @@ pub enum ProfileCommand {
     Switch { name: String },
     History,
     Health,
+}
+
+#[derive(Debug)]
+pub enum BugCommand {
+    List {
+        state: Option<String>,
+        severity: Option<String>,
+        all: bool,
+    },
 }
 
 #[derive(Debug)]
