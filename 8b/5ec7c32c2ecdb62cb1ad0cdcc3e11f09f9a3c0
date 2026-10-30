@@ -1,0 +1,312 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/bug.rs  sha256 20b7e726b44e6156 -> 10b776d9060aff97
+file /home/christian/0-core/zero/engine/src/domains/intent/trace.rs  sha256 5ea80fa132a8ecef -> 6e93dee9f7265860
+file /home/christian/0-core/zero/engine/src/cli/parser.rs  sha256 175101c4e2202179 -> 00a98f7fd54e2f13
+file /home/christian/0-core/zero/engine/src/cli/commands.rs  sha256 4f3b3463a3d53468 -> d12082458b58fbd3
+file /home/christian/0-core/zero/engine/src/cli/mod.rs  sha256 d2eaeb559b523c68 -> 9328bc28c3ae035c
+file /home/christian/0-core/zero/engine/src/app/dispatcher.rs  sha256 d4b4a6e471fb29c7 -> 2e3e2885df44666c
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 451..459 ---
+   449: }
+   450: 
+>> 451: pub fn check(_records: &[Record], _trailers: &Result<Trailers, String>) -> Checked {
+>> 452:     Checked {
+>> 453:         problems: Vec::new(),
+>> 454:         text: String::new(),
+>> 455:         code: 99,
+>> 456:     }
+>> 457: }
+>> 458: 
+>> 459: #[cfg(test)]
+   460: mod bug_tests {
+   461:     use super::{
+++ /// INT-300 G8. The ledger checked against itself and git: every Fixes value is exactly one
+++ /// finding id, every id a Fixes names has a record, no closed finding also has a fix (R3: the fix
+++ /// wins, so the closure is stale), and every record holds its fields and a location. Unknown is a
+++ /// word: git that could not be read ends 3 and says so, never a clean ledger.
+++ pub fn check(records: &[Record], trailers: &Result<Trailers, String>) -> Checked {
+++     let t = match trailers {
+++         Ok(t) => t,
+++         Err(e) => {
+++             return Checked {
+++                 problems: Vec::new(),
+++                 text: format!(
+++                     "unknown -- git could not be read ({}); nothing was checked\n",
+++                     e
+++                 ),
+++                 code: 3,
+++             };
+++         }
+++     };
+++     let mut problems = Vec::new();
+++     for (value, hash) in &t.other {
+++         problems.push(Problem {
+++             subject: hash.clone(),
+++             kind: "malformed-fixes",
+++             detail: format!(
+++                 "Fixes: {} is not exactly F-NNNN, so it names no finding",
+++                 value
+++             ),
+++         });
+++     }
+++     for (id, hash) in &t.named {
+++         if !records.iter().any(|r| &r.id == id) {
+++             problems.push(Problem {
+++                 subject: hash.clone(),
+++                 kind: "fixes-no-record",
+++                 detail: format!("Fixes: {} names a finding with no record", id),
+++             });
+++         }
+++     }
+++     let nothing_fixed: Result<Vec<(String, String)>, String> = Ok(Vec::new());
+++     for r in records {
+++         let fixed = t.named.iter().any(|(id, _)| id == &r.id);
+++         if fixed && matches!(state_of(r, &nothing_fixed), State::Closed(_)) {
+++             problems.push(Problem {
+++                 subject: r.id.clone(),
+++                 kind: "closed-and-fixed",
+++                 detail: "closed without a fix, yet a commit fixes it; the fix wins".to_string(),
+++             });
+++         }
+++         for (name, value) in [
+++             ("what", &r.what),
+++             ("found_by", &r.found_by),
+++             ("found_on", &r.found_on),
+++         ]
+++         .iter()
+++         {
+++             if value.as_str() == "unknown" {
+++                 problems.push(Problem {
+++                     subject: r.id.clone(),
+++                     kind: "missing-field",
+++                     detail: format!("{} is missing from the record", name),
+++                 });
+++             }
+++         }
+++         if r.at == "unknown" {
+++             problems.push(Problem {
+++                 subject: r.id.clone(),
+++                 kind: "no-location",
+++                 detail: "no location (at) recorded".to_string(),
+++             });
+++         }
+++     }
+++     let mut text = String::new();
+++     for p in &problems {
+++         text.push_str(&format!("{:16}  {:8}  {}\n", p.kind, p.subject, p.detail));
+++     }
+++     if problems.is_empty() {
+++         text.push_str(&format!(
+++             "clean -- {} records and {} Fixes values read, nothing wrong\n",
+++             records.len(),
+++             t.named.len() + t.other.len()
+++         ));
+++     } else {
+++         let per: Vec<String> = KINDS
+++             .iter()
+++             .map(|k| format!("{} {}", problems.iter().filter(|p| p.kind == *k).count(), k))
+++             .collect();
+++         let noun = if problems.len() == 1 {
+++             "problem"
+++         } else {
+++             "problems"
+++         };
+++         text.push_str(&format!(
+++             "{} {} -- {}\n",
+++             problems.len(),
+++             noun,
+++             per.join(", ")
+++         ));
+++     }
+++     let code = if problems.is_empty() { 0 } else { 1 };
+++     Checked {
+++         problems,
+++         text,
+++         code,
+++     }
+++ }
+++ 
+++ /// `core bug check` -- INT-300 G8. The domain owns its exit: 0 clean, 1 problems found, 3 the
+++ /// ledger or git could not be read.
+++ pub fn check_ledger(ctx: &AppContext) -> CoreResult<()> {
+++     let code = match check_answer(ctx) {
+++         Ok(code) => code,
+++         Err(e) => {
+++             eprintln!("{} {}", "\u{2717}".bright_red(), e);
+++             3
+++         }
+++     };
+++     if code != 0 {
+++         std::process::exit(code);
+++     }
+++     Ok(())
+++ }
+++ 
+++ fn check_answer(ctx: &AppContext) -> Result<i32, String> {
+++     let dir = super::intents_dir(ctx).join("findings");
+++     let records = super::findings::read_records(&dir)?;
+++     let core: &str = &ctx.core_root;
+++     let got = check(&records, &super::trace::trailers(core));
+++     print!("{}", got.text);
+++     Ok(got.code)
+++ }
+++ 
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/trace.rs: replacing lines 95..99 ---
+   93: }
+   94: 
+>> 95: fn split_trailers(_text: &str) -> Trailers {
+>> 96:     Trailers::default()
+>> 97: }
+>> 98: 
+>> 99: /// A finding's state, derived when asked and never stored (decision 142).
+   100: #[derive(Debug, PartialEq)]
+   101: pub enum State {
+++ /// Split the log text once: per line the hash, a TAB, then the values of its Fixes: trailers,
+++ /// comma-separated. A value that is exactly F-NNNN is named. Any other non-empty value is kept in
+++ /// `other` with its commit: never dropped silently and never counted as a fix (R4).
+++ fn split_trailers(text: &str) -> Trailers {
+++     let mut got = Trailers::default();
+++     for line in text.lines() {
+++         if let Some((hash, values)) = line.split_once('\t') {
+++             for value in values.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+++                 let pair = (value.to_string(), hash.to_string());
+++                 if is_finding_id(value) {
+++                     got.named.push(pair);
+++                 } else {
+++                     got.other.push(pair);
+++                 }
+++             }
+++         }
+++     }
+++     got
+++ }
+++ 
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/trace.rs: replacing lines 54..65 ---
+   52: /// Every finding id a Fixes: trailer names on the current branch, with the commit that named it.
+   53: /// Err when git could not be read.
+>> 54: pub fn fixes(core_root: &str) -> Result<Vec<(String, String)>, String> {
+>> 55:     let text = git_read(
+>> 56:         core_root,
+>> 57:         &[
+>> 58:             "log",
+>> 59:             "--format=%h%x09%(trailers:key=Fixes,valueonly,separator=%x2C)",
+>> 60:             "HEAD",
+>> 61:         ],
+>> 62:     )?;
+>> 63:     Ok(parse_fixes(&text))
+>> 64: }
+>> 65: 
+   66: /// A finding id as ruled 2026-10-04: F- and exactly four digits, nothing after. INT-300 R4: a
+   67: /// Fixes value that is anything else names no finding, so prose after an id counts for nothing.
+++ pub fn fixes(core_root: &str) -> Result<Vec<(String, String)>, String> {
+++     trailers(core_root).map(|t| t.named)
+++ }
+++ 
+++ /// Every Fixes: value on the current branch, named or not, read once. Err when git could not be
+++ /// read.
+++ pub fn trailers(core_root: &str) -> Result<Trailers, String> {
+++     let text = git_read(
+++         core_root,
+++         &[
+++             "log",
+++             "--format=%h%x09%(trailers:key=Fixes,valueonly,separator=%x2C)",
+++             "HEAD",
+++         ],
+++     )?;
+++     Ok(split_trailers(&text))
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/trace.rs: replacing lines 79..90 ---
+   77: 
+   78: /// One line per commit: the hash, a TAB, then the ids its Fixes: trailers name, comma-separated.
+>> 79: fn parse_fixes(text: &str) -> Vec<(String, String)> {
+>> 80:     let mut named = Vec::new();
+>> 81:     for line in text.lines() {
+>> 82:         if let Some((hash, ids)) = line.split_once('\t') {
+>> 83:             for id in ids.split(',').map(str::trim).filter(|s| is_finding_id(s)) {
+>> 84:                 named.push((id.to_string(), hash.to_string()));
+>> 85:             }
+>> 86:         }
+>> 87:     }
+>> 88:     named
+>> 89: }
+>> 90: 
+   91: /// The Fixes: values of every commit on the branch, split once by the one reader of them
+   92: /// (INT-300 G4, G8). `named` holds each finding id a value names, with its commit. `other` holds
+++ fn parse_fixes(text: &str) -> Vec<(String, String)> {
+++     split_trailers(text).named
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/parser.rs: replacing lines 809..814 ---
+   807:         all: bool,
+   808:     },
+>> 809:     /// One finding's whole story: the record, then found to solved to sealed
+>> 810:     Show {
+>> 811:         /// The finding, e.g. F-0049
+>> 812:         id: String,
+>> 813:     },
+>> 814: }
+   815: 
+   816: #[derive(Subcommand)]
+++     /// One finding's whole story: the record, then found to solved to sealed
+++     Show {
+++         /// The finding, e.g. F-0049
+++         id: String,
+++     },
+++     /// Check the ledger against git: bad Fixes values, missing records, stale closures, empty fields
+++     Check,
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/commands.rs: replacing lines 398..404 ---
+   396:         state: Option<String>,
+   397:         severity: Option<String>,
+>> 398:         all: bool,
+>> 399:     },
+>> 400:     Show {
+>> 401:         id: String,
+>> 402:     },
+>> 403: }
+>> 404: 
+   405: #[derive(Debug)]
+   406: pub enum SecurityCommand {
+++         all: bool,
+++     },
+++     Show {
+++         id: String,
+++     },
+++     Check,
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/mod.rs: replacing lines 292..293 ---
+   290:                 all,
+   291:             },
+>> 292:             parser::BugCommands::Show { id } => commands::BugCommand::Show { id },
+>> 293:         }),
+   294:         Commands::Profile { command } => Command::Profile(match command {
+   295:             ProfileCommands::List => ProfileCommand::List,
+++             parser::BugCommands::Show { id } => commands::BugCommand::Show { id },
+++             parser::BugCommands::Check => commands::BugCommand::Check,
+++ 
+--- /home/christian/0-core/zero/engine/src/app/dispatcher.rs: replacing lines 218..221 ---
+   216:                     all,
+   217:                 ),
+>> 218:                 crate::cli::commands::BugCommand::Show { id } => {
+>> 219:                     crate::domains::intent::bug::show(ctx, &id)
+>> 220:                 }
+>> 221:             }
+   222:         }
+   223: 
+++                 crate::cli::commands::BugCommand::Show { id } => {
+++                     crate::domains::intent::bug::show(ctx, &id)
+++                 }
+++                 crate::cli::commands::BugCommand::Check => {
+++                     crate::domains::intent::bug::check_ledger(ctx)
+++                 }
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/trace.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/trace.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/trace.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/parser.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/commands.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/app/dispatcher.rs: 1 replaced
