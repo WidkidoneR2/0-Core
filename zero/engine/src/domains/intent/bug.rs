@@ -3,11 +3,14 @@
 //! `core bug list` is the first reader. The rows are plain values first, so a later viewer (a
 //! terminal screen, a bar, a script) reads the same rows this one prints.
 
-use super::findings::{severity_level, Record};
-use super::trace::{check_commit_seal, git_read, seal_notes, state_of, SealCheck, State, Trailers};
+use super::findings::{severity_level, with_severity, Record};
+use super::trace::{
+    check_commit_seal, git_read, seal_digest, seal_notes, state_of, SealCheck, State, Trailers,
+};
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
+use std::fs;
 use std::path::Path;
 
 /// The four words a finding's state is ever called. `unknown` is a word, not a blank (G7).
@@ -579,14 +582,178 @@ fn check_answer(ctx: &AppContext) -> Result<i32, String> {
     Ok(got.code)
 }
 
+/// One rating as a plan: the exact change, the hashes of the file before and after, and the Seal
+/// of that text (INT-300 G9, R5). Nothing is written until the same plan is applied by its Seal.
+#[derive(Debug, PartialEq)]
+pub struct RatePlan {
+    pub text: String,
+    pub seal: String,
+    pub new_body: String,
+}
+
+/// What `core bug rate` did: printed a plan, applied it, or refused. A refusal writes nothing.
+#[derive(Debug, PartialEq)]
+pub enum Rated {
+    Planned(RatePlan),
+    Applied(RatePlan),
+    Refused(String),
+}
+
+/// The plan for rating one finding: refuses a level nobody ruled and a level the record already
+/// has, otherwise names the change, the file's hash before and after, and the Seal of that text.
+pub fn rate_plan(
+    path: &str,
+    record: &Record,
+    old_body: &str,
+    level: &str,
+) -> Result<RatePlan, String> {
+    let level = severity_level(level.trim())?;
+    if record.severity == level {
+        return Err(format!(
+            "{} already reads {}; there is nothing to rate",
+            record.id, level
+        ));
+    }
+    let (new_body, old_line) = with_severity(old_body, level)?;
+    let minus = old_line.unwrap_or_else(|| "(no severity line -- it reads unrated)".to_string());
+    let text = format!(
+        "rate {}: severity {} -> {}\nfile {}  sha256 {} -> {}\n-- {}\n++ severity: {}",
+        record.id,
+        record.severity,
+        level,
+        path,
+        seal_digest(old_body.as_bytes()),
+        seal_digest(new_body.as_bytes()),
+        minus,
+        level
+    );
+    let seal = seal_digest(text.as_bytes());
+    Ok(RatePlan {
+        text,
+        seal,
+        new_body,
+    })
+}
+
+/// `core bug rate` as a value. With no words after the level it plans; with `apply SEAL` it
+/// rebuilds the plan from the file as it is now and writes only if that plan still has the given
+/// Seal. Refused means nothing was written; Err means the ledger could not be read or written.
+pub fn rate(dir: &Path, id: &str, level: &str, apply: &[String]) -> Result<Rated, String> {
+    let seal = match apply {
+        [] => None,
+        [word, seal] if word == "apply" => Some(seal.as_str()),
+        _ => {
+            return Ok(Rated::Refused(
+                "after the level say nothing to see the plan, or: apply SEAL".to_string(),
+            ));
+        }
+    };
+    let level = match severity_level(level.trim()) {
+        Ok(l) => l,
+        Err(e) => return Ok(Rated::Refused(e)),
+    };
+    let records = super::findings::read_records(dir)?;
+    let record = records
+        .iter()
+        .find(|r| r.id == id)
+        .ok_or_else(|| format!("{} names no finding in {}", id, dir.display()))?;
+    let path = dir.join(format!("{}.md", id));
+    let old_body = fs::read_to_string(&path)
+        .map_err(|e| format!("could not read {}: {}", path.display(), e))?;
+    let plan = match rate_plan(&path.display().to_string(), record, &old_body, level) {
+        Ok(p) => p,
+        Err(e) => return Ok(Rated::Refused(e)),
+    };
+    match seal {
+        None => Ok(Rated::Planned(plan)),
+        Some(given) if given == plan.seal => {
+            write_rated(&path, &plan)?;
+            Ok(Rated::Applied(plan))
+        }
+        Some(given) => Ok(Rated::Refused(format!(
+            "the plan now hashes to {}, not {}: the record or the level changed",
+            plan.seal, given
+        ))),
+    }
+}
+
+/// Write the planned body beside the record, move it into place and read it back. A record is
+/// never left half written.
+fn write_rated(path: &Path, plan: &RatePlan) -> Result<(), String> {
+    let tmp = path.with_extension("md.tmp");
+    fs::write(&tmp, &plan.new_body)
+        .map_err(|e| format!("could not write {}: {}", tmp.display(), e))?;
+    fs::rename(&tmp, path).map_err(|e| {
+        let _ = fs::remove_file(&tmp);
+        format!("could not replace {}: {}", path.display(), e)
+    })?;
+    let back = fs::read_to_string(path)
+        .map_err(|e| format!("could not read back {}: {}", path.display(), e))?;
+    if back != plan.new_body {
+        return Err(format!(
+            "{} does not read back as the plan wrote it",
+            path.display()
+        ));
+    }
+    Ok(())
+}
+
+/// What `core bug rate` prints and the exit it ends with: the plan with its Seal and the line
+/// that applies it, the applied change, or a refusal.
+pub fn rated_text(got: &Rated, id: &str, level: &str) -> (String, i32) {
+    match got {
+        Rated::Planned(p) => (
+            format!(
+                "{}\nDRY RUN -- nothing written. Seal: {}\nto write it: core bug rate {} {} apply {}\n",
+                p.text,
+                p.seal,
+                id,
+                level.trim(),
+                p.seal
+            ),
+            0,
+        ),
+        Rated::Applied(p) => (
+            format!("{}\nOK {} rated, verified on disk\n", p.text, id),
+            0,
+        ),
+        Rated::Refused(why) => (format!("REFUSE {}. Nothing was written.\n", why), 1),
+    }
+}
+
+/// `core bug rate F-NNNN LEVEL [apply SEAL]` -- INT-300 G9. The domain owns its exit: 0 planned
+/// or applied, 1 refused (nothing written), 3 the finding or ledger could not be read or written.
+pub fn rate_ledger(ctx: &AppContext, id: &str, level: &str, apply: &[String]) -> CoreResult<()> {
+    let dir = super::intents_dir(ctx).join("findings");
+    let code = match rate(&dir, id, level, apply) {
+        Ok(got) => {
+            let (text, code) = rated_text(&got, id, level);
+            if code == 0 {
+                print!("{}", text);
+            } else {
+                eprint!("{}", text);
+            }
+            code
+        }
+        Err(e) => {
+            eprintln!("{} {}", "\u{2717}".bright_red(), e);
+            3
+        }
+    };
+    if code != 0 {
+        std::process::exit(code);
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod bug_tests {
     use super::{
-        check, counts, files_on_disk, filter_from, render_list, render_summary, report, rows,
-        select, state_word, story, Counts, FixFacts, Row,
+        check, counts, files_on_disk, filter_from, rate, rate_plan, rated_text, render_list,
+        render_summary, report, rows, select, state_word, story, Counts, FixFacts, Rated, Row,
     };
-    use crate::domains::intent::findings::{parse_record, read_records, Record};
-    use crate::domains::intent::trace::{SealCheck, State, Trailers};
+    use crate::domains::intent::findings::{parse_record, read_records, with_severity, Record};
+    use crate::domains::intent::trace::{seal_digest, SealCheck, State, Trailers};
 
     fn rec(id: &str, closed: &str, severity: &str, day: &str, what: &str) -> Record {
         parse_record(&format!(
@@ -1158,5 +1325,250 @@ mod bug_tests {
             "{}",
             got.text
         );
+    }
+
+    const OLD: &str = "---\nid: F-0001\nwhat: w\nat: a.rs:1\nfound_by: INT-1\nfound_on: 2026-10-30\nclosed_without_fix: no\n---\n";
+    const LOW: &str = "---\nid: F-0001\nwhat: w\nat: a.rs:1\nfound_by: INT-1\nfound_on: 2026-10-30\nclosed_without_fix: no\nseverity: low\n---\n";
+
+    fn filed(name: &str, body: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!("core-rate-{}-{}", std::process::id(), name));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("F-0001.md"), body).unwrap();
+        dir
+    }
+
+    fn words(w: &[&str]) -> Vec<String> {
+        w.iter().map(|s| s.to_string()).collect()
+    }
+
+    /// INT-300 G9: the one rewriter of a record replaces the severity line and every other byte
+    /// stays.
+    #[test]
+    fn with_severity_replaces_the_line_and_keeps_every_other_byte() {
+        let (new, old) = with_severity(LOW, "high").unwrap();
+        assert_eq!(new, LOW.replace("severity: low", "severity: high"));
+        assert_eq!(old, Some("severity: low".to_string()));
+    }
+
+    /// INT-300 G9: a record filed before G3 has no severity line, so one is inserted before the
+    /// closing line and the old line reads None.
+    #[test]
+    fn with_severity_inserts_before_the_closing_line_when_there_is_none() {
+        let (new, old) = with_severity(OLD, "medium").unwrap();
+        let want = format!("{}severity: medium\n---\n", &OLD[..OLD.len() - 4]);
+        assert_eq!(new, want);
+        assert_eq!(old, None);
+        assert_eq!(parse_record(&new).severity, "medium");
+    }
+
+    /// INT-300 G9: only the frontmatter is touched. A line in the prose below that happens to read
+    /// like a severity stays as written.
+    #[test]
+    fn with_severity_touches_only_the_frontmatter() {
+        let body = format!("{}severity: low in prose\n", LOW);
+        let (new, _) = with_severity(&body, "high").unwrap();
+        assert_eq!(new, body.replacen("severity: low", "severity: high", 1));
+        assert!(new.ends_with("severity: low in prose\n"), "{}", new);
+    }
+
+    /// INT-300 G9: a body with no frontmatter, and a level nobody ruled, are refused.
+    #[test]
+    fn with_severity_refuses_no_frontmatter_and_an_unknown_level() {
+        let bare = with_severity("just text\n", "high").unwrap_err();
+        assert!(bare.contains("no frontmatter"), "{}", bare);
+        let level = with_severity(LOW, "urgent").unwrap_err();
+        assert!(level.contains("the four are"), "{}", level);
+    }
+
+    /// INT-300 G9: the plan names the change, the file's hashes and a Seal that is the digest of
+    /// the plan text, and the new body carries the level.
+    #[test]
+    fn a_rating_plan_shows_the_change_the_hashes_and_the_seal() {
+        let rec = parse_record(LOW);
+        let plan = rate_plan("/x/F-0001.md", &rec, LOW, "high").unwrap();
+        assert!(
+            plan.text.contains("rate F-0001: severity low -> high"),
+            "{}",
+            plan.text
+        );
+        assert!(
+            plan.text.contains("\n-- severity: low\n++ severity: high"),
+            "{}",
+            plan.text
+        );
+        assert!(
+            plan.text.contains("file /x/F-0001.md  sha256 "),
+            "{}",
+            plan.text
+        );
+        assert_eq!(plan.seal.len(), 16);
+        assert_eq!(plan.seal, seal_digest(plan.text.as_bytes()));
+        assert!(plan.new_body.contains("severity: high\n"));
+        assert!(!plan.new_body.contains("severity: low"));
+    }
+
+    /// INT-300 G7, G9: a record with no severity line reads unrated, and its plan says so rather
+    /// than showing a line that was never there.
+    #[test]
+    fn a_record_with_no_severity_line_gets_one_and_the_plan_says_so() {
+        let rec = parse_record(OLD);
+        let plan = rate_plan("/x/F-0001.md", &rec, OLD, "medium").unwrap();
+        assert!(
+            plan.text.contains("severity unrated -> medium"),
+            "{}",
+            plan.text
+        );
+        assert!(plan.text.contains("-- (no severity line"), "{}", plan.text);
+        assert_eq!(parse_record(&plan.new_body).severity, "medium");
+    }
+
+    /// INT-300 G9: rating a level the record already has is refused, with no plan.
+    #[test]
+    fn rating_the_level_a_record_already_has_is_refused() {
+        let low = rate_plan("/x", &parse_record(LOW), LOW, "low").unwrap_err();
+        assert!(low.contains("already reads low"), "{}", low);
+        let unrated = rate_plan("/x", &parse_record(OLD), OLD, "unrated").unwrap_err();
+        assert!(unrated.contains("already reads unrated"), "{}", unrated);
+    }
+
+    /// INT-300 G9: a level nobody ruled is refused, names the four, and writes nothing.
+    #[test]
+    fn an_unknown_level_is_refused_naming_the_four() {
+        let dir = filed("unknown-level", LOW);
+        match rate(&dir, "F-0001", "urgent", &[]).unwrap() {
+            Rated::Refused(why) => assert!(why.contains("the four are"), "{}", why),
+            other => panic!("expected a refusal, got {:?}", other),
+        }
+        assert_eq!(std::fs::read_to_string(dir.join("F-0001.md")).unwrap(), LOW);
+    }
+
+    /// INT-300 G9, R5: showing the plan writes nothing.
+    #[test]
+    fn a_plan_writes_nothing() {
+        let dir = filed("plan-only", LOW);
+        assert!(matches!(
+            rate(&dir, "F-0001", "high", &[]).unwrap(),
+            Rated::Planned(_)
+        ));
+        assert_eq!(std::fs::read_to_string(dir.join("F-0001.md")).unwrap(), LOW);
+    }
+
+    /// INT-300 G9, R5: apply with the plan's own Seal writes the level, the record then shows it,
+    /// and every other line is as it was.
+    #[test]
+    fn apply_with_the_plans_seal_writes_the_level() {
+        let dir = filed("apply", LOW);
+        let seal = match rate(&dir, "F-0001", "high", &[]).unwrap() {
+            Rated::Planned(p) => p.seal,
+            other => panic!("expected a plan, got {:?}", other),
+        };
+        let got = rate(&dir, "F-0001", "high", &words(&["apply", &seal])).unwrap();
+        assert!(matches!(got, Rated::Applied(_)), "{:?}", got);
+        let body = std::fs::read_to_string(dir.join("F-0001.md")).unwrap();
+        assert_eq!(body, LOW.replace("severity: low", "severity: high"));
+        assert_eq!(read_records(&dir).unwrap()[0].severity, "high");
+    }
+
+    /// INT-300 G9: apply with a Seal the plan does not have is refused and the record stays.
+    #[test]
+    fn apply_with_another_seal_is_refused_and_writes_nothing() {
+        let dir = filed("wrong-seal", LOW);
+        let got = rate(
+            &dir,
+            "F-0001",
+            "high",
+            &words(&["apply", "0000000000000000"]),
+        )
+        .unwrap();
+        match got {
+            Rated::Refused(why) => assert!(why.contains("hashes to"), "{}", why),
+            other => panic!("expected a refusal, got {:?}", other),
+        }
+        assert_eq!(std::fs::read_to_string(dir.join("F-0001.md")).unwrap(), LOW);
+    }
+
+    /// INT-300 G9: the same plan applied twice is refused the second time, because the record
+    /// already reads the level; the file is not touched again.
+    #[test]
+    fn a_second_apply_of_the_same_plan_is_refused() {
+        let dir = filed("twice", LOW);
+        let seal = match rate(&dir, "F-0001", "high", &[]).unwrap() {
+            Rated::Planned(p) => p.seal,
+            other => panic!("expected a plan, got {:?}", other),
+        };
+        let apply = words(&["apply", &seal]);
+        assert!(matches!(
+            rate(&dir, "F-0001", "high", &apply).unwrap(),
+            Rated::Applied(_)
+        ));
+        let after_first = std::fs::read_to_string(dir.join("F-0001.md")).unwrap();
+        match rate(&dir, "F-0001", "high", &apply).unwrap() {
+            Rated::Refused(why) => assert!(why.contains("already reads high"), "{}", why),
+            other => panic!("expected a refusal, got {:?}", other),
+        }
+        assert_eq!(
+            std::fs::read_to_string(dir.join("F-0001.md")).unwrap(),
+            after_first
+        );
+    }
+
+    /// INT-300 G9: the words after the level are nothing, or apply and a Seal; anything else is
+    /// refused.
+    #[test]
+    fn the_words_after_the_level_are_nothing_or_apply_and_a_seal() {
+        let dir = filed("words", LOW);
+        for bad in [
+            words(&["abc"]),
+            words(&["apply"]),
+            words(&["apply", "a", "b"]),
+        ] {
+            assert!(
+                matches!(
+                    rate(&dir, "F-0001", "high", &bad).unwrap(),
+                    Rated::Refused(_)
+                ),
+                "{:?}",
+                bad
+            );
+        }
+        assert_eq!(std::fs::read_to_string(dir.join("F-0001.md")).unwrap(), LOW);
+    }
+
+    /// INT-300 G9: an id with no record could not be answered, which is an error and not a
+    /// refusal.
+    #[test]
+    fn an_id_with_no_record_could_not_be_answered() {
+        let dir = filed("no-record", LOW);
+        let err = rate(&dir, "F-0099", "high", &[]).unwrap_err();
+        assert!(err.contains("names no finding"), "{}", err);
+    }
+
+    /// INT-300 G9: the plan prints its Seal and the line that applies it, an applied change says
+    /// so, and a refusal ends 1 saying nothing was written.
+    #[test]
+    fn the_plan_the_apply_and_the_refusal_print_their_words() {
+        let rec = parse_record(LOW);
+        let plan = rate_plan("/x/F-0001.md", &rec, LOW, "high").unwrap();
+        let seal = plan.seal.clone();
+        let (text, code) = rated_text(&Rated::Planned(plan), "F-0001", "high");
+        assert_eq!(code, 0);
+        assert!(
+            text.contains(&format!("DRY RUN -- nothing written. Seal: {}", seal)),
+            "{}",
+            text
+        );
+        assert!(
+            text.contains(&format!("core bug rate F-0001 high apply {}", seal)),
+            "{}",
+            text
+        );
+        let plan = rate_plan("/x/F-0001.md", &rec, LOW, "high").unwrap();
+        let (text, code) = rated_text(&Rated::Applied(plan), "F-0001", "high");
+        assert_eq!(code, 0);
+        assert!(text.contains("OK F-0001 rated"), "{}", text);
+        let (text, code) = rated_text(&Rated::Refused("why".to_string()), "F-0001", "high");
+        assert_eq!(code, 1);
+        assert!(text.contains("Nothing was written"), "{}", text);
     }
 }

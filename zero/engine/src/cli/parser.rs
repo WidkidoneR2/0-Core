@@ -813,6 +813,15 @@ pub enum BugCommands {
     },
     /// Check the ledger against git: bad Fixes values, missing records, stale closures, empty fields
     Check,
+    /// Rate a finding: show the plan, then write it with `apply SEAL`
+    Rate {
+        /// The finding, e.g. F-0111
+        id: String,
+        /// The level: unrated, low, medium or high
+        level: String,
+        /// Nothing to see the plan, or `apply SEAL` to write it
+        apply: Vec<String>,
+    },
 }
 
 #[derive(Subcommand)]

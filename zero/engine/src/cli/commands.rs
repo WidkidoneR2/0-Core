@@ -401,6 +401,11 @@ pub enum BugCommand {
         id: String,
     },
     Check,
+    Rate {
+        id: String,
+        level: String,
+        apply: Vec<String>,
+    },
 }
 
 #[derive(Debug)]

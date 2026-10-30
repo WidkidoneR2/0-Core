@@ -221,6 +221,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 crate::cli::commands::BugCommand::Check => {
                     crate::domains::intent::bug::check_ledger(ctx)
                 }
+                crate::cli::commands::BugCommand::Rate { id, level, apply } => {
+                    crate::domains::intent::bug::rate_ledger(ctx, &id, &level, &apply)
+                }
             }
         }
 

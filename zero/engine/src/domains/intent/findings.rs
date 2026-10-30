@@ -169,6 +169,42 @@ pub fn parse_record(body: &str) -> Record {
     }
 }
 
+/// The record body with its severity set to `level`, and the old severity line if it had one. Only
+/// the frontmatter is touched: the first `severity:` line is replaced, and a record that has none
+/// (every record filed before INT-300 G3) gets one before the closing `---`. Every other byte stays.
+pub fn with_severity(body: &str, level: &str) -> Result<(String, Option<String>), String> {
+    let level = severity_level(level)?;
+    let lines: Vec<&str> = body.split_inclusive('\n').collect();
+    if lines.first().map(|l| l.trim()) != Some("---") {
+        return Err("the record has no frontmatter, so no severity can be set".to_string());
+    }
+    let close = lines
+        .iter()
+        .skip(1)
+        .position(|l| l.trim() == "---")
+        .map(|i| i + 1)
+        .ok_or_else(|| "the record's frontmatter is never closed".to_string())?;
+    let new_line = format!("severity: {}\n", level);
+    let mut out = String::new();
+    let mut old = None;
+    for (i, line) in lines.iter().enumerate() {
+        let is_severity = i > 0
+            && i < close
+            && old.is_none()
+            && line.split_once(':').map(|(k, _)| k.trim()) == Some("severity");
+        if is_severity {
+            old = Some(line.trim().to_string());
+            out.push_str(&new_line);
+            continue;
+        }
+        if i == close && old.is_none() {
+            out.push_str(&new_line);
+        }
+        out.push_str(line);
+    }
+    Ok((out, old))
+}
+
 /// Every record in `dir`, in id order. An absent folder truly holds none; a folder or record
 /// that cannot be read is an error, never an empty list (INT-192). Only F-NNNN.md is read.
 pub fn read_records(dir: &Path) -> Result<Vec<Record>, String> {

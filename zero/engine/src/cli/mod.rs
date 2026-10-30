@@ -291,6 +291,9 @@ pub fn parse() -> Command {
             },
             parser::BugCommands::Show { id } => commands::BugCommand::Show { id },
             parser::BugCommands::Check => commands::BugCommand::Check,
+            parser::BugCommands::Rate { id, level, apply } => {
+                commands::BugCommand::Rate { id, level, apply }
+            }
         }),
         Commands::Profile { command } => Command::Profile(match command {
             ProfileCommands::List => ProfileCommand::List,
