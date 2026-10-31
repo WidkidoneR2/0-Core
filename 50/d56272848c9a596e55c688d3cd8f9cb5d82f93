@@ -1,0 +1,79 @@
+file /home/christian/0-core/zero/intents/in-progress/301-terminal-directory-and-title.md  sha256 7d4bef2db419f737 -> 92e991e1051e56c7
+--- /home/christian/0-core/zero/intents/in-progress/301-terminal-directory-and-title.md: replacing lines 90..90 ---
+   88:       and `Fixes: F-0106`. Proof: core bug show for each reads solved.
+   89:       <!-- evidence: demonstrated 2026-10-31 after c6c1ff53 (Fixes F-0099 and F-0100, names c78e7924) and c39fa885 (Fixes F-0102 and F-0106): core bug show prints state solved and solved 2026-10-31 for all four. The solved day for F-0099 and F-0100 reads 2026-10-31, the day the trailer landed, not 2026-10-27. -->
+>> 90: - [ ] G10 F-0107 and F-0108: recon names the command core has for closing a finding without a
+   91:       fix; each is closed with the terminal-side reason and the measured evidence, or, if core has
+   92:       no such path, a finding is filed and the two stay open. Proof: core bug show.
+++ - [x] G10 F-0107
+--- /home/christian/0-core/zero/intents/in-progress/301-terminal-directory-and-title.md: replacing lines 93..93 ---
+   91:       fix; each is closed with the terminal-side reason and the measured evidence, or, if core has
+   92:       no such path, a finding is filed and the two stay open. Proof: core bug show.
+>> 93: - [ ] G11 F-0101: a Proposal section in this intent states the measured cause
+   94:       (/proc exe versus /etc/shells), the options, and what each would cost, with no sudo and no
+   95:       Omarchy edit applied. The finding stays open. Proof: the section, and core bug show F-0101
+++ - [x] G11 F-0101
+--- /home/christian/0-core/zero/intents/in-progress/301-terminal-directory-and-title.md: replacing lines 92..92 ---
+   90: - [x] G10 F-0107 and F-0108: recon names the command core has for closing a finding without a
+   91:       fix; each is closed with the terminal-side reason and the measured evidence, or, if core has
+>> 92:       no such path, a finding is filed and the two stay open. Proof: core bug show.
+   93: - [x] G11 F-0101: a Proposal section in this intent states the measured cause
+   94:       (/proc exe versus /etc/shells), the options, and what each would cost, with no sudo and no
+++ Proof: core bug show.
+++       <!-- evidence: recon 2026-10-31. core bug has dashboard, welcome, list, show, check, rate and promote, no close command. A closure is the record field closed_without_fix (trace.rs:130, bug.rs), and a later Fixes commit still wins over it. F-0107 was closed that way in a1e5e0f5 with Rio's measured behaviour as the reason and core bug show F-0107 reads closed. F-0108 was deliberately left open, its ghostty half was never observed (the close confirmation is off in the ghostty config and seeing the marks needs a keybind), so core bug show F-0108 reads open. The gate said each is closed, it is met for F-0107 only and F-0108 stays open on purpose. -->
+--- /home/christian/0-core/zero/intents/in-progress/301-terminal-directory-and-title.md: replacing lines 97..97 ---
+   95:       (/proc exe versus /etc/shells), the options, and what each would cost, with no sudo and no
+   96:       Omarchy edit applied. The finding stays open. Proof: the section, and core bug show F-0101
+>> 97:       still open.
+   98: - [ ] G12 Doors: after one ship, nsh on PATH, nsh-test all passing, d 0 failed, core intent
+   99:       validate all valid, `bugs:` welcome count lower by the findings closed here. Proposals to
+++ still open.
+++       <!-- evidence: the Proposal section at the end of this file, from a read-only recon on 2026-10-31 of omarchy-cmd-terminal-cwd, /etc/shells and the handoff. core bug show F-0101 read state open after a1e5e0f5. No sudo and no Omarchy edit was made. -->
+--- /home/christian/0-core/zero/intents/in-progress/301-terminal-directory-and-title.md: replacing lines 101..101 ---
+   99: - [ ] G12 Doors: after one ship, nsh on PATH, nsh-test all passing, d 0 failed, core intent
+   100:       validate all valid, `bugs:` welcome count lower by the findings closed here. Proposals to
+>> 101:       NOVASHELL.md and AGENTS.md are written in this intent, not applied. Proof: the door output.
+   102: 
+   103: 
+++ NOVASHELL.md and AGENTS.md are written in this intent, not applied. Proof: the door output.
+++ 
+++ ## Proposal: F-0101 (SUPER+Return opens in HOME)
+++ 
+++ Measured 2026-10-31, read-only, nothing applied.
+++ 
+++ - omarchy-cmd-terminal-cwd (/usr/share/omarchy/bin) gets the terminal's pid from hyprctl
+++   activewindow, takes that pid's child with the highest pid (pgrep -P, tail -n1), reads
+++   /proc/<child>/cwd, and keeps it only if /proc/<child>/exe is a line in /etc/shells. Otherwise,
+++   or if the directory is gone, it prints HOME. Kitty is the one terminal it asks directly.
+++ - /etc/shells lists sh, bash, rbash, git-shell and systemd-home-fallback-shell. nsh is not there.
+++ - Under the bash handoff (bashrc-handoff.sh) the terminal's child is bash, which is listed, and
+++   nsh runs as bash's child. So the /etc/shells check passes and the directory it reads is bash's,
+++   which never moves when you cd in nsh. Listing nsh in /etc/shells would only matter if nsh were
+++   the terminal's direct child, so on its own it changes nothing. The handoff is what decides today.
+++ - Ctrl+Shift+N in foot and a ghostty split already keep the directory (INT-301), because they use
+++   the terminal's own spawn and OSC 7, not this script.
+++ - Not measured: the command SUPER+Return runs. bindings.lua:35 only names the foot fallback, so
+++   that binding has to be read before option 1 or 2.
+++ 
+++ Options, with what each costs:
+++ 
+++ 1. A binding of your own in ~/.config/hypr/bindings.lua (your file, no Omarchy edit) that runs a
+++    small script of ours in ~/.local/bin. Cost: the script, reading the current binding first, and
+++    keeping it in step if Omarchy changes how it launches a terminal.
+++ 2. nsh publishes its directory, for example one file per nsh pid under $XDG_RUNTIME_DIR/nsh,
+++    written at each prompt and removed on exit, so the script in option 1 can find the right nsh
+++    under the focused window. Cost: a small write per prompt, cleanup, and the pid mapping. It is
+++    only useful together with option 1.
+++ 3. exec nsh from the handoff and list nsh in /etc/shells. Cost: needs sudo, which is yours to run
+++    and never mine, and it drops the bash fallback when nsh crashes. Not recommended.
+++ 4. Ask Omarchy upstream to follow the focused terminal's deepest descendant, or its OSC 7, instead
+++    of the last direct child. Cost: nothing here, but it depends on them.
+++ 5. Leave it. SUPER+Return opens in HOME, and a new window or split from inside a terminal already
+++    keeps the directory.
+++ 
+++ Nothing is applied and no option is chosen. F-0101 stays open.
+/home/christian/0-core/zero/intents/in-progress/301-terminal-directory-and-title.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/301-terminal-directory-and-title.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/301-terminal-directory-and-title.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/301-terminal-directory-and-title.md: 1 replaced
+/home/christian/0-core/zero/intents/in-progress/301-terminal-directory-and-title.md: 1 replaced
