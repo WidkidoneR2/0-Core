@@ -1,0 +1,69 @@
+file /home/christian/0-core/zero/intents/future/303-ai-help-preflight-review-and-hermes-evaluation.md  sha256 68a76652606bb90f -> fac299ea68779b22
+--- /home/christian/0-core/zero/intents/future/303-ai-help-preflight-review-and-hermes-evaluation.md: replacing lines 10..21 ---
+   8: ---
+   9: 
+>> 10: ## Vision
+>> 11: [Describe the goal and desired outcome]
+>> 12: 
+>> 13: ## The Problem
+>> 14: [What problem does this solve?]
+>> 15: 
+>> 16: ## The Solution
+>> 17: [High-level approach]
+>> 18: 
+>> 19: ## Success Criteria
+>> 20: - [ ] ...
+>> 21: 
+   22: <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.
+   23: When you tick a gate, put the proof in an HTML comment on the line after it: a commit
+++ ## Vision
+++ Help on this repository becomes mechanically checked and organized, and the AI tools on the machine are evaluated with evidence and run under rules. The result is more capable help with fewer refused patches, fewer tracebacks and fewer repeated mistakes. Powerful, with rules.
+++ 
+++ ## The Problem
+++ 1. Repeated edit failures. Stale or transcribed anchors, ad-hoc python used instead of fpatch, payloads sent unrehearsed, backticks, apostrophes and non-ASCII characters in pasted text, a commit chained after a test. These are recorded in the patch-discipline notes since July 2026 and still recur. AGENTS.md says UNVERIFIED: no gate runs the loader. Nothing checks a block before it reaches Christian.
+++ 2. The failures are not in git. Measured 2026-10-31: git log for follow-up commits shows planned work (version bumps, registry rows), not refused patches, because a refusal never becomes a commit. The census has to come from terminal scrollback and shell history.
+++ 3. Organization. Banner 2026-10-31: 0 active, 41 planned, 239 done, 2 blocked, 39 ready. The working order lives in conversation. INT-302 is planned and waits behind this intent by Christian ruling 2026-10-31.
+++ 4. AI tools on the machine are unevaluated. Measured read only 2026-10-31:
+++    - Hermes Agent 0.22.5 installed in ~/.hermes (git install). A Hermes gateway is running (pid 16114, started on code 0.22.2): platforms empty, active_agents 0.
+++    - Hermes cron directory has ticker files, output empty, no jobs file listed.
+++    - Terminal backend is local (commands run as Christian). No approvals setting in config.yaml, so the built-in default applies and is unread. allow_all_users is false.
+++    - Model is a free Nous-routed model, not Claude. Hermes memory is enabled. kanban.db exists with review_dispatch true.
+++    - Herdr 0.9.1 at /usr/bin/herdr, nothing configured. Docker at /usr/bin/docker.
+++    - Christian groups: christian, wheel. Not docker. Joining the docker group is root-equivalent and is Christian to decide and to run, never an agent.
+++ 
+++ ## The Solution
+++ Three parts, in this order. One concern per change, red first wherever something can fail.
+++ A. Make Claude help reliable: a census of real failures, a fixed preflight before any block is sent, a read-only reviewer for multi-edit Plans, and one written work order.
+++ B. Evaluate Hermes and Herdr with a protocol written first, on a throwaway copy, never on ~/0-core.
+++ C. Rule: keep, restrict or retire each tool, with numbered reasons.
+++ 
+++ ## Rules (powerful, with rules)
+++ - Every agent works on a throwaway copy of the repository, never ~/0-core directly.
+++ - Anything an agent proposes for the real tree arrives as an fpatch Plan with a Seal that Christian has read before apply.
+++ - No agent runs sudo or joins a privileged group. A step that needs privilege is written out for Christian to run.
+++ - Nothing runs unattended: no gateway platform, no cron job, no scheduled run, unless Christian rules it.
+++ - No new tooling or download unless Christian rules it first.
+++ - Every gate carries evidence. A gate that could pass by doing nothing is watched failing first.
+++ - AGENTS.md is his file. Proposals only; applied by a reviewed Plan he approves.
+++ 
+++ ## Success Criteria
+++ - [ ] G1 Census, read only. Failures from terminal scrollback and shell history, each labelled with a layer from AGENTS.md section 3 (transport, parsing, filesystem, logic, environment, architecture). First lookup: whether shell history records exit codes (fsearch shell_history). Proof: the pasted table and the lookup output.
+++ - [ ] G2 Preflight defined as a procedure, not new software. Before a block is sent: decode the exact reply text and compare bytes, scan for backticks, apostrophes and non-ASCII, confirm every edit goes through fpatch with a Plan shown before apply, confirm no sudo. RED first: a deliberately bad block (a backtick, an em dash) fails the scan, then a clean block passes. Proof: both outputs. Any wording for AGENTS.md is a proposal here until ruled.
+++ - [ ] G3 Reviewer for multi-edit Plans. A second agent that has not seen the reasoning reads the payload against AGENTS.md section 2 and reports. Read only: it cannot edit, run or apply. RED first: a deliberately bad Plan (non-ASCII anchor, transcribed body text, wrong count) is caught. Recon first on where such a reviewer can run, nothing installed. Proof: the catch output.
+++ - [ ] G4 Work order recorded in one place: standing order and the one-intent-at-a-time rule. Check overlap with the intent ledger redesign (priority, depends_on) before building anything; if it overlaps, record the order as a ruling only. Proof: core intent next agrees, or the difference is named.
+++ - [ ] G5 Hermes and Herdr recon, read only, from their own help text and documentation on these versions: the approvals default, the commands that stop the gateway or change the backend, and the files that herdr integration install would write. No command that changes configuration. Proof: the pasted output.
+++ - [ ] G6 Evaluation protocol written before any test. A throwaway copy of the repo in a mktemp directory outside ~/0-core; Hermes started by hand; approvals set explicitly by Christian; backend ruled by Christian (local on a copy, or Docker only after the group ruling). Task set drawn from the G1 census; success measure and a control (the same task by the current method). Proof: the protocol in this file before the first run.
+++ - [ ] G7 Evaluation runs with evidence. No sudo, no platform enabled, no job scheduled; ~/0-core unchanged (git rev-parse HEAD and git status identical before and after). If G8 rules Hermes retired without a run, G6 and G7 are recorded not needed with that reason. Proof: the outputs.
+++ - [ ] G8 Christian rules: keep, restrict or retire, for Hermes and for Herdr, each as a RULED line with the date and numbered reasons. Any change to ~/.hermes or the running gateway is Christian own command, shown first.
+++ - [ ] G9 If anything is kept: the rules for it are written here (where it may work, what it may never touch), and any AGENTS.md text is a proposal applied only by a reviewed Plan he has seen. Proof: the RULED lines and the Plan Seal.
+++ - [ ] G10 Doors after any ship: nsh-test all passing, d 0 failed, core intent validate all valid, git status clean, then cicomplete 303. Proof: the door output and the close commit.
+++ 
+++ ## Constraints (restated so a new chat has them)
+++ - No agent ever runs or sends sudo.
+++ - Never modify Omarchy own code.
+++ - Nothing new is downloaded; use what is on the box.
+++ - One concern per change, red first, doors before every commit, one ship at the end.
+++ - Payloads: every block decoded and compared byte for byte before it is sent, and the apply line sent only after he has seen the plan and its Seal.
+++ - Out of scope: INT-302, building Friday, any change to the ten devshell laws.
+++ 
+/home/christian/0-core/zero/intents/future/303-ai-help-preflight-review-and-hermes-evaluation.md: 12 line(s) replaced by 50
