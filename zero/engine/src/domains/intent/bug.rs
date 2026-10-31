@@ -1027,12 +1027,345 @@ pub fn promote_ledger(ctx: &AppContext, id: &str, apply: &[String]) -> CoreResul
     }
     Ok(())
 }
+/// A civil day as a count of days since 1970-01-01, or None for anything that is not a real
+/// YYYY-MM-DD day (INT-300 G12). The one place this file does date arithmetic.
+pub fn day_number(day: &str) -> Option<i64> {
+    let b = day.as_bytes();
+    if !day.is_ascii() || b.len() != 10 || b[4] != b'-' || b[7] != b'-' {
+        return None;
+    }
+    let num = |s: &str| -> Option<i64> {
+        if s.bytes().all(|c| c.is_ascii_digit()) {
+            s.parse().ok()
+        } else {
+            None
+        }
+    };
+    let (y, m, d) = (num(&day[0..4])?, num(&day[5..7])?, num(&day[8..10])?);
+    let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+    let in_month = match m {
+        1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+        4 | 6 | 9 | 11 => 30,
+        2 if leap => 29,
+        2 => 28,
+        _ => return None,
+    };
+    if !(1..=in_month).contains(&d) {
+        return None;
+    }
+    let y = if m <= 2 { y - 1 } else { y };
+    let era = y.div_euclid(400);
+    let yoe = y - era * 400;
+    let mp = (m + 9) % 12;
+    let doy = (153 * mp + 2) / 5 + d - 1;
+    let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+    Some(era * 146097 + doe - 719468)
+}
+
+/// The YYYY-MM-DD text of a day number, the inverse of `day_number`.
+pub fn day_text(n: i64) -> String {
+    let z = n + 719468;
+    let era = z.div_euclid(146097);
+    let doe = z - era * 146097;
+    let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+    let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+    let mp = (5 * doy + 2) / 153;
+    let d = doy - (153 * mp + 2) / 5 + 1;
+    let m = if mp < 10 { mp + 3 } else { mp - 9 };
+    let y = yoe + era * 400 + i64::from(m <= 2);
+    format!("{:04}-{:02}-{:02}", y, m, d)
+}
+
+/// Twice the median of `days`, so a half day stays exact; None when there are no days.
+pub fn median_twice(days: &[i64]) -> Option<i64> {
+    if days.is_empty() {
+        return None;
+    }
+    let mut sorted = days.to_vec();
+    sorted.sort();
+    let n = sorted.len();
+    Some(if n % 2 == 1 {
+        sorted[n / 2] * 2
+    } else {
+        sorted[n / 2 - 1] + sorted[n / 2]
+    })
+}
+
+/// Twice a number of days, said in days: `3` or `2.5`.
+fn half_days(twice: i64) -> String {
+    if twice % 2 == 0 {
+        format!("{}", twice / 2)
+    } else {
+        format!("{}.5", twice / 2)
+    }
+}
+
+/// The earliest day any of `hashes` was committed, as git dates it (`%cs`). A commit git cannot
+/// date is an error, never a guess.
+pub fn fix_day(core: &str, hashes: &[String]) -> Result<String, String> {
+    let mut best: Option<String> = None;
+    for hash in hashes {
+        let out = git_read(core, &["log", "-1", "--format=%cs", hash.as_str()])?;
+        let day = out.trim().to_string();
+        if day_number(&day).is_none() {
+            return Err(format!("git gave no day for {}", hash));
+        }
+        let earlier = match &best {
+            Some(b) => day < *b,
+            None => true,
+        };
+        if earlier {
+            best = Some(day);
+        }
+    }
+    best.ok_or_else(|| "there is no fixing commit to date".to_string())
+}
+
+/// Today as the machine says it, YYYY-MM-DD.
+pub fn today_text() -> Result<String, String> {
+    let out = std::process::Command::new("date")
+        .arg("+%Y-%m-%d")
+        .output()
+        .map_err(|e| format!("could not run date: {}", e))?;
+    let day = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if !out.status.success() || day_number(&day).is_none() {
+        return Err("date gave no day".to_string());
+    }
+    Ok(day)
+}
+
+/// The levels the dashboard counts, worst first. A severity outside these is counted as `other`.
+const LEVELS: [&str; 4] = ["high", "medium", "low", "unrated"];
+
+/// How many days "the last 7 days" covers, today included.
+const WINDOW: i64 = 7;
+
+/// `core bug` with no arguments, as a value (INT-300 G12): open bugs by severity, the oldest open
+/// bug and its age, the median days from found to fixed, and the bugs fixed in the last 7 days.
+/// `fixed_on` is each solved bug's earliest fixing commit day. Exit: 0 clean, 1 a recount
+/// disagrees, 3 git or the date could not be read. Nothing prints a zero for a number it could
+/// not measure.
+pub fn dashboard_report(
+    records: &[Record],
+    fixes: &Result<Vec<(String, String)>, String>,
+    fixed_on: &[(String, String)],
+    today: &str,
+    on_disk: usize,
+) -> Report {
+    let now = match day_number(today) {
+        Some(n) => n,
+        None => {
+            return Report {
+                text: format!("today could not be read: {:?} is not a day\n", today),
+                code: 3,
+            }
+        }
+    };
+    let all = rows(records, fixes);
+    let c = counts(&all);
+    let mut text = format!(
+        "{} -- {} findings: {} open, {} solved, {} closed, {} unknown\n",
+        today,
+        c.total(),
+        c.open,
+        c.solved,
+        c.closed,
+        c.unknown
+    );
+    let open: Vec<&Row> = all.iter().filter(|r| r.state == "open").collect();
+    let mut summed = 0;
+    match fixes {
+        Err(e) => text.push_str(&format!(
+            "open by severity: unknown -- git could not be read ({})\n",
+            e
+        )),
+        Ok(_) => {
+            text.push_str(
+                "open by severity (core bug list --state open --severity LEVEL shows each)\n",
+            );
+            for level in LEVELS {
+                let ids: Vec<&str> = open
+                    .iter()
+                    .filter(|r| r.severity == level)
+                    .map(|r| r.id.as_str())
+                    .collect();
+                summed += ids.len();
+                let named = if (level == "high" || level == "medium") && !ids.is_empty() {
+                    format!("  {}", ids.join(" "))
+                } else {
+                    String::new()
+                };
+                text.push_str(&format!("  {:<8} {:>3}{}\n", level, ids.len(), named));
+            }
+            let other: Vec<&str> = open
+                .iter()
+                .filter(|r| !LEVELS.contains(&r.severity.as_str()))
+                .map(|r| r.id.as_str())
+                .collect();
+            if !other.is_empty() {
+                summed += other.len();
+                text.push_str(&format!(
+                    "  {:<8} {:>3}  {}\n",
+                    "other",
+                    other.len(),
+                    other.join(" ")
+                ));
+            }
+        }
+    }
+    let dated: Vec<(i64, &Row)> = open
+        .iter()
+        .filter_map(|r| day_number(&r.found_on).map(|n| (n, *r)))
+        .collect();
+    let oldest = dated
+        .iter()
+        .min_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.id.cmp(&b.1.id)));
+    match (oldest, fixes) {
+        (_, Err(_)) => text.push_str("oldest open: unknown -- git could not be read\n"),
+        (Some((n, r)), Ok(_)) if *n <= now => text.push_str(&format!(
+            "oldest open   {}  found {}  {} days  {}\n",
+            r.id,
+            r.found_on,
+            now - n,
+            r.what
+        )),
+        (Some((_, r)), Ok(_)) => text.push_str(&format!(
+            "oldest open   {}  found {}  after today  {}\n",
+            r.id, r.found_on, r.what
+        )),
+        (None, Ok(_)) if open.is_empty() => text.push_str("oldest open   none -- no bug is open\n"),
+        (None, Ok(_)) => {
+            text.push_str("oldest open   unknown -- no open bug has a readable found day\n")
+        }
+    }
+    if fixes.is_ok() && !dated.is_empty() && dated.len() < open.len() {
+        text.push_str(&format!(
+            "              left out: {} open without a readable found day\n",
+            open.len() - dated.len()
+        ));
+    }
+    let mut timed: Vec<i64> = Vec::new();
+    let mut left: Vec<(String, &str)> = Vec::new();
+    let mut recent: Vec<String> = Vec::new();
+    for r in all.iter().filter(|r| r.state == "solved") {
+        let fixed = fixed_on
+            .iter()
+            .find(|(id, _)| *id == r.id)
+            .and_then(|(_, day)| day_number(day));
+        match (fixed, day_number(&r.found_on)) {
+            (None, _) => left.push((r.id.clone(), "no readable fix day")),
+            (Some(f), _) if f > now => left.push((r.id.clone(), "fixed after today")),
+            (Some(f), found) => {
+                if now - f < WINDOW {
+                    recent.push(r.id.clone());
+                }
+                match found {
+                    Some(o) if f >= o => timed.push(f - o),
+                    Some(_) => left.push((r.id.clone(), "fixed before it was found")),
+                    None => left.push((r.id.clone(), "no readable found day")),
+                }
+            }
+        }
+    }
+    let solved_known = fixes.is_ok();
+    match (median_twice(&timed), solved_known) {
+        (_, false) => text.push_str("median fix: unknown -- git could not be read\n"),
+        (Some(m), true) => text.push_str(&format!(
+            "median fix    {} days, found day to the earliest fixing commit day, over {} solved\n",
+            half_days(m),
+            timed.len()
+        )),
+        (None, true) => text.push_str("median fix    unknown -- no solved bug can be timed\n"),
+    }
+    if solved_known && !left.is_empty() {
+        let said: Vec<String> = left
+            .iter()
+            .map(|(id, why)| format!("{} ({})", id, why))
+            .collect();
+        text.push_str(&format!("              left out: {}\n", said.join(", ")));
+    }
+    let from = day_text(now - (WINDOW - 1));
+    if solved_known {
+        text.push_str(&format!(
+            "solved in the last {} days ({} to {})  {}{}\n",
+            WINDOW,
+            from,
+            today,
+            recent.len(),
+            if recent.is_empty() {
+                String::new()
+            } else {
+                format!(": {}", recent.join(" "))
+            }
+        ));
+    } else {
+        text.push_str(&format!(
+            "solved in the last {} days ({} to {}): unknown -- git could not be read\n",
+            WINDOW, from, today
+        ));
+    }
+    let files_agree = on_disk == records.len();
+    let sums_agree = fixes.is_err() || summed == c.open;
+    text.push_str(&format!(
+        "recount: {} finding files on disk, {} records read -- they {}; open by severity adds up to {} of {} open -- {}\n",
+        on_disk,
+        records.len(),
+        if files_agree { "agree" } else { "disagree" },
+        summed,
+        c.open,
+        if sums_agree { "agree" } else { "disagree" }
+    ));
+    let mut code = if files_agree && sums_agree { 0 } else { 1 };
+    if let Err(e) = fixes {
+        text.push_str(&format!(
+            "git could not be read ({}): open findings read unknown\n",
+            e
+        ));
+        code = 3;
+    }
+    Report { text, code }
+}
+
+/// `core bug` with no arguments -- INT-300 G12. The domain owns its exit: 0 clean, 1 a recount
+/// disagrees, 3 git or the date could not be read.
+pub fn dashboard(ctx: &AppContext) -> CoreResult<()> {
+    let code = match dashboard_answer(ctx) {
+        Ok(code) => code,
+        Err(e) => {
+            eprintln!("{} {}", "\u{2717}".bright_red(), e);
+            3
+        }
+    };
+    if code != 0 {
+        std::process::exit(code);
+    }
+    Ok(())
+}
+
+fn dashboard_answer(ctx: &AppContext) -> Result<i32, String> {
+    let dir = super::intents_dir(ctx).join("findings");
+    let records = super::findings::read_records(&dir)?;
+    let on_disk = files_on_disk(&dir)?;
+    let core: &str = &ctx.core_root;
+    let named = super::trace::fixes(core);
+    let today = today_text()?;
+    let mut fixed_on = Vec::new();
+    for row in rows(&records, &named) {
+        if row.state == "solved" {
+            fixed_on.push((row.id.clone(), fix_day(core, &row.fixed_by)?));
+        }
+    }
+    let got = dashboard_report(&records, &named, &fixed_on, &today, on_disk);
+    print!("{}", got.text);
+    Ok(got.code)
+}
 #[cfg(test)]
 mod bug_tests {
     use super::{
-        check, counts, files_on_disk, filter_from, promote, promote_title, promoted_text, rate,
-        rate_plan, rated_text, render_list, render_summary, report, rows, select, state_word,
-        story, Counts, FixFacts, Promoted, Rated, Row,
+        check, counts, dashboard_report, day_number, day_text, files_on_disk, filter_from, fix_day,
+        median_twice, promote, promote_title, promoted_text, rate, rate_plan, rated_text,
+        render_list, render_summary, report, rows, select, state_word, story, Counts, FixFacts,
+        Promoted, Rated, Row,
     };
     use crate::domains::intent::findings::{
         parse_record, read_records, with_field, with_severity, Record,
@@ -2217,5 +2550,481 @@ mod bug_tests {
         assert!(said.text.contains("  promoted  INT-042\n"), "{}", said.text);
         let plain = story(&parse_record(FRESH), &State::Open, &[]);
         assert!(!plain.text.contains("promoted"), "{}", plain.text);
+    }
+
+    /// The words on the first line of `text` that starts with `first`.
+    fn words_of(text: &str, first: &str) -> Vec<String> {
+        text.lines()
+            .map(|l| {
+                l.split_whitespace()
+                    .map(|w| w.to_string())
+                    .collect::<Vec<_>>()
+            })
+            .find(|w| w.first().map(|f| f == first).unwrap_or(false))
+            .unwrap_or_default()
+    }
+
+    fn fixed_by(id: &str) -> (String, String) {
+        (id.to_string(), "abc1234".to_string())
+    }
+
+    fn on_day(id: &str, d: &str) -> (String, String) {
+        (id.to_string(), d.to_string())
+    }
+
+    /// INT-300 G12: day_number reads a real YYYY-MM-DD day, leap days included, and refuses every
+    /// other text with None, never a guess.
+    #[test]
+    fn day_number_reads_real_days_and_refuses_the_rest() {
+        assert_eq!(day_number("1970-01-01"), Some(0));
+        assert_eq!(day_number("2000-03-01"), Some(11017));
+        assert!(day_number("2024-02-29").is_some());
+        for bad in [
+            "2025-02-29",
+            "2026-13-01",
+            "2026-00-10",
+            "2026-04-31",
+            "2026-1-5",
+            "26-10-30",
+            "2026/10/30",
+            "",
+            "unknown",
+            "2026-10-3x",
+            "2026-10-300",
+            "\u{ff12}026-10-30",
+        ] {
+            assert_eq!(day_number(bad), None, "{:?}", bad);
+        }
+    }
+
+    /// INT-300 G12: the difference of two day numbers is the days between, across month and year
+    /// ends and a leap year.
+    #[test]
+    fn the_difference_of_two_day_numbers_is_the_days_between() {
+        let n = |d: &str| day_number(d).unwrap();
+        assert_eq!(n("2026-10-30") - n("2026-10-24"), 6);
+        assert_eq!(n("2026-03-01") - n("2026-02-28"), 1);
+        assert_eq!(n("2025-01-01") - n("2024-01-01"), 366);
+        assert_eq!(n("2027-01-01") - n("2026-12-31"), 1);
+    }
+
+    /// INT-300 G12: day_text is the inverse of day_number over a wide run of days.
+    #[test]
+    fn day_text_is_the_inverse_of_day_number() {
+        assert_eq!(day_text(0), "1970-01-01");
+        assert_eq!(day_text(11017), "2000-03-01");
+        for n in (-800..60000).step_by(7) {
+            assert_eq!(day_number(&day_text(n)), Some(n), "{}", n);
+        }
+    }
+
+    /// INT-300 G12: the median is exact for an odd count, the mean of the middle two for an even
+    /// count (kept as twice the value), and nothing for no days.
+    #[test]
+    fn the_median_of_days_is_exact_and_empty_is_none() {
+        assert_eq!(median_twice(&[]), None);
+        assert_eq!(median_twice(&[5]), Some(10));
+        assert_eq!(median_twice(&[3, 1, 2]), Some(4));
+        assert_eq!(median_twice(&[1, 2]), Some(3));
+        assert_eq!(median_twice(&[4, 1, 3, 2]), Some(5));
+    }
+
+    /// INT-300 G12: fix_day is the earliest committer day among the fixing commits, read from
+    /// git; a commit git does not have is an error.
+    #[test]
+    fn fix_day_is_the_earliest_commit_day_and_an_unknown_commit_is_an_error() {
+        let dir = std::env::temp_dir().join(format!("core-fixday-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let git = |args: &[&str], when: &str| -> String {
+            let out = std::process::Command::new("git")
+                .arg("-C")
+                .arg(&dir)
+                .args(["-c", "user.name=t", "-c", "user.email=t@t"])
+                .args([
+                    "-c",
+                    "commit.gpgsign=false",
+                    "-c",
+                    "core.hooksPath=/dev/null",
+                ])
+                .args(args)
+                .env("GIT_COMMITTER_DATE", when)
+                .env("GIT_AUTHOR_DATE", when)
+                .output()
+                .unwrap();
+            assert!(out.status.success(), "{:?}", out);
+            String::from_utf8_lossy(&out.stdout).trim().to_string()
+        };
+        git(&["init", "-q"], "2026-10-01T12:00:00+0000");
+        git(
+            &["commit", "-q", "--allow-empty", "-m", "late"],
+            "2026-10-25T12:00:00+0000",
+        );
+        let late = git(&["rev-parse", "HEAD"], "2026-10-25T12:00:00+0000");
+        git(
+            &["commit", "-q", "--allow-empty", "-m", "early"],
+            "2026-10-21T12:00:00+0000",
+        );
+        let early = git(&["rev-parse", "HEAD"], "2026-10-21T12:00:00+0000");
+        let core = dir.to_string_lossy().to_string();
+        assert_eq!(
+            fix_day(&core, &[late.clone(), early.clone()]),
+            Ok("2026-10-21".to_string())
+        );
+        assert_eq!(fix_day(&core, &[late]), Ok("2026-10-25".to_string()));
+        assert!(fix_day(
+            &core,
+            &["0000000000000000000000000000000000000000".to_string()]
+        )
+        .is_err());
+        assert!(fix_day(&core, &[]).is_err());
+    }
+
+    /// INT-300 G12: open bugs are counted by severity, worst first, with the ids of the high and
+    /// the medium ones named; solved bugs are not counted as open.
+    #[test]
+    fn the_dashboard_counts_open_bugs_by_severity_worst_first() {
+        let records = vec![
+            rec("F-0001", "no", "high", "2026-10-01", "a"),
+            rec("F-0002", "no", "medium", "2026-10-02", "b"),
+            rec("F-0003", "no", "low", "2026-10-03", "c"),
+            rec("F-0004", "no", "unrated", "2026-10-04", "d"),
+            rec("F-0005", "no", "unrated", "2026-10-05", "e"),
+            rec("F-0006", "no", "low", "2026-10-06", "f"),
+        ];
+        let fixes = Ok(vec![fixed_by("F-0006")]);
+        let got = dashboard_report(
+            &records,
+            &fixes,
+            &[on_day("F-0006", "2026-10-29")],
+            "2026-10-30",
+            6,
+        );
+        assert_eq!(got.code, 0, "{}", got.text);
+        assert_eq!(words_of(&got.text, "high"), ["high", "1", "F-0001"]);
+        assert_eq!(words_of(&got.text, "medium"), ["medium", "1", "F-0002"]);
+        assert_eq!(words_of(&got.text, "low"), ["low", "1"]);
+        assert_eq!(words_of(&got.text, "unrated"), ["unrated", "2"]);
+        assert!(
+            got.text.contains("6 findings: 5 open, 1 solved"),
+            "{}",
+            got.text
+        );
+        let high = got.text.find("  high").unwrap();
+        let unrated = got.text.find("  unrated").unwrap();
+        assert!(high < unrated, "{}", got.text);
+    }
+
+    /// INT-300 G12: a severity outside the four words is counted as other, named, and still adds
+    /// up to the open count.
+    #[test]
+    fn a_severity_outside_the_four_words_is_counted_as_other() {
+        let records = vec![
+            rec("F-0001", "no", "urgent", "2026-10-01", "a"),
+            rec("F-0002", "no", "low", "2026-10-02", "b"),
+        ];
+        let got = dashboard_report(&records, &Ok(Vec::new()), &[], "2026-10-30", 2);
+        assert_eq!(words_of(&got.text, "other"), ["other", "1", "F-0001"]);
+        assert!(
+            got.text.contains("adds up to 2 of 2 open -- agree"),
+            "{}",
+            got.text
+        );
+        assert_eq!(got.code, 0, "{}", got.text);
+    }
+
+    /// INT-300 G12: the oldest open bug is the earliest found day among the open ones only, ties
+    /// go to the lower id, and its age is the days from that day to today.
+    #[test]
+    fn the_oldest_open_bug_ignores_solved_ones_and_breaks_ties_by_id() {
+        let records = vec![
+            rec("F-0001", "no", "low", "2026-09-01", "old but solved"),
+            rec("F-0002", "no", "low", "2026-10-10", "first of two"),
+            rec("F-0003", "no", "low", "2026-10-10", "second of two"),
+        ];
+        let got = dashboard_report(
+            &records,
+            &Ok(vec![fixed_by("F-0001")]),
+            &[on_day("F-0001", "2026-09-05")],
+            "2026-10-30",
+            3,
+        );
+        let w = words_of(&got.text, "oldest");
+        assert_eq!(
+            &w[..7],
+            [
+                "oldest",
+                "open",
+                "F-0002",
+                "found",
+                "2026-10-10",
+                "20",
+                "days"
+            ]
+        );
+        assert!(got.text.contains("first of two"), "{}", got.text);
+    }
+
+    /// INT-300 G12: with no open bug the oldest line says none; an open bug found after today says
+    /// so rather than a negative age; open bugs with no readable day are named as left out.
+    #[test]
+    fn the_oldest_open_line_says_none_after_today_or_left_out() {
+        let none = dashboard_report(
+            &[rec("F-0001", "duplicate", "low", "2026-10-01", "a")],
+            &Ok(Vec::new()),
+            &[],
+            "2026-10-30",
+            1,
+        );
+        assert!(none.text.contains("oldest open   none"), "{}", none.text);
+        let later = dashboard_report(
+            &[rec("F-0001", "no", "low", "2026-11-02", "a")],
+            &Ok(Vec::new()),
+            &[],
+            "2026-10-30",
+            1,
+        );
+        assert!(later.text.contains("after today"), "{}", later.text);
+        assert!(!later.text.contains("-3 days"), "{}", later.text);
+        let mixed = dashboard_report(
+            &[
+                rec("F-0001", "no", "low", "unknown", "a"),
+                rec("F-0002", "no", "low", "2026-10-20", "b"),
+            ],
+            &Ok(Vec::new()),
+            &[],
+            "2026-10-30",
+            2,
+        );
+        assert!(mixed.text.contains("F-0002"), "{}", mixed.text);
+        assert!(
+            mixed
+                .text
+                .contains("left out: 1 open without a readable found day"),
+            "{}",
+            mixed.text
+        );
+    }
+
+    /// INT-300 G12: the median is over the solved bugs that can be timed, a fix dated before the
+    /// bug was found is left out and named, and the line says how many it is over.
+    #[test]
+    fn the_median_fix_time_leaves_out_a_fix_dated_before_the_find() {
+        let records = vec![
+            rec("F-0001", "no", "low", "2026-10-01", "a"),
+            rec("F-0002", "no", "low", "2026-10-01", "b"),
+            rec("F-0003", "no", "low", "2026-10-10", "c"),
+            rec("F-0004", "no", "low", "2026-10-01", "d"),
+        ];
+        let fixes = Ok(vec![
+            fixed_by("F-0001"),
+            fixed_by("F-0002"),
+            fixed_by("F-0003"),
+            fixed_by("F-0004"),
+        ]);
+        let fixed_on = [
+            on_day("F-0001", "2026-10-04"),
+            on_day("F-0002", "2026-10-02"),
+            on_day("F-0003", "2026-10-05"),
+            on_day("F-0004", "2026-10-08"),
+        ];
+        let got = dashboard_report(&records, &fixes, &fixed_on, "2026-10-30", 4);
+        let w = words_of(&got.text, "median");
+        assert_eq!(&w[..4], ["median", "fix", "3", "days,"]);
+        assert!(got.text.contains("over 3 solved"), "{}", got.text);
+        assert!(
+            got.text.contains("F-0003 (fixed before it was found)"),
+            "{}",
+            got.text
+        );
+    }
+
+    /// INT-300 G12: an even count takes the mean of the middle two, which can be a half day, and
+    /// no solved bug at all reads unknown, never 0 days.
+    #[test]
+    fn the_median_can_be_a_half_day_and_no_solved_bug_reads_unknown() {
+        let records = vec![
+            rec("F-0001", "no", "low", "2026-10-01", "a"),
+            rec("F-0002", "no", "low", "2026-10-01", "b"),
+        ];
+        let fixes = Ok(vec![fixed_by("F-0001"), fixed_by("F-0002")]);
+        let both = [
+            on_day("F-0001", "2026-10-04"),
+            on_day("F-0002", "2026-10-03"),
+        ];
+        let half = dashboard_report(&records, &fixes, &both, "2026-10-30", 2);
+        assert!(
+            half.text.contains("median fix    2.5 days"),
+            "{}",
+            half.text
+        );
+        let none = dashboard_report(&records, &Ok(Vec::new()), &[], "2026-10-30", 2);
+        assert!(
+            none.text
+                .contains("median fix    unknown -- no solved bug can be timed"),
+            "{}",
+            none.text
+        );
+        assert!(!none.text.contains("0 days"), "{}", none.text);
+    }
+
+    /// INT-300 G12: the last 7 days are today and the six before it. A fix six days ago is in, one
+    /// seven days ago is out, a fix dated after today is left out and named, and the window is
+    /// printed.
+    #[test]
+    fn the_last_seven_days_include_today_and_the_six_before() {
+        let records = vec![
+            rec("F-0001", "no", "low", "2026-10-01", "today"),
+            rec("F-0002", "no", "low", "2026-10-01", "six ago"),
+            rec("F-0003", "no", "low", "2026-10-01", "seven ago"),
+            rec("F-0004", "no", "low", "2026-10-01", "tomorrow"),
+        ];
+        let fixes = Ok(vec![
+            fixed_by("F-0001"),
+            fixed_by("F-0002"),
+            fixed_by("F-0003"),
+            fixed_by("F-0004"),
+        ]);
+        let fixed_on = [
+            on_day("F-0001", "2026-10-30"),
+            on_day("F-0002", "2026-10-24"),
+            on_day("F-0003", "2026-10-23"),
+            on_day("F-0004", "2026-10-31"),
+        ];
+        let got = dashboard_report(&records, &fixes, &fixed_on, "2026-10-30", 4);
+        let line = got
+            .text
+            .lines()
+            .find(|l| l.starts_with("solved in the last 7 days"))
+            .unwrap();
+        assert!(line.contains("(2026-10-24 to 2026-10-30)"), "{}", line);
+        assert!(line.contains(": F-0001 F-0002"), "{}", line);
+        assert!(
+            !line.contains("F-0003") && !line.contains("F-0004"),
+            "{}",
+            line
+        );
+        assert!(
+            got.text.contains("F-0004 (fixed after today)"),
+            "{}",
+            got.text
+        );
+    }
+
+    /// INT-300 G12: a solved bug whose fix day was not given is left out of the median and the
+    /// window and named, not counted as today.
+    #[test]
+    fn a_solved_bug_with_no_fix_day_is_left_out_and_named() {
+        let records = vec![rec("F-0001", "no", "low", "2026-10-01", "a")];
+        let got = dashboard_report(
+            &records,
+            &Ok(vec![fixed_by("F-0001")]),
+            &[],
+            "2026-10-30",
+            1,
+        );
+        assert!(
+            got.text.contains("F-0001 (no readable fix day)"),
+            "{}",
+            got.text
+        );
+        assert!(got.text.contains("median fix    unknown"), "{}", got.text);
+        assert!(
+            got.text.contains("(2026-10-24 to 2026-10-30)  0\n"),
+            "{}",
+            got.text
+        );
+    }
+
+    /// INT-300 G12, G7: when git could not be read nothing is counted as open, no zero is printed
+    /// for a number that is unknown, and the exit is 3.
+    #[test]
+    fn the_dashboard_says_unknown_and_exits_3_when_git_cannot_be_read() {
+        let records = vec![
+            rec("F-0001", "no", "high", "2026-10-01", "a"),
+            rec("F-0002", "duplicate", "low", "2026-10-02", "b"),
+        ];
+        let got = dashboard_report(
+            &records,
+            &Err("git log could not run".to_string()),
+            &[],
+            "2026-10-30",
+            2,
+        );
+        assert_eq!(got.code, 3, "{}", got.text);
+        assert!(
+            got.text.contains("open by severity: unknown"),
+            "{}",
+            got.text
+        );
+        assert!(got.text.contains("oldest open: unknown"), "{}", got.text);
+        assert!(got.text.contains("median fix: unknown"), "{}", got.text);
+        assert!(
+            got.text.contains("(2026-10-24 to 2026-10-30): unknown"),
+            "{}",
+            got.text
+        );
+        assert!(words_of(&got.text, "high").is_empty(), "{}", got.text);
+        assert!(got.text.contains("1 unknown"), "{}", got.text);
+    }
+
+    /// INT-300 G12, G5: the dashboard ends with the recount; when the files on disk and the records
+    /// read disagree it says so and exits 1.
+    #[test]
+    fn the_dashboard_recount_disagrees_and_exits_1_when_a_file_is_not_read() {
+        let records = vec![rec("F-0001", "no", "low", "2026-10-01", "a")];
+        let agree = dashboard_report(&records, &Ok(Vec::new()), &[], "2026-10-30", 1);
+        assert_eq!(agree.code, 0, "{}", agree.text);
+        assert!(
+            agree
+                .text
+                .contains("1 finding files on disk, 1 records read -- they agree"),
+            "{}",
+            agree.text
+        );
+        let off = dashboard_report(&records, &Ok(Vec::new()), &[], "2026-10-30", 2);
+        assert_eq!(off.code, 1, "{}", off.text);
+        assert!(off.text.contains("they disagree"), "{}", off.text);
+    }
+
+    /// INT-300 G12: a day that is not a day for today is a refusal that ends 3, never a dashboard
+    /// built on a guess.
+    #[test]
+    fn a_today_that_is_not_a_day_ends_3() {
+        let got = dashboard_report(&[], &Ok(Vec::new()), &[], "yesterday", 0);
+        assert_eq!(got.code, 3);
+        assert!(got.text.contains("today could not be read"), "{}", got.text);
+    }
+
+    /// INT-300 G12: the header line is the G5 count line's numbers, the same rows counted.
+    #[test]
+    fn the_dashboard_header_counts_the_same_rows_as_the_list() {
+        let records = vec![
+            rec("F-0001", "no", "low", "2026-10-01", "a"),
+            rec("F-0002", "no", "low", "2026-10-02", "b"),
+            rec("F-0003", "duplicate", "low", "2026-10-03", "c"),
+        ];
+        let fixes = Ok(vec![fixed_by("F-0002")]);
+        let got = dashboard_report(
+            &records,
+            &fixes,
+            &[on_day("F-0002", "2026-10-20")],
+            "2026-10-30",
+            3,
+        );
+        assert!(
+            got.text
+                .starts_with("2026-10-30 -- 3 findings: 1 open, 1 solved, 1 closed, 0 unknown\n"),
+            "{}",
+            got.text
+        );
+        let all = rows(&records, &fixes);
+        assert_eq!(
+            render_summary(&counts(&all), 0)
+                .split(" -- ")
+                .next()
+                .unwrap(),
+            "3 findings: 1 open, 1 solved, 1 closed, 0 unknown"
+        );
     }
 }

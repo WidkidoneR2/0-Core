@@ -70,7 +70,7 @@ pub enum Commands {
     },
     Bug {
         #[command(subcommand)]
-        command: BugCommands,
+        command: Option<BugCommands>,
     },
     Profile {
         #[command(subcommand)]
@@ -794,6 +794,8 @@ pub enum ProfileCommands {
 /// INT-300 -- the bug report: the findings ledger read as a report.
 #[derive(Subcommand)]
 pub enum BugCommands {
+    /// The dashboard: what is open, the oldest, how fast bugs get fixed (also: no arguments)
+    Dashboard,
     /// The findings still unresolved, worst first; --all shows every one
     List {
         /// Only this state: open, solved, closed or unknown
@@ -829,6 +831,12 @@ pub enum BugCommands {
         /// Nothing to see the plan, or `apply SEAL` to file it
         apply: Vec<String>,
     },
+}
+
+impl Default for BugCommands {
+    fn default() -> Self {
+        BugCommands::Dashboard
+    }
 }
 
 #[derive(Subcommand)]

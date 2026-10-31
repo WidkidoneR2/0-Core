@@ -205,6 +205,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             ctx.capabilities
                 .require("intent", &[Capability::FilesystemReadHome])?;
             match c {
+                crate::cli::commands::BugCommand::Dashboard => {
+                    crate::domains::intent::bug::dashboard(ctx)
+                }
                 crate::cli::commands::BugCommand::List {
                     state,
                     severity,
