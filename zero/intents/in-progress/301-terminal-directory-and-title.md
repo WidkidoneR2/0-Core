@@ -3,7 +3,7 @@ id: 301
 date: 2026-10-31
 type: future
 title: "Terminal Directory And Title"
-status: planned
+status: in-progress
 tags: []
 ---
 
@@ -47,33 +47,41 @@ directory or title.
    written proposal.
 
 ## Success Criteria
-- [ ] G1 Recon re-measured on the shipped binary before any edit: nsh in a real PTY at /tmp writes
+- [x] G1 Recon re-measured on the shipped binary before any edit: nsh in a real PTY at /tmp writes
       OSC 2 and OSC 7 at the first and a later prompt, with the bytes captured; the one chdir at
       startup and every reader of NSH_KEEP_CWD listed with file:line; the harness cases that set
       NSH_KEEP_CWD listed. Proof: the pasted capture and listing in this gate's evidence.
-- [ ] G2 RED: a harness row starts nsh with NSH_KEEP_CWD unset in a temp directory that is not HOME
+      <!-- evidence: 2026-10-31 recon on the shipped binary, pasted in the working session: a real PTY at /tmp showed OSC 2 and OSC 7 at the first and a later prompt (prompt.rs:61-80); the startup chdir is main.rs:2558; readers of NSH_KEEP_CWD and the harness cases that set it were listed before any edit. -->
+- [x] G2 RED: a harness row starts nsh with NSH_KEEP_CWD unset in a temp directory that is not HOME
       and asserts the shell's cwd is that directory; it fails on the unfixed binary naming the
       directory it landed in (~/0-core). A second row starts in HOME and asserts ~/0-core. Proof:
       the red output under its plan Seal.
-- [ ] G3 The rule `startup_dir` has unit tests for: a non-HOME existing directory is kept; HOME
+      <!-- evidence: red plan Seal e524742810c27001: the new row started nsh from a temp directory that is not HOME and failed on the unfixed binary naming ~/0-core as where it landed. -->
+- [x] G3 The rule `startup_dir` has unit tests for: a non-HOME existing directory is kept; HOME
       goes to the core root; HOME reached through a symlink or a trailing slash goes to the core
       root; a missing path or a file goes to the core root; NSH_KEEP_CWD=1 keeps whatever it is
       given; NSH_KEEP_CWD=0 does not keep. Proof: cargo test names and counts.
-- [ ] G4 The G2 rows go green on the same plan, and the INT-261 case
+      <!-- evidence: commit c39fa885, Seal 23d7de0a5c6dd1bb: cargo test -p novashell cwd::tests, 6 passed 0 failed (non-HOME kept; HOME to core root; trailing slash or symlink HOME; unusable path to core root; keep keeps; no HOME keeps). -->
+- [x] G4 The G2 rows go green on the same plan, and the INT-261 case
       repl_start_directory_ignores_remembered_last_dir is still green, so the class that rule was
       written for stays fixed. Proof: nsh-test output.
-- [ ] G5 There is exactly one startup directory rule: the comment above it (main.rs:2552),
+      <!-- evidence: nsh-test --category=repl --failed all passed on the fix plan, including repl_start_directory_ignores_remembered_last_dir, which now launches from $HOME; full run after ship 301/301 (commit c39fa885). -->
+- [x] G5 There is exactly one startup directory rule: the comment above it (main.rs:2552),
       `--help` (main.rs:991) and the INT-206 note describe the new rule, and a search shows no
       second startup chdir. Proof: fsearch output.
-- [ ] G6 Real windows, process chain labelled as in INT-277 G6: foot, Ctrl+Shift+N from nsh in
+      <!-- evidence: commit c39fa885: the one startup rule is cwd::startup_dir, called once in main.rs; the comment, keep_launch_cwd doc and --help text describe it; the fsearch listing showed no second startup chdir. -->
+- [x] G6 Real windows, process chain labelled as in INT-277 G6: foot, Ctrl+Shift+N from nsh in
       /tmp opens nsh in /tmp; the same from HOME opens ~/0-core; ghostty, a split from /tmp does
       the same. Proof: pwd and the process chain from each window.
-- [ ] G7 The title and OSC 7 agree with the directory nsh actually landed in on the FIRST prompt
+      <!-- evidence: demonstrated 2026-10-31 with a PROOF line (cwd, parent chain, hyprctl title) from each window. foot: Ctrl+Shift+N from nsh in /tmp opened nsh in /tmp; the same from HOME gave cwd=/home/christian/0-core chain=nsh <- bash <- foot <- foot <- foot <- Hyprland. ghostty: from /tmp gave cwd=/tmp chain=nsh <- bash <- ghostty <- systemd. SUPER+Return was not measured (F-0101 owns it). -->
+- [x] G7 The title and OSC 7 agree with the directory nsh actually landed in on the FIRST prompt
       of a window started in /tmp (no stale core-root title). Proof: captured bytes or the
       window title through hyprctl activewindow.
-- [ ] G8 Rio, window opened from nsh in /tmp: the result is measured and written down as the
+      <!-- evidence: demonstrated 2026-10-31: the ghostty window started in /tmp read title=christian@christian:/tmp on its first prompt, and the foot window started in HOME read title=christian@christian:~/0-core, so the title agrees with where nsh landed and no stale core-root title shows. -->
+- [x] G8 Rio, window opened from nsh in /tmp: the result is measured and written down as the
       terminal-side gap in F-0107 (Rio never sends the directory), not claimed fixed. Proof: the
       process chain and cwd from the Rio window.
+      <!-- evidence: demonstrated 2026-10-31: Rio opened from nsh in /tmp landed in cwd=/home/christian/0-core, because Rio never sends the directory (F-0107, a terminal-side gap, not claimed fixed). Christian then uninstalled Rio. F-0108 (OSC 133 in ghostty) is untouched. -->
 - [ ] G9 Closing the records honestly: the commit that adds the evidence for F-0099 and F-0100
       carries `Fixes: F-0099` and `Fixes: F-0100` and names c78e7924 in its body, and says the
       solved day will read 2026-10-31 not 2026-10-27; the rule commit carries `Fixes: F-0102`
