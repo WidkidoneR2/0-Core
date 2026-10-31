@@ -3,7 +3,7 @@ id: 301
 date: 2026-10-31
 type: future
 title: "Terminal Directory And Title"
-status: in-progress
+status: complete
 tags: []
 ---
 
@@ -170,3 +170,7 @@ Evidence for both: F-0099 and F-0100 were fixed on 2026-10-27 by c78e7924, which
 in its subject, and read solved on 2026-10-31 once c6c1ff53 carried the trailers. F-0107 was closed
 through its record field in a1e5e0f5.
 
+
+## Versions
+- nsh 5.3.9 -> 5.3.10 (patch)
+- nsh-test 2.0.12 -> 2.0.13 (patch)
