@@ -30,6 +30,29 @@
 use std::collections::HashSet;
 use std::path::PathBuf;
 
+/// INT-300 G13 -- the bug line for the welcome banner, from the one place that derives it.
+///
+/// `core bug welcome` prints `bugs: N open (H high)` and exits 0, or says `bugs: unknown` and
+/// exits 3 when it cannot tell. This returns the line only for a clean exit whose output is one
+/// bugs line. Core missing, a failing run, any other output: None, and the banner says unknown.
+/// Nothing is parsed and no number is made up.
+pub fn bugs_line() -> Option<String> {
+    let out = std::process::Command::new("core")
+        .args(["bug", "welcome"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let text = String::from_utf8(out.stdout).ok()?;
+    let line = text.trim_end_matches('\n');
+    if line.starts_with("bugs: ") && !line.contains('\n') {
+        Some(line.to_string())
+    } else {
+        None
+    }
+}
+
 /// Is 0-Core present on this machine?
 ///
 /// THE ONE EXISTENCE CHECK. `paths.rs` has three `exists()` calls in the whole

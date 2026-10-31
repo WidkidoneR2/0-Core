@@ -5080,6 +5080,58 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(test(
+        "welcome_300_bug_line_comes_from_core_and_failure_reads_unknown",
+        Category::Repl,
+        || {
+            // INT-300 G13. The welcome prints the bug line core derives (core bug welcome) and
+            // says unknown when core cannot answer. Each case has its OWN scratch dir and state db
+            // and a stand-in `core` on a PATH of that dir plus the system dirs, never the real
+            // core. The first case is the control: it proves a bug line can be seen, so the
+            // others cannot pass by seeing nothing.
+            let base = std::env::temp_dir().join(format!("nsh-test-bugs-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&base);
+            let run = |tag: &str, script: Option<&str>| -> Result<String, String> {
+                let dir = base.join(tag);
+                let bin = dir.join("bin");
+                std::fs::create_dir_all(&bin).map_err(|e| format!("mkdir {}: {}", bin.display(), e))?;
+                std::fs::create_dir_all(dir.join("cache").join("zero"))
+                    .map_err(|e| format!("mkdir cache: {}", e))?;
+                if let Some(body) = script {
+                    use std::os::unix::fs::PermissionsExt;
+                    let path = bin.join("core");
+                    std::fs::write(&path, body).map_err(|e| format!("write core: {}", e))?;
+                    std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o755))
+                        .map_err(|e| format!("chmod core: {}", e))?;
+                }
+                let path_env = format!("{}:/usr/bin:/bin", bin.display());
+                let cache = dir.join("cache").to_string_lossy().to_string();
+                let db = repl::case_db_path();
+                let env = [
+                    ("PATH", path_env.as_str()),
+                    ("XDG_CACHE_HOME", cache.as_str()),
+                    ("ZERO_STATE_DB", db.as_str()),
+                ];
+                let (_, banner) = repl::run_repl_lines_banner(&["true"], &env)?;
+                Ok(banner)
+            };
+            let result = (|| -> Result<(), String> {
+                let said = "#!/bin/sh\nif [ \"$1 $2\" = \"bug welcome\" ]; then echo 'bugs: 7 open (2 high)'; fi\n";
+                expect_contains(&run("line", Some(said))?, "bugs: 7 open (2 high)")?;
+                let banner = run("none", None)?;
+                expect_contains(&banner, "bugs: unknown")?;
+                if banner.contains(" open (") {
+                    return Err(format!("no core, yet a count was shown: {:?}", banner));
+                }
+                let failed = "#!/bin/sh\necho 'bugs: unknown'\nexit 3\n";
+                expect_contains(&run("failed", Some(failed))?, "bugs: unknown")?;
+                let odd = "#!/bin/sh\necho 'something else'\n";
+                expect_contains(&run("odd", Some(odd))?, "bugs: unknown")
+            })();
+            let _ = std::fs::remove_dir_all(&base);
+            result
+        },
+    ));
+    results.push(test(
         "welcome_299_parity_every_route_to_the_same_file_prints_the_same_health",
         Category::Repl,
         || {

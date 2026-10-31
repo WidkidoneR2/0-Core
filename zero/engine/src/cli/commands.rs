@@ -393,6 +393,7 @@ pub enum ProfileCommand {
 #[derive(Debug)]
 pub enum BugCommand {
     Dashboard,
+    Welcome,
     List {
         state: Option<String>,
         severity: Option<String>,

@@ -1359,13 +1359,63 @@ fn dashboard_answer(ctx: &AppContext) -> Result<i32, String> {
     print!("{}", got.text);
     Ok(got.code)
 }
+/// The one line the shell banner prints about bugs, as a value (INT-300 G13): `bugs: N open (H
+/// high)`, counted by the same rows as the dashboard. When git could not be read, or a finding
+/// file was not read, it says `bugs: unknown` and ends 3; a measured zero is `0 open`, not unknown.
+pub fn welcome_line(
+    records: &[Record],
+    fixes: &Result<Vec<(String, String)>, String>,
+    on_disk: usize,
+) -> Report {
+    if fixes.is_err() || on_disk != records.len() {
+        return Report {
+            text: "bugs: unknown\n".to_string(),
+            code: 3,
+        };
+    }
+    let all = rows(records, fixes);
+    let open: Vec<&Row> = all.iter().filter(|r| r.state == "open").collect();
+    let high = open.iter().filter(|r| r.severity == "high").count();
+    Report {
+        text: format!("bugs: {} open ({} high)\n", open.len(), high),
+        code: 0,
+    }
+}
+
+/// `core bug welcome` -- INT-300 G13. The domain owns its exit: 0 the line, 3 it could not tell.
+pub fn welcome(ctx: &AppContext) -> CoreResult<()> {
+    let code = match welcome_answer(ctx) {
+        Ok(code) => code,
+        Err(e) => {
+            eprintln!("{} {}", "\u{2717}".bright_red(), e);
+            print!("bugs: unknown\n");
+            3
+        }
+    };
+    if code != 0 {
+        std::process::exit(code);
+    }
+    Ok(())
+}
+
+fn welcome_answer(ctx: &AppContext) -> Result<i32, String> {
+    let dir = super::intents_dir(ctx).join("findings");
+    let records = super::findings::read_records(&dir)?;
+    let on_disk = files_on_disk(&dir)?;
+    let core: &str = &ctx.core_root;
+    let named = super::trace::fixes(core);
+    let got = welcome_line(&records, &named, on_disk);
+    print!("{}", got.text);
+    Ok(got.code)
+}
+
 #[cfg(test)]
 mod bug_tests {
     use super::{
         check, counts, dashboard_report, day_number, day_text, files_on_disk, filter_from, fix_day,
         median_twice, promote, promote_title, promoted_text, rate, rate_plan, rated_text,
-        render_list, render_summary, report, rows, select, state_word, story, Counts, FixFacts,
-        Promoted, Rated, Row,
+        render_list, render_summary, report, rows, select, state_word, story, welcome_line, Counts,
+        FixFacts, Promoted, Rated, Row,
     };
     use crate::domains::intent::findings::{
         parse_record, read_records, with_field, with_severity, Record,
@@ -3026,5 +3076,73 @@ mod bug_tests {
                 .unwrap(),
             "3 findings: 1 open, 1 solved, 1 closed, 0 unknown"
         );
+    }
+
+    /// INT-300 G13: the welcome line counts open bugs and the high ones among them; solved and
+    /// closed bugs are not open, and a bug that is only unrated is not high.
+    #[test]
+    fn the_welcome_line_counts_open_and_high() {
+        let records = vec![
+            rec("F-0001", "no", "high", "2026-10-01", "a"),
+            rec("F-0002", "no", "high", "2026-10-02", "b"),
+            rec("F-0003", "no", "unrated", "2026-10-03", "c"),
+            rec("F-0004", "no", "high", "2026-10-04", "solved"),
+            rec("F-0005", "duplicate", "high", "2026-10-05", "closed"),
+        ];
+        let got = welcome_line(&records, &Ok(vec![fixed_by("F-0004")]), 5);
+        assert_eq!(got.text, "bugs: 3 open (2 high)\n");
+        assert_eq!(got.code, 0);
+    }
+
+    /// INT-300 G13: the welcome line and the dashboard are one derivation: for the same bugs the
+    /// open count and the high count are the same numbers.
+    #[test]
+    fn the_welcome_line_agrees_with_the_dashboard() {
+        let records = vec![
+            rec("F-0001", "no", "high", "2026-10-01", "a"),
+            rec("F-0002", "no", "medium", "2026-10-02", "b"),
+            rec("F-0003", "no", "low", "2026-10-03", "c"),
+            rec("F-0004", "no", "high", "2026-10-04", "d"),
+            rec("F-0005", "no", "high", "2026-10-05", "e"),
+        ];
+        let fixes = Ok(vec![fixed_by("F-0005")]);
+        let line = welcome_line(&records, &fixes, 5);
+        let board = dashboard_report(
+            &records,
+            &fixes,
+            &[on_day("F-0005", "2026-10-29")],
+            "2026-10-30",
+            5,
+        );
+        assert!(board.text.contains("4 open"), "{}", board.text);
+        assert_eq!(words_of(&board.text, "high")[1], "2");
+        assert_eq!(line.text, "bugs: 4 open (2 high)\n");
+    }
+
+    /// INT-300 G13, G7: when git cannot be read, or a finding file was not read, the line says
+    /// unknown and ends 3. It never prints a zero for a number it could not measure.
+    #[test]
+    fn the_welcome_line_says_unknown_when_it_cannot_answer() {
+        let records = vec![rec("F-0001", "no", "high", "2026-10-01", "a")];
+        let git = welcome_line(&records, &Err("git log could not run".to_string()), 1);
+        assert_eq!(git.text, "bugs: unknown\n");
+        assert_eq!(git.code, 3);
+        let short = welcome_line(&records, &Ok(Vec::new()), 2);
+        assert_eq!(short.text, "bugs: unknown\n");
+        assert_eq!(short.code, 3);
+        assert!(!git.text.contains("0 open") && !short.text.contains("0 open"));
+    }
+
+    /// INT-300 G13, G7: a measured zero is a number. With every bug solved or closed the line says
+    /// 0 open, not unknown.
+    #[test]
+    fn a_measured_zero_is_a_number_not_unknown() {
+        let records = vec![
+            rec("F-0001", "no", "high", "2026-10-01", "solved"),
+            rec("F-0002", "duplicate", "low", "2026-10-02", "closed"),
+        ];
+        let got = welcome_line(&records, &Ok(vec![fixed_by("F-0001")]), 2);
+        assert_eq!(got.text, "bugs: 0 open (0 high)\n");
+        assert_eq!(got.code, 0);
     }
 }

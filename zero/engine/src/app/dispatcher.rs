@@ -208,6 +208,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 crate::cli::commands::BugCommand::Dashboard => {
                     crate::domains::intent::bug::dashboard(ctx)
                 }
+                crate::cli::commands::BugCommand::Welcome => {
+                    crate::domains::intent::bug::welcome(ctx)
+                }
                 crate::cli::commands::BugCommand::List {
                     state,
                     severity,

@@ -3815,6 +3815,11 @@ fn print_welcome(core_root: &str, db: &crate::db::StateDb) {
     // -- git row: real time, and only what is actionable --
     println!("  {}", fc_dim(150, 150, 180, &git_line));
 
+    // -- bug row (INT-300 G13): the line core derives, or unknown when core cannot say --
+    let bugs_display =
+        crate::core_integration::bugs_line().unwrap_or_else(|| "bugs: unknown".to_string());
+    println!("  {}", fc_dim(150, 150, 180, &bugs_display));
+
     println!(
         "  {}",
         fc(

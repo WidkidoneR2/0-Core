@@ -796,6 +796,8 @@ pub enum ProfileCommands {
 pub enum BugCommands {
     /// The dashboard: what is open, the oldest, how fast bugs get fixed (also: no arguments)
     Dashboard,
+    /// The welcome line for the shell banner: bugs: N open (H high), or unknown
+    Welcome,
     /// The findings still unresolved, worst first; --all shows every one
     List {
         /// Only this state: open, solved, closed or unknown
