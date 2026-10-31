@@ -1,0 +1,468 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/bug.rs  sha256 9bd2f3491db7b37d -> e56af2b26d271d3d
+file /home/christian/0-core/zero/engine/src/cli/parser.rs  sha256 bd3067084b7335f7 -> 91b5075346a8b33a
+file /home/christian/0-core/zero/engine/src/cli/commands.rs  sha256 4c312213f96024a3 -> cd2f644124fa84e8
+file /home/christian/0-core/zero/engine/src/cli/mod.rs  sha256 30be5b25232b22f0 -> 7d839a84ae8463e4
+file /home/christian/0-core/zero/engine/src/app/dispatcher.rs  sha256 3f7c3e12dd2c4f86 -> d67c5da470b356ca
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 1030..1058 ---
+   1028:     Ok(())
+   1029: }
+>> 1030: pub fn day_number(_day: &str) -> Option<i64> {
+>> 1031:     None
+>> 1032: }
+>> 1033: 
+>> 1034: pub fn day_text(_n: i64) -> String {
+>> 1035:     String::new()
+>> 1036: }
+>> 1037: 
+>> 1038: pub fn median_twice(_days: &[i64]) -> Option<i64> {
+>> 1039:     None
+>> 1040: }
+>> 1041: 
+>> 1042: pub fn fix_day(_core: &str, _hashes: &[String]) -> Result<String, String> {
+>> 1043:     Err("not written".to_string())
+>> 1044: }
+>> 1045: 
+>> 1046: pub fn dashboard_report(
+>> 1047:     _records: &[Record],
+>> 1048:     _fixes: &Result<Vec<(String, String)>, String>,
+>> 1049:     _fixed_on: &[(String, String)],
+>> 1050:     _today: &str,
+>> 1051:     _on_disk: usize,
+>> 1052: ) -> Report {
+>> 1053:     Report {
+>> 1054:         text: String::new(),
+>> 1055:         code: 99,
+>> 1056:     }
+>> 1057: }
+>> 1058: #[cfg(test)]
+   1059: mod bug_tests {
+   1060:     use super::{
+++ /// A civil day as a count of days since 1970-01-01, or None for anything that is not a real
+++ /// YYYY-MM-DD day (INT-300 G12). The one place this file does date arithmetic.
+++ pub fn day_number(day: &str) -> Option<i64> {
+++     let b = day.as_bytes();
+++     if !day.is_ascii() || b.len() != 10 || b[4] != b'-' || b[7] != b'-' {
+++         return None;
+++     }
+++     let num = |s: &str| -> Option<i64> {
+++         if s.bytes().all(|c| c.is_ascii_digit()) {
+++             s.parse().ok()
+++         } else {
+++             None
+++         }
+++     };
+++     let (y, m, d) = (num(&day[0..4])?, num(&day[5..7])?, num(&day[8..10])?);
+++     let leap = (y % 4 == 0 && y % 100 != 0) || y % 400 == 0;
+++     let in_month = match m {
+++         1 | 3 | 5 | 7 | 8 | 10 | 12 => 31,
+++         4 | 6 | 9 | 11 => 30,
+++         2 if leap => 29,
+++         2 => 28,
+++         _ => return None,
+++     };
+++     if !(1..=in_month).contains(&d) {
+++         return None;
+++     }
+++     let y = if m <= 2 { y - 1 } else { y };
+++     let era = y.div_euclid(400);
+++     let yoe = y - era * 400;
+++     let mp = (m + 9) % 12;
+++     let doy = (153 * mp + 2) / 5 + d - 1;
+++     let doe = yoe * 365 + yoe / 4 - yoe / 100 + doy;
+++     Some(era * 146097 + doe - 719468)
+++ }
+++ 
+++ /// The YYYY-MM-DD text of a day number, the inverse of `day_number`.
+++ pub fn day_text(n: i64) -> String {
+++     let z = n + 719468;
+++     let era = z.div_euclid(146097);
+++     let doe = z - era * 146097;
+++     let yoe = (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365;
+++     let doy = doe - (365 * yoe + yoe / 4 - yoe / 100);
+++     let mp = (5 * doy + 2) / 153;
+++     let d = doy - (153 * mp + 2) / 5 + 1;
+++     let m = if mp < 10 { mp + 3 } else { mp - 9 };
+++     let y = yoe + era * 400 + i64::from(m <= 2);
+++     format!("{:04}-{:02}-{:02}", y, m, d)
+++ }
+++ 
+++ /// Twice the median of `days`, so a half day stays exact; None when there are no days.
+++ pub fn median_twice(days: &[i64]) -> Option<i64> {
+++     if days.is_empty() {
+++         return None;
+++     }
+++     let mut sorted = days.to_vec();
+++     sorted.sort();
+++     let n = sorted.len();
+++     Some(if n % 2 == 1 {
+++         sorted[n / 2] * 2
+++     } else {
+++         sorted[n / 2 - 1] + sorted[n / 2]
+++     })
+++ }
+++ 
+++ /// Twice a number of days, said in days: `3` or `2.5`.
+++ fn half_days(twice: i64) -> String {
+++     if twice % 2 == 0 {
+++         format!("{}", twice / 2)
+++     } else {
+++         format!("{}.5", twice / 2)
+++     }
+++ }
+++ 
+++ /// The earliest day any of `hashes` was committed, as git dates it (`%cs`). A commit git cannot
+++ /// date is an error, never a guess.
+++ pub fn fix_day(core: &str, hashes: &[String]) -> Result<String, String> {
+++     let mut best: Option<String> = None;
+++     for hash in hashes {
+++         let out = git_read(core, &["log", "-1", "--format=%cs", hash.as_str()])?;
+++         let day = out.trim().to_string();
+++         if day_number(&day).is_none() {
+++             return Err(format!("git gave no day for {}", hash));
+++         }
+++         let earlier = match &best {
+++             Some(b) => day < *b,
+++             None => true,
+++         };
+++         if earlier {
+++             best = Some(day);
+++         }
+++     }
+++     best.ok_or_else(|| "there is no fixing commit to date".to_string())
+++ }
+++ 
+++ /// Today as the machine says it, YYYY-MM-DD.
+++ pub fn today_text() -> Result<String, String> {
+++     let out = std::process::Command::new("date")
+++         .arg("+%Y-%m-%d")
+++         .output()
+++         .map_err(|e| format!("could not run date: {}", e))?;
+++     let day = String::from_utf8_lossy(&out.stdout).trim().to_string();
+++     if !out.status.success() || day_number(&day).is_none() {
+++         return Err("date gave no day".to_string());
+++     }
+++     Ok(day)
+++ }
+++ 
+++ /// The levels the dashboard counts, worst first. A severity outside these is counted as `other`.
+++ const LEVELS: [&str; 4] = ["high", "medium", "low", "unrated"];
+++ 
+++ /// How many days "the last 7 days" covers, today included.
+++ const WINDOW: i64 = 7;
+++ 
+++ /// `core bug` with no arguments, as a value (INT-300 G12): open bugs by severity, the oldest open
+++ /// bug and its age, the median days from found to fixed, and the bugs fixed in the last 7 days.
+++ /// `fixed_on` is each solved bug's earliest fixing commit day. Exit: 0 clean, 1 a recount
+++ /// disagrees, 3 git or the date could not be read. Nothing prints a zero for a number it could
+++ /// not measure.
+++ pub fn dashboard_report(
+++     records: &[Record],
+++     fixes: &Result<Vec<(String, String)>, String>,
+++     fixed_on: &[(String, String)],
+++     today: &str,
+++     on_disk: usize,
+++ ) -> Report {
+++     let now = match day_number(today) {
+++         Some(n) => n,
+++         None => {
+++             return Report {
+++                 text: format!("today could not be read: {:?} is not a day\n", today),
+++                 code: 3,
+++             }
+++         }
+++     };
+++     let all = rows(records, fixes);
+++     let c = counts(&all);
+++     let mut text = format!(
+++         "{} -- {} findings: {} open, {} solved, {} closed, {} unknown\n",
+++         today,
+++         c.total(),
+++         c.open,
+++         c.solved,
+++         c.closed,
+++         c.unknown
+++     );
+++     let open: Vec<&Row> = all.iter().filter(|r| r.state == "open").collect();
+++     let mut summed = 0;
+++     match fixes {
+++         Err(e) => text.push_str(&format!(
+++             "open by severity: unknown -- git could not be read ({})\n",
+++             e
+++         )),
+++         Ok(_) => {
+++             text.push_str(
+++                 "open by severity (core bug list --state open --severity LEVEL shows each)\n",
+++             );
+++             for level in LEVELS {
+++                 let ids: Vec<&str> = open
+++                     .iter()
+++                     .filter(|r| r.severity == level)
+++                     .map(|r| r.id.as_str())
+++                     .collect();
+++                 summed += ids.len();
+++                 let named = if (level == "high" || level == "medium") && !ids.is_empty() {
+++                     format!("  {}", ids.join(" "))
+++                 } else {
+++                     String::new()
+++                 };
+++                 text.push_str(&format!("  {:<8} {:>3}{}\n", level, ids.len(), named));
+++             }
+++             let other: Vec<&str> = open
+++                 .iter()
+++                 .filter(|r| !LEVELS.contains(&r.severity.as_str()))
+++                 .map(|r| r.id.as_str())
+++                 .collect();
+++             if !other.is_empty() {
+++                 summed += other.len();
+++                 text.push_str(&format!(
+++                     "  {:<8} {:>3}  {}\n",
+++                     "other",
+++                     other.len(),
+++                     other.join(" ")
+++                 ));
+++             }
+++         }
+++     }
+++     let dated: Vec<(i64, &Row)> = open
+++         .iter()
+++         .filter_map(|r| day_number(&r.found_on).map(|n| (n, *r)))
+++         .collect();
+++     let oldest = dated
+++         .iter()
+++         .min_by(|a, b| a.0.cmp(&b.0).then_with(|| a.1.id.cmp(&b.1.id)));
+++     match (oldest, fixes) {
+++         (_, Err(_)) => text.push_str("oldest open: unknown -- git could not be read\n"),
+++         (Some((n, r)), Ok(_)) if *n <= now => text.push_str(&format!(
+++             "oldest open   {}  found {}  {} days  {}\n",
+++             r.id,
+++             r.found_on,
+++             now - n,
+++             r.what
+++         )),
+++         (Some((_, r)), Ok(_)) => text.push_str(&format!(
+++             "oldest open   {}  found {}  after today  {}\n",
+++             r.id, r.found_on, r.what
+++         )),
+++         (None, Ok(_)) if open.is_empty() => text.push_str("oldest open   none -- no bug is open\n"),
+++         (None, Ok(_)) => {
+++             text.push_str("oldest open   unknown -- no open bug has a readable found day\n")
+++         }
+++     }
+++     if fixes.is_ok() && !dated.is_empty() && dated.len() < open.len() {
+++         text.push_str(&format!(
+++             "              left out: {} open without a readable found day\n",
+++             open.len() - dated.len()
+++         ));
+++     }
+++     let mut timed: Vec<i64> = Vec::new();
+++     let mut left: Vec<(String, &str)> = Vec::new();
+++     let mut recent: Vec<String> = Vec::new();
+++     for r in all.iter().filter(|r| r.state == "solved") {
+++         let fixed = fixed_on
+++             .iter()
+++             .find(|(id, _)| *id == r.id)
+++             .and_then(|(_, day)| day_number(day));
+++         match (fixed, day_number(&r.found_on)) {
+++             (None, _) => left.push((r.id.clone(), "no readable fix day")),
+++             (Some(f), _) if f > now => left.push((r.id.clone(), "fixed after today")),
+++             (Some(f), found) => {
+++                 if now - f < WINDOW {
+++                     recent.push(r.id.clone());
+++                 }
+++                 match found {
+++                     Some(o) if f >= o => timed.push(f - o),
+++                     Some(_) => left.push((r.id.clone(), "fixed before it was found")),
+++                     None => left.push((r.id.clone(), "no readable found day")),
+++                 }
+++             }
+++         }
+++     }
+++     let solved_known = fixes.is_ok();
+++     match (median_twice(&timed), solved_known) {
+++         (_, false) => text.push_str("median fix: unknown -- git could not be read\n"),
+++         (Some(m), true) => text.push_str(&format!(
+++             "median fix    {} days, found day to the earliest fixing commit day, over {} solved\n",
+++             half_days(m),
+++             timed.len()
+++         )),
+++         (None, true) => text.push_str("median fix    unknown -- no solved bug can be timed\n"),
+++     }
+++     if solved_known && !left.is_empty() {
+++         let said: Vec<String> = left
+++             .iter()
+++             .map(|(id, why)| format!("{} ({})", id, why))
+++             .collect();
+++         text.push_str(&format!("              left out: {}\n", said.join(", ")));
+++     }
+++     let from = day_text(now - (WINDOW - 1));
+++     if solved_known {
+++         text.push_str(&format!(
+++             "solved in the last {} days ({} to {})  {}{}\n",
+++             WINDOW,
+++             from,
+++             today,
+++             recent.len(),
+++             if recent.is_empty() {
+++                 String::new()
+++             } else {
+++                 format!(": {}", recent.join(" "))
+++             }
+++         ));
+++     } else {
+++         text.push_str(&format!(
+++             "solved in the last {} days ({} to {}): unknown -- git could not be read\n",
+++             WINDOW, from, today
+++         ));
+++     }
+++     let files_agree = on_disk == records.len();
+++     let sums_agree = fixes.is_err() || summed == c.open;
+++     text.push_str(&format!(
+++         "recount: {} finding files on disk, {} records read -- they {}; open by severity adds up to {} of {} open -- {}\n",
+++         on_disk,
+++         records.len(),
+++         if files_agree { "agree" } else { "disagree" },
+++         summed,
+++         c.open,
+++         if sums_agree { "agree" } else { "disagree" }
+++     ));
+++     let mut code = if files_agree && sums_agree { 0 } else { 1 };
+++     if let Err(e) = fixes {
+++         text.push_str(&format!(
+++             "git could not be read ({}): open findings read unknown\n",
+++             e
+++         ));
+++         code = 3;
+++     }
+++     Report { text, code }
+++ }
+++ 
+++ /// `core bug` with no arguments -- INT-300 G12. The domain owns its exit: 0 clean, 1 a recount
+++ /// disagrees, 3 git or the date could not be read.
+++ pub fn dashboard(ctx: &AppContext) -> CoreResult<()> {
+++     let code = match dashboard_answer(ctx) {
+++         Ok(code) => code,
+++         Err(e) => {
+++             eprintln!("{} {}", "\u{2717}".bright_red(), e);
+++             3
+++         }
+++     };
+++     if code != 0 {
+++         std::process::exit(code);
+++     }
+++     Ok(())
+++ }
+++ 
+++ fn dashboard_answer(ctx: &AppContext) -> Result<i32, String> {
+++     let dir = super::intents_dir(ctx).join("findings");
+++     let records = super::findings::read_records(&dir)?;
+++     let on_disk = files_on_disk(&dir)?;
+++     let core: &str = &ctx.core_root;
+++     let named = super::trace::fixes(core);
+++     let today = today_text()?;
+++     let mut fixed_on = Vec::new();
+++     for row in rows(&records, &named) {
+++         if row.state == "solved" {
+++             fixed_on.push((row.id.clone(), fix_day(core, &row.fixed_by)?));
+++         }
+++     }
+++     let got = dashboard_report(&records, &named, &fixed_on, &today, on_disk);
+++     print!("{}", got.text);
+++     Ok(got.code)
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/parser.rs: replacing lines 71..75 ---
+   69:         command: IntentCommands,
+   70:     },
+>> 71:     Bug {
+>> 72:         #[command(subcommand)]
+>> 73:         command: BugCommands,
+>> 74:     },
+>> 75:     Profile {
+   76:         #[command(subcommand)]
+   77:         command: ProfileCommands,
+++     Bug {
+++         #[command(subcommand)]
+++         command: Option<BugCommands>,
+++     },
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/parser.rs: replacing lines 796..799 ---
+   794: /// INT-300 -- the bug report: the findings ledger read as a report.
+   795: #[derive(Subcommand)]
+>> 796: pub enum BugCommands {
+>> 797:     /// The findings still unresolved, worst first; --all shows every one
+>> 798:     List {
+>> 799:         /// Only this state: open, solved, closed or unknown
+   800:         #[arg(long)]
+   801:         state: Option<String>,
+++ pub enum BugCommands {
+++     /// The dashboard: what is open, the oldest, how fast bugs get fixed (also: no arguments)
+++     Dashboard,
+++     /// The findings still unresolved, worst first; --all shows every one
+++     List {
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/parser.rs: replacing lines 831..835 ---
+   829:         /// The finding, e.g. F-0113
+   830:         id: String,
+>> 831:         /// Nothing to see the plan, or `apply SEAL` to file it
+>> 832:         apply: Vec<String>,
+>> 833:     },
+>> 834: }
+>> 835: 
+   836: #[derive(Subcommand)]
+   837: pub enum SecurityCommands {
+++         /// Nothing to see the plan, or `apply SEAL` to file it
+++         apply: Vec<String>,
+++     },
+++ }
+++ 
+++ impl Default for BugCommands {
+++     fn default() -> Self {
+++         BugCommands::Dashboard
+++     }
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/commands.rs: replacing lines 394..396 ---
+   392: 
+   393: #[derive(Debug)]
+>> 394: pub enum BugCommand {
+>> 395:     List {
+>> 396:         state: Option<String>,
+   397:         severity: Option<String>,
+   398:         all: bool,
+++ pub enum BugCommand {
+++     Dashboard,
+++     List {
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/mod.rs: replacing lines 282..284 ---
+   280:             DelegateCommands::Activate { contract } => DelegateCommand::Activate { contract },
+   281:         }),
+>> 282:         Commands::Bug { command } => Command::Bug(match command {
+>> 283:             parser::BugCommands::List {
+>> 284:                 state,
+   285:                 severity,
+   286:                 all,
+++         Commands::Bug { command } => Command::Bug(match command.unwrap_or_default() {
+++             parser::BugCommands::Dashboard => commands::BugCommand::Dashboard,
+++             parser::BugCommands::List {
+++ 
+--- /home/christian/0-core/zero/engine/src/app/dispatcher.rs: replacing lines 207..209 ---
+   205:             ctx.capabilities
+   206:                 .require("intent", &[Capability::FilesystemReadHome])?;
+>> 207:             match c {
+>> 208:                 crate::cli::commands::BugCommand::List {
+>> 209:                     state,
+   210:                     severity,
+   211:                     all,
+++             match c {
+++                 crate::cli::commands::BugCommand::Dashboard => {
+++                     crate::domains::intent::bug::dashboard(ctx)
+++                 }
+++                 crate::cli::commands::BugCommand::List {
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/parser.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/parser.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/parser.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/commands.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/app/dispatcher.rs: 1 replaced
