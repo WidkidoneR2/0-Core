@@ -1,0 +1,739 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/findings.rs  sha256 67430b6567e289bf -> 5a7c226247444231
+file /home/christian/0-core/zero/engine/src/domains/intent/mod.rs  sha256 e056cbe07b717dee -> 2693be3074df3236
+file /home/christian/0-core/zero/engine/src/domains/intent/bug.rs  sha256 aa9af6cd984428c3 -> 3f655837c3ea26ac
+file /home/christian/0-core/zero/engine/src/cli/parser.rs  sha256 d6b13665d0678e07 -> bd3067084b7335f7
+file /home/christian/0-core/zero/engine/src/cli/commands.rs  sha256 261886cf26bf19c8 -> 4c312213f96024a3
+file /home/christian/0-core/zero/engine/src/cli/mod.rs  sha256 acc9deaeb1096528 -> 30be5b25232b22f0
+file /home/christian/0-core/zero/engine/src/app/dispatcher.rs  sha256 b80a636d84b7fc38 -> 3f7c3e12dd2c4f86
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 167..174 ---
+   165:         found_on: get("found_on"),
+   166:         closed_without_fix: get("closed_without_fix"),
+>> 167:         severity: match get("severity").as_str() {
+>> 168:             "unknown" => "unrated".to_string(),
+>> 169:             other => other.to_string(),
+>> 170:         },
+>> 171:         promoted_to: None,
+>> 172:     }
+>> 173: }
+>> 174: 
+   175: pub fn with_field(
+   176:     _body: &str,
+++         severity: match get("severity").as_str() {
+++             "unknown" => "unrated".to_string(),
+++             other => other.to_string(),
+++         },
+++         promoted_to: fields
+++             .iter()
+++             .find(|(key, _)| key.as_str() == "promoted_to")
+++             .map(|(_, value)| value.clone())
+++             .filter(|value| !value.is_empty()),
+++     }
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/findings.rs: replacing lines 179..223 ---
+   177: }
+   178: 
+>> 179: pub fn with_field(
+>> 180:     _body: &str,
+>> 181:     _key: &str,
+>> 182:     _value: &str,
+>> 183: ) -> Result<(String, Option<String>), String> {
+>> 184:     Err("not written".to_string())
+>> 185: }
+>> 186: 
+>> 187: /// The record body with its severity set to `level`, and the old severity line if it had one. Only
+>> 188: /// the frontmatter is touched: the first `severity:` line is replaced, and a record that has none
+>> 189: /// (every record filed before INT-300 G3) gets one before the closing `---`. Every other byte stays.
+>> 190: pub fn with_severity(body: &str, level: &str) -> Result<(String, Option<String>), String> {
+>> 191:     let level = severity_level(level)?;
+>> 192:     let lines: Vec<&str> = body.split_inclusive('\n').collect();
+>> 193:     if lines.first().map(|l| l.trim()) != Some("---") {
+>> 194:         return Err("the record has no frontmatter, so no severity can be set".to_string());
+>> 195:     }
+>> 196:     let close = lines
+>> 197:         .iter()
+>> 198:         .skip(1)
+>> 199:         .position(|l| l.trim() == "---")
+>> 200:         .map(|i| i + 1)
+>> 201:         .ok_or_else(|| "the record's frontmatter is never closed".to_string())?;
+>> 202:     let new_line = format!("severity: {}\n", level);
+>> 203:     let mut out = String::new();
+>> 204:     let mut old = None;
+>> 205:     for (i, line) in lines.iter().enumerate() {
+>> 206:         let is_severity = i > 0
+>> 207:             && i < close
+>> 208:             && old.is_none()
+>> 209:             && line.split_once(':').map(|(k, _)| k.trim()) == Some("severity");
+>> 210:         if is_severity {
+>> 211:             old = Some(line.trim().to_string());
+>> 212:             out.push_str(&new_line);
+>> 213:             continue;
+>> 214:         }
+>> 215:         if i == close && old.is_none() {
+>> 216:             out.push_str(&new_line);
+>> 217:         }
+>> 218:         out.push_str(line);
+>> 219:     }
+>> 220:     Ok((out, old))
+>> 221: }
+>> 222: 
+>> 223: /// Every record in `dir`, in id order. An absent folder truly holds none; a folder or record
+   224: /// that cannot be read is an error, never an empty list (INT-192). Only F-NNNN.md is read.
+   225: pub fn read_records(dir: &Path) -> Result<Vec<Record>, String> {
+++ /// The record body with the frontmatter line `key:` set to `value`, and the old line if it had
+++ /// one. Only the frontmatter is touched: the first `key:` line is replaced, and a record that has
+++ /// none gets one before the closing `---`. Every other byte stays. The ONE rewriter of a record
+++ /// (INT-300 G9, G11).
+++ pub fn with_field(body: &str, key: &str, value: &str) -> Result<(String, Option<String>), String> {
+++     if value.contains('\n') {
+++         return Err(format!("the value for {} must be one line", key));
+++     }
+++     let lines: Vec<&str> = body.split_inclusive('\n').collect();
+++     if lines.first().map(|l| l.trim()) != Some("---") {
+++         return Err(format!(
+++             "the record has no frontmatter, so no {} can be set",
+++             key
+++         ));
+++     }
+++     let close = lines
+++         .iter()
+++         .skip(1)
+++         .position(|l| l.trim() == "---")
+++         .map(|i| i + 1)
+++         .ok_or_else(|| "the record's frontmatter is never closed".to_string())?;
+++     let new_line = format!("{}: {}\n", key, value);
+++     let mut out = String::new();
+++     let mut old = None;
+++     for (i, line) in lines.iter().enumerate() {
+++         let is_key = i > 0
+++             && i < close
+++             && old.is_none()
+++             && line.split_once(':').map(|(k, _)| k.trim()) == Some(key);
+++         if is_key {
+++             old = Some(line.trim().to_string());
+++             out.push_str(&new_line);
+++             continue;
+++         }
+++         if i == close && old.is_none() {
+++             out.push_str(&new_line);
+++         }
+++         out.push_str(line);
+++     }
+++     Ok((out, old))
+++ }
+++ 
+++ /// The record body with its severity set to `level`, and the old severity line if it had one.
+++ pub fn with_severity(body: &str, level: &str) -> Result<(String, Option<String>), String> {
+++     with_field(body, "severity", severity_level(level)?)
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 2818..2852 ---
+   2816: }
+   2817: 
+>> 2818: pub struct Seed {
+>> 2819:     pub problem: String,
+>> 2820:     pub gate: String,
+>> 2821: }
+>> 2822: 
+>> 2823: pub fn target_in(
+>> 2824:     _base: &std::path::Path,
+>> 2825:     _category: &str,
+>> 2826:     _title: &str,
+>> 2827: ) -> CoreResult<(u32, PathBuf, String)> {
+>> 2828:     Err(crate::errors::CoreError::Runtime("not written".into()))
+>> 2829: }
+>> 2830: 
+>> 2831: pub fn create_in(
+>> 2832:     _base: &std::path::Path,
+>> 2833:     _category: &str,
+>> 2834:     _type_tag: &str,
+>> 2835:     _title: &str,
+>> 2836:     _status: &str,
+>> 2837:     _tags: &[String],
+>> 2838:     _seed: Option<&Seed>,
+>> 2839: ) -> CoreResult<PathBuf> {
+>> 2840:     Err(crate::errors::CoreError::Runtime("not written".into()))
+>> 2841: }
+>> 2842: 
+>> 2843: /// The ONE creator. Nothing else writes an intent file.
+>> 2844: pub fn create(
+>> 2845:     category: &str,
+>> 2846:     type_tag: &str,
+>> 2847:     title: &str,
+>> 2848:     status: &str,
+>> 2849:     tags: &[String],
+>> 2850: ) -> CoreResult<PathBuf> {
+>> 2851:     if !CATEGORIES.contains(&category) {
+>> 2852:         return Err(crate::errors::CoreError::Runtime(format!(
+   2853:             "unknown category '{}' -- expected one of {:?}",
+   2854:             category, CATEGORIES
+++ /// The words a promoted bug puts in the new intent in place of the template's placeholders
+++ /// (INT-300 G11): the finding as The Problem, and the first success criterion.
+++ pub struct Seed {
+++     pub problem: String,
+++     pub gate: String,
+++ }
+++ 
+++ /// The ONE creator. Nothing else writes an intent file. The wizard, `core intent new` and
+++ /// `core bug promote` all end in `create_in`; this one files under the real ledger.
+++ pub fn create(
+++     category: &str,
+++     type_tag: &str,
+++     title: &str,
+++     status: &str,
+++     tags: &[String],
+++ ) -> CoreResult<PathBuf> {
+++     create_in(
+++         &zero_core::paths::intents_dir(),
+++         category,
+++         type_tag,
+++         title,
+++         status,
+++         tags,
+++         None,
+++     )
+++ }
+++ 
+++ /// Where the next intent of `category` is filed under `base`: its number, its path and its
+++ /// cleaned title. `create_in` and the plan `core bug promote` prints both ask this, so the plan
+++ /// names the file that will be written.
+++ pub fn target_in(
+++     base: &std::path::Path,
+++     category: &str,
+++     title: &str,
+++ ) -> CoreResult<(u32, PathBuf, String)> {
+++     if !CATEGORIES.contains(&category) {
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 2869..2876 ---
+   2867:         ));
+   2868:     }
+>> 2869:     let id = next_id(category);
+>> 2870:     let date = std::process::Command::new("date")
+>> 2871:         .args(["+%Y-%m-%d"])
+>> 2872:         .output()
+>> 2873:         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+>> 2874:         .unwrap_or_else(|_| "1970-01-01".to_string());
+>> 2875: 
+>> 2876:     // One slug rule. `new_intent` only replaced spaces, which is why 136's filename kept a
+   2877:     // colon and a comma. cmd_add filtered to alphanumeric+dash. This does the latter.
+   2878:     let slug: String = title
+++     let id = folders::next_number(base, category);
+++ 
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 2881..2892 ---
+   2879: 
+   2880:     let filename = format!("{:03}-{}.md", id, slug);
+>> 2881:     let path = zero_core::paths::intents_dir()
+>> 2882:         .join(category)
+>> 2883:         .join(&filename);
+>> 2884:     if path.exists() {
+>> 2885:         return Err(crate::errors::CoreError::Runtime(format!(
+>> 2886:             "refusing to overwrite {}",
+>> 2887:             path.display()
+>> 2888:         )));
+>> 2889:     }
+>> 2890: 
+>> 2891:     let tags_str = if tags.is_empty() {
+>> 2892:         "[]".to_string()
+   2893:     } else {
+   2894:         format!("[{}]", tags.join(", "))
+++     let path = base.join(category).join(&filename);
+++     if path.exists() {
+++         return Err(crate::errors::CoreError::Runtime(format!(
+++             "refusing to overwrite {}",
+++             path.display()
+++         )));
+++     }
+++     Ok((id, path, title.to_string()))
+++ }
+++ 
+++ /// Files one intent under `base`. With a seed, the template's Problem and first criterion are the
+++ /// seed's words; without one the file is exactly what it always was.
+++ pub fn create_in(
+++     base: &std::path::Path,
+++     category: &str,
+++     type_tag: &str,
+++     title: &str,
+++     status: &str,
+++     tags: &[String],
+++     seed: Option<&Seed>,
+++ ) -> CoreResult<PathBuf> {
+++     let (id, path, title) = target_in(base, category, title)?;
+++     let date = std::process::Command::new("date")
+++         .args(["+%Y-%m-%d"])
+++         .output()
+++         .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+++         .unwrap_or_else(|_| "1970-01-01".to_string());
+++ 
+++     let tags_str = if tags.is_empty() {
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 2915..2921 ---
+   2913:     };
+   2914: 
+>> 2915:     let content = format!(
+>> 2916:         "---\nid: {:03}\ndate: {}\ntype: {}\ntitle: \"{}\"\nstatus: {}\ntags: {}\n---\n\n\
+>> 2917: ## Vision\n[Describe the goal and desired outcome]\n\n\
+>> 2918: ## The Problem\n[What problem does this solve?]\n\n\
+>> 2919: ## The Solution\n[High-level approach]\n\n\
+>> 2920: ## Success Criteria\n- [ ] ...\n\n\
+>> 2921: <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.\n\
+   2922:      When you tick a gate, put the proof in an HTML comment on the line after it: a commit\n\
+   2923:      hash, a file:line, a log or artifact path, or \"demonstrated: what + how\". Prose counts.\n\
+++     let problem = seed.map_or("[What problem does this solve?]", |s| s.problem.as_str());
+++     let criteria = seed.map_or("- [ ] ...", |s| s.gate.as_str());
+++     let content = format!(
+++         "---\nid: {:03}\ndate: {}\ntype: {}\ntitle: \"{}\"\nstatus: {}\ntags: {}\n---\n\n\
+++ ## Vision\n[Describe the goal and desired outcome]\n\n\
+++ ## The Problem\n{}\n\n\
+++ ## The Solution\n[High-level approach]\n\n\
+++ ## Success Criteria\n{}\n\n\
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/mod.rs: replacing lines 2931..2933 ---
+   2929:      Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.\n\
+   2930:      See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->\n",
+>> 2931:         id, date, type_tag, title, status, tags_str
+>> 2932:     );
+>> 2933: 
+   2934:     fs::create_dir_all(path.parent().unwrap()).map_err(crate::errors::CoreError::Io)?;
+   2935:     fs::write(&path, content).map_err(crate::errors::CoreError::Io)?;
+++         id, date, type_tag, title, status, tags_str, problem, criteria
+++     );
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 6..7 ---
+   4: //! terminal screen, a bar, a script) reads the same rows this one prints.
+   5: 
+>> 6: use super::findings::{severity_level, with_severity, Record};
+>> 7: use super::trace::{
+   8:     check_commit_seal, git_read, seal_digest, seal_notes, state_of, SealCheck, State, Trailers,
+   9: };
+++ use super::findings::{severity_level, with_field, with_severity, Record};
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 9..11 ---
+   7: use super::trace::{
+   8:     check_commit_seal, git_read, seal_digest, seal_notes, state_of, SealCheck, State, Trailers,
+>> 9: };
+>> 10: use crate::app::context::AppContext;
+>> 11: use crate::errors::CoreResult;
+   12: use colored::*;
+   13: use std::fs;
+++ };
+++ use super::{create_in, target_in, Seed, TEMPLATES};
+++ use crate::app::context::AppContext;
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 328..329 ---
+   326:     let mut t = format!("{}  {}\n", record.id, record.what);
+   327:     t.push_str(&format!("  where     {}\n", record.at));
+>> 328:     t.push_str(&format!("  severity  {}\n", record.severity));
+>> 329:     t.push_str(&format!("  state     {}\n", state_word(state)));
+   330:     match state {
+   331:         State::Open => t.push_str(&format!(
+++     t.push_str(&format!("  severity  {}\n", record.severity));
+++     if let Some(to) = &record.promoted_to {
+++         t.push_str(&format!("  promoted  {}\n", to));
+++     }
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 686..690 ---
+   684: /// Write the planned body beside the record, move it into place and read it back. A record is
+   685: /// never left half written.
+>> 686: fn write_rated(path: &Path, plan: &RatePlan) -> Result<(), String> {
+>> 687:     let tmp = path.with_extension("md.tmp");
+>> 688:     fs::write(&tmp, &plan.new_body)
+>> 689:         .map_err(|e| format!("could not write {}: {}", tmp.display(), e))?;
+>> 690:     fs::rename(&tmp, path).map_err(|e| {
+   691:         let _ = fs::remove_file(&tmp);
+   692:         format!("could not replace {}: {}", path.display(), e)
+++ fn write_rated(path: &Path, plan: &RatePlan) -> Result<(), String> {
+++     write_body(path, &plan.new_body)
+++ }
+++ 
+++ /// Write `body` beside the record at `path`, move it into place and read it back. A record is
+++ /// never left half written (INT-300 G9, G11).
+++ fn write_body(path: &Path, body: &str) -> Result<(), String> {
+++     let tmp = path.with_extension("md.tmp");
+++     fs::write(&tmp, body).map_err(|e| format!("could not write {}: {}", tmp.display(), e))?;
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 701..702 ---
+   699:     let back = fs::read_to_string(path)
+   700:         .map_err(|e| format!("could not read back {}: {}", path.display(), e))?;
+>> 701:     if back != plan.new_body {
+>> 702:         return Err(format!(
+   703:             "{} does not read back as the plan wrote it",
+   704:             path.display()
+++     if back != body {
+++ 
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 777..794 ---
+   775: }
+   776: 
+>> 777: pub fn promote_title(_record: &Record) -> String {
+>> 778:     String::new()
+>> 779: }
+>> 780: 
+>> 781: pub fn promote(
+>> 782:     _base: &Path,
+>> 783:     _id: &str,
+>> 784:     _fixes: &Result<Vec<(String, String)>, String>,
+>> 785:     _apply: &[String],
+>> 786: ) -> Result<Promoted, String> {
+>> 787:     Err("not written".to_string())
+>> 788: }
+>> 789: 
+>> 790: pub fn promoted_text(_got: &Promoted, _id: &str) -> (String, i32) {
+>> 791:     (String::new(), 99)
+>> 792: }
+>> 793: 
+>> 794: #[cfg(test)]
+   795: mod bug_tests {
+   796:     use super::{
+++ /// What the promoted intent is called: `Fix F-NNNN: ` and the finding's own words, cut at sixty
+++ /// characters, with no quote or backslash to break the title line.
+++ pub fn promote_title(record: &Record) -> String {
+++     let said: String = record
+++         .what
+++         .chars()
+++         .map(|c| match c {
+++             '"' => '\'',
+++             '\\' => '/',
+++             c if c.is_control() => ' ',
+++             c => c,
+++         })
+++         .collect();
+++     let said = said.split_whitespace().collect::<Vec<_>>().join(" ");
+++     let short = if said.chars().count() <= 60 {
+++         said
+++     } else {
+++         let cut: String = said.chars().take(60).collect();
+++         match cut.rfind(' ') {
+++             Some(i) if i > 30 => format!("{}...", &cut[..i]),
+++             _ => format!("{}...", cut),
+++         }
+++     };
+++     format!("Fix {}: {}", record.id, short)
+++ }
+++ 
+++ /// The words the new intent starts with in place of the template's placeholders: the finding as
+++ /// The Problem, and one gate that a sealed commit carries `Fixes: F-NNNN`.
+++ pub fn promote_seed(record: &Record) -> Seed {
+++     Seed {
+++         problem: format!(
+++             "{}\n\nWhere: {}. Found {} by {}; severity {}.\n\
+++              This is finding {}: `core bug show {}` tells its whole story.",
+++             record.what,
+++             record.at,
+++             record.found_on,
+++             record.found_by,
+++             record.severity,
+++             record.id,
+++             record.id
+++         ),
+++         gate: format!(
+++             "- [ ] A sealed commit carries `Fixes: {}`, so `core bug show {}` reads solved \
+++              with that commit and its Seal checking out",
+++             record.id, record.id
+++         ),
+++     }
+++ }
+++ 
+++ /// The fix template as `core intent new fix` reads it: its type, its status and its tags.
+++ fn fix_template() -> Result<(&'static str, &'static str, Vec<String>), String> {
+++     let (_, type_tag, tags, status) = TEMPLATES
+++         .iter()
+++         .find(|(t, ..)| *t == "fix")
+++         .copied()
+++         .ok_or_else(|| "the fix template is missing".to_string())?;
+++     let tags = tags.split(',').map(|t| t.trim().to_string()).collect();
+++     Ok((type_tag, status, tags))
+++ }
+++ 
+++ /// The plan for promoting one bug: refuses a bug already promoted and a bug that is not open,
+++ /// otherwise names the intent, its file, the words it starts with, the change to the bug's record
+++ /// and the Seal of that text. `state` is the word `state_word` gives the bug.
+++ pub fn promote_plan(
+++     base: &Path,
+++     record: &Record,
+++     record_path: &str,
+++     old_body: &str,
+++     state: &str,
+++ ) -> Result<PromotePlan, String> {
+++     if let Some(to) = &record.promoted_to {
+++         return Err(format!("{} is already promoted to {}", record.id, to));
+++     }
+++     if state != "open" {
+++         return Err(format!(
+++             "{} reads {}, not open; there is nothing to promote",
+++             record.id, state
+++         ));
+++     }
+++     let (type_tag, status, tags) = fix_template()?;
+++     let (id, path, title) =
+++         target_in(base, "future", &promote_title(record)).map_err(|e| e.to_string())?;
+++     let name = format!("INT-{:03}", id);
+++     let (new_record, _) = with_field(old_body, "promoted_to", &name)?;
+++     let seed = promote_seed(record);
+++     let text = format!(
+++         "promote {}: a new intent, {}\n\
+++          title    {}\n\
+++          folder   future (template fix: type {}, status {}, tags {})\n\
+++          file     {}\n\
+++          problem  {}\n\
+++          gate     {}\n\
+++          record   {}  sha256 {} -> {}\n\
+++          ++ promoted_to: {}",
+++         record.id,
+++         name,
+++         title,
+++         type_tag,
+++         status,
+++         tags.join(", "),
+++         path.display(),
+++         record.what,
+++         seed.gate,
+++         record_path,
+++         seal_digest(old_body.as_bytes()),
+++         seal_digest(new_record.as_bytes()),
+++         name
+++     );
+++     let seal = seal_digest(text.as_bytes());
+++     Ok(PromotePlan {
+++         text,
+++         seal,
+++         id,
+++         path,
+++         new_record,
+++     })
+++ }
+++ 
+++ /// `core bug promote` as a value. With no words after the id it plans; with `apply SEAL` it
+++ /// rebuilds the plan from the ledger as it is now and files the intent only if that plan still has
+++ /// the given Seal. Refused means nothing was written; Err means the ledger could not be read or
+++ /// written, and a promotion that failed half way takes the new intent back.
+++ pub fn promote(
+++     base: &Path,
+++     id: &str,
+++     fixes: &Result<Vec<(String, String)>, String>,
+++     apply: &[String],
+++ ) -> Result<Promoted, String> {
+++     let seal = match apply {
+++         [] => None,
+++         [word, seal] if word == "apply" => Some(seal.as_str()),
+++         _ => {
+++             return Ok(Promoted::Refused(
+++                 "after the id say nothing to see the plan, or: apply SEAL".to_string(),
+++             ));
+++         }
+++     };
+++     let dir = base.join("findings");
+++     let records = super::findings::read_records(&dir)?;
+++     let record = records
+++         .iter()
+++         .find(|r| r.id == id)
+++         .ok_or_else(|| format!("{} names no finding in {}", id, dir.display()))?;
+++     let path = dir.join(format!("{}.md", id));
+++     let old_body = fs::read_to_string(&path)
+++         .map_err(|e| format!("could not read {}: {}", path.display(), e))?;
+++     let state = state_word(&state_of(record, fixes));
+++     let plan = match promote_plan(base, record, &path.display().to_string(), &old_body, state) {
+++         Ok(p) => p,
+++         Err(e) => return Ok(Promoted::Refused(e)),
+++     };
+++     match seal {
+++         None => Ok(Promoted::Planned(plan)),
+++         Some(given) if given == plan.seal => {
+++             file_promotion(base, record, &path, &plan)?;
+++             Ok(Promoted::Applied(plan))
+++         }
+++         Some(given) => Ok(Promoted::Refused(format!(
+++             "the plan now hashes to {}, not {}: the ledger or the bug changed",
+++             plan.seal, given
+++         ))),
+++     }
+++ }
+++ 
+++ /// Files the planned intent through `create_in`, the code behind `core intent new`, then marks the
+++ /// bug. If the bug cannot be written the new intent is removed, so nothing is left half done.
+++ fn file_promotion(
+++     base: &Path,
+++     record: &Record,
+++     record_path: &Path,
+++     plan: &PromotePlan,
+++ ) -> Result<(), String> {
+++     let (type_tag, status, tags) = fix_template()?;
+++     let seed = promote_seed(record);
+++     let made = create_in(
+++         base,
+++         "future",
+++         type_tag,
+++         &promote_title(record),
+++         status,
+++         &tags,
+++         Some(&seed),
+++     )
+++     .map_err(|e| e.to_string())?;
+++     if made != plan.path {
+++         let _ = fs::remove_file(&made);
+++         return Err(format!(
+++             "the intent was filed at {}, not at {}; it was removed",
+++             made.display(),
+++             plan.path.display()
+++         ));
+++     }
+++     if let Err(e) = write_body(record_path, &plan.new_record) {
+++         let _ = fs::remove_file(&made);
+++         return Err(format!(
+++             "{}; the new intent {} was removed",
+++             e,
+++             made.display()
+++         ));
+++     }
+++     Ok(())
+++ }
+++ 
+++ /// What `core bug promote` prints and the exit it ends with: the plan with its Seal and the line
+++ /// that files it, the filed intent, or a refusal.
+++ pub fn promoted_text(got: &Promoted, id: &str) -> (String, i32) {
+++     match got {
+++         Promoted::Planned(p) => (
+++             format!(
+++                 "{}\nDRY RUN -- nothing written. Seal: {}\nto write it: core bug promote {} apply {}\n",
+++                 p.text, p.seal, id, p.seal
+++             ),
+++             0,
+++         ),
+++         Promoted::Applied(p) => (
+++             format!(
+++                 "{}\nOK {} promoted to INT-{:03}, verified on disk\nfiled {}\n",
+++                 p.text,
+++                 id,
+++                 p.id,
+++                 p.path.display()
+++             ),
+++             0,
+++         ),
+++         Promoted::Refused(why) => (format!("REFUSE {}. Nothing was written.\n", why), 1),
+++     }
+++ }
+++ 
+++ /// `core bug promote F-NNNN [apply SEAL]` -- INT-300 G11. The domain owns its exit: 0 planned or
+++ /// filed, 1 refused (nothing written), 3 the ledger could not be read or written.
+++ pub fn promote_ledger(ctx: &AppContext, id: &str, apply: &[String]) -> CoreResult<()> {
+++     let base = super::intents_dir(ctx);
+++     let fixes = super::trace::fixes(&ctx.core_root);
+++     let code = match promote(&base, id, &fixes, apply) {
+++         Ok(got) => {
+++             let (text, code) = promoted_text(&got, id);
+++             if code == 0 {
+++                 print!("{}", text);
+++             } else {
+++                 eprint!("{}", text);
+++             }
+++             code
+++         }
+++         Err(e) => {
+++             eprintln!("{} {}", "\u{2717}".bright_red(), e);
+++             3
+++         }
+++     };
+++     if code != 0 {
+++         std::process::exit(code);
+++     }
+++     Ok(())
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/parser.rs: replacing lines 822..825 ---
+   820:         /// The level: unrated, low, medium or high
+   821:         level: String,
+>> 822:         /// Nothing to see the plan, or `apply SEAL` to write it
+>> 823:         apply: Vec<String>,
+>> 824:     },
+>> 825: }
+   826: 
+   827: #[derive(Subcommand)]
+++         /// Nothing to see the plan, or `apply SEAL` to write it
+++         apply: Vec<String>,
+++     },
+++     /// Promote a bug to a real intent: show the plan, then file it with `apply SEAL`
+++     Promote {
+++         /// The finding, e.g. F-0113
+++         id: String,
+++         /// Nothing to see the plan, or `apply SEAL` to file it
+++         apply: Vec<String>,
+++     },
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/commands.rs: replacing lines 404..410 ---
+   402:     },
+   403:     Check,
+>> 404:     Rate {
+>> 405:         id: String,
+>> 406:         level: String,
+>> 407:         apply: Vec<String>,
+>> 408:     },
+>> 409: }
+>> 410: 
+   411: #[derive(Debug)]
+   412: pub enum SecurityCommand {
+++     Rate {
+++         id: String,
+++         level: String,
+++         apply: Vec<String>,
+++     },
+++     Promote {
+++         id: String,
+++         apply: Vec<String>,
+++     },
+++ }
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/mod.rs: replacing lines 294..297 ---
+   292:             parser::BugCommands::Show { id } => commands::BugCommand::Show { id },
+   293:             parser::BugCommands::Check => commands::BugCommand::Check,
+>> 294:             parser::BugCommands::Rate { id, level, apply } => {
+>> 295:                 commands::BugCommand::Rate { id, level, apply }
+>> 296:             }
+>> 297:         }),
+   298:         Commands::Profile { command } => Command::Profile(match command {
+   299:             ProfileCommands::List => ProfileCommand::List,
+++             parser::BugCommands::Rate { id, level, apply } => {
+++                 commands::BugCommand::Rate { id, level, apply }
+++             }
+++             parser::BugCommands::Promote { id, apply } => {
+++                 commands::BugCommand::Promote { id, apply }
+++             }
+++ 
+--- /home/christian/0-core/zero/engine/src/app/dispatcher.rs: replacing lines 224..227 ---
+   222:                     crate::domains::intent::bug::check_ledger(ctx)
+   223:                 }
+>> 224:                 crate::cli::commands::BugCommand::Rate { id, level, apply } => {
+>> 225:                     crate::domains::intent::bug::rate_ledger(ctx, &id, &level, &apply)
+>> 226:                 }
+>> 227:             }
+   228:         }
+   229: 
+++                 crate::cli::commands::BugCommand::Rate { id, level, apply } => {
+++                     crate::domains::intent::bug::rate_ledger(ctx, &id, &level, &apply)
+++                 }
+++                 crate::cli::commands::BugCommand::Promote { id, apply } => {
+++                     ctx.capabilities.require(
+++                         "intent",
+++                         &[
+++                             Capability::FilesystemReadHome,
+++                             Capability::FilesystemWriteHome,
+++                         ],
+++                     )?;
+++                     crate::domains::intent::bug::promote_ledger(ctx, &id, &apply)
+++                 }
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/findings.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/parser.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/commands.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/app/dispatcher.rs: 1 replaced
