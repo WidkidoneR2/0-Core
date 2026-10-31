@@ -96,9 +96,10 @@ directory or title.
       Omarchy edit applied. The finding stays open. Proof: the section, and core bug show F-0101
       still open.
       <!-- evidence: the Proposal section at the end of this file, from a read-only recon on 2026-10-31 of omarchy-cmd-terminal-cwd, /etc/shells and the handoff. core bug show F-0101 read state open after a1e5e0f5. No sudo and no Omarchy edit was made. -->
-- [ ] G12 Doors: after one ship, nsh on PATH, nsh-test all passing, d 0 failed, core intent
+- [x] G12 Doors: after one ship, nsh on PATH, nsh-test all passing, d 0 failed, core intent
       validate all valid, `bugs:` welcome count lower by the findings closed here. Proposals to
       NOVASHELL.md and AGENTS.md are written in this intent, not applied. Proof: the door output.
+      <!-- evidence: demonstrated 2026-10-31 after 50d56272. The deployed nsh and target/release/nsh are the same bytes (ea1196d5a59c67b6). nsh-test 301 of 301 passed. d: 26 passed, 0 failed, 2 warnings (92 percent). core intent validate: all 338 valid. core bug welcome: 80 open, down from 85 by the five findings closed here (F-0099, F-0100, F-0102, F-0106, F-0107). The two proposals are the last section of this file and nothing in NOVASHELL.md or AGENTS.md was changed. -->
 
 ## Proposal: F-0101 (SUPER+Return opens in HOME)
 
@@ -135,4 +136,37 @@ Options, with what each costs:
    keeps the directory.
 
 Nothing is applied and no option is chosen. F-0101 stays open.
+
+## Proposals: NOVASHELL.md and AGENTS.md (written here, not applied)
+
+Measured 2026-10-31. docs/NOVASHELL.md and docs/public/NOVASHELL.md say nothing about where nsh
+starts: no line on the starting directory, NSH_KEEP_CWD or the core root. AGENTS.md says a commit
+carries Fixes: F-x when it closes a finding (line 219) and that open or solved is read from git
+(rule 1, line 225). It does not say that a subject-line mention does not close a finding, that a
+late trailer dates the fix to the trailer's day, or how to close a finding without a fix. Both
+files are Christian's; these are proposals for him to review.
+
+For docs/NOVASHELL.md and docs/public/NOVASHELL.md, one short subsection. Where it goes is not
+decided: it belongs next to wherever startup or environment variables are described, which has to
+be read first.
+
+    Starting directory. A new nsh starts in the directory the terminal handed it, so a new
+    window or split opened from a shell in /tmp starts in /tmp. If that directory is your home
+    directory, or it no longer exists or is not a directory, nsh starts in ~/0-core instead.
+    NSH_KEEP_CWD=1 keeps whatever directory nsh was started in, home included. The window title
+    and the directory the terminal is told about (OSC 7) are updated at every prompt.
+
+For AGENTS.md, two sentences:
+
+1. After the Fixes: sentence at line 219: "Only a Fixes: trailer closes a finding; naming it in a
+   subject line does not. Put the trailer on the commit that makes the fix, because the solved
+   day is the day of the commit that carries it."
+2. In the findings section: "A finding that is not a defect, or is another program's behaviour,
+   is closed without a fix through its closed_without_fix field, written by a reviewed plan with
+   the reason and the evidence. core has no close command. A later Fixes: trailer still wins over
+   a closure."
+
+Evidence for both: F-0099 and F-0100 were fixed on 2026-10-27 by c78e7924, which named them only
+in its subject, and read solved on 2026-10-31 once c6c1ff53 carried the trailers. F-0107 was closed
+through its record field in a1e5e0f5.
 
