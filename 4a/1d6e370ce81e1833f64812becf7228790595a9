@@ -1,0 +1,29 @@
+file /home/christian/0-core/AGENTS.md  sha256 7bcbe7cbdd497479 -> 806712b180a653a0
+--- /home/christian/0-core/AGENTS.md: replacing lines 219..222 ---
+   217: A gate can be closed by declining the thing, with numbered reasons. That is still proof.
+   218: 
+>> 219: Findings and commits point at each other by name. A problem found and not fixed is filed with core intent find, never left as prose in an intent. A commit carries Intent:, and Fixes: F-x when it closes a finding; a commit made from a reviewed plan also carries Seal:, with the plan text kept as a note under refs/notes/seals. core intent trace answers what is open, what fixed it, and which plan produced it. Reasoning: docs/CONVENTIONS.md (INT-266).
+>> 220: 
+>> 221: ### Edit
+>> 222: 
+   223: Edits go through fpatch (zero/scripts/dev/fpatch.py). INT-258: this rule existed for months without saying how. There is no CLI — shell arguments would put the anchors back into shell syntax.
+   224: 
+++ Reasoning: docs/CONVENTIONS.md (INT-266).
+++ 
+++ ### Findings and the bug report
+++ 
+++ core bug reads the F-NNNN findings in zero/intents/findings/ and answers what is open, how bad, how old, and how fast bugs get fixed. These seven rules govern it and anything else that counts bugs. Reasoning: zero/intents/in-progress/300-bug-report.md (INT-300).
+++ 
+++ 1. Store decisions, derive facts. A finding file holds only what a person saw or decided: what, where, who found it, the day, the severity. Whether it is open or solved, and the day it was fixed, are read from git (Fixes: trailers), never stored.
+++ 2. Unknown is a word, never a zero. A tool that cannot answer prints unknown and exits 3; a measured zero prints as 0; a finding with no severity is unrated, never low. Exit 0 is clean, 1 is findings or a refusal, 3 is could not answer.
+++ 3. One owner per parse. One function reads a finding file and one rule names it; every list, count and banner line calls them. A second reader is a finding.
+++ 4. Red first. A behaviour is written as a failing test under its own plan Seal before the fix that turns it green.
+++ 5. Writes are plans. Filing, rating and promoting print the plan and a Seal, and write only on apply SEAL.
+++ 6. Every number explains itself. A count shows the ids behind it or the command that lists them, and is proved by an independent recount that never calls core.
+++ 7. Old data keeps working. A finding written before a field existed still reads; the missing field reads as unrated or unknown, and no record is rewritten to make it fit.
+++ 
+++ Finding numbers only go up: the next number is the highest on disk plus one, a gap stays a gap, and a number is never reused.
+++ 
+++ ### Edit
+++ 
+/home/christian/0-core/AGENTS.md: 1 replaced
