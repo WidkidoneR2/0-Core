@@ -988,7 +988,12 @@ fn main() -> Result<()> {
             println!("  NSH_OBSERVE_LEVEL=L  trace, debug (default), info, warn");
             println!("  NSH_BOOT_PROFILE=1  report startup and per-command timings");
             println!("  NSH_SPINE=0         route through the legacy executor");
-            println!("  NSH_KEEP_CWD=1      stay in the directory nsh was spawned in");
+            println!(
+                "  NSH_KEEP_CWD=1      stay in the directory nsh was spawned in, HOME included"
+            );
+            println!(
+                "                      default: HOME goes to ~/0-core, any other directory is kept"
+            );
             return Ok(());
         }
         if let Some(c_pos) = args.iter().position(|a| a == "-c") {
@@ -1396,7 +1401,7 @@ fn runtime_init() -> Result<RuntimeInit> {
 /// interactive login shell -- does not work either, because fsh-test drives a REAL PTY, so stdin is
 /// a terminal inside the harness too.
 ///
-/// Defaults to false: unset, every existing behaviour is unchanged.
+/// Defaults to false: unset, the startup rule in cwd::startup_dir decides (INT-301).
 fn keep_launch_cwd() -> bool {
     std::env::var("NSH_KEEP_CWD")
         .map(|v| v != "0")
@@ -2549,14 +2554,22 @@ fn repl_main() -> Result<()> {
     // Start in ~/0-core by default. INT-201 2026-08-07: this call was here twice, identically,
     // with the comment between the two copies -- one was dead and is deleted.
     //
-    // THE ONE STARTUP DIRECTORY RULE. This OVERRIDES the directory nsh was spawned in, on purpose:
-    // a fresh interactive session starts in the core root. INT-206: NSH_KEEP_CWD suppresses it, so
-    // a caller that chose a working directory (nsh-test) keeps it.
+    // THE ONE STARTUP DIRECTORY RULE, and cwd::startup_dir is where it lives (INT-301). A directory
+    // a terminal handed over is kept, so a new window or split opens where you were. A start in HOME
+    // or in a directory that cannot be used goes to the core root (INT-261). INT-206: NSH_KEEP_CWD
+    // keeps the spawn directory whatever it is, so a caller that chose one (nsh-test) gets it.
     //
     // There used to be a second override -- a restore of the remembered last_dir after the banner.
     // Removed 2026-09-24; the note where it stood says why.
-    if !keep_launch_cwd() {
-        let _ = cwd::chdir(&core_root);
+    let launch = std::env::current_dir().ok();
+    let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+    if let Some(dir) = cwd::startup_dir(
+        keep_launch_cwd(),
+        launch.as_deref(),
+        home.as_deref(),
+        std::path::Path::new(&core_root),
+    ) {
+        let _ = cwd::chdir(dir);
     }
 
     // INT-201: the engine takes ownership of the resources from here down. core_root is

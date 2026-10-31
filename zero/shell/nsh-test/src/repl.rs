@@ -462,6 +462,21 @@ thread_local! {
 
 thread_local! {
     static LAUNCH_DIR: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+    static KEPT_DIR: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+/// INT-301 G2: as run_repl_lines_status, but nsh is launched with `dir` as its working directory
+/// and the directory is LEFT IN PLACE. run_repl_gated_deleted_cwd removes it, on purpose; this is
+/// the helper for a case that needs a real directory a terminal could have handed the shell.
+pub fn run_repl_in_dir(
+    cmds: &[&str],
+    env: &[(&str, &str)],
+    dir: &str,
+) -> Result<(Vec<String>, Option<i32>), String> {
+    KEPT_DIR.with(|k| *k.borrow_mut() = Some(dir.to_string()));
+    let got = run_repl_lines_status(cmds, env);
+    KEPT_DIR.with(|k| *k.borrow_mut() = None);
+    got
 }
 
 /// INT-277 G3: as run_repl_gated, but nsh is launched with `dir` as its working directory and
@@ -857,6 +872,7 @@ fn run_session_full(
     let mut cmd = session_command();
     own_terminal(&mut cmd, terminal);
     let launch = LAUNCH_DIR.with(|l| l.borrow().clone());
+    let kept = KEPT_DIR.with(|k| k.borrow().clone());
     if let Some(dir) = &launch {
         use std::os::unix::process::CommandExt;
         // Built BEFORE the fork: the closure below may only make async-signal-safe calls, and
@@ -887,7 +903,7 @@ fn run_session_full(
         // more moving parts than it is worth.
         .env("ZERO_STATE_DB", case_db_path())
         .envs(env.iter().copied())
-        .current_dir(launch.as_deref().unwrap_or("/tmp"))
+        .current_dir(launch.as_deref().or(kept.as_deref()).unwrap_or("/tmp"))
         .stdin(Stdio::from(s_in))
         .stdout(Stdio::from(s_out))
         .stderr(Stdio::from(s_err))

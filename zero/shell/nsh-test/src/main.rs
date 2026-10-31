@@ -4746,7 +4746,10 @@ print('CLASS-DONE')"##;
             //
             // "0" rather than removing the variable: keep_launch_cwd reads it as v != "0", so the string
             // is the off switch and no env_remove is needed.
-            let (out, _) = repl::run_repl_lines_status(&["pwd"], &[("NSH_KEEP_CWD", "0")])?;
+            // INT-301: launched from HOME. Every case starts in /tmp, which the startup rule now KEEPS, so
+            // only a launch from HOME still shows the repo-home default this case guards.
+            let home = std::env::var("HOME").map_err(|e| format!("HOME: {}", e))?;
+            let (out, _) = repl::run_repl_in_dir(&["pwd"], &[("NSH_KEEP_CWD", "0")], &home)?;
             expect_contains(&out.join("\n"), "0-core")
         },
     ));
@@ -4781,9 +4784,12 @@ print('CLASS-DONE')"##;
             .map_err(|e| format!("seed last_dir: {}", e))?;
             drop(conn);
 
-            let (out, _) = repl::run_repl_lines_status(
+            // INT-301: launched from HOME, for the same reason as repl_206 above.
+            let home = std::env::var("HOME").map_err(|e| format!("HOME: {}", e))?;
+            let (out, _) = repl::run_repl_in_dir(
                 &["pwd"],
                 &[("NSH_KEEP_CWD", "0"), ("ZERO_STATE_DB", db.as_str())],
+                &home,
             )?;
             let got = out.join("\n");
             if got.contains("planted-last-dir") {
@@ -4795,6 +4801,43 @@ print('CLASS-DONE')"##;
             expect_contains(&got, "0-core")
         },
     ));
+    // ---- INT-301 G2: the launch directory, RED FIRST --------------------------------------------
+    // Every other case runs with NSH_KEEP_CWD=1 and from /tmp, so none of them sees the startup rule.
+    // These two pass "0" and launch from a real directory, the way a terminal does.
+    results.push(repo_test(
+        "repl_301_g2_launch_directory_that_is_not_home_is_kept",
+        Category::Repl,
+        "needs a real 0-Core: the core root it must not land in only exists when the repo does",
+        || {
+            // F-0102 / F-0106. A terminal that opens a window from a shell in some directory hands the
+            // new shell that directory. Ruled 2026-10-31: nsh keeps it unless it is HOME. The
+            // directory is not /tmp and not HOME on purpose, so a red result naming ~/0-core can only
+            // mean the startup move threw it away.
+            let dir = format!("{}/launch-here", repl::case_db_dir());
+            std::fs::create_dir_all(&dir).map_err(|e| format!("create {}: {}", dir, e))?;
+            let (out, _) = repl::run_repl_in_dir(&["pwd"], &[("NSH_KEEP_CWD", "0")], &dir)?;
+            let got = out.join("\n");
+            if !got.contains("launch-here") {
+                return Err(format!(
+                    "launched in {} and landed elsewhere: {:?}",
+                    dir, got
+                ));
+            }
+            Ok(())
+        },
+    ));
+    results.push(repo_test(
+        "repl_301_g2_launch_in_home_starts_in_the_core_root",
+        Category::Repl,
+        "needs a real 0-Core: the start directory it asserts only exists when the repo does",
+        || {
+            // The INT-261 rule that stays: HOME, or no directory worth keeping, starts in ~/0-core.
+            let home = std::env::var("HOME").map_err(|e| format!("HOME: {}", e))?;
+            let (out, _) = repl::run_repl_in_dir(&["pwd"], &[("NSH_KEEP_CWD", "0")], &home)?;
+            expect_contains(&out.join("\n"), "0-core")
+        },
+    ));
+
     // ---- INT-262: persist / unpersist, RED FIRST --------------------------------------------
     // Every case below runs on its OWN case database (ZERO_STATE_DB, applied after the harness
     // default, so two sessions in one case share it). The live state.db is never opened.
