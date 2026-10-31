@@ -2815,7 +2815,15 @@ pub fn add(ctx: &AppContext, smart: bool) -> CoreResult<()> {
     Ok(())
 }
 
-/// The ONE creator. Nothing else writes an intent file.
+/// The words a promoted bug puts in the new intent in place of the template's placeholders
+/// (INT-300 G11): the finding as The Problem, and the first success criterion.
+pub struct Seed {
+    pub problem: String,
+    pub gate: String,
+}
+
+/// The ONE creator. Nothing else writes an intent file. The wizard, `core intent new` and
+/// `core bug promote` all end in `create_in`; this one files under the real ledger.
 pub fn create(
     category: &str,
     type_tag: &str,
@@ -2823,6 +2831,25 @@ pub fn create(
     status: &str,
     tags: &[String],
 ) -> CoreResult<PathBuf> {
+    create_in(
+        &zero_core::paths::intents_dir(),
+        category,
+        type_tag,
+        title,
+        status,
+        tags,
+        None,
+    )
+}
+
+/// Where the next intent of `category` is filed under `base`: its number, its path and its
+/// cleaned title. `create_in` and the plan `core bug promote` prints both ask this, so the plan
+/// names the file that will be written.
+pub fn target_in(
+    base: &std::path::Path,
+    category: &str,
+    title: &str,
+) -> CoreResult<(u32, PathBuf, String)> {
     if !CATEGORIES.contains(&category) {
         return Err(crate::errors::CoreError::Runtime(format!(
             "unknown category '{}' -- expected one of {:?}",
@@ -2839,12 +2866,7 @@ pub fn create(
             "title is empty after sanitizing".into(),
         ));
     }
-    let id = next_id(category);
-    let date = std::process::Command::new("date")
-        .args(["+%Y-%m-%d"])
-        .output()
-        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
-        .unwrap_or_else(|_| "1970-01-01".to_string());
+    let id = folders::next_number(base, category);
 
     // One slug rule. `new_intent` only replaced spaces, which is why 136's filename kept a
     // colon and a comma. cmd_add filtered to alphanumeric+dash. This does the latter.
@@ -2856,15 +2878,33 @@ pub fn create(
         .collect();
 
     let filename = format!("{:03}-{}.md", id, slug);
-    let path = zero_core::paths::intents_dir()
-        .join(category)
-        .join(&filename);
+    let path = base.join(category).join(&filename);
     if path.exists() {
         return Err(crate::errors::CoreError::Runtime(format!(
             "refusing to overwrite {}",
             path.display()
         )));
     }
+    Ok((id, path, title.to_string()))
+}
+
+/// Files one intent under `base`. With a seed, the template's Problem and first criterion are the
+/// seed's words; without one the file is exactly what it always was.
+pub fn create_in(
+    base: &std::path::Path,
+    category: &str,
+    type_tag: &str,
+    title: &str,
+    status: &str,
+    tags: &[String],
+    seed: Option<&Seed>,
+) -> CoreResult<PathBuf> {
+    let (id, path, title) = target_in(base, category, title)?;
+    let date = std::process::Command::new("date")
+        .args(["+%Y-%m-%d"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|_| "1970-01-01".to_string());
 
     let tags_str = if tags.is_empty() {
         "[]".to_string()
@@ -2872,12 +2912,14 @@ pub fn create(
         format!("[{}]", tags.join(", "))
     };
 
+    let problem = seed.map_or("[What problem does this solve?]", |s| s.problem.as_str());
+    let criteria = seed.map_or("- [ ] ...", |s| s.gate.as_str());
     let content = format!(
         "---\nid: {:03}\ndate: {}\ntype: {}\ntitle: \"{}\"\nstatus: {}\ntags: {}\n---\n\n\
 ## Vision\n[Describe the goal and desired outcome]\n\n\
-## The Problem\n[What problem does this solve?]\n\n\
+## The Problem\n{}\n\n\
 ## The Solution\n[High-level approach]\n\n\
-## Success Criteria\n- [ ] ...\n\n\
+## Success Criteria\n{}\n\n\
 <!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.\n\
      When you tick a gate, put the proof in an HTML comment on the line after it: a commit\n\
      hash, a file:line, a log or artifact path, or \"demonstrated: what + how\". Prose counts.\n\
@@ -2886,7 +2928,7 @@ pub fn create(
      LIGHT (trivial self-evident gates need no artifact).\n\
      Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.\n\
      See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->\n",
-        id, date, type_tag, title, status, tags_str
+        id, date, type_tag, title, status, tags_str, problem, criteria
     );
 
     fs::create_dir_all(path.parent().unwrap()).map_err(crate::errors::CoreError::Io)?;

@@ -294,6 +294,9 @@ pub fn parse() -> Command {
             parser::BugCommands::Rate { id, level, apply } => {
                 commands::BugCommand::Rate { id, level, apply }
             }
+            parser::BugCommands::Promote { id, apply } => {
+                commands::BugCommand::Promote { id, apply }
+            }
         }),
         Commands::Profile { command } => Command::Profile(match command {
             ProfileCommands::List => ProfileCommand::List,

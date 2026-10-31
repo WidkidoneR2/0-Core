@@ -131,6 +131,8 @@ pub struct Record {
     pub found_on: String,
     pub closed_without_fix: String,
     pub severity: String,
+    /// The intent a bug was promoted to, once a person promoted it; absent until then (G11).
+    pub promoted_to: Option<String>,
 }
 
 /// Parse a record body as render writes it. Only the frontmatter is read.
@@ -166,17 +168,28 @@ pub fn parse_record(body: &str) -> Record {
             "unknown" => "unrated".to_string(),
             other => other.to_string(),
         },
+        promoted_to: fields
+            .iter()
+            .find(|(key, _)| key.as_str() == "promoted_to")
+            .map(|(_, value)| value.clone())
+            .filter(|value| !value.is_empty()),
     }
 }
 
-/// The record body with its severity set to `level`, and the old severity line if it had one. Only
-/// the frontmatter is touched: the first `severity:` line is replaced, and a record that has none
-/// (every record filed before INT-300 G3) gets one before the closing `---`. Every other byte stays.
-pub fn with_severity(body: &str, level: &str) -> Result<(String, Option<String>), String> {
-    let level = severity_level(level)?;
+/// The record body with the frontmatter line `key:` set to `value`, and the old line if it had
+/// one. Only the frontmatter is touched: the first `key:` line is replaced, and a record that has
+/// none gets one before the closing `---`. Every other byte stays. The ONE rewriter of a record
+/// (INT-300 G9, G11).
+pub fn with_field(body: &str, key: &str, value: &str) -> Result<(String, Option<String>), String> {
+    if value.contains('\n') {
+        return Err(format!("the value for {} must be one line", key));
+    }
     let lines: Vec<&str> = body.split_inclusive('\n').collect();
     if lines.first().map(|l| l.trim()) != Some("---") {
-        return Err("the record has no frontmatter, so no severity can be set".to_string());
+        return Err(format!(
+            "the record has no frontmatter, so no {} can be set",
+            key
+        ));
     }
     let close = lines
         .iter()
@@ -184,15 +197,15 @@ pub fn with_severity(body: &str, level: &str) -> Result<(String, Option<String>)
         .position(|l| l.trim() == "---")
         .map(|i| i + 1)
         .ok_or_else(|| "the record's frontmatter is never closed".to_string())?;
-    let new_line = format!("severity: {}\n", level);
+    let new_line = format!("{}: {}\n", key, value);
     let mut out = String::new();
     let mut old = None;
     for (i, line) in lines.iter().enumerate() {
-        let is_severity = i > 0
+        let is_key = i > 0
             && i < close
             && old.is_none()
-            && line.split_once(':').map(|(k, _)| k.trim()) == Some("severity");
-        if is_severity {
+            && line.split_once(':').map(|(k, _)| k.trim()) == Some(key);
+        if is_key {
             old = Some(line.trim().to_string());
             out.push_str(&new_line);
             continue;
@@ -205,6 +218,10 @@ pub fn with_severity(body: &str, level: &str) -> Result<(String, Option<String>)
     Ok((out, old))
 }
 
+/// The record body with its severity set to `level`, and the old severity line if it had one.
+pub fn with_severity(body: &str, level: &str) -> Result<(String, Option<String>), String> {
+    with_field(body, "severity", severity_level(level)?)
+}
 /// Every record in `dir`, in id order. An absent folder truly holds none; a folder or record
 /// that cannot be read is an error, never an empty list (INT-192). Only F-NNNN.md is read.
 pub fn read_records(dir: &Path) -> Result<Vec<Record>, String> {
@@ -363,6 +380,7 @@ mod read_tests {
                 found_on: "2026-10-04".to_string(),
                 closed_without_fix: "no".to_string(),
                 severity: "unrated".to_string(),
+                promoted_to: None,
             }
         );
     }

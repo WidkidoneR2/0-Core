@@ -406,6 +406,10 @@ pub enum BugCommand {
         level: String,
         apply: Vec<String>,
     },
+    Promote {
+        id: String,
+        apply: Vec<String>,
+    },
 }
 
 #[derive(Debug)]

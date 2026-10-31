@@ -3,15 +3,16 @@
 //! `core bug list` is the first reader. The rows are plain values first, so a later viewer (a
 //! terminal screen, a bar, a script) reads the same rows this one prints.
 
-use super::findings::{severity_level, with_severity, Record};
+use super::findings::{severity_level, with_field, with_severity, Record};
 use super::trace::{
     check_commit_seal, git_read, seal_digest, seal_notes, state_of, SealCheck, State, Trailers,
 };
+use super::{create_in, target_in, Seed, TEMPLATES};
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
 use std::fs;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 
 /// The four words a finding's state is ever called. `unknown` is a word, not a blank (G7).
 pub const STATES: [&str; 4] = ["open", "solved", "closed", "unknown"];
@@ -325,6 +326,9 @@ pub fn story(record: &Record, state: &State, facts: &[FixFacts]) -> Story {
     let mut t = format!("{}  {}\n", record.id, record.what);
     t.push_str(&format!("  where     {}\n", record.at));
     t.push_str(&format!("  severity  {}\n", record.severity));
+    if let Some(to) = &record.promoted_to {
+        t.push_str(&format!("  promoted  {}\n", to));
+    }
     t.push_str(&format!("  state     {}\n", state_word(state)));
     match state {
         State::Open => t.push_str(&format!(
@@ -680,16 +684,21 @@ pub fn rate(dir: &Path, id: &str, level: &str, apply: &[String]) -> Result<Rated
 /// Write the planned body beside the record, move it into place and read it back. A record is
 /// never left half written.
 fn write_rated(path: &Path, plan: &RatePlan) -> Result<(), String> {
+    write_body(path, &plan.new_body)
+}
+
+/// Write `body` beside the record at `path`, move it into place and read it back. A record is
+/// never left half written (INT-300 G9, G11).
+fn write_body(path: &Path, body: &str) -> Result<(), String> {
     let tmp = path.with_extension("md.tmp");
-    fs::write(&tmp, &plan.new_body)
-        .map_err(|e| format!("could not write {}: {}", tmp.display(), e))?;
+    fs::write(&tmp, body).map_err(|e| format!("could not write {}: {}", tmp.display(), e))?;
     fs::rename(&tmp, path).map_err(|e| {
         let _ = fs::remove_file(&tmp);
         format!("could not replace {}: {}", path.display(), e)
     })?;
     let back = fs::read_to_string(path)
         .map_err(|e| format!("could not read back {}: {}", path.display(), e))?;
-    if back != plan.new_body {
+    if back != body {
         return Err(format!(
             "{} does not read back as the plan wrote it",
             path.display()
@@ -746,14 +755,290 @@ pub fn rate_ledger(ctx: &AppContext, id: &str, level: &str, apply: &[String]) ->
     Ok(())
 }
 
+/// One promotion as a plan: the intent it would file, the change to the bug's record, and the
+/// Seal of that text (INT-300 G11, R5). Nothing is written until the same plan is applied by its Seal.
+#[derive(Debug, PartialEq)]
+pub struct PromotePlan {
+    pub text: String,
+    pub seal: String,
+    pub id: u32,
+    pub path: PathBuf,
+    pub new_record: String,
+}
+
+/// What `core bug promote` did: printed a plan, filed the intent, or refused. A refusal writes nothing.
+#[derive(Debug, PartialEq)]
+pub enum Promoted {
+    Planned(PromotePlan),
+    Applied(PromotePlan),
+    Refused(String),
+}
+
+/// What the promoted intent is called: `Fix F-NNNN: ` and the finding's own words, cut at sixty
+/// characters, with no quote or backslash to break the title line.
+pub fn promote_title(record: &Record) -> String {
+    let said: String = record
+        .what
+        .chars()
+        .map(|c| match c {
+            '"' => '\'',
+            '\\' => '/',
+            c if c.is_control() => ' ',
+            c => c,
+        })
+        .collect();
+    let said = said.split_whitespace().collect::<Vec<_>>().join(" ");
+    let short = if said.chars().count() <= 60 {
+        said
+    } else {
+        let cut: String = said.chars().take(60).collect();
+        match cut.rfind(' ') {
+            Some(i) if i > 30 => format!("{}...", &cut[..i]),
+            _ => format!("{}...", cut),
+        }
+    };
+    format!("Fix {}: {}", record.id, short)
+}
+
+/// The words the new intent starts with in place of the template's placeholders: the finding as
+/// The Problem, and one gate that a sealed commit carries `Fixes: F-NNNN`.
+pub fn promote_seed(record: &Record) -> Seed {
+    Seed {
+        problem: format!(
+            "{}\n\nWhere: {}. Found {} by {}; severity {}.\n\
+             This is finding {}: `core bug show {}` tells its whole story.",
+            record.what,
+            record.at,
+            record.found_on,
+            record.found_by,
+            record.severity,
+            record.id,
+            record.id
+        ),
+        gate: format!(
+            "- [ ] A sealed commit carries `Fixes: {}`, so `core bug show {}` reads solved \
+             with that commit and its Seal checking out",
+            record.id, record.id
+        ),
+    }
+}
+
+/// The fix template as `core intent new fix` reads it: its type, its status and its tags.
+fn fix_template() -> Result<(&'static str, &'static str, Vec<String>), String> {
+    let (_, type_tag, tags, status) = TEMPLATES
+        .iter()
+        .find(|(t, ..)| *t == "fix")
+        .copied()
+        .ok_or_else(|| "the fix template is missing".to_string())?;
+    let tags = tags.split(',').map(|t| t.trim().to_string()).collect();
+    Ok((type_tag, status, tags))
+}
+
+/// The plan for promoting one bug: refuses a bug already promoted and a bug that is not open,
+/// otherwise names the intent, its file, the words it starts with, the change to the bug's record
+/// and the Seal of that text. `state` is the word `state_word` gives the bug.
+pub fn promote_plan(
+    base: &Path,
+    record: &Record,
+    record_path: &str,
+    old_body: &str,
+    state: &str,
+) -> Result<PromotePlan, String> {
+    if let Some(to) = &record.promoted_to {
+        return Err(format!("{} is already promoted to {}", record.id, to));
+    }
+    if state != "open" {
+        return Err(format!(
+            "{} reads {}, not open; there is nothing to promote",
+            record.id, state
+        ));
+    }
+    let (type_tag, status, tags) = fix_template()?;
+    let (id, path, title) =
+        target_in(base, "future", &promote_title(record)).map_err(|e| e.to_string())?;
+    let name = format!("INT-{:03}", id);
+    let (new_record, _) = with_field(old_body, "promoted_to", &name)?;
+    let seed = promote_seed(record);
+    let text = format!(
+        "promote {}: a new intent, {}\n\
+         title    {}\n\
+         folder   future (template fix: type {}, status {}, tags {})\n\
+         file     {}\n\
+         problem  {}\n\
+         gate     {}\n\
+         record   {}  sha256 {} -> {}\n\
+         ++ promoted_to: {}",
+        record.id,
+        name,
+        title,
+        type_tag,
+        status,
+        tags.join(", "),
+        path.display(),
+        record.what,
+        seed.gate,
+        record_path,
+        seal_digest(old_body.as_bytes()),
+        seal_digest(new_record.as_bytes()),
+        name
+    );
+    let seal = seal_digest(text.as_bytes());
+    Ok(PromotePlan {
+        text,
+        seal,
+        id,
+        path,
+        new_record,
+    })
+}
+
+/// `core bug promote` as a value. With no words after the id it plans; with `apply SEAL` it
+/// rebuilds the plan from the ledger as it is now and files the intent only if that plan still has
+/// the given Seal. Refused means nothing was written; Err means the ledger could not be read or
+/// written, and a promotion that failed half way takes the new intent back.
+pub fn promote(
+    base: &Path,
+    id: &str,
+    fixes: &Result<Vec<(String, String)>, String>,
+    apply: &[String],
+) -> Result<Promoted, String> {
+    let seal = match apply {
+        [] => None,
+        [word, seal] if word == "apply" => Some(seal.as_str()),
+        _ => {
+            return Ok(Promoted::Refused(
+                "after the id say nothing to see the plan, or: apply SEAL".to_string(),
+            ));
+        }
+    };
+    let dir = base.join("findings");
+    let records = super::findings::read_records(&dir)?;
+    let record = records
+        .iter()
+        .find(|r| r.id == id)
+        .ok_or_else(|| format!("{} names no finding in {}", id, dir.display()))?;
+    let path = dir.join(format!("{}.md", id));
+    let old_body = fs::read_to_string(&path)
+        .map_err(|e| format!("could not read {}: {}", path.display(), e))?;
+    let state = state_word(&state_of(record, fixes));
+    let plan = match promote_plan(base, record, &path.display().to_string(), &old_body, state) {
+        Ok(p) => p,
+        Err(e) => return Ok(Promoted::Refused(e)),
+    };
+    match seal {
+        None => Ok(Promoted::Planned(plan)),
+        Some(given) if given == plan.seal => {
+            file_promotion(base, record, &path, &plan)?;
+            Ok(Promoted::Applied(plan))
+        }
+        Some(given) => Ok(Promoted::Refused(format!(
+            "the plan now hashes to {}, not {}: the ledger or the bug changed",
+            plan.seal, given
+        ))),
+    }
+}
+
+/// Files the planned intent through `create_in`, the code behind `core intent new`, then marks the
+/// bug. If the bug cannot be written the new intent is removed, so nothing is left half done.
+fn file_promotion(
+    base: &Path,
+    record: &Record,
+    record_path: &Path,
+    plan: &PromotePlan,
+) -> Result<(), String> {
+    let (type_tag, status, tags) = fix_template()?;
+    let seed = promote_seed(record);
+    let made = create_in(
+        base,
+        "future",
+        type_tag,
+        &promote_title(record),
+        status,
+        &tags,
+        Some(&seed),
+    )
+    .map_err(|e| e.to_string())?;
+    if made != plan.path {
+        let _ = fs::remove_file(&made);
+        return Err(format!(
+            "the intent was filed at {}, not at {}; it was removed",
+            made.display(),
+            plan.path.display()
+        ));
+    }
+    if let Err(e) = write_body(record_path, &plan.new_record) {
+        let _ = fs::remove_file(&made);
+        return Err(format!(
+            "{}; the new intent {} was removed",
+            e,
+            made.display()
+        ));
+    }
+    Ok(())
+}
+
+/// What `core bug promote` prints and the exit it ends with: the plan with its Seal and the line
+/// that files it, the filed intent, or a refusal.
+pub fn promoted_text(got: &Promoted, id: &str) -> (String, i32) {
+    match got {
+        Promoted::Planned(p) => (
+            format!(
+                "{}\nDRY RUN -- nothing written. Seal: {}\nto write it: core bug promote {} apply {}\n",
+                p.text, p.seal, id, p.seal
+            ),
+            0,
+        ),
+        Promoted::Applied(p) => (
+            format!(
+                "{}\nOK {} promoted to INT-{:03}, verified on disk\nfiled {}\n",
+                p.text,
+                id,
+                p.id,
+                p.path.display()
+            ),
+            0,
+        ),
+        Promoted::Refused(why) => (format!("REFUSE {}. Nothing was written.\n", why), 1),
+    }
+}
+
+/// `core bug promote F-NNNN [apply SEAL]` -- INT-300 G11. The domain owns its exit: 0 planned or
+/// filed, 1 refused (nothing written), 3 the ledger could not be read or written.
+pub fn promote_ledger(ctx: &AppContext, id: &str, apply: &[String]) -> CoreResult<()> {
+    let base = super::intents_dir(ctx);
+    let fixes = super::trace::fixes(&ctx.core_root);
+    let code = match promote(&base, id, &fixes, apply) {
+        Ok(got) => {
+            let (text, code) = promoted_text(&got, id);
+            if code == 0 {
+                print!("{}", text);
+            } else {
+                eprint!("{}", text);
+            }
+            code
+        }
+        Err(e) => {
+            eprintln!("{} {}", "\u{2717}".bright_red(), e);
+            3
+        }
+    };
+    if code != 0 {
+        std::process::exit(code);
+    }
+    Ok(())
+}
 #[cfg(test)]
 mod bug_tests {
     use super::{
-        check, counts, files_on_disk, filter_from, rate, rate_plan, rated_text, render_list,
-        render_summary, report, rows, select, state_word, story, Counts, FixFacts, Rated, Row,
+        check, counts, files_on_disk, filter_from, promote, promote_title, promoted_text, rate,
+        rate_plan, rated_text, render_list, render_summary, report, rows, select, state_word,
+        story, Counts, FixFacts, Promoted, Rated, Row,
     };
-    use crate::domains::intent::findings::{parse_record, read_records, with_severity, Record};
+    use crate::domains::intent::findings::{
+        parse_record, read_records, with_field, with_severity, Record,
+    };
     use crate::domains::intent::trace::{seal_digest, SealCheck, State, Trailers};
+    use crate::domains::intent::{create_in, Seed};
 
     fn rec(id: &str, closed: &str, severity: &str, day: &str, what: &str) -> Record {
         parse_record(&format!(
@@ -1570,5 +1855,367 @@ mod bug_tests {
         let (text, code) = rated_text(&Rated::Refused("why".to_string()), "F-0001", "high");
         assert_eq!(code, 1);
         assert!(text.contains("Nothing was written"), "{}", text);
+    }
+
+    const FRESH: &str = "---\nid: F-0001\nwhat: the \"parser\" drops a line\nat: a.rs:1\nfound_by: INT-1\nfound_on: 2026-10-30\nclosed_without_fix: no\nseverity: high\n---\n";
+
+    fn ledger(name: &str, body: &str) -> std::path::PathBuf {
+        let base =
+            std::env::temp_dir().join(format!("core-promote-{}-{}", std::process::id(), name));
+        let _ = std::fs::remove_dir_all(&base);
+        std::fs::create_dir_all(base.join("findings")).unwrap();
+        std::fs::write(base.join("findings").join("F-0001.md"), body).unwrap();
+        base
+    }
+
+    fn nothing_fixed() -> Result<Vec<(String, String)>, String> {
+        Ok(Vec::new())
+    }
+
+    fn filed_in(base: &std::path::Path) -> Vec<String> {
+        let mut names: Vec<String> = std::fs::read_dir(base.join("future"))
+            .map(|d| {
+                d.flatten()
+                    .map(|e| e.file_name().to_string_lossy().to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
+        names.sort();
+        names
+    }
+
+    fn plan_of(base: &std::path::Path) -> (String, String) {
+        match promote(base, "F-0001", &nothing_fixed(), &[]).unwrap() {
+            Promoted::Planned(p) => (p.text, p.seal),
+            other => panic!("expected a plan, got {:?}", other),
+        }
+    }
+
+    /// INT-300 G11: the one rewriter of a record sets any frontmatter key, inserting it before the
+    /// closing line when the record has none and replacing it when it has, and every other byte stays.
+    #[test]
+    fn with_field_sets_any_key_and_keeps_every_other_byte() {
+        let (new, old) = with_field(FRESH, "promoted_to", "INT-042").unwrap();
+        let want = format!("{}promoted_to: INT-042\n---\n", &FRESH[..FRESH.len() - 4]);
+        assert_eq!(new, want);
+        assert_eq!(old, None);
+        let (again, was) = with_field(&new, "promoted_to", "INT-043").unwrap();
+        assert_eq!(again, want.replace("INT-042", "INT-043"));
+        assert_eq!(was, Some("promoted_to: INT-042".to_string()));
+    }
+
+    /// INT-300 G11: a value of more than one line, and a body with no frontmatter, are refused.
+    #[test]
+    fn with_field_refuses_a_two_line_value_and_a_body_with_no_frontmatter() {
+        let two = with_field(FRESH, "promoted_to", "INT-1\nsecret: x").unwrap_err();
+        assert!(two.contains("must be one line"), "{}", two);
+        let bare = with_field("just text\n", "promoted_to", "INT-1").unwrap_err();
+        assert!(bare.contains("no promoted_to can be set"), "{}", bare);
+    }
+
+    /// INT-300 G11: a record reads promoted_to when it has one and none when it does not, so every
+    /// record filed before G11 keeps working.
+    #[test]
+    fn a_record_reads_promoted_to_only_when_it_has_one() {
+        assert_eq!(parse_record(FRESH).promoted_to, None);
+        let (with, _) = with_field(FRESH, "promoted_to", "INT-042").unwrap();
+        assert_eq!(parse_record(&with).promoted_to, Some("INT-042".to_string()));
+        let (empty, _) = with_field(FRESH, "promoted_to", "").unwrap();
+        assert_eq!(parse_record(&empty).promoted_to, None);
+    }
+
+    /// INT-300 G11: the promoted title is "Fix F-NNNN: " and the finding in at most sixty
+    /// characters, with no quote or backslash that could break the title line.
+    #[test]
+    fn the_promoted_title_is_the_finding_in_sixty_characters_with_no_quote() {
+        let short = promote_title(&parse_record(FRESH));
+        assert_eq!(short, "Fix F-0001: the 'parser' drops a line");
+        let long = FRESH.replace("the \"parser\" drops a line", &"word \\ ".repeat(30));
+        let title = promote_title(&parse_record(&long));
+        let said = title.strip_prefix("Fix F-0001: ").unwrap();
+        assert!(said.ends_with("..."), "{}", title);
+        assert!(said.chars().count() <= 63, "{}", title);
+        assert!(!title.contains('"') && !title.contains('\\'), "{}", title);
+    }
+
+    /// INT-300 G11: the plan names the intent, its folder and template, its file, the finding as the
+    /// problem, the first gate, the record's hashes and the Seal, and the Seal is the digest of the
+    /// text.
+    #[test]
+    fn a_promotion_plan_names_the_intent_the_file_the_gate_the_record_and_the_seal() {
+        let base = ledger("plan", FRESH);
+        let (text, seal) = plan_of(&base);
+        let file = base
+            .join("future")
+            .join("001-fix-f-0001-the-parser-drops-a-line.md");
+        for want in [
+            "promote F-0001: a new intent, INT-001".to_string(),
+            "title    Fix F-0001: the 'parser' drops a line".to_string(),
+            "folder   future (template fix: type fix, status planned, tags fix, bugfix)"
+                .to_string(),
+            format!("file     {}", file.display()),
+            "problem  the \"parser\" drops a line".to_string(),
+            "gate     - [ ] A sealed commit carries `Fixes: F-0001`".to_string(),
+            format!(
+                "record   {}  sha256 ",
+                base.join("findings").join("F-0001.md").display()
+            ),
+            "\n++ promoted_to: INT-001".to_string(),
+        ] {
+            assert!(text.contains(&want), "missing {:?} in {}", want, text);
+        }
+        assert_eq!(seal, seal_digest(text.as_bytes()));
+    }
+
+    /// INT-300 G11, R5: showing the plan writes nothing, no intent and no change to the bug.
+    #[test]
+    fn a_promotion_plan_writes_nothing() {
+        let base = ledger("plan-only", FRESH);
+        let _ = plan_of(&base);
+        assert!(filed_in(&base).is_empty());
+        let on_disk = std::fs::read_to_string(base.join("findings").join("F-0001.md")).unwrap();
+        assert_eq!(on_disk, FRESH);
+    }
+
+    /// INT-300 G11: apply with the plan's own Seal files a real intent whose Problem and first
+    /// criterion are the finding's, with no placeholder left, and marks the bug.
+    #[test]
+    fn apply_with_the_plans_seal_files_the_intent_and_marks_the_bug() {
+        let base = ledger("apply", FRESH);
+        let (_, seal) = plan_of(&base);
+        let words = vec!["apply".to_string(), seal];
+        let got = promote(&base, "F-0001", &nothing_fixed(), &words).unwrap();
+        assert!(matches!(got, Promoted::Applied(_)), "{:?}", got);
+        assert_eq!(
+            filed_in(&base),
+            vec!["001-fix-f-0001-the-parser-drops-a-line.md".to_string()]
+        );
+        let intent = std::fs::read_to_string(
+            base.join("future")
+                .join("001-fix-f-0001-the-parser-drops-a-line.md"),
+        )
+        .unwrap();
+        for want in [
+            "id: 001\n",
+            "type: fix\n",
+            "status: planned\n",
+            "title: \"Fix F-0001: the 'parser' drops a line\"\n",
+            "## The Problem\nthe \"parser\" drops a line\n\nWhere: a.rs:1. Found 2026-10-30 by INT-1; severity high.\n",
+            "## Success Criteria\n- [ ] A sealed commit carries `Fixes: F-0001`",
+        ] {
+            assert!(intent.contains(want), "missing {:?} in {}", want, intent);
+        }
+        assert!(
+            !intent.contains("[What problem does this solve?]"),
+            "{}",
+            intent
+        );
+        assert!(!intent.contains("- [ ] ...\n"), "{}", intent);
+        let record = std::fs::read_to_string(base.join("findings").join("F-0001.md")).unwrap();
+        assert_eq!(
+            record,
+            with_field(FRESH, "promoted_to", "INT-001").unwrap().0
+        );
+        let read = read_records(&base.join("findings")).unwrap();
+        assert_eq!(read[0].promoted_to, Some("INT-001".to_string()));
+    }
+
+    /// INT-300 G11: apply with a Seal the plan does not have is refused and nothing is written.
+    #[test]
+    fn promote_with_another_seal_is_refused_and_writes_nothing() {
+        let base = ledger("wrong-seal", FRESH);
+        let words = vec!["apply".to_string(), "0000000000000000".to_string()];
+        match promote(&base, "F-0001", &nothing_fixed(), &words).unwrap() {
+            Promoted::Refused(why) => assert!(why.contains("hashes to"), "{}", why),
+            other => panic!("expected a refusal, got {:?}", other),
+        }
+        assert!(filed_in(&base).is_empty());
+        let on_disk = std::fs::read_to_string(base.join("findings").join("F-0001.md")).unwrap();
+        assert_eq!(on_disk, FRESH);
+    }
+
+    /// INT-300 G11: a bug already promoted is refused naming the intent, and no second intent is
+    /// filed.
+    #[test]
+    fn a_bug_already_promoted_is_refused_and_no_second_intent_is_filed() {
+        let base = ledger("twice", FRESH);
+        let (_, seal) = plan_of(&base);
+        let words = vec!["apply".to_string(), seal];
+        assert!(matches!(
+            promote(&base, "F-0001", &nothing_fixed(), &words).unwrap(),
+            Promoted::Applied(_)
+        ));
+        for again in [Vec::new(), words.clone()] {
+            match promote(&base, "F-0001", &nothing_fixed(), &again).unwrap() {
+                Promoted::Refused(why) => {
+                    assert!(why.contains("already promoted to INT-001"), "{}", why)
+                }
+                other => panic!("expected a refusal, got {:?}", other),
+            }
+        }
+        assert_eq!(filed_in(&base).len(), 1);
+    }
+
+    /// INT-300 G11, G7: only an open bug is promoted. A solved one, a closed one and one whose git
+    /// could not be read are each refused naming the word they read.
+    #[test]
+    fn only_an_open_bug_is_promoted() {
+        let base = ledger("not-open", FRESH);
+        let solved: Result<Vec<(String, String)>, String> =
+            Ok(vec![("F-0001".to_string(), "abc1234".to_string())]);
+        let unread: Result<Vec<(String, String)>, String> =
+            Err("git log could not run".to_string());
+        for (fixes, word) in [(solved, "solved"), (unread, "unknown")] {
+            match promote(&base, "F-0001", &fixes, &[]).unwrap() {
+                Promoted::Refused(why) => {
+                    assert!(
+                        why.contains(&format!("reads {}, not open", word)),
+                        "{}",
+                        why
+                    )
+                }
+                other => panic!("expected a refusal, got {:?}", other),
+            }
+        }
+        let closed = FRESH.replace("closed_without_fix: no", "closed_without_fix: duplicate");
+        let base = ledger("closed", &closed);
+        match promote(&base, "F-0001", &nothing_fixed(), &[]).unwrap() {
+            Promoted::Refused(why) => assert!(why.contains("reads closed, not open"), "{}", why),
+            other => panic!("expected a refusal, got {:?}", other),
+        }
+        assert!(filed_in(&base).is_empty());
+    }
+
+    /// INT-300 G11: the new intent takes the next number the ledger gives, the one numberer.
+    #[test]
+    fn the_new_intent_takes_the_next_number() {
+        let base = ledger("numbering", FRESH);
+        std::fs::create_dir_all(base.join("future")).unwrap();
+        std::fs::write(base.join("future").join("041-old.md"), "x").unwrap();
+        let (text, _) = plan_of(&base);
+        assert!(text.contains("a new intent, INT-042"), "{}", text);
+        assert!(text.contains("042-fix-f-0001-"), "{}", text);
+    }
+
+    /// INT-300 G11: the words after the id are nothing, or apply and a Seal; an id with no record
+    /// could not be answered.
+    #[test]
+    fn the_words_after_the_bug_are_nothing_or_apply_and_a_seal() {
+        let base = ledger("words", FRESH);
+        for bad in [
+            vec!["abc".to_string()],
+            vec!["apply".to_string()],
+            vec!["apply".to_string(), "a".to_string(), "b".to_string()],
+        ] {
+            let got = promote(&base, "F-0001", &nothing_fixed(), &bad).unwrap();
+            assert!(matches!(got, Promoted::Refused(_)), "{:?}", bad);
+        }
+        let err = promote(&base, "F-0099", &nothing_fixed(), &[]).unwrap_err();
+        assert!(err.contains("names no finding"), "{}", err);
+        assert!(filed_in(&base).is_empty());
+    }
+
+    /// INT-300 G11: when the bug cannot be written after the intent was filed, the intent is taken
+    /// back and the call ends in an error, so nothing is left half done.
+    #[test]
+    fn a_bug_that_cannot_be_written_takes_the_new_intent_back() {
+        let base = ledger("rollback", FRESH);
+        let (_, seal) = plan_of(&base);
+        std::fs::create_dir(base.join("findings").join("F-0001.md.tmp")).unwrap();
+        let words = vec!["apply".to_string(), seal];
+        let err = promote(&base, "F-0001", &nothing_fixed(), &words).unwrap_err();
+        assert!(err.contains("was removed"), "{}", err);
+        assert!(filed_in(&base).is_empty());
+        let on_disk = std::fs::read_to_string(base.join("findings").join("F-0001.md")).unwrap();
+        assert_eq!(on_disk, FRESH);
+    }
+
+    /// INT-300 G11: the creator without a seed writes the template exactly as before; with one it
+    /// replaces the Problem and the first criterion and nothing else; an unknown category is refused.
+    #[test]
+    fn create_in_without_a_seed_keeps_the_template_and_with_one_replaces_two_lines() {
+        let base = std::env::temp_dir().join(format!("core-create-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let tags = vec!["fix".to_string(), "bugfix".to_string()];
+        let plain = create_in(&base, "future", "fix", "A title", "planned", &tags, None).unwrap();
+        let plain = std::fs::read_to_string(plain).unwrap();
+        assert!(
+            plain.contains("## The Problem\n[What problem does this solve?]\n\n## The Solution")
+        );
+        assert!(plain.contains("## Success Criteria\n- [ ] ...\n\n<!-- INT-158"));
+        let seed = Seed {
+            problem: "P".to_string(),
+            gate: "- [ ] G".to_string(),
+        };
+        let seeded = create_in(
+            &base,
+            "future",
+            "fix",
+            "A title",
+            "planned",
+            &tags,
+            Some(&seed),
+        )
+        .unwrap();
+        let seeded = std::fs::read_to_string(seeded).unwrap();
+        assert_eq!(
+            seeded
+                .replace(
+                    "## The Problem\nP\n\n",
+                    "## The Problem\n[What problem does this solve?]\n\n"
+                )
+                .replace(
+                    "## Success Criteria\n- [ ] G\n\n",
+                    "## Success Criteria\n- [ ] ...\n\n"
+                )
+                .replace("id: 002", "id: 001"),
+            plain
+        );
+        let bad = create_in(&base, "nowhere", "fix", "A title", "planned", &tags, None);
+        assert!(bad.is_err());
+    }
+
+    /// INT-300 G11: the plan prints its Seal and the line that files it, a filed promotion says
+    /// so, and a refusal ends 1 saying nothing was written.
+    #[test]
+    fn the_plan_the_filing_and_the_refusal_print_their_words() {
+        let base = ledger("words-out", FRESH);
+        let (_, seal) = plan_of(&base);
+        let planned = promote(&base, "F-0001", &nothing_fixed(), &[]).unwrap();
+        let (text, code) = promoted_text(&planned, "F-0001");
+        assert_eq!(code, 0);
+        assert!(
+            text.contains(&format!("DRY RUN -- nothing written. Seal: {}", seal)),
+            "{}",
+            text
+        );
+        assert!(
+            text.contains(&format!("core bug promote F-0001 apply {}", seal)),
+            "{}",
+            text
+        );
+        let words = vec!["apply".to_string(), seal];
+        let filed = promote(&base, "F-0001", &nothing_fixed(), &words).unwrap();
+        let (text, code) = promoted_text(&filed, "F-0001");
+        assert_eq!(code, 0);
+        assert!(
+            text.contains("OK F-0001 promoted to INT-001, verified on disk"),
+            "{}",
+            text
+        );
+        let (text, code) = promoted_text(&Promoted::Refused("why".to_string()), "F-0001");
+        assert_eq!(code, 1);
+        assert!(text.contains("Nothing was written"), "{}", text);
+    }
+
+    /// INT-300 G11: `core bug show` tells where a bug was promoted to, and says nothing about it
+    /// for a bug that was not.
+    #[test]
+    fn show_tells_the_intent_a_bug_was_promoted_to() {
+        let (with, _) = with_field(FRESH, "promoted_to", "INT-042").unwrap();
+        let said = story(&parse_record(&with), &State::Open, &[]);
+        assert!(said.text.contains("  promoted  INT-042\n"), "{}", said.text);
+        let plain = story(&parse_record(FRESH), &State::Open, &[]);
+        assert!(!plain.text.contains("promoted"), "{}", plain.text);
     }
 }

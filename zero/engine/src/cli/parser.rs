@@ -822,6 +822,13 @@ pub enum BugCommands {
         /// Nothing to see the plan, or `apply SEAL` to write it
         apply: Vec<String>,
     },
+    /// Promote a bug to a real intent: show the plan, then file it with `apply SEAL`
+    Promote {
+        /// The finding, e.g. F-0113
+        id: String,
+        /// Nothing to see the plan, or `apply SEAL` to file it
+        apply: Vec<String>,
+    },
 }
 
 #[derive(Subcommand)]

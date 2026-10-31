@@ -224,6 +224,16 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 crate::cli::commands::BugCommand::Rate { id, level, apply } => {
                     crate::domains::intent::bug::rate_ledger(ctx, &id, &level, &apply)
                 }
+                crate::cli::commands::BugCommand::Promote { id, apply } => {
+                    ctx.capabilities.require(
+                        "intent",
+                        &[
+                            Capability::FilesystemReadHome,
+                            Capability::FilesystemWriteHome,
+                        ],
+                    )?;
+                    crate::domains::intent::bug::promote_ledger(ctx, &id, &apply)
+                }
             }
         }
 
