@@ -1,0 +1,236 @@
+file /home/christian/0-core/zero/shell/novashell/src/cwd.rs  sha256 04f65388248e7b3f -> ff147bbeb5aa24d6
+file /home/christian/0-core/zero/shell/novashell/src/main.rs  sha256 2969c0b474d871d8 -> 5da3cc42625a48dc
+file /home/christian/0-core/zero/shell/nsh-test/src/main.rs  sha256 9a7f435fa40ccce0 -> cc96a8209c839297
+--- /home/christian/0-core/zero/shell/novashell/src/cwd.rs: replacing lines 31..32 ---
+   29: //! every site ENUMERATED rather than grepped for once, and the first pass missed main.rs:3604.
+   30: 
+>> 31: use std::path::Path;
+>> 32: 
+   33: /// Change the shell's working directory AND the `PWD` it advertises.
+   34: ///
+++ use std::path::{Path, PathBuf};
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/cwd.rs: replacing lines 40..44 ---
+   38:     std::env::set_current_dir(path)?;
+   39:     if let Ok(now) = std::env::current_dir() {
+>> 40:         std::env::set_var("PWD", now);
+>> 41:     }
+>> 42:     Ok(())
+>> 43: }
+>> 44: 
+++         std::env::set_var("PWD", now);
+++     }
+++     Ok(())
+++ }
+++ 
+++ /// INT-301: where a fresh session starts, or None to stay where it was spawned.
+++ ///
+++ /// THE ONE STARTUP DIRECTORY RULE. A terminal that opens a window or split from a shell in some
+++ /// directory hands the new shell that directory (F-0102, F-0106), and nsh keeps it. Two cases start
+++ /// in the core root instead, and they are the ones INT-261 was written for: a launch from HOME, which
+++ /// is what a terminal opened from the desktop gets, and a launch directory that cannot be used
+++ /// (deleted, or not a directory). `keep` is NSH_KEEP_CWD (INT-206): a caller that chose a working
+++ /// directory, nsh-test, keeps it whatever it is.
+++ ///
+++ /// Pure on purpose: the caller reads the environment and makes the move, so every case is a unit
+++ /// test and not a terminal.
+++ pub fn startup_dir(
+++     keep: bool,
+++     launch: Option<&Path>,
+++     home: Option<&Path>,
+++     core_root: &Path,
+++ ) -> Option<PathBuf> {
+++     if keep {
+++         return None;
+++     }
+++     let launch = match launch {
+++         Some(p) if p.is_dir() => p,
+++         _ => return Some(core_root.to_path_buf()),
+++     };
+++     // Resolved before comparing, so HOME reached through a symlink or a trailing slash is HOME.
+++     let same = |a: &Path, b: &Path| match (a.canonicalize(), b.canonicalize()) {
+++         (Ok(x), Ok(y)) => x == y,
+++         _ => a == b,
+++     };
+++     if home.is_some_and(|h| same(launch, h)) {
+++         return Some(core_root.to_path_buf());
+++     }
+++     None
+++ }
+++ 
+++ #[cfg(test)]
+++ mod tests {
+++     use super::{startup_dir, Path, PathBuf};
+++ 
+++     const ROOT: &str = "/core-root";
+++ 
+++     fn scratch(tag: &str) -> PathBuf {
+++         let dir = std::env::temp_dir().join(format!("nsh-cwd-{}-{}", tag, std::process::id()));
+++         let _ = std::fs::remove_dir_all(&dir);
+++         std::fs::create_dir_all(&dir).expect("make scratch");
+++         dir
+++     }
+++ 
+++     fn pair(tag: &str) -> (PathBuf, PathBuf) {
+++         let base = scratch(tag);
+++         let work = base.join("work");
+++         let home = base.join("home");
+++         std::fs::create_dir_all(&work).expect("make work");
+++         std::fs::create_dir_all(&home).expect("make home");
+++         (work, home)
+++     }
+++ 
+++     #[test]
+++     fn a_launch_directory_that_is_not_home_is_kept() {
+++         let (work, home) = pair("kept");
+++         let got = startup_dir(false, Some(&work), Some(&home), Path::new(ROOT));
+++         assert_eq!(got, None);
+++     }
+++ 
+++     #[test]
+++     fn a_launch_from_home_goes_to_the_core_root() {
+++         let (_, home) = pair("home");
+++         let got = startup_dir(false, Some(&home), Some(&home), Path::new(ROOT));
+++         assert_eq!(got, Some(PathBuf::from(ROOT)));
+++     }
+++ 
+++     #[test]
+++     fn home_through_a_trailing_slash_or_a_symlink_is_still_home() {
+++         let (work, home) = pair("alias");
+++         let slashed = PathBuf::from(format!("{}/", home.display()));
+++         let got = startup_dir(false, Some(&slashed), Some(&home), Path::new(ROOT));
+++         assert_eq!(got, Some(PathBuf::from(ROOT)), "trailing slash");
+++         let link = work.join("home-link");
+++         std::os::unix::fs::symlink(&home, &link).expect("symlink");
+++         let got = startup_dir(false, Some(&link), Some(&home), Path::new(ROOT));
+++         assert_eq!(got, Some(PathBuf::from(ROOT)), "symlink");
+++     }
+++ 
+++     #[test]
+++     fn a_directory_that_cannot_be_used_goes_to_the_core_root() {
+++         let (work, home) = pair("unusable");
+++         let missing = work.join("gone");
+++         let file = work.join("a-file");
+++         std::fs::write(&file, "x").expect("make file");
+++         for (name, launch) in [
+++             ("missing", Some(missing)),
+++             ("file", Some(file)),
+++             ("none", None),
+++         ] {
+++             let got = startup_dir(false, launch.as_deref(), Some(&home), Path::new(ROOT));
+++             assert_eq!(got, Some(PathBuf::from(ROOT)), "{}", name);
+++         }
+++     }
+++ 
+++     #[test]
+++     fn keep_stays_wherever_it_is_even_in_home_or_nowhere() {
+++         let (_, home) = pair("keep");
+++         for launch in [Some(home.clone()), Some(home.join("gone")), None] {
+++             let got = startup_dir(true, launch.as_deref(), Some(&home), Path::new(ROOT));
+++             assert_eq!(got, None, "{:?}", launch);
+++         }
+++     }
+++ 
+++     #[test]
+++     fn with_no_home_set_the_launch_directory_is_kept() {
+++         let (work, _) = pair("nohome");
+++         let got = startup_dir(false, Some(&work), None, Path::new(ROOT));
+++         assert_eq!(got, None);
+++     }
+++ }
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 991..992 ---
+   989:             println!("  NSH_BOOT_PROFILE=1  report startup and per-command timings");
+   990:             println!("  NSH_SPINE=0         route through the legacy executor");
+>> 991:             println!("  NSH_KEEP_CWD=1      stay in the directory nsh was spawned in");
+>> 992:             return Ok(());
+   993:         }
+   994:         if let Some(c_pos) = args.iter().position(|a| a == "-c") {
+++             println!(
+++                 "  NSH_KEEP_CWD=1      stay in the directory nsh was spawned in, HOME included"
+++             );
+++             println!(
+++                 "                      default: HOME goes to ~/0-core, any other directory is kept"
+++             );
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 1404..1405 ---
+   1402: /// a terminal inside the harness too.
+   1403: ///
+>> 1404: /// Defaults to false: unset, every existing behaviour is unchanged.
+>> 1405: fn keep_launch_cwd() -> bool {
+   1406:     std::env::var("NSH_KEEP_CWD")
+   1407:         .map(|v| v != "0")
+++ /// Defaults to false: unset, the startup rule in cwd::startup_dir decides (INT-301).
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 2557..2560 ---
+   2555:     // with the comment between the two copies -- one was dead and is deleted.
+   2556:     //
+>> 2557:     // THE ONE STARTUP DIRECTORY RULE. This OVERRIDES the directory nsh was spawned in, on purpose:
+>> 2558:     // a fresh interactive session starts in the core root. INT-206: NSH_KEEP_CWD suppresses it, so
+>> 2559:     // a caller that chose a working directory (nsh-test) keeps it.
+>> 2560:     //
+   2561:     // There used to be a second override -- a restore of the remembered last_dir after the banner.
+   2562:     // Removed 2026-09-24; the note where it stood says why.
+++     // THE ONE STARTUP DIRECTORY RULE, and cwd::startup_dir is where it lives (INT-301). A directory
+++     // a terminal handed over is kept, so a new window or split opens where you were. A start in HOME
+++     // or in a directory that cannot be used goes to the core root (INT-261). INT-206: NSH_KEEP_CWD
+++     // keeps the spawn directory whatever it is, so a caller that chose one (nsh-test) gets it.
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 2564..2567 ---
+   2562:     // There used to be a second override -- a restore of the remembered last_dir after the banner.
+   2563:     // Removed 2026-09-24; the note where it stood says why.
+>> 2564:     if !keep_launch_cwd() {
+>> 2565:         let _ = cwd::chdir(&core_root);
+>> 2566:     }
+>> 2567: 
+   2568:     // INT-201: the engine takes ownership of the resources from here down. core_root is
+   2569:     // computed first because it is derived from db, which moves.
+++     let launch = std::env::current_dir().ok();
+++     let home = std::env::var_os("HOME").map(std::path::PathBuf::from);
+++     if let Some(dir) = cwd::startup_dir(
+++         keep_launch_cwd(),
+++         launch.as_deref(),
+++         home.as_deref(),
+++         std::path::Path::new(&core_root),
+++     ) {
+++         let _ = cwd::chdir(dir);
+++     }
+++ 
+--- /home/christian/0-core/zero/shell/nsh-test/src/main.rs: replacing lines 4749..4750 ---
+   4747:             // "0" rather than removing the variable: keep_launch_cwd reads it as v != "0", so the string
+   4748:             // is the off switch and no env_remove is needed.
+>> 4749:             let (out, _) = repl::run_repl_lines_status(&["pwd"], &[("NSH_KEEP_CWD", "0")])?;
+>> 4750:             expect_contains(&out.join("\n"), "0-core")
+   4751:         },
+   4752:     ));
+++             // INT-301: launched from HOME. Every case starts in /tmp, which the startup rule now KEEPS, so
+++             // only a launch from HOME still shows the repo-home default this case guards.
+++             let home = std::env::var("HOME").map_err(|e| format!("HOME: {}", e))?;
+++             let (out, _) = repl::run_repl_in_dir(&["pwd"], &[("NSH_KEEP_CWD", "0")], &home)?;
+++ 
+--- /home/christian/0-core/zero/shell/nsh-test/src/main.rs: replacing lines 4787..4791 ---
+   4785:             drop(conn);
+   4786: 
+>> 4787:             let (out, _) = repl::run_repl_lines_status(
+>> 4788:                 &["pwd"],
+>> 4789:                 &[("NSH_KEEP_CWD", "0"), ("ZERO_STATE_DB", db.as_str())],
+>> 4790:             )?;
+>> 4791:             let got = out.join("\n");
+   4792:             if got.contains("planted-last-dir") {
+   4793:                 return Err(format!(
+++             // INT-301: launched from HOME, for the same reason as repl_206 above.
+++             let home = std::env::var("HOME").map_err(|e| format!("HOME: {}", e))?;
+++             let (out, _) = repl::run_repl_in_dir(
+++                 &["pwd"],
+++                 &[("NSH_KEEP_CWD", "0"), ("ZERO_STATE_DB", db.as_str())],
+++                 &home,
+++             )?;
+++ 
+/home/christian/0-core/zero/shell/novashell/src/cwd.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/cwd.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/main.rs: 1 replaced
+/home/christian/0-core/zero/shell/nsh-test/src/main.rs: 1 replaced
