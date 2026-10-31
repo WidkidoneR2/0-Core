@@ -3,7 +3,7 @@ id: 300
 date: 2026-10-22
 type: future
 title: "Bug Report"
-status: in-progress
+status: complete
 tags: [Bug report, nsh, novashell]
 ---
 
@@ -85,3 +85,8 @@ SOFT (a discipline, not gate-police; nothing enforces this).
 LIGHT (trivial self-evident gates need no artifact).
 Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
 See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+
+## Versions
+- core 4.4.6 -> 4.4.7 (patch)
+- nsh 5.3.8 -> 5.3.9 (patch)
+- nsh-test 2.0.11 -> 2.0.12 (patch)
