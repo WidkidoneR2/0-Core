@@ -82,10 +82,11 @@ directory or title.
       terminal-side gap in F-0107 (Rio never sends the directory), not claimed fixed. Proof: the
       process chain and cwd from the Rio window.
       <!-- evidence: demonstrated 2026-10-31: Rio opened from nsh in /tmp landed in cwd=/home/christian/0-core, because Rio never sends the directory (F-0107, a terminal-side gap, not claimed fixed). Christian then uninstalled Rio. F-0108 (OSC 133 in ghostty) is untouched. -->
-- [ ] G9 Closing the records honestly: the commit that adds the evidence for F-0099 and F-0100
+- [x] G9 Closing the records honestly: the commit that adds the evidence for F-0099 and F-0100
       carries `Fixes: F-0099` and `Fixes: F-0100` and names c78e7924 in its body, and says the
       solved day will read 2026-10-31 not 2026-10-27; the rule commit carries `Fixes: F-0102`
       and `Fixes: F-0106`. Proof: core bug show for each reads solved.
+      <!-- evidence: demonstrated 2026-10-31 after c6c1ff53 (Fixes F-0099 and F-0100, names c78e7924) and c39fa885 (Fixes F-0102 and F-0106): core bug show prints state solved and solved 2026-10-31 for all four. The solved day for F-0099 and F-0100 reads 2026-10-31, the day the trailer landed, not 2026-10-27. -->
 - [ ] G10 F-0107 and F-0108: recon names the command core has for closing a finding without a
       fix; each is closed with the terminal-side reason and the measured evidence, or, if core has
       no such path, a finding is filed and the two stay open. Proof: core bug show.
