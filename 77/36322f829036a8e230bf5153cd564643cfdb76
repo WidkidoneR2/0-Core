@@ -1,0 +1,184 @@
+file /home/christian/0-core/zero/engine/src/domains/intent/bug.rs  sha256 7c8b7c5760dd94cb -> 9d5e3d2749e490c6
+file /home/christian/0-core/zero/engine/src/cli/parser.rs  sha256 91b5075346a8b33a -> 0feb4427838c7110
+file /home/christian/0-core/zero/engine/src/cli/commands.rs  sha256 cd2f644124fa84e8 -> 81c8975eb3062d20
+file /home/christian/0-core/zero/engine/src/cli/mod.rs  sha256 7d839a84ae8463e4 -> f2600a927eae9f27
+file /home/christian/0-core/zero/engine/src/app/dispatcher.rs  sha256 d67c5da470b356ca -> 2bc3e0e8202ac39f
+file /home/christian/0-core/zero/shell/novashell/src/core_integration.rs  sha256 db48422a4191a5e8 -> 26e5b8d1a30b7eab
+file /home/christian/0-core/zero/shell/novashell/src/main.rs  sha256 4d467d4340e82d00 -> 2969c0b474d871d8
+--- /home/christian/0-core/zero/engine/src/domains/intent/bug.rs: replacing lines 1362..1372 ---
+   1360:     Ok(got.code)
+   1361: }
+>> 1362: pub fn welcome_line(
+>> 1363:     _records: &[Record],
+>> 1364:     _fixes: &Result<Vec<(String, String)>, String>,
+>> 1365:     _on_disk: usize,
+>> 1366: ) -> Report {
+>> 1367:     Report {
+>> 1368:         text: String::new(),
+>> 1369:         code: 99,
+>> 1370:     }
+>> 1371: }
+>> 1372: #[cfg(test)]
+   1373: mod bug_tests {
+   1374:     use super::{
+++ /// The one line the shell banner prints about bugs, as a value (INT-300 G13): `bugs: N open (H
+++ /// high)`, counted by the same rows as the dashboard. When git could not be read, or a finding
+++ /// file was not read, it says `bugs: unknown` and ends 3; a measured zero is `0 open`, not unknown.
+++ pub fn welcome_line(
+++     records: &[Record],
+++     fixes: &Result<Vec<(String, String)>, String>,
+++     on_disk: usize,
+++ ) -> Report {
+++     if fixes.is_err() || on_disk != records.len() {
+++         return Report {
+++             text: "bugs: unknown\n".to_string(),
+++             code: 3,
+++         };
+++     }
+++     let all = rows(records, fixes);
+++     let open: Vec<&Row> = all.iter().filter(|r| r.state == "open").collect();
+++     let high = open.iter().filter(|r| r.severity == "high").count();
+++     Report {
+++         text: format!("bugs: {} open ({} high)\n", open.len(), high),
+++         code: 0,
+++     }
+++ }
+++ 
+++ /// `core bug welcome` -- INT-300 G13. The domain owns its exit: 0 the line, 3 it could not tell.
+++ pub fn welcome(ctx: &AppContext) -> CoreResult<()> {
+++     let code = match welcome_answer(ctx) {
+++         Ok(code) => code,
+++         Err(e) => {
+++             eprintln!("{} {}", "\u{2717}".bright_red(), e);
+++             print!("bugs: unknown\n");
+++             3
+++         }
+++     };
+++     if code != 0 {
+++         std::process::exit(code);
+++     }
+++     Ok(())
+++ }
+++ 
+++ fn welcome_answer(ctx: &AppContext) -> Result<i32, String> {
+++     let dir = super::intents_dir(ctx).join("findings");
+++     let records = super::findings::read_records(&dir)?;
+++     let on_disk = files_on_disk(&dir)?;
+++     let core: &str = &ctx.core_root;
+++     let named = super::trace::fixes(core);
+++     let got = welcome_line(&records, &named, on_disk);
+++     print!("{}", got.text);
+++     Ok(got.code)
+++ }
+++ 
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/parser.rs: replacing lines 796..799 ---
+   794: /// INT-300 -- the bug report: the findings ledger read as a report.
+   795: #[derive(Subcommand)]
+>> 796: pub enum BugCommands {
+>> 797:     /// The dashboard: what is open, the oldest, how fast bugs get fixed (also: no arguments)
+>> 798:     Dashboard,
+>> 799:     /// The findings still unresolved, worst first; --all shows every one
+   800:     List {
+   801:         /// Only this state: open, solved, closed or unknown
+++ pub enum BugCommands {
+++     /// The dashboard: what is open, the oldest, how fast bugs get fixed (also: no arguments)
+++     Dashboard,
+++     /// The welcome line for the shell banner: bugs: N open (H high), or unknown
+++     Welcome,
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/commands.rs: replacing lines 394..396 ---
+   392: 
+   393: #[derive(Debug)]
+>> 394: pub enum BugCommand {
+>> 395:     Dashboard,
+>> 396:     List {
+   397:         state: Option<String>,
+   398:         severity: Option<String>,
+++ pub enum BugCommand {
+++     Dashboard,
+++     Welcome,
+++ 
+--- /home/christian/0-core/zero/engine/src/cli/mod.rs: replacing lines 283..284 ---
+   281:         }),
+   282:         Commands::Bug { command } => Command::Bug(match command.unwrap_or_default() {
+>> 283:             parser::BugCommands::Dashboard => commands::BugCommand::Dashboard,
+>> 284:             parser::BugCommands::List {
+   285:                 state,
+   286:                 severity,
+++             parser::BugCommands::Dashboard => commands::BugCommand::Dashboard,
+++             parser::BugCommands::Welcome => commands::BugCommand::Welcome,
+++ 
+--- /home/christian/0-core/zero/engine/src/app/dispatcher.rs: replacing lines 208..211 ---
+   206:                 .require("intent", &[Capability::FilesystemReadHome])?;
+   207:             match c {
+>> 208:                 crate::cli::commands::BugCommand::Dashboard => {
+>> 209:                     crate::domains::intent::bug::dashboard(ctx)
+>> 210:                 }
+>> 211:                 crate::cli::commands::BugCommand::List {
+   212:                     state,
+   213:                     severity,
+++                 crate::cli::commands::BugCommand::Dashboard => {
+++                     crate::domains::intent::bug::dashboard(ctx)
+++                 }
+++                 crate::cli::commands::BugCommand::Welcome => {
+++                     crate::domains::intent::bug::welcome(ctx)
+++                 }
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/core_integration.rs: replacing lines 31..34 ---
+   29: 
+   30: use std::collections::HashSet;
+>> 31: use std::path::PathBuf;
+>> 32: 
+>> 33: /// Is 0-Core present on this machine?
+>> 34: ///
+   35: /// THE ONE EXISTENCE CHECK. `paths.rs` has three `exists()` calls in the whole
+   36: /// file and none of them asks this -- two resolve the XDG-versus-legacy runtime
+++ use std::path::PathBuf;
+++ 
+++ /// INT-300 G13 -- the bug line for the welcome banner, from the one place that derives it.
+++ ///
+++ /// `core bug welcome` prints `bugs: N open (H high)` and exits 0, or says `bugs: unknown` and
+++ /// exits 3 when it cannot tell. This returns the line only for a clean exit whose output is one
+++ /// bugs line. Core missing, a failing run, any other output: None, and the banner says unknown.
+++ /// Nothing is parsed and no number is made up.
+++ pub fn bugs_line() -> Option<String> {
+++     let out = std::process::Command::new("core")
+++         .args(["bug", "welcome"])
+++         .output()
+++         .ok()?;
+++     if !out.status.success() {
+++         return None;
+++     }
+++     let text = String::from_utf8(out.stdout).ok()?;
+++     let line = text.trim_end_matches('\n');
+++     if line.starts_with("bugs: ") && !line.contains('\n') {
+++         Some(line.to_string())
+++     } else {
+++         None
+++     }
+++ }
+++ 
+++ /// Is 0-Core present on this machine?
+++ 
+--- /home/christian/0-core/zero/shell/novashell/src/main.rs: replacing lines 3816..3817 ---
+   3814: 
+   3815:     // -- git row: real time, and only what is actionable --
+>> 3816:     println!("  {}", fc_dim(150, 150, 180, &git_line));
+>> 3817: 
+   3818:     println!(
+   3819:         "  {}",
+++     println!("  {}", fc_dim(150, 150, 180, &git_line));
+++ 
+++     // -- bug row (INT-300 G13): the line core derives, or unknown when core cannot say --
+++     let bugs_display =
+++         crate::core_integration::bugs_line().unwrap_or_else(|| "bugs: unknown".to_string());
+++     println!("  {}", fc_dim(150, 150, 180, &bugs_display));
+++ 
+/home/christian/0-core/zero/engine/src/domains/intent/bug.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/parser.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/commands.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/cli/mod.rs: 1 replaced
+/home/christian/0-core/zero/engine/src/app/dispatcher.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/core_integration.rs: 1 replaced
+/home/christian/0-core/zero/shell/novashell/src/main.rs: 1 replaced
