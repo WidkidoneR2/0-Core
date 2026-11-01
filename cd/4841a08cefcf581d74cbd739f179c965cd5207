@@ -1,0 +1,13 @@
+file /home/christian/0-core/AGENTS.md  sha256 7a11b8ad561ab454 -> 11a5e6af19a57630
+--- /home/christian/0-core/AGENTS.md: replacing lines 296..297 ---
+   294: - Run the exact text of the reply, loader and payload, on the stand-in. A reply copy that was never run is not checked.
+   295: - Take the payload from the tool output that decoded. Never from a retyped or pasted copy: one wrong character in 936 (c for e, measured 2026-10-21) was refused by zlib before any code ran.
+>> 296: - A script reused across steps lives at ~/.cache/zero/<name>-<sha256 prefix>.py, so the command names the exact bytes. It is deleted when the work ends.
+>> 297:
+   298: UNVERIFIED: no gate runs the loader. The table above was measured on a stand-in on 2026-10-21 with a good, a damaged, a truncated, a raising and an exiting payload.
+   299:
+++ - A script reused across steps lives at ~/.cache/zero/<name>-<sha256 prefix>.py, so the command names the exact bytes. It is deleted when the work ends.
+++ - After the show, the apply line is short and never re-sends the payload: python3 ~/.cache/zero/<name>-<sha256 prefix>.py apply SEAL, run from the repo root. The show step writes the payload to that file; the file recomputes its own hash and refuses to run if it differs from the one in its name. Measured 2026-10-31 (INT-303): two retyped long words came out 344 and 676 characters short and were caught by the paste check; the short apply line was applied on the real tree at 19:00 with no long word in the command.
+++ - A Plan with more than one edit is read by a second, read-only agent that has not seen the reasoning, before the apply line is sent. It gets the decoded payload, the real show output and the Edit and Transport rules of this section, and labels each finding DEFINITE or BORDERLINE. A DEFINITE finding stops the apply line; a BORDERLINE finding is read and answered and does not block. It cannot edit, run or apply. Measured 2026-10-31 (INT-303 G3): a clean payload returned 0 DEFINITE and each seeded defect returned DEFINITE; one run per payload, run off this machine, so treat a pass as a second look and not a proof.
+++
+/home/christian/0-core/AGENTS.md: 2 line(s) replaced by 4
