@@ -272,8 +272,10 @@ Generated text crosses the shell as data. It never becomes shell syntax because 
 Live form: one argv word, never a fixed /tmp file. The payload is zlib-compressed, then base64.
 
 ```text
-python3 -c 'import base64,sys,zlib,binascii; sys.excepthook=lambda t,v,b: print("TRANSPORT: the paste was damaged and nothing ran. Paste the block again." if t in (zlib.error,binascii.Error,UnicodeDecodeError) else "FAILED: %s: %s" % (t.__name__, v), file=sys.stderr); exec(zlib.decompress(base64.b64decode(sys.argv[1])).decode("utf-8"))' PAYLOAD
+python3 -c 'import base64,sys,zlib,binascii,hashlib; a=sys.argv[1]; s=[0]; print("paste check:",len(a),"chars, sha256",hashlib.sha256(a.encode()).hexdigest()[:12]); sys.excepthook=lambda t,v,b: print("TRANSPORT: the paste was damaged and nothing ran. Paste the block again." if (not s[0] and t in (zlib.error,binascii.Error,UnicodeDecodeError)) else "FAILED: %s: %s" % (t.__name__, v), file=sys.stderr); d=zlib.decompress(base64.b64decode(a)).decode("utf-8"); s[0]=1; exec(d)' PAYLOAD
 ```
+
+The loader prints a first line before it decodes anything: paste check: N chars, sha256 XXXXXXXXXXXX. The reply that carries the block states the values it must show. A mismatch means the paste was altered between the reply and the shell: nothing has run, so paste the block again from the built text. TRANSPORT is printed only while decoding, and an error raised inside the payload prints one FAILED line.
 
 The loader turns a Python traceback into one line. fpatch exits by itself, so its REFUSE block is unchanged. What a run can print, and what to do:
 
@@ -292,6 +294,8 @@ Before an AI sends a payload:
 - Run the exact text of the reply, loader and payload, on the stand-in. A reply copy that was never run is not checked.
 - Take the payload from the tool output that decoded. Never from a retyped or pasted copy: one wrong character in 936 (c for e, measured 2026-10-21) was refused by zlib before any code ran.
 - A script reused across steps lives at ~/.cache/zero/<name>-<sha256 prefix>.py, so the command names the exact bytes. It is deleted when the work ends.
+- After the show, the apply line is short and never re-sends the payload: python3 ~/.cache/zero/<name>-<sha256 prefix>.py apply SEAL, run from the repo root. The show step writes the payload to that file; the file recomputes its own hash and refuses to run if it differs from the one in its name. Measured 2026-10-31 (INT-303): two retyped long words came out 344 and 676 characters short and were caught by the paste check; the short apply line was applied on the real tree at 19:00 with no long word in the command.
+- A Plan with more than one edit is read by a second, read-only agent that has not seen the reasoning, before the apply line is sent. It gets the decoded payload, the real show output and the Edit and Transport rules of this section, and labels each finding DEFINITE or BORDERLINE. A DEFINITE finding stops the apply line; a BORDERLINE finding is read and answered and does not block. It cannot edit, run or apply. Measured 2026-10-31 (INT-303 G3): a clean payload returned 0 DEFINITE and each seeded defect returned DEFINITE; one run per payload, run off this machine, so treat a pass as a second look and not a proof.
 
 UNVERIFIED: no gate runs the loader. The table above was measured on a stand-in on 2026-10-21 with a good, a damaged, a truncated, a raising and an exiting payload.
 
