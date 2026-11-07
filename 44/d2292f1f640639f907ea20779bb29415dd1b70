@@ -1,0 +1,34 @@
+file /home/christian/0-core/AGENTS.md  sha256 11a5e6af19a57630 -> 52c54265da184500
+--- /home/christian/0-core/AGENTS.md: replacing lines 196..198 ---
+   194: DevBox (INT-167) is not a required step until it is the verifier. Until then it is deferred.
+   195: 
+>> 196: Working shorthand: recon, solve, test, then rebuild.
+>> 197: 
+>> 198: ### Evidence
+   199: 
+   200: A ticked box is a promise. Evidence is the receipt. Format — an HTML comment on the line after the gate:
+++ Working shorthand: recon, solve, test, then rebuild.
+++ 
+++ ### Multi-AI roles
+++ 
+++ Three parties work this repository. The roles are not interchangeable.
+++ 
+++ - Christian decides everything and approves everything. He runs every command himself, in his own terminal. Nothing is applied without his explicit approval of that exact change.
+++ - Claude authors: recon, plans, patches, tests, and the evidence for each gate. Claude hands over the change and the commands; it does not apply them.
+++ - Jarvis reviews. Jarvis can flag a problem or block a proposal until the flag is answered. Jarvis never approves; only Christian does.
+++ - An item is requested only once Christian has approved it. A task on a review list, a finding, or a plan Claude proposed is a proposal until then, and Never make unrequested changes (section 2, Edit) applies to it.
+++ - One intent per approved item. A list of items is not an intent.
+++ 
+++ UNVERIFIED: no tool records a flag, a block, or who reviewed what. They hold because Christian reads them before he approves.
+++ 
+++ ### Evidence
+--- /home/christian/0-core/AGENTS.md: replacing lines 310..310 ---
+   308: - A script reused across steps lives at ~/.cache/zero/<name>-<sha256 prefix>.py, so the command names the exact bytes. It is deleted when the work ends.
+   309: - After the show, the apply line is short and never re-sends the payload: python3 ~/.cache/zero/<name>-<sha256 prefix>.py apply SEAL, run from the repo root. The show step writes the payload to that file; the file recomputes its own hash and refuses to run if it differs from the one in its name. Measured 2026-10-31 (INT-303): two retyped long words came out 344 and 676 characters short and were caught by the paste check; the short apply line was applied on the real tree at 19:00 with no long word in the command.
+>> 310: - A Plan with more than one edit is read by a second, read-only agent that has not seen the reasoning, before the apply line is sent. It gets the decoded payload, the real show output and the Edit and Transport rules of this section, and labels each finding DEFINITE or BORDERLINE. A DEFINITE finding stops the apply line; a BORDERLINE finding is read and answered and does not block. It cannot edit, run or apply. Measured 2026-10-31 (INT-303 G3): a clean payload returned 0 DEFINITE and each seeded defect returned DEFINITE; one run per payload, run off this machine, so treat a pass as a second look and not a proof.
+   311: 
+   312: UNVERIFIED: no gate runs the loader. The table above was measured on a stand-in on 2026-10-21 with a good, a damaged, a truncated, a raising and an exiting payload.
+++ treat a pass as a second look and not a proof.
+++ - Send the readable diff in the same reply, beside the payload. A payload that cannot be read as a diff cannot be reviewed.
+/home/christian/0-core/AGENTS.md: 1 replaced
+/home/christian/0-core/AGENTS.md: 1 replaced
