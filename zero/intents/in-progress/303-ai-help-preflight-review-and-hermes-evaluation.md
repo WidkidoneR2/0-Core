@@ -169,7 +169,8 @@ APPLIED to AGENTS.md by reviewed Plans, all three: item 1 Seal 27ff199f1f0a3303 
 COMMITTED: checkpoint commit cd4841a0 (Intent INT-303, Seal e602c7b162cf7b3f). Its seal note is kept verbatim and trace of the commit reads intact. The other 12 Plan texts stay in ~/.cache/zero as plan-SEAL.txt and are not re-checkable from the repo. Not pushed. Plans applied after that commit are uncommitted: G1 row 4 (Seal ff3a7551dfac3a97), its correction (Seal d7a4d555260c3ada) and this comment.
 OPEN: the seal-note rule (documented in intent 266 lines 67 and 68) is not yet in AGENTS.md. It is a proposal for a later reviewed Plan. No AGENTS.md text is applied without a Plan Christian has seen.
 -->
-- [ ] G10 Doors after any ship: nsh-test all passing, d 0 failed, core intent validate all valid, git status clean, then cicomplete 303. Proof: the door output and the close commit.
+- [x] G10 Doors after any ship: nsh-test all passing, d 0 failed, core intent validate all valid, git status clean, then cicomplete 303. Proof: the door output and the close commit.
+<!-- G10 PROOF 2026-11-07: doors run after the close commit ffa9d4c3: nsh-test 302/302, d 0 failed, core intent validate 340 valid, git status clean (as reported by Jarvis from Christian output). cicomplete 303 is the next step. -->
 
 ## G1 census, measured half (2026-10-31, read only)
 Source: state.db at the path the code resolves (ZERO_STATE_DB unset, legacy runtime/ absent), last 30 days to 2026-10-31. Counts are floors where noted.
