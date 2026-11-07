@@ -255,10 +255,10 @@ from fpatch import patch, patch_between, Plan
 patch("path/to.rs", old, new)              # one edit, written now
 patch("path/to.rs", old, new, dry=True)    # shown, nothing written
 p = Plan().patch(a, old, new).between(b, start, None, lines)
-p.run(sys.argv[2:])                        # no args: show + Seal. apply SEAL: write
+p.run(sys.argv[1:])                        # no args: show + Seal. apply SEAL: write
 ```
 
-Absolute path always. old and new stay Python string literals. The payload is one argv word.
+Absolute path always. old and new stay Python string literals. The payload is a plain-source script (see Transport).
 
 - More than one edit is a Plan. show runs every check and writes nothing. apply SEAL writes every edit or none, and refuses if a target changed since show. The apply line carries the real Seal, sent after the plan has been read.
 - A change applied as two plans (the red, then the fix) commits once, with the fix plan's Seal: and note; the red plan's seal is cited in the body. refs/notes/seals holds one note per commit. Save p.text() before apply: afterwards the plan no longer matches the files and cannot be rebuilt.
@@ -275,27 +275,32 @@ Absolute path always. old and new stay Python string literals. The payload is on
 - An intent section that claims a commit is pushed or a path is real checks that against git and disk before it is written.
 - Never make unrequested changes. Surface them.
 
-Paste blocks for a human contain no apostrophes, no heredocs, and no bare --help.
+Paste blocks for a human contain no bare --help. A payload is sent as the plain-source heredoc described under Transport.
 
 ### Transport
 
 Generated text crosses the shell as data. It never becomes shell syntax because the shell is carrying it.
 
-Live form: one argv word, never a fixed /tmp file. The payload is zlib-compressed, then base64.
+Live form: plain source in a quoted heredoc. The reply carries the script as readable text. The shell writes it to ~/.cache/zero/<name>-<sha256 prefix>.py and then runs it:
 
 ```text
-python3 -c 'import base64,sys,zlib,binascii,hashlib; a=sys.argv[1]; s=[0]; print("paste check:",len(a),"chars, sha256",hashlib.sha256(a.encode()).hexdigest()[:12]); sys.excepthook=lambda t,v,b: print("TRANSPORT: the paste was damaged and nothing ran. Paste the block again." if (not s[0] and t in (zlib.error,binascii.Error,UnicodeDecodeError)) else "FAILED: %s: %s" % (t.__name__, v), file=sys.stderr); d=zlib.decompress(base64.b64decode(a)).decode("utf-8"); s[0]=1; exec(d)' PAYLOAD
+mkdir -p ~/.cache/zero && cat > ~/.cache/zero/NAME-HASH12.py <<'PY'
+...script...
+PY
+python3 ~/.cache/zero/NAME-HASH12.py
 ```
 
-The loader prints a first line before it decodes anything: paste check: N chars, sha256 XXXXXXXXXXXX. The reply that carries the block states the values it must show. A mismatch means the paste was altered between the reply and the shell: nothing has run, so paste the block again from the built text. TRANSPORT is printed only while decoding, and an error raised inside the payload prints one FAILED line.
+The delimiter is quoted, so the shell expands nothing inside it: apostrophes, double quotes, $ and backticks in the script are safe, and no script line may be exactly PY. The script is ASCII with no tabs and no trailing whitespace, so a changed byte is caught by the name-hash check. The script recomputes its own sha256 and refuses to run unless the first 12 hex characters equal the ones in its file name, so a damaged paste prints one REFUSE line and nothing else runs. The text in the reply is the review: it is read as source, with no decoding step.
 
-The loader turns a Python traceback into one line. fpatch exits by itself, so its REFUSE block is unchanged. What a run can print, and what to do:
+A script that changes anything has two steps. A default run prints the plan, the Seal or a hash, and the exact follow-up line, and writes nothing. A second run with the follow-up line the show printed (apply SEAL, or the pinned hash) acts. Every check runs before the first write.
+
+fpatch exits by itself, so its REFUSE block is unchanged. What a run can print, and what to do:
 
 ```text
-TRANSPORT line   the paste was damaged (zlib check, bad base64, bad UTF-8). Nothing ran.
+HASH REFUSE      the file does not match the hash in its name: the paste was damaged. Nothing ran.
                  Layer 1 of section 3: paste the same block again. Do not touch code.
 REFUSE block     fpatch refused. Exit 1, nothing written. Stop and paste it.
-FAILED line      the payload itself raised. It may have run part-way: read the files
+Traceback        the script itself raised. It may have run part-way: read the files
                  before the next step.
 exit 2           an fpatch defect, or a write that did not verify: check the file first.
 ```
@@ -303,20 +308,20 @@ exit 2           an fpatch defect, or a write that did not verify: check the fil
 Before an AI sends a payload:
 
 - Rehearse it on a stand-in tree (a mktemp copy), never first on the real tree.
-- Run the exact text of the reply, loader and payload, on the stand-in. A reply copy that was never run is not checked.
-- Take the payload from the tool output that decoded. Never from a retyped or pasted copy: one wrong character in 936 (c for e, measured 2026-10-21) was refused by zlib before any code ran.
+- Run the exact text of the reply, installer and script, on the stand-in. Run it as two steps, the installer (the block minus its last line) and then the script; together they are the exact text of the reply, and one command would both install and run, which spoils a negative test. A reply copy that was never run is not checked.
+- Take the script from the tool output that ran. Never from a retyped or pasted copy: the name-hash check refuses a damaged copy before anything runs.
 - A script reused across steps lives at ~/.cache/zero/<name>-<sha256 prefix>.py, so the command names the exact bytes. It is deleted when the work ends.
-- After the show, the apply line is short and never re-sends the payload: python3 ~/.cache/zero/<name>-<sha256 prefix>.py apply SEAL, run from the repo root. The show step writes the payload to that file; the file recomputes its own hash and refuses to run if it differs from the one in its name. Measured 2026-10-31 (INT-303): two retyped long words came out 344 and 676 characters short and were caught by the paste check; the short apply line was applied on the real tree at 19:00 with no long word in the command.
-- A Plan with more than one edit is read by a second, read-only agent that has not seen the reasoning, before the apply line is sent. It gets the decoded payload, the real show output and the Edit and Transport rules of this section, and labels each finding DEFINITE or BORDERLINE. A DEFINITE finding stops the apply line; a BORDERLINE finding is read and answered and does not block. It cannot edit, run or apply. Measured 2026-10-31 (INT-303 G3): a clean payload returned 0 DEFINITE and each seeded defect returned DEFINITE; one run per payload, run off this machine, so treat a pass as a second look and not a proof.
+- After the show, the apply line is short and never re-sends the payload: python3 ~/.cache/zero/<name>-<sha256 prefix>.py apply SEAL, run from the repo root. The install block wrote the script to that file; the file recomputes its own hash and refuses to run if it differs from the one in its name.
+- A Plan with more than one edit is read by a second, read-only agent that has not seen the reasoning, before the apply line is sent. It gets the script text, the real show output and the Edit and Transport rules of this section, and labels each finding DEFINITE or BORDERLINE. A DEFINITE finding stops the apply line; a BORDERLINE finding is read and answered and does not block. It cannot edit, run or apply. Measured 2026-10-31 (INT-303 G3): a clean payload returned 0 DEFINITE and each seeded defect returned DEFINITE; one run per payload, run off this machine, so treat a pass as a second look and not a proof.
 - Send the readable diff in the same reply, beside the payload. A payload that cannot be read as a diff cannot be reviewed.
 
-UNVERIFIED: no gate runs the loader. The table above was measured on a stand-in on 2026-10-21 with a good, a damaged, a truncated, a raising and an exiting payload.
+UNVERIFIED: no gate runs the name-hash check. Rehearsals on a stand-in refused a copy whose name carried the wrong hash (INT-303, 2026-11-06), and the trial block passed its check on the real tree.
 
-Small enough to stay inline: single quotes. Double quotes expand. Do not add escaping; remove the shell from the path.
+Small enough to stay inline: single quotes. Double quotes expand. Do not add escaping; remove the shell from the path. An inline single-quoted command cannot contain an apostrophe: anything that needs one goes as a plain-source script.
 
-Heredocs work in nsh (measured 2026-09-13, both doors, both executors, against bash). They remain banned in paste blocks because a quoted delimiter contains apostrophes, and apostrophes do not survive the paste path.
+Heredocs work in nsh (measured 2026-09-13, both doors, both executors, against bash). A quoted delimiter is the transport: the plain-source blocks of 2026-11-06 carried apostrophes and each passed its name-hash check on the real tree.
 
-Base64 is the AI-to-shell transport. It is not part of the shell user-facing architecture. Only the live form is documented here; dead forms do not belong in this file.
+Plain source is the AI-to-shell transport. It is not part of the shell user-facing architecture. Only the live form is documented here; dead forms, base64 included, do not belong in this file.
 
 ### Build and test
 
