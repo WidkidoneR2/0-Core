@@ -3,7 +3,7 @@ id: 303
 date: 2026-10-31
 type: future
 title: "AI Help: Preflight, Review and Hermes Evaluation"
-status: in-progress
+status: complete
 tags: [AI, Hermes, coding]
 ---
 
@@ -216,3 +216,6 @@ SOFT (a discipline, not gate-police; nothing enforces this).
 LIGHT (trivial self-evident gates need no artifact).
 Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.
 See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->
+
+## Versions
+- nsh-test 2.0.13 -> 2.0.14 (patch)
