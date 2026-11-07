@@ -3310,6 +3310,42 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(repo_test(
+        "hermes_eval_tests_pass",
+        Category::Regression,
+        "needs a real 0-Core: it runs zero/scripts/dev/test_hermes_eval.py, which only a checkout has",
+        || {
+            // INT-303 F-0115: the Hermes eval launcher has a timeout path (log written, rc -1, the
+            // tail of the agent's output kept) and its test used to run only by hand, so a
+            // regression there would pass every door. Same shape as fpatch_tests_pass: a missing
+            // test file, a missing python3, or a run of zero tests is a failure, not a skip.
+            let dev = std::path::Path::new(&home()).join("0-core/zero/scripts/dev");
+            if !dev.join("test_hermes_eval.py").is_file() {
+                return Err(format!(
+                    "{} has no test_hermes_eval.py -- the launcher tests are missing",
+                    dev.display()
+                ));
+            }
+            let out = Command::new("python3")
+                .args(["-m", "unittest", "test_hermes_eval"])
+                .current_dir(&dev)
+                .env("PYTHONDONTWRITEBYTECODE", "1")
+                .env_remove("HERMES_EVAL_SRC")
+                .output()
+                .map_err(|e| format!("cannot run python3: {}", e))?;
+            let err = String::from_utf8_lossy(&out.stderr);
+            if !out.status.success() {
+                return Err(format!("launcher tests failed:\n{}", err.trim_end()));
+            }
+            if !err
+                .lines()
+                .any(|l| l.starts_with("Ran ") && !l.starts_with("Ran 0 "))
+            {
+                return Err(format!("launcher tests ran nothing:\n{}", err.trim_end()));
+            }
+            Ok(())
+        },
+    ));
+    results.push(repo_test(
         "every_active_tool_has_a_census_record",
         Category::Regression,
         "needs a real 0-Core: it reads tools.toml and the census directory, which only a checkout has",
