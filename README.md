@@ -184,6 +184,7 @@ This README is the front door. The depth lives here:
 - [Tool Catalog](zero/tools/) -- every active tool, generated from source
 - [Inventory](docs/inventory.md) -- what is used, what is kept, and what the numbers say
 - [Changelog](zero/meta/CHANGELOG.md) -- the full history, Arch era to Omarchy
+- [Working from another machine](docs/WORKING-FROM-ANOTHER-MACHINE.md) -- clone, build and wire a second Arch or Omarchy machine
 
 ## Security
 
