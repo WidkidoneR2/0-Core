@@ -110,5 +110,5 @@ this file says so.
                                    under the old names. fg is job control only
     zero/registry/aliases.toml     read by ship (ship/src/main.rs:309) and stale: it lists tools
                                    that no longer exist and maps core to a cd. INT-265
-    docs/NOVASHELL.md:216          says fg is not job control; nsh main.rs:250 already treats a
+    docs/NOVASHELL.md (was :216)   says fg is not job control; nsh main.rs:250 already treats a
                                    bare fg and fg N as job control. The docs pass
