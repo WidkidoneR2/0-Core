@@ -51,7 +51,7 @@ Project 0's tool ecosystem: 17 active tools (plus 0 retired), each a purpose-bui
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| [`novashell`](../shell/novashell/) | 5.3.10 | The shell of Project 0 -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution. |
+| [`novashell`](../shell/novashell/) | 5.3.11 | The shell of Project 0 -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution. |
 
 ---
 

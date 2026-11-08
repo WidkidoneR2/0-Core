@@ -3,7 +3,7 @@ id: 305
 date: 2026-11-07
 type: future
 title: "Docs Cleanup: Another-machine guide, docs inventory, architecture drift"
-status: planned
+status: complete
 tags: [docs]
 ---
 
@@ -60,3 +60,6 @@ One finding at a time, docs only, each through a reviewed fpatch Plan:
       validate all valid, git status clean, then cicomplete 305.
       Proof: the door output and the close commit.
 <!-- G6 EVIDENCE 2026-11-08 (Christian): on his machine at 40c88fa5. nsh-test v2.0.14 302/302 passed; d 0 failed (27 passed, 1 warning: 1 rustdoc warning, 96%); core intent validate all 342 valid; git status clean on main. -->
+
+## Versions
+- nsh 5.3.10 -> 5.3.11 (patch)

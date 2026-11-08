@@ -1602,7 +1602,7 @@ dependencies = [
 
 [[package]]
 name = "novashell"
-version = "5.3.10"
+version = "5.3.11"
 dependencies = [
  "anyhow",
  "chrono",

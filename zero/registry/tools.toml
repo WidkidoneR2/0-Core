@@ -51,7 +51,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "nsh"
-version = "5.3.10"
+version = "5.3.11"
 category = "shell"
 description = "NovaShell -- the structured shell of Project 0. Package: novashell."
 expected_usage = "high"
