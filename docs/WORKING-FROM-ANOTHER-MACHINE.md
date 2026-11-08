@@ -24,7 +24,7 @@ The branch is `main`. The `core.hooksPath` line is the one opt-in that makes the
 git hooks run on this clone. Why it is needed: [.githooks/README.md](../.githooks/README.md).
 
 The hooks refuse every commit and push until `zero-gate` exists. Build it first with
-`cargo build -p zero-gate`; the hooks look for it in `target/debug`, `target/release` or on `PATH`.
+`cargo build -p zero-gate`; the hooks look for it in target/debug, target/release or on `PATH`.
 
 ## 3. Build
 
@@ -32,7 +32,7 @@ The shell crate (`novashell`, binary `nsh`) is built as described in
 [zero/shell/novashell/README.md](../zero/shell/novashell/README.md) under "Build".
 The workspace root is `~/0-core/Cargo.toml`.
 
-`ship` is its own crate, `zero/tools/ship`. Its README ([zero/tools/ship/README.md](../zero/tools/ship/README.md))
+`ship` is its own crate, `zero/tools/ship/`. Its README ([zero/tools/ship/README.md](../zero/tools/ship/README.md))
 gives the build: `cargo build -p ship`. The novashell README then uses `ship nsh` to deploy.
 **Open: not documented, not tested:** how the built `ship` itself reaches `PATH` on a machine
 that has never run it. Check that `ship` is on `PATH` before relying on it.
