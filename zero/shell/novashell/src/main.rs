@@ -1356,6 +1356,47 @@ fn degraded_notice(why: &str) -> String {
     )
 }
 
+/// Printed when history still will not save after the retries in
+/// `StateDb::save_history_entry`. The database in the suggested command is
+/// whatever `zero_core::paths::state_db` returns. That function is the only
+/// place a state.db path is decided; a hardcoded `runtime/state.db` is wrong
+/// once `runtime_dir` prefers `~/.local/state/zero`.
+fn history_save_retry_hint(err: &impl std::fmt::Display) -> String {
+    format!(
+        "warning: history save failed after retry ({}): consider running: sqlite3 {} \"PRAGMA wal_checkpoint(TRUNCATE)\"",
+        err,
+        zero_core::paths::state_db().display()
+    )
+}
+
+/// The hint names the database `state_db()` resolves, not a hardcoded runtime path.
+#[cfg(test)]
+mod history_save_hint_tests {
+    use super::history_save_retry_hint;
+
+    #[test]
+    fn hint_uses_state_db_path() {
+        let db = zero_core::paths::state_db().display().to_string();
+        let hint = history_save_retry_hint(&"busy");
+        assert_eq!(
+            hint,
+            format!(
+                "warning: history save failed after retry (busy): consider running: sqlite3 {db} \"PRAGMA wal_checkpoint(TRUNCATE)\""
+            )
+        );
+        let src = include_str!("main.rs");
+        assert!(
+            src.contains("eprintln!(\"{}\", history_save_retry_hint("),
+            "the history-save failure must print history_save_retry_hint"
+        );
+        let hardcoded = concat!("~/", "0-core/runtime/state.db");
+        assert!(
+            !src.contains(hardcoded),
+            "the history hint must not hardcode a state.db path"
+        );
+    }
+}
+
 fn runtime_init() -> Result<RuntimeInit> {
     // INT-207: was a third clock with its own zero and a "runtime_init:" prefix. The prefix is
     // kept in the message so the stage is still named, but the NUMBER now shares one origin with
@@ -3142,8 +3183,11 @@ fn repl_main() -> Result<()> {
                 });
                 mark("REPL: about to save input history");
                 match engine.db().save_history_entry(&line) {
-                    Ok(id) => { last_history_id = Some(id); last_command_start = Some(std::time::Instant::now()); }
-                    Err(e) => eprintln!("warning: history save failed after retry ({}): consider running: sqlite3 ~/0-core/runtime/state.db \"PRAGMA wal_checkpoint(TRUNCATE)\"", e),
+                    Ok(id) => {
+                        last_history_id = Some(id);
+                        last_command_start = Some(std::time::Instant::now());
+                    }
+                    Err(e) => eprintln!("{}", history_save_retry_hint(&e)),
                 }
                 // INT-196 M1-M4: THE GUARD WORD COMES FROM THE PARSER, and the fallback goes
                 // ONE LAYER DOWN THE SAME PIPELINE rather than back to source heuristics.
