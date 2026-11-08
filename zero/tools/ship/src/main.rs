@@ -645,11 +645,11 @@ fn main() {
     }
     // The cheatsheet registry is rebuilt from the live config and the builtin table
     // every time nsh ships, so it cannot go stale between ships (INT-247 6B3).
-    if shipped.iter().any(|n| n == "nsh") && !args.dry_run {
-        match Command::new(bin.join("nsh"))
-            .arg("--refresh-cheatsheet")
-            .status()
-        {
+    // That is also when the running shell is still the old process. exec does not
+    // search PATH, so the hint names the absolute binary this run just wrote.
+    let nsh_bin = bin.join("nsh");
+    if let Some(line) = nsh_reload_line(&shipped, args.dry_run, &nsh_bin) {
+        match Command::new(&nsh_bin).arg("--refresh-cheatsheet").status() {
             Ok(s) if s.success() => {}
             Ok(s) => {
                 println!("  cheatsheet refresh FAILED -- nsh exited with {}", s);
@@ -660,11 +660,27 @@ fn main() {
                 failed.push("nsh --refresh-cheatsheet".to_string());
             }
         }
+        println!("{}", line);
     }
     println!();
     if !failed.is_empty() {
         std::process::exit(1);
     }
+}
+
+/// The reload line after this run replaced nsh, or nothing.
+///
+/// Unchanged, failed, and not-built leave nsh off `shipped`. A dry run records
+/// the name and still did not replace the binary. The command is the absolute
+/// exec the operator runs next: `exec` plus the path ship just installed.
+fn nsh_reload_line(shipped: &[String], dry_run: bool, nsh_bin: &Path) -> Option<String> {
+    if dry_run || !shipped.iter().any(|name| name == "nsh") {
+        return None;
+    }
+    Some(format!(
+        "  note: this session is still the old nsh -- exec {}",
+        nsh_bin.display()
+    ))
 }
 
 /// The summary line. A dry run names what it would ship, not what it shipped (INT-287 G6).
@@ -685,6 +701,29 @@ fn summary_line(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::Path;
+
+    /// Print the reload line only when this run replaced nsh. Unchanged, failed,
+    /// and not-built leave the name off `shipped`. A dry run lists it and did not
+    /// replace the binary.
+    #[test]
+    fn reload_line_prints_iff_nsh_was_shipped() {
+        let nsh = Path::new("/home/christian/.local/bin/nsh");
+        let shipped = vec!["nsh".to_string()];
+        assert_eq!(
+            nsh_reload_line(&shipped, false, nsh).as_deref(),
+            Some(
+                "  note: this session is still the old nsh -- exec /home/christian/.local/bin/nsh"
+            )
+        );
+
+        let with_others = vec!["core".to_string(), "nsh".to_string()];
+        assert!(nsh_reload_line(&with_others, false, nsh).is_some());
+
+        assert!(nsh_reload_line(&["core".to_string()], false, nsh).is_none());
+        assert!(nsh_reload_line(&[], false, nsh).is_none());
+        assert!(nsh_reload_line(&shipped, true, nsh).is_none());
+    }
 
     /// F-0032: ship --dry-run ended "1 shipped" when nothing was shipped. A dry run's summary says
     /// what it would ship; a real ship's wording is unchanged.
