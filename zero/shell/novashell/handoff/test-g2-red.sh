@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # INT-295 G2 red. Not run by cargo test -p novashell, nsh-test, d, or
-# core intent validate. The two cases are ignored tests in zero-doctor.
-# G3 turns the setup-command case green. G5 turns the reinstall case green.
+# core intent validate. The reinstall case is an ignored test in zero-doctor.
+# G3 made the setup-command case a normal test. G5 turns the reinstall case green.
 # The tests use a temp HOME. They never read or write the real HOME.
 set -euo pipefail
 root=$(cd "$(dirname "$(readlink -f "$0")")/../../../.." && pwd)

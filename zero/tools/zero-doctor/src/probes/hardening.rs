@@ -244,6 +244,7 @@ pub fn firewall_recovery() -> String {
 mod tests {
     use super::*;
     use crate::status::Status;
+    use std::os::unix::fs::PermissionsExt;
 
     #[test]
     fn hardening_asks_every_firewall_not_one_name() {
@@ -337,14 +338,16 @@ mod tests {
         assert!(m.message.contains("not executable"), "{}", m.message);
     }
 
-    // INT-295 G2. Ignored so cargo test -p novashell, nsh-test, d and
-    // core intent validate do not run them. Both fail until later gates.
+    // INT-295 G2 and G3. The stand-in HOME is a temp directory. The real HOME
+    // is never read or written.
     //
     //   bash zero/shell/novashell/handoff/test-g2-red.sh
     //
-    // The stand-in HOME is a temp directory. The real HOME is never read or written.
-    // G3 turns g2_there_is_no_novashell_omarchy_setup_command green by adding
-    // novashell-omarchy on PATH, or at zero/shell/novashell/handoff/novashell-omarchy.
+    // runs the ignored reinstall case. G3 turned the setup-command case into a
+    // normal test: the command is
+    // zero/shell/novashell/handoff/novashell-omarchy/novashell-omarchy
+    // (G2 looked for a file named novashell-omarchy directly in handoff/; the
+    // package is a directory, so the lookup is one level deeper).
     // G5 turns g2_reinstall_deletes_the_marked_line_and_nothing_notices green when
     // assess_handoff (the judgment shell_handoff uses) warns and that warning
     // names the marked source line, the token novashell-omarchy.
@@ -444,14 +447,16 @@ mod tests {
             .to_string()
     }
 
-    /// Beside the handoff block. Relative to this crate, the same way that block is
-    /// found. G3 drops the setup command here, or on PATH.
+    /// The setup command inside the package directory. Relative to this crate,
+    /// the same way the handoff block is found. G2 looked for a file named
+    /// novashell-omarchy directly in handoff/. The package lives in a directory
+    /// of that name, so this is one level deeper. PATH is still checked first.
     fn setup_command_place() -> std::path::PathBuf {
         let dir =
             std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../shell/novashell/handoff");
         std::fs::canonicalize(&dir)
             .unwrap_or(dir)
-            .join("novashell-omarchy")
+            .join("novashell-omarchy/novashell-omarchy")
     }
 
     /// PATH, then the handoff directory.
@@ -477,7 +482,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "INT-295 G2 red; G3 turns green"]
     fn g2_there_is_no_novashell_omarchy_setup_command() {
         let found = setup_command();
         assert!(
@@ -565,6 +569,641 @@ mod tests {
             extra,
             verdict.status,
             verdict.message
+        );
+    }
+
+    // INT-295 G3. These run in cargo test -p zero-doctor. They use a temp HOME
+    // and refuse the real one. They do not need root, Arch, or makepkg.
+
+    fn require_setup() -> std::path::PathBuf {
+        let path = setup_command_place();
+        assert!(
+            path.is_file(),
+            "no novashell-omarchy setup command at {}",
+            path.display()
+        );
+        path
+    }
+
+    fn package_dir() -> std::path::PathBuf {
+        require_setup()
+            .parent()
+            .expect("the setup command has a parent directory")
+            .to_path_buf()
+    }
+
+    fn state_file(home: &std::path::Path) -> std::path::PathBuf {
+        home.join(".local/state/novashell-omarchy/bashrc.sha256")
+    }
+
+    fn with_marked_line(original: &[u8]) -> Vec<u8> {
+        let mut out = original.to_vec();
+        if !out.is_empty() && !out.ends_with(b"\n") {
+            out.push(b'\n');
+        }
+        out.extend_from_slice(MARKED_SOURCE_LINE.as_bytes());
+        out.push(b'\n');
+        out
+    }
+
+    fn marked_count(bytes: &[u8]) -> usize {
+        String::from_utf8_lossy(bytes)
+            .lines()
+            .filter(|line| *line == MARKED_SOURCE_LINE)
+            .count()
+    }
+
+    fn run_setup(home: &std::path::Path, args: &[&str]) -> std::process::Output {
+        refuse_real_home(home);
+        require_setup();
+        let mut cmd = std::process::Command::new(setup_command_place());
+        cmd.args(args)
+            .env("HOME", home)
+            .env("NO_COLOR", "1")
+            .env_remove("NSH_ACTIVE")
+            .stdin(std::process::Stdio::null());
+        cmd.output()
+            .unwrap_or_else(|e| panic!("run novashell-omarchy: {e}"))
+    }
+
+    fn output_text(bytes: &[u8]) -> String {
+        String::from_utf8_lossy(bytes).into_owned()
+    }
+
+    fn assert_ok(out: &std::process::Output, what: &str) {
+        assert!(
+            out.status.success(),
+            "{what} exited {}\nstdout:\n{}\nstderr:\n{}",
+            out.status,
+            output_text(&out.stdout),
+            output_text(&out.stderr)
+        );
+    }
+
+    fn home_with_bashrc(label: &str, bytes: &[u8]) -> StandIn {
+        let root = stand_in(label);
+        let home = root.0.join("home");
+        std::fs::create_dir(&home).unwrap_or_else(|e| panic!("home: {e}"));
+        refuse_real_home(&home);
+        std::fs::write(home.join(".bashrc"), bytes).unwrap_or_else(|e| panic!("bashrc: {e}"));
+        root
+    }
+
+    fn home_dir(root: &StandIn) -> std::path::PathBuf {
+        root.0.join("home")
+    }
+
+    /// Relative paths of regular files, sorted, with their bytes.
+    fn files_under(root: &std::path::Path) -> Vec<(std::path::PathBuf, Vec<u8>)> {
+        fn walk(dir: &std::path::Path, out: &mut Vec<(std::path::PathBuf, Vec<u8>)>) {
+            let mut entries: Vec<_> = std::fs::read_dir(dir)
+                .unwrap_or_else(|e| panic!("read {}: {e}", dir.display()))
+                .map(|e| e.unwrap().path())
+                .collect();
+            entries.sort();
+            for path in entries {
+                if path.is_dir() {
+                    walk(&path, out);
+                } else {
+                    let bytes = std::fs::read(&path)
+                        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+                    out.push((path, bytes));
+                }
+            }
+        }
+        let mut out = Vec::new();
+        walk(root, &mut out);
+        out
+    }
+
+    #[test]
+    fn g3_install_twice_is_the_same_bytes_and_saves_the_sha256() {
+        let original = vendored_bashrc().into_bytes();
+        let root = home_with_bashrc("g3-twice", &original);
+        let home = home_dir(&root);
+        let first = run_setup(&home, &["install"]);
+        assert_ok(&first, "install");
+        let mid = std::fs::read(home.join(".bashrc")).unwrap();
+        assert_eq!(
+            mid,
+            with_marked_line(&original),
+            "install added more than the marked line"
+        );
+        assert_eq!(
+            marked_count(&mid),
+            1,
+            "install must append exactly one marked line"
+        );
+        let saved = std::fs::read(state_file(&home)).unwrap_or_else(|e| panic!("sha256 file: {e}"));
+        let want = format!("{}\n", sha256_hex(&original));
+        assert_eq!(
+            saved,
+            want.as_bytes(),
+            "the saved sha256 is not the pre-install bytes"
+        );
+        let state_after_first = saved;
+        let second = run_setup(&home, &["install"]);
+        assert_ok(&second, "second install");
+        let after = std::fs::read(home.join(".bashrc")).unwrap();
+        assert_eq!(after, mid, "running install twice changed ~/.bashrc");
+        assert_eq!(
+            std::fs::read(state_file(&home)).unwrap(),
+            state_after_first,
+            "the second install rewrote the saved sha256"
+        );
+        let said = output_text(&second.stdout) + &output_text(&second.stderr);
+        assert!(
+            said.contains("nothing was written"),
+            "second install did not say it wrote nothing:\n{said}"
+        );
+    }
+
+    #[test]
+    fn g3_revert_restores_the_preinstall_sha256() {
+        let cases: [(&str, Vec<u8>); 3] = [
+            ("nl", vendored_bashrc().into_bytes()),
+            ("nonewline", b"export A=1\nexport B=2".to_vec()),
+            ("empty", Vec::new()),
+        ];
+        for (label, original) in cases {
+            let root = home_with_bashrc(label, &original);
+            let home = home_dir(&root);
+            let before = sha256_hex(&original);
+            assert_ok(&run_setup(&home, &["install"]), "install");
+            let back = run_setup(&home, &["revert"]);
+            assert_ok(&back, "revert");
+            let now = std::fs::read(home.join(".bashrc")).unwrap();
+            assert_eq!(now, original, "{label}: revert did not restore the bytes");
+            assert_eq!(sha256_hex(&now), before, "{label}: sha256 drifted");
+            assert_eq!(
+                marked_count(&now),
+                0,
+                "{label}: the marked line is still there"
+            );
+        }
+    }
+
+    #[test]
+    fn g3_refuses_an_inline_block_and_writes_nothing() {
+        let mut rc = vendored_bashrc();
+        if !rc.ends_with('\n') {
+            rc.push('\n');
+        }
+        rc.push_str(&handoff_canonical());
+        let root = home_with_bashrc("g3-inline", rc.as_bytes());
+        let home = home_dir(&root);
+        let before = files_under(&home);
+        let out = run_setup(&home, &["install"]);
+        assert!(
+            !out.status.success(),
+            "install of an inline block exited 0\n{}",
+            output_text(&out.stdout)
+        );
+        assert_eq!(
+            files_under(&home),
+            before,
+            "an inline-block refuse changed a file under HOME"
+        );
+        assert!(
+            !state_file(&home).exists(),
+            "a refused install wrote the sha256"
+        );
+        let said = output_text(&out.stderr) + &output_text(&out.stdout);
+        assert!(
+            said.contains("nothing was written"),
+            "refuse did not say nothing was written:\n{said}"
+        );
+        assert!(
+            said.contains("Delete that block"),
+            "refuse did not give the delete step:\n{said}"
+        );
+        assert!(
+            said.contains("novashell-omarchy install"),
+            "refuse did not give the install step:\n{said}"
+        );
+        assert!(
+            said.contains("if [[ $- == *i* ]]"),
+            "refuse did not name the inline block:\n{said}"
+        );
+    }
+
+    #[test]
+    fn g3_install_does_not_touch_terminal_files_or_call_chsh() {
+        let script = std::fs::read_to_string(require_setup()).unwrap();
+        assert!(!script.contains("chsh"), "the setup command contains chsh");
+        let pkgbuild = package_dir().join("PKGBUILD");
+        let pkg = std::fs::read_to_string(&pkgbuild)
+            .unwrap_or_else(|e| panic!("PKGBUILD {}: {e}", pkgbuild.display()));
+        assert!(!pkg.contains("chsh"), "the PKGBUILD contains chsh");
+        assert!(
+            !pkg.contains("post_install"),
+            "the PKGBUILD has a post_install"
+        );
+        assert!(
+            !pkg.lines()
+                .any(|line| line.trim_start().starts_with("install=")),
+            "the PKGBUILD names a pacman install script"
+        );
+
+        let original = vendored_bashrc().into_bytes();
+        let root = home_with_bashrc("g3-files", &original);
+        let home = home_dir(&root);
+        let plants = [
+            ".config/ghostty/config",
+            ".config/foot/foot.ini",
+            ".config/alacritty/alacritty.toml",
+            ".config/kitty/kitty.conf",
+            ".config/hypr/bindings.conf",
+        ];
+        for rel in plants {
+            let path = home.join(rel);
+            std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+            std::fs::write(&path, format!("plant {rel}\n")).unwrap();
+        }
+        let planted: Vec<_> = plants
+            .iter()
+            .map(|rel| std::fs::read(home.join(rel)).unwrap())
+            .collect();
+        let before = files_under(&home);
+        assert_ok(&run_setup(&home, &["install"]), "install");
+        for (rel, bytes) in plants.iter().zip(planted.iter()) {
+            assert_eq!(
+                std::fs::read(home.join(rel)).unwrap(),
+                *bytes,
+                "{rel} changed"
+            );
+        }
+        let mut after = files_under(&home);
+        let state = state_file(&home);
+        after.retain(|(path, _)| path != &state);
+        let bashrc = home.join(".bashrc");
+        let expected: Vec<_> = before
+            .into_iter()
+            .map(|(path, bytes)| {
+                if path == bashrc {
+                    (path, with_marked_line(&original))
+                } else {
+                    (path, bytes)
+                }
+            })
+            .collect();
+        assert_eq!(
+            after, expected,
+            "install wrote something other than the marked line and the sha256 file"
+        );
+        assert!(state.is_file(), "the sha256 file was not written");
+    }
+
+    #[test]
+    fn g3_revert_mismatch_removes_the_line_and_says_so() {
+        let original = vendored_bashrc().into_bytes();
+        let root = home_with_bashrc("g3-mismatch", &original);
+        let home = home_dir(&root);
+        assert_ok(&run_setup(&home, &["install"]), "install");
+        let mut edited = std::fs::read(home.join(".bashrc")).unwrap();
+        edited.extend_from_slice(b"# a note added later\n");
+        std::fs::write(home.join(".bashrc"), &edited).unwrap();
+        let out = run_setup(&home, &["revert"]);
+        assert!(
+            !out.status.success(),
+            "a sha256 mismatch exited 0\n{}",
+            output_text(&out.stdout)
+        );
+        let now = std::fs::read(home.join(".bashrc")).unwrap();
+        assert_eq!(marked_count(&now), 0, "the marked line is still there");
+        let mut expect = original.clone();
+        expect.extend_from_slice(b"# a note added later\n");
+        assert_eq!(now, expect, "revert changed more than the marked line");
+        let said = output_text(&out.stderr) + &output_text(&out.stdout);
+        assert!(
+            said.contains("does not match"),
+            "mismatch was not said loudly:\n{said}"
+        );
+        assert!(
+            said.contains("nothing else was changed"),
+            "mismatch did not say what was left alone:\n{said}"
+        );
+    }
+
+    #[test]
+    fn g3_status_reports_the_line_the_handoff_the_off_file_and_nsh() {
+        let original = vendored_bashrc().into_bytes();
+        let root = home_with_bashrc("g3-status", &original);
+        let home = home_dir(&root);
+        let before = run_setup(&home, &["status"]);
+        assert_ok(&before, "status");
+        let text = output_text(&before.stdout);
+        assert!(text.contains("line: absent"), "{text}");
+        assert!(text.contains("off: absent"), "{text}");
+        assert!(text.contains("nsh: missing"), "{text}");
+        assert!(
+            text.contains("/usr/share/novashell-omarchy/bashrc-handoff.sh"),
+            "{text}"
+        );
+        assert!(
+            text.contains(&format!("{}/.config/nsh/off", home.display())),
+            "{text}"
+        );
+        assert!(
+            text.contains(&format!("{}/.local/bin/nsh", home.display())),
+            "{text}"
+        );
+        assert!(
+            !text.contains('\u{1b}'),
+            "status on a pipe used color:\n{text}"
+        );
+        let handoff = std::path::Path::new("/usr/share/novashell-omarchy/bashrc-handoff.sh");
+        if handoff.is_file() {
+            assert!(text.contains("handoff: present"), "{text}");
+        } else {
+            assert!(text.contains("handoff: absent"), "{text}");
+        }
+
+        assert_ok(&run_setup(&home, &["install"]), "install");
+        let nsh = home.join(".local/bin/nsh");
+        std::fs::create_dir_all(nsh.parent().unwrap()).unwrap();
+        std::fs::write(&nsh, "#!/bin/sh\nexit 0\n").unwrap();
+        std::fs::set_permissions(&nsh, std::fs::Permissions::from_mode(0o755)).unwrap();
+        let off = home.join(".config/nsh/off");
+        std::fs::create_dir_all(off.parent().unwrap()).unwrap();
+        std::fs::write(&off, "").unwrap();
+        let after = run_setup(&home, &["status"]);
+        assert_ok(&after, "status after install");
+        let text = output_text(&after.stdout);
+        assert!(text.contains("line: present"), "{text}");
+        assert!(text.contains("off: present"), "{text}");
+        assert!(text.contains("nsh: executable"), "{text}");
+        assert!(!text.contains('\u{1b}'), "piped status used color:\n{text}");
+    }
+
+    #[test]
+    fn g3_status_color_follows_the_tty_and_no_color() {
+        let original = vendored_bashrc().into_bytes();
+        let root = home_with_bashrc("g3-color", &original);
+        let home = home_dir(&root);
+        let setup = require_setup();
+
+        let piped = std::process::Command::new(&setup)
+            .arg("status")
+            .env("HOME", &home)
+            .env_remove("NO_COLOR")
+            .output()
+            .unwrap();
+        assert_ok(&piped, "piped status");
+        let piped_text = output_text(&piped.stdout) + &output_text(&piped.stderr);
+        assert!(
+            !piped_text.contains('\u{1b}'),
+            "a pipe should not be colored:\n{piped_text}"
+        );
+
+        let log = root.0.join("color.log");
+        let colored = std::process::Command::new("script")
+            .args([
+                "-q",
+                "-e",
+                "-c",
+                &format!(
+                    "env -u NO_COLOR HOME={} {} status",
+                    home.display(),
+                    setup.display()
+                ),
+                log.to_str().unwrap(),
+            ])
+            .output()
+            .unwrap_or_else(|e| panic!("script: {e}"));
+        assert!(
+            colored.status.success(),
+            "script exited {}\n{}",
+            colored.status,
+            output_text(&colored.stderr)
+        );
+        let shown = output_text(&colored.stdout);
+        assert!(
+            shown.contains('\u{1b}'),
+            "a tty without NO_COLOR produced no color:\n{shown:?}"
+        );
+        assert!(shown.contains("line:"), "{shown:?}");
+
+        let plain = std::process::Command::new("script")
+            .args([
+                "-q",
+                "-e",
+                "-c",
+                &format!(
+                    "NO_COLOR=1 HOME={} {} status",
+                    home.display(),
+                    setup.display()
+                ),
+                log.to_str().unwrap(),
+            ])
+            .output()
+            .unwrap();
+        assert!(plain.status.success(), "{}", output_text(&plain.stderr));
+        let shown = output_text(&plain.stdout);
+        assert!(
+            !shown.contains('\u{1b}'),
+            "NO_COLOR on a tty still colored:\n{shown:?}"
+        );
+        assert!(shown.contains("line: absent"), "{shown:?}");
+    }
+
+    fn bash_rc(
+        home: &std::path::Path,
+        rc: &std::path::Path,
+        extra: &[(&str, &str)],
+    ) -> std::process::Output {
+        refuse_real_home(home);
+        let mut cmd = std::process::Command::new("bash");
+        cmd.args([
+            "--noprofile",
+            "--rcfile",
+            rc.to_str().unwrap(),
+            "-i",
+            "-c",
+            "echo AFTER",
+        ]);
+        cmd.env("HOME", home)
+            .env("PS1", "$ ")
+            .env_remove("NSH_ACTIVE")
+            .env_remove("BASH_ENV");
+        for (key, value) in extra {
+            cmd.env(key, value);
+        }
+        cmd.output().unwrap_or_else(|e| panic!("bash: {e}"))
+    }
+
+    fn write_stand_in_nsh(home: &std::path::Path, body: &str) {
+        let nsh = home.join(".local/bin/nsh");
+        std::fs::create_dir_all(nsh.parent().unwrap()).unwrap();
+        std::fs::write(&nsh, body).unwrap();
+        std::fs::set_permissions(&nsh, std::fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    #[test]
+    fn g3_sourced_handoff_exits_on_0_and_stays_on_139() {
+        let root = stand_in("g3-handoff");
+        let home = home_dir(&root);
+        std::fs::create_dir(&home).unwrap();
+        refuse_real_home(&home);
+        let share = root.0.join("usr/share/novashell-omarchy");
+        std::fs::create_dir_all(&share).unwrap();
+        let block = handoff_canonical();
+        std::fs::write(share.join("bashrc-handoff.sh"), &block).unwrap();
+        let rc = home.join("rc");
+        std::fs::write(
+            &rc,
+            format!(
+                "source {}\necho STILL_IN_BASH\n",
+                share.join("bashrc-handoff.sh").display()
+            ),
+        )
+        .unwrap();
+
+        write_stand_in_nsh(
+            &home,
+            "#!/bin/sh\ncat /proc/$PPID/comm > \"$HOME/parent.comm\"\necho ran >> \"$HOME/nsh.log\"\nexit 0\n",
+        );
+        let clean = bash_rc(&home, &rc, &[]);
+        assert_eq!(clean.status.code(), Some(0), "status 0: {clean:?}");
+        let stdout = output_text(&clean.stdout);
+        assert!(
+            !stdout.contains("STILL_IN_BASH"),
+            "status 0 stayed in bash:\n{stdout}"
+        );
+        assert!(
+            !stdout.contains("AFTER"),
+            "status 0 ran the command after rc:\n{stdout}"
+        );
+        let parent = std::fs::read_to_string(home.join("parent.comm")).unwrap();
+        assert_eq!(parent.trim(), "bash", "nsh's parent was {parent:?}");
+        assert!(
+            std::fs::read_to_string(home.join("nsh.log"))
+                .unwrap()
+                .contains("ran"),
+            "the stand-in nsh did not run"
+        );
+
+        write_stand_in_nsh(&home, "#!/bin/sh\nexit 139\n");
+        let crashed = bash_rc(&home, &rc, &[]);
+        assert_eq!(
+            crashed.status.code(),
+            Some(0),
+            "status 139 should stay in bash"
+        );
+        let stdout = output_text(&crashed.stdout);
+        let stderr = output_text(&crashed.stderr);
+        assert!(
+            stdout.contains("STILL_IN_BASH"),
+            "status 139 left bash:\n{stdout}"
+        );
+        assert!(
+            stdout.contains("AFTER"),
+            "status 139 did not reach the next command:\n{stdout}"
+        );
+        assert!(
+            stderr.contains("nsh crashed (SIGSEGV, status 139); staying in bash."),
+            "status 139 stderr:\n{stderr}"
+        );
+
+        let off = home.join(".config/nsh/off");
+        std::fs::create_dir_all(off.parent().unwrap()).unwrap();
+        std::fs::write(&off, "").unwrap();
+        let ran = home.join("ran");
+        write_stand_in_nsh(&home, "#!/bin/sh\necho RAN > \"$HOME/ran\"\nexit 0\n");
+        let held = bash_rc(&home, &rc, &[]);
+        assert_eq!(held.status.code(), Some(0));
+        assert!(!ran.exists(), "the off file still ran nsh");
+        assert!(
+            output_text(&held.stderr).contains("nsh handoff is off"),
+            "off stderr:\n{}",
+            output_text(&held.stderr)
+        );
+        assert!(output_text(&held.stdout).contains("STILL_IN_BASH"));
+        std::fs::remove_file(&off).unwrap();
+
+        let _ = std::fs::remove_file(&ran);
+        let door = bash_rc(&home, &rc, &[("NSH_ACTIVE", "1")]);
+        assert_eq!(door.status.code(), Some(0));
+        assert!(!ran.exists(), "NSH_ACTIVE=1 still ran nsh");
+        let stderr = output_text(&door.stderr);
+        assert!(!stderr.contains("nsh crashed"), "{stderr}");
+        assert!(!stderr.contains("nsh handoff is off"), "{stderr}");
+        assert!(output_text(&door.stdout).contains("STILL_IN_BASH"));
+    }
+
+    #[test]
+    fn g3_pkgbuild_packages_the_handoff_and_the_command() {
+        let dir = package_dir();
+        let pkgbuild = dir.join("PKGBUILD");
+        let pkg = std::fs::read_to_string(&pkgbuild)
+            .unwrap_or_else(|e| panic!("PKGBUILD {}: {e}", pkgbuild.display()));
+        let version =
+            std::fs::read_to_string(dir.join("VERSION")).unwrap_or_else(|e| panic!("VERSION: {e}"));
+        let version = version.trim();
+        assert_eq!(version, "277.1", "handoff version");
+        assert!(
+            pkg.contains(&format!("pkgver={version}")),
+            "pkgver is not the handoff version {version}"
+        );
+        assert!(pkg.contains("pkgname=novashell-omarchy"), "{pkg}");
+        assert!(pkg.contains("arch=('any')"), "{pkg}");
+        assert!(pkg.contains("license=('MIT')"), "{pkg}");
+        assert!(
+            pkg.contains("depends=('bash' 'coreutils')"),
+            "depends are not only bash and coreutils:\n{pkg}"
+        );
+        assert!(pkg.contains("/usr/share/novashell-omarchy/bashrc-handoff.sh"));
+        assert!(pkg.contains("/usr/bin/novashell-omarchy"));
+        assert!(
+            pkg.contains("../bashrc-handoff.sh"),
+            "the PKGBUILD does not install the canonical handoff block"
+        );
+        assert!(!pkg.contains("post_install"));
+        assert!(!pkg.contains("chsh"));
+        assert!(!pkg
+            .lines()
+            .any(|line| line.trim_start().starts_with("install=")));
+        for entry in std::fs::read_dir(&dir).unwrap() {
+            let name = entry.unwrap().file_name();
+            let name = name.to_string_lossy();
+            assert!(
+                !name.ends_with(".install"),
+                "pacman install script {name} is in the package directory"
+            );
+        }
+        let script = std::fs::read(dir.join("novashell-omarchy")).unwrap();
+        let script_text = String::from_utf8_lossy(&script);
+        assert!(
+            script_text.contains("VERSION=277.1"),
+            "the setup command does not carry handoff version 277.1"
+        );
+        let sum = sha256_hex(&script);
+        assert!(
+            pkg.contains(&sum),
+            "PKGBUILD sha256sums does not match the setup command ({sum})"
+        );
+        let shipped = std::fs::read(dir.join("../bashrc-handoff.sh")).unwrap();
+        assert_eq!(
+            shipped,
+            handoff_canonical().into_bytes(),
+            "the file the PKGBUILD installs is not the canonical 277 block"
+        );
+
+        let root = stand_in("g3-help");
+        let home = home_dir(&root);
+        std::fs::create_dir(&home).unwrap();
+        let help = run_setup(&home, &["--help"]);
+        assert_ok(&help, "--help");
+        let text = output_text(&help.stdout);
+        assert!(text.contains("install"), "{text}");
+        assert!(text.contains("revert"), "{text}");
+        assert!(text.contains("status"), "{text}");
+        assert!(files_under(&home).is_empty(), "--help wrote under HOME");
+        let unknown = run_setup(&home, &["nope"]);
+        assert!(!unknown.status.success(), "an unknown command exited 0");
+        assert!(
+            files_under(&home).is_empty(),
+            "an unknown command wrote under HOME"
         );
     }
 }

@@ -1,0 +1,405 @@
+#!/usr/bin/env bash
+# novashell-omarchy: install, revert, or show the one marked bashrc line.
+# Intent INT-295. Handoff version 277.1, the INT-277 block.
+# The handoff file is /usr/share/novashell-omarchy/bashrc-handoff.sh.
+# install saves the sha256 at $HOME/.local/state/novashell-omarchy/bashrc.sha256
+# before it appends the line. nsh itself is shipped to ~/.local/bin/nsh.
+
+set -euo pipefail
+export LC_ALL=C
+
+VERSION=277.1
+MARKED='source /usr/share/novashell-omarchy/bashrc-handoff.sh # novashell-omarchy'
+HANDOFF_FILE=/usr/share/novashell-omarchy/bashrc-handoff.sh
+INLINE_FIRST='if [[ $- == *i* ]] && [[ -z "$NSH_ACTIVE" ]] && [[ -x "$HOME/.local/bin/nsh" ]]; then'
+
+if [[ -z ${HOME:-} ]]; then
+    printf '%s\n' 'refused: HOME is not set. nothing was written.' >&2
+    exit 1
+fi
+
+BASHRC=$HOME/.bashrc
+STATE_DIR=$HOME/.local/state/novashell-omarchy
+STATE_FILE=$STATE_DIR/bashrc.sha256
+OFF_FILE=$HOME/.config/nsh/off
+NSH_BIN=$HOME/.local/bin/nsh
+
+C_OUT=0
+C_ERR=0
+if [[ -t 1 && -z ${NO_COLOR+x} ]]; then
+    C_OUT=1
+fi
+if [[ -t 2 && -z ${NO_COLOR+x} ]]; then
+    C_ERR=1
+fi
+
+say() {
+    if [[ $C_OUT -eq 1 && -n ${1:-} ]]; then
+        printf '\033[36m%s\033[0m\n' "$1"
+    else
+        printf '%s\n' "${1-}"
+    fi
+}
+
+say_err() {
+    if [[ $C_ERR -eq 1 && -n ${1:-} ]]; then
+        printf '\033[31m%s\033[0m\n' "$1" >&2
+    else
+        printf '%s\n' "${1-}" >&2
+    fi
+}
+
+refuse() {
+    local line
+    for line in "$@"; do
+        say_err "$line"
+    done
+    exit 1
+}
+
+usage_fail() {
+    say_err 'usage: novashell-omarchy install|revert|status|--help'
+    say_err 'nothing was written.'
+    exit 1
+}
+
+status_field() {
+    local label=$1 value=$2 color=$3 rest=$4
+    if [[ $C_OUT -eq 1 ]]; then
+        printf '%s: \033[%sm%s\033[0m' "$label" "$color" "$value"
+    else
+        printf '%s: %s' "$label" "$value"
+    fi
+    if [[ -n $rest ]]; then
+        printf '  %s' "$rest"
+    fi
+    printf '\n'
+}
+
+sha256_of() {
+    sha256sum -- "$1" | cut -d ' ' -f 1
+}
+
+ends_with_newline() {
+    local file=$1 byte
+    if [[ ! -s $file ]]; then
+        return 0
+    fi
+    byte=$(tail -c 1 -- "$file" | od -An -tu1)
+    byte=${byte//[[:space:]]/}
+    [[ $byte == 10 ]]
+}
+
+block_file() {
+    if [[ -f $HANDOFF_FILE ]]; then
+        printf '%s\n' "$HANDOFF_FILE"
+        return 0
+    fi
+    local dir
+    dir=$(dirname -- "$(readlink -f -- "$0")")
+    if [[ -f $dir/../bashrc-handoff.sh ]]; then
+        printf '%s\n' "$dir/../bashrc-handoff.sh"
+        return 0
+    fi
+    return 1
+}
+
+has_inline_block() {
+    local rc=$1 block
+    if block=$(block_file); then
+        local -a blines rlines
+        mapfile -t blines < "$block"
+        mapfile -t rlines < "$rc"
+        local blen=${#blines[@]} rlen=${#rlines[@]} i j ok
+        if (( blen > 0 && rlen >= blen )); then
+            for (( i = 0; i <= rlen - blen; i++ )); do
+                ok=1
+                for (( j = 0; j < blen; j++ )); do
+                    if [[ ${rlines[i + j]} != "${blines[j]}" ]]; then
+                        ok=0
+                        break
+                    fi
+                done
+                if (( ok == 1 )); then
+                    return 0
+                fi
+            done
+        fi
+    fi
+    local line
+    while IFS= read -r line || [[ -n $line ]]; do
+        if [[ $line == "$INLINE_FIRST" ]]; then
+            return 0
+        fi
+    done < "$rc"
+    return 1
+}
+
+marked_count() {
+    local file=$1 n=0 line
+    while IFS= read -r line || [[ -n $line ]]; do
+        if [[ $line == "$MARKED" ]]; then
+            n=$((n + 1))
+        fi
+    done < "$file"
+    printf '%s\n' "$n"
+}
+
+append_marked() {
+    local src=$1 dest=$2
+    cat -- "$src" > "$dest"
+    if [[ -s $src ]] && ! ends_with_newline "$src"; then
+        printf '\n' >> "$dest"
+    fi
+    printf '%s\n' "$MARKED" >> "$dest"
+}
+
+remove_marked() {
+    local src=$1 dest=$2 trailing=no line
+    if ends_with_newline "$src"; then
+        trailing=yes
+    fi
+    local -a kept=()
+    while IFS= read -r line || [[ -n $line ]]; do
+        if [[ $line != "$MARKED" ]]; then
+            kept+=("$line")
+        fi
+    done < "$src"
+    : > "$dest"
+    local i n=${#kept[@]}
+    for (( i = 0; i < n; i++ )); do
+        if (( i > 0 )); then
+            printf '\n' >> "$dest"
+        fi
+        printf '%s' "${kept[i]}" >> "$dest"
+    done
+    if [[ $trailing == yes && n -gt 0 ]]; then
+        printf '\n' >> "$dest"
+    fi
+}
+
+strip_last_byte() {
+    local src=$1 dest=$2 size
+    size=$(wc -c < "$src")
+    size=${size//[[:space:]]/}
+    if (( size == 0 )); then
+        : > "$dest"
+        return 0
+    fi
+    head -c $((size - 1)) -- "$src" > "$dest"
+}
+
+require_bashrc() {
+    if [[ -L $BASHRC ]]; then
+        refuse "refused: $BASHRC is a symlink." 'nothing was written.'
+    fi
+    if [[ ! -e $BASHRC ]]; then
+        refuse "refused: $BASHRC does not exist." 'nothing was written.'
+    fi
+    if [[ ! -f $BASHRC ]]; then
+        refuse "refused: $BASHRC is not a regular file." 'nothing was written.'
+    fi
+    if [[ ! -r $BASHRC ]]; then
+        refuse "refused: $BASHRC is not readable." 'nothing was written.'
+    fi
+}
+
+save_sha() {
+    local sum=$1 tmp
+    mkdir -p -- "$STATE_DIR"
+    tmp=$(mktemp "$STATE_DIR/.bashrc.sha256.XXXXXX")
+    printf '%s\n' "$sum" > "$tmp"
+    chmod 644 -- "$tmp"
+    mv -f -- "$tmp" "$STATE_FILE"
+}
+
+replace_bashrc() {
+    local src=$1 dir tmp mode
+    dir=$(dirname -- "$BASHRC")
+    tmp=$(mktemp "$dir/.bashrc.novashell-omarchy.XXXXXX")
+    cat -- "$src" > "$tmp"
+    mode=$(stat -c %a -- "$BASHRC")
+    chmod "$mode" -- "$tmp"
+    mv -f -- "$tmp" "$BASHRC"
+}
+
+cmd_install() {
+    require_bashrc
+    if has_inline_block "$BASHRC"; then
+        refuse \
+            "refused: $BASHRC contains the inline handoff block." \
+            'nothing was written.' \
+            '' \
+            'The inline block is the 27 lines that start with:' \
+            "  $INLINE_FIRST" \
+            '' \
+            'Migration is not this command. Do it by hand:' \
+            "  1. Delete that block from $BASHRC, and leave every other line as it is." \
+            '  2. Run: novashell-omarchy install'
+    fi
+    local count
+    count=$(marked_count "$BASHRC")
+    if (( count > 1 )); then
+        refuse \
+            "refused: $BASHRC contains $count marked source lines." \
+            'nothing was written.' \
+            'Leave one, or delete them, then run: novashell-omarchy install'
+    fi
+    if (( count == 1 )); then
+        say "the marked line is already in $BASHRC."
+        say 'nothing was written.'
+        exit 0
+    fi
+    if [[ ! -w $BASHRC ]]; then
+        refuse "refused: $BASHRC is not writable." 'nothing was written.'
+    fi
+    local sum tmp
+    sum=$(sha256_of "$BASHRC")
+    tmp=$(mktemp)
+    append_marked "$BASHRC" "$tmp"
+    save_sha "$sum"
+    replace_bashrc "$tmp"
+    rm -f -- "$tmp"
+    say "saved $sum to $STATE_FILE"
+    say "added one marked line to $BASHRC"
+}
+
+cmd_revert() {
+    require_bashrc
+    local count saved='' now
+    count=$(marked_count "$BASHRC")
+    if [[ -f $STATE_FILE ]]; then
+        saved=$(tr -d '[:space:]' < "$STATE_FILE")
+    fi
+    if (( count == 0 )); then
+        if [[ -z $saved ]]; then
+            refuse \
+                'the marked line is absent.' \
+                "there is no saved sha256 at $STATE_FILE." \
+                'nothing was changed.'
+        fi
+        now=$(sha256_of "$BASHRC")
+        if [[ $now == "$saved" ]]; then
+            say 'the marked line is absent.'
+            say 'sha256 matches the value saved before install.'
+            exit 0
+        fi
+        refuse \
+            'the marked line is absent.' \
+            'the sha256 does not match the value saved before install.' \
+            "saved: $saved" \
+            "now: $now" \
+            'nothing was changed.'
+    fi
+    local dir std stripped std_sum strip_sum
+    dir=$(mktemp -d)
+    std=$dir/std
+    stripped=$dir/stripped
+    remove_marked "$BASHRC" "$std"
+    std_sum=$(sha256_of "$std")
+    if [[ -n $saved && $std_sum == "$saved" ]]; then
+        replace_bashrc "$std"
+        rm -rf -- "$dir"
+        say "removed the marked line from $BASHRC."
+        say 'sha256 matches the value saved before install.'
+        exit 0
+    fi
+    if [[ -s $std ]] && ends_with_newline "$std"; then
+        strip_last_byte "$std" "$stripped"
+        strip_sum=$(sha256_of "$stripped")
+        if [[ -n $saved && $strip_sum == "$saved" ]]; then
+            replace_bashrc "$stripped"
+            rm -rf -- "$dir"
+            say "removed the marked line from $BASHRC."
+            say 'sha256 matches the value saved before install.'
+            exit 0
+        fi
+    fi
+    replace_bashrc "$std"
+    now=$(sha256_of "$BASHRC")
+    rm -rf -- "$dir"
+    if [[ -z $saved ]]; then
+        say_err "removed the marked line from $BASHRC."
+        say_err "there is no saved sha256 at $STATE_FILE."
+        say_err 'the restore cannot be checked.'
+        say_err 'nothing else was changed.'
+        exit 1
+    fi
+    say_err "removed the marked line from $BASHRC."
+    say_err 'the sha256 does not match the value saved before install.'
+    say_err "saved: $saved"
+    say_err "now: $now"
+    say_err 'nothing else was changed.'
+    exit 1
+}
+
+cmd_status() {
+    local count=0
+    if [[ -f $BASHRC && ! -L $BASHRC && -r $BASHRC ]]; then
+        count=$(marked_count "$BASHRC")
+    elif [[ -e $BASHRC && ! -f $BASHRC ]]; then
+        count=0
+    fi
+    if [[ $C_OUT -eq 1 ]]; then
+        printf '\033[1;36mnovashell-omarchy\033[0m\n'
+    else
+        printf 'novashell-omarchy\n'
+    fi
+    if (( count == 0 )); then
+        status_field line absent 33 ''
+    elif (( count == 1 )); then
+        status_field line present '1;32' ''
+    else
+        status_field line "present $count" '1;33' ''
+    fi
+    if [[ -f $HANDOFF_FILE && -r $HANDOFF_FILE ]]; then
+        status_field handoff present '1;32' "$HANDOFF_FILE"
+    else
+        status_field handoff absent 33 "$HANDOFF_FILE"
+    fi
+    if [[ -e $OFF_FILE ]]; then
+        status_field off present 33 "$OFF_FILE"
+    else
+        status_field off absent '1;32' "$OFF_FILE"
+    fi
+    if [[ -f $NSH_BIN && -x $NSH_BIN ]]; then
+        status_field nsh executable '1;32' "$NSH_BIN"
+    elif [[ -e $NSH_BIN ]]; then
+        status_field nsh not-executable '1;31' "$NSH_BIN"
+    else
+        status_field nsh missing 33 "$NSH_BIN"
+    fi
+}
+
+cmd_help() {
+    say "novashell-omarchy $VERSION"
+    say 'one marked line in ~/.bashrc that sources the nsh handoff'
+    say ''
+    say 'usage:'
+    say '  novashell-omarchy install'
+    say '  novashell-omarchy revert'
+    say '  novashell-omarchy status'
+    say '  novashell-omarchy --help'
+    say ''
+    say 'install   save the sha256 of ~/.bashrc, then append one marked source line'
+    say 'revert    remove that line and compare the sha256 with the saved value'
+    say 'status    report the line, the handoff file, the off file, and nsh'
+    say ''
+    say "handoff file: $HANDOFF_FILE"
+    say 'saved sha256: ~/.local/state/novashell-omarchy/bashrc.sha256'
+    say 'nsh itself is shipped to ~/.local/bin/nsh.'
+}
+
+if [[ $# -ne 1 ]]; then
+    usage_fail
+fi
+case $1 in
+    install) cmd_install ;;
+    revert) cmd_revert ;;
+    status) cmd_status ;;
+    --help|-h|help) cmd_help ;;
+    *)
+        say_err "refused: unknown command '$1'."
+        usage_fail
+        ;;
+esac

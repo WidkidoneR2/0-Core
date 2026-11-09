@@ -1,0 +1,22 @@
+# Maintainer: Christian Williams
+# INT-295. Christian builds this with makepkg. There is no pacman install script:
+# the setup command is what edits ~/.bashrc, and only when he runs it.
+# pkgver is the handoff version. It is the first line of VERSION, beside this file.
+# Bump VERSION and pkgver together when bashrc-handoff.sh changes.
+pkgname=novashell-omarchy
+pkgver=277.1
+pkgrel=1
+pkgdesc='Hand an interactive bash off to nsh, and stay in bash if nsh crashes'
+arch=('any')
+url='https://github.com/WidkidoneR2/0-Core'
+license=('MIT')
+depends=('bash' 'coreutils')
+source=('novashell-omarchy')
+sha256sums=('3d45311731d69a5a0942804c49563c6822b7d2ec9bd26d1de4e2e7482aa6e15b')
+
+package() {
+    install -Dm644 "$startdir/../bashrc-handoff.sh" \
+        "$pkgdir/usr/share/novashell-omarchy/bashrc-handoff.sh"
+    install -Dm755 "$srcdir/novashell-omarchy" \
+        "$pkgdir/usr/bin/novashell-omarchy"
+}

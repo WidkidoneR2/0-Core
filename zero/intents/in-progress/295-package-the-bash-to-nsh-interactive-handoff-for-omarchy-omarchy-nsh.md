@@ -95,6 +95,29 @@ Christian ruled each of these.
    must notice, and the setup command puts the line back. The doctor's check today compares
    ~/.bashrc with the whole 27-line block. It has to compare the marked line instead.
 
+## Paths (G3, 2026-11-09)
+The package directory is zero/shell/novashell/handoff/novashell-omarchy/. The setup
+command in the tree is novashell-omarchy/novashell-omarchy inside that directory.
+G2's test looks there. It first looked for a file named novashell-omarchy directly
+in handoff/, and the lookup constant moved one level down with the directory.
+
+The PKGBUILD installs two files:
+- /usr/share/novashell-omarchy/bashrc-handoff.sh, the 277 block, byte for byte
+- /usr/bin/novashell-omarchy
+
+install saves the sha256 of ~/.bashrc, taken before the write, as one hex line at
+~/.local/state/novashell-omarchy/bashrc.sha256. A second install leaves both files
+untouched. revert removes the marked line and compares that sha256. When the sha256
+does not match, it says so and leaves every other byte of ~/.bashrc in place.
+
+install refuses, and writes nothing, when ~/.bashrc already contains the inline 277
+block (a contiguous copy of bashrc-handoff.sh). The message names the opening line
+and two manual steps: delete that block, then run novashell-omarchy install.
+Moving an existing inline block over is Christian's call at G6.
+
+Handoff version 277.1 is the first line of VERSION beside the PKGBUILD. pkgver copies
+it. 277 is that block (sha256 178960349fa03a05). .1 is the first package of it.
+
 ## Success Criteria
 - [x] G0 census, read-only; start only once 277 G2 has its rulings. Evidence is the output, kept in
       ~/.cache/zero:
@@ -124,11 +147,11 @@ Christian ruled each of these.
       file before any code, if a ruling changes their shape (a contribution, for instance, is not
       tested on a stand-in HOME).
 <!-- evidence: 2026-11-09, Christian. Recorded in ## Rulings. Form: PKGBUILD he builds, not an omarchy-pkgs contribution for now. Name: novashell-omarchy. Home: one marked source line in ~/.bashrc, logic in a package file under /usr. Mechanism: 277's child. Carry: environment and PATH only. Revert: delete the line and compare sha256 to the pre-install value. Install: a command he runs, never post_install; no chsh; no terminal config. G6: foot and ghostty. G2 to G7 below are amended to that shape. No code in this commit. -->
-- [ ] G2 red, one PR, on a stand-in HOME made from Omarchy's default/bashrc, never the live files.
+- [x] G2 red, one PR, on a stand-in HOME made from Omarchy's default/bashrc, never the live files.
       Two failures, both shown failing: there is no novashell-omarchy setup command, and a simulated
       reinstall-configs (`cp -af` of the skeleton onto the stand-in) deletes a planted marked source
       line and leaves no trace. Red first. The fix is not in this gate.
-<!-- evidence: 2026-11-09. Red, not ticked. Command: bash zero/shell/novashell/handoff/test-g2-red.sh which runs cargo test -p zero-doctor --lib g2_ -- --ignored --nocapture --test-threads=1. Exit 101. 0 passed; 2 failed. g2_there_is_no_novashell_omarchy_setup_command: no novashell-omarchy setup command; looked on PATH and at zero/shell/novashell/handoff/novashell-omarchy; novashell-omarchy setup: No such file or directory. g2_reinstall_deletes_the_marked_line_and_nothing_notices: cp -af deleted the planted marked source line and nothing noticed; marked line absent: true; cp stderr: ""; trace files: []; shell_handoff: Warn the handoff is not in .bashrc; terminals open bash; expected a warning that names the marked source line (novashell-omarchy). Stand-in HOME under /tmp only. Fixture zero/shell/novashell/handoff/omarchy-v4.5.0-default.bashrc, payload sha256 d78bd5405919c9c0d9aa5a3db47696286aa9c9d0a1c759785719054605da9a4b, Omarchy v4.5.0 default/bashrc at https://github.com/omacom/omarchy/blob/ac2690cd/default/bashrc. -->
+<!-- evidence: 2026-11-09. Merged as 4ac3356c. Christian ran bash zero/shell/novashell/handoff/test-g2-red.sh: exit 101, both failures (g2_there_is_no_novashell_omarchy_setup_command and g2_reinstall_deletes_the_marked_line_and_nothing_notices). Doors green. The run itself: cargo test -p zero-doctor --lib g2_ -- --ignored --nocapture --test-threads=1. Exit 101. 0 passed; 2 failed. g2_there_is_no_novashell_omarchy_setup_command: no novashell-omarchy setup command; looked on PATH and at zero/shell/novashell/handoff/novashell-omarchy; novashell-omarchy setup: No such file or directory. g2_reinstall_deletes_the_marked_line_and_nothing_notices: cp -af deleted the planted marked source line and nothing noticed; marked line absent: true; cp stderr: ""; trace files: []; shell_handoff: Warn the handoff is not in .bashrc; terminals open bash; expected a warning that names the marked source line (novashell-omarchy). Stand-in HOME under /tmp only. Fixture zero/shell/novashell/handoff/omarchy-v4.5.0-default.bashrc, payload sha256 d78bd5405919c9c0d9aa5a3db47696286aa9c9d0a1c759785719054605da9a4b, Omarchy v4.5.0 default/bashrc at https://github.com/omacom/omarchy/blob/ac2690cd/default/bashrc. -->
 - [ ] G3 build, one PR. G2's missing-command case goes green. The PKGBUILD is novashell-omarchy,
       built and installed by Christian. The setup command is not a pacman post_install. On a
       stand-in HOME it is idempotent (twice gives the same bytes), saves the sha256 of ~/.bashrc
@@ -136,6 +159,7 @@ Christian ruled each of these.
       line, and does not chsh or edit a terminal config. Revert deletes that line and the sha256
       of ~/.bashrc matches the saved value. No root step is run by an agent. Any pacman command
       is written out for Christian. The path under /usr is recorded in this file in that PR.
+<!-- evidence: 2026-11-09. Not ticked. Christian has not built or installed the package. Paths are in ## Paths. Package dir zero/shell/novashell/handoff/novashell-omarchy/. Command in the tree: that directory's novashell-omarchy. G2's lookup moved one level down to it. PKGBUILD installs /usr/share/novashell-omarchy/bashrc-handoff.sh (the 277 block, sha256 178960349fa03a05, unchanged) and /usr/bin/novashell-omarchy. State file ~/.local/state/novashell-omarchy/bashrc.sha256, one hex line, written before the bashrc edit. Handoff version 277.1 in VERSION; pkgver copies it. install refuses an inline copy of the 277 block, writes nothing, and prints two manual steps: delete the block, then novashell-omarchy install. Red, before the command existed: cargo test -p zero-doctor --lib g3_ -- --test-threads=1 exited 101, 1 passed (g3_sourced_handoff_exits_on_0_and_stays_on_139 sources the canonical block, which already behaves that way), 8 failed, each "no novashell-omarchy setup command at zero/shell/novashell/handoff/novashell-omarchy/novashell-omarchy". g2_there_is_no_novashell_omarchy_setup_command failed the same way. Green after the command: the 9 g3_ tests passed and that setup-command test passed. g2_reinstall_deletes_the_marked_line_and_nothing_notices stays ignored. No makepkg, no pacman, no root. Stand-in HOME under /tmp. Doors here: cargo test -p zero-doctor --lib was 76 passed, 2 failed, 1 ignored. The failures are the_registry_parses_and_declares_tools and the_quick_scan_is_the_critical_tier_and_nothing_else, both looking for ~/0-core, which this machine does not have. The ignored test is g2_reinstall, still red, shell_handoff warning "the handoff is not in .bashrc" and not naming novashell-omarchy. cargo test -p novashell was 255 passed, 3 failed; the three look for ~/0-core (delete-guard dirs and an aliased rm). 258 tests, the count the G2 commit recorded as 258 passed where the repo is ~/0-core. core intent validate: 342 intents valid, with HOME and ZERO_STATE_DB under /tmp because this machine has no state.db. rustc 1.83 cannot parse the locked home crate, so those two doors used rustc 1.99.1. nsh-test was started with NSH_BIN pointed at target/debug/nsh and HOME in /tmp. It was still in the handoff sessions (handoff8) after several minutes, with one nsh child several minutes old, so the run was stopped. No suite total. -->
 - [ ] G4 parity, one PR, red first, stand-in HOME. What G1 carries does carry: the environment and
       the PATH entries 277 G1 names (OMARCHY_PATH, mise shims, ~/.local/bin, ~/.cargo/bin), shown
       in a real nsh through an nsh-test Repl case or a recorded run. No alias is translated. The
