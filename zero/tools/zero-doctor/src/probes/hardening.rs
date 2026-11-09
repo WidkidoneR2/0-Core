@@ -336,4 +336,235 @@ mod tests {
         assert_eq!(m.status, Status::Warn);
         assert!(m.message.contains("not executable"), "{}", m.message);
     }
+
+    // INT-295 G2. Ignored so cargo test -p novashell, nsh-test, d and
+    // core intent validate do not run them. Both fail until later gates.
+    //
+    //   bash zero/shell/novashell/handoff/test-g2-red.sh
+    //
+    // The stand-in HOME is a temp directory. The real HOME is never read or written.
+    // G3 turns g2_there_is_no_novashell_omarchy_setup_command green by adding
+    // novashell-omarchy on PATH, or at zero/shell/novashell/handoff/novashell-omarchy.
+    // G5 turns g2_reinstall_deletes_the_marked_line_and_nothing_notices green when
+    // assess_handoff (the judgment shell_handoff uses) warns and that warning
+    // names the marked source line, the token novashell-omarchy.
+
+    /// Omarchy v4.5.0 default/bashrc, commit ac2690cd.
+    /// Source: https://github.com/omacom/omarchy/blob/ac2690cd/default/bashrc
+    const OMBASHRC_FIXTURE: &str = concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../shell/novashell/handoff/omarchy-v4.5.0-default.bashrc"
+    );
+    const OMBASHRC_SHA: &str = "d78bd5405919c9c0d9aa5a3db47696286aa9c9d0a1c759785719054605da9a4b";
+    /// One marked source line. The token is what a notice has to name.
+    const MARKED_SOURCE_LINE: &str =
+        "source /usr/share/novashell-omarchy/bashrc-handoff.sh # novashell-omarchy";
+
+    struct StandIn(std::path::PathBuf);
+
+    impl Drop for StandIn {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn refuse_real_home(path: &std::path::Path) {
+        if let Some(home) = std::env::var_os("HOME") {
+            let home = std::path::PathBuf::from(home);
+            assert!(
+                !path.starts_with(&home),
+                "refusing to write under the real HOME {}",
+                home.display()
+            );
+        }
+    }
+
+    fn stand_in(label: &str) -> StandIn {
+        let path = std::env::temp_dir().join(format!(
+            "int295-g2-{}-{}-{}",
+            label,
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        refuse_real_home(&path);
+        std::fs::create_dir_all(&path).unwrap_or_else(|e| panic!("stand-in dir: {}", e));
+        StandIn(path)
+    }
+
+    fn vendored_bashrc() -> String {
+        let raw = std::fs::read_to_string(OMBASHRC_FIXTURE)
+            .unwrap_or_else(|e| panic!("vendored bashrc {}: {}", OMBASHRC_FIXTURE, e));
+        let marker = "# --- omarchy default/bashrc ---\n";
+        let payload = raw
+            .split_once(marker)
+            .expect("fixture is missing the marker line")
+            .1;
+        assert_eq!(
+            payload.lines().count(),
+            14,
+            "Omarchy v4.5.0 default/bashrc is 14 lines"
+        );
+        assert_eq!(
+            sha256_hex(payload.as_bytes()),
+            OMBASHRC_SHA,
+            "vendored bashrc bytes drifted from ac2690cd"
+        );
+        payload.to_string()
+    }
+
+    fn sha256_hex(bytes: &[u8]) -> String {
+        use std::io::Write;
+        let mut child = std::process::Command::new("sha256sum")
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap_or_else(|e| panic!("sha256sum: {}", e));
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(bytes)
+            .unwrap_or_else(|e| panic!("sha256sum write: {}", e));
+        let out = child
+            .wait_with_output()
+            .unwrap_or_else(|e| panic!("sha256sum wait: {}", e));
+        assert!(
+            out.status.success(),
+            "sha256sum failed: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        String::from_utf8_lossy(&out.stdout)
+            .split_whitespace()
+            .next()
+            .unwrap_or("")
+            .to_string()
+    }
+
+    /// Beside the handoff block. Relative to this crate, the same way that block is
+    /// found. G3 drops the setup command here, or on PATH.
+    fn setup_command_place() -> std::path::PathBuf {
+        let dir =
+            std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../shell/novashell/handoff");
+        std::fs::canonicalize(&dir)
+            .unwrap_or(dir)
+            .join("novashell-omarchy")
+    }
+
+    /// PATH, then the handoff directory.
+    fn setup_command() -> Option<std::path::PathBuf> {
+        if let Some(path) = std::env::var_os("PATH") {
+            for dir in std::env::split_paths(&path) {
+                let candidate = dir.join("novashell-omarchy");
+                if candidate.is_file() {
+                    return Some(candidate);
+                }
+            }
+        }
+        let candidate = setup_command_place();
+        if candidate.is_file() {
+            Some(candidate)
+        } else {
+            None
+        }
+    }
+
+    fn names_marked(text: &str) -> bool {
+        text.contains("novashell-omarchy")
+    }
+
+    #[test]
+    #[ignore = "INT-295 G2 red; G3 turns green"]
+    fn g2_there_is_no_novashell_omarchy_setup_command() {
+        let found = setup_command();
+        assert!(
+            found.is_some(),
+            "no novashell-omarchy setup command\nlooked on PATH and at {}\nnovashell-omarchy setup: No such file or directory",
+            setup_command_place().display()
+        );
+    }
+
+    #[test]
+    #[ignore = "INT-295 G2 red; G5 turns green"]
+    fn g2_reinstall_deletes_the_marked_line_and_nothing_notices() {
+        let root = stand_in("reinstall");
+        let skel = root.0.join("skel");
+        let home = root.0.join("home");
+        std::fs::create_dir(&skel).unwrap_or_else(|e| panic!("skel: {}", e));
+        std::fs::create_dir(&home).unwrap_or_else(|e| panic!("home: {}", e));
+        refuse_real_home(&home);
+
+        let base = vendored_bashrc();
+        let mut planted = base.clone();
+        if !planted.ends_with('\n') {
+            planted.push('\n');
+        }
+        planted.push_str(MARKED_SOURCE_LINE);
+        planted.push('\n');
+        assert!(
+            planted.contains(MARKED_SOURCE_LINE),
+            "harness: the marked line was not planted"
+        );
+        std::fs::write(skel.join(".bashrc"), &base).unwrap_or_else(|e| panic!("skel rc: {}", e));
+        std::fs::write(home.join(".bashrc"), &planted).unwrap_or_else(|e| panic!("home rc: {}", e));
+
+        // omarchy-reinstall-configs at ac2690cd: cp -af /etc/skel/. ~/
+        let skel_dot = format!("{}/.", skel.display());
+        let home_slash = format!("{}/", home.display());
+        let cp = std::process::Command::new("cp")
+            .args(["-af", &skel_dot, &home_slash])
+            .output()
+            .unwrap_or_else(|e| panic!("cp -af: {}", e));
+        assert!(
+            cp.status.success(),
+            "harness: cp -af failed: {}",
+            String::from_utf8_lossy(&cp.stderr)
+        );
+
+        let after = std::fs::read_to_string(home.join(".bashrc"))
+            .unwrap_or_else(|e| panic!("read home rc: {}", e));
+        assert!(
+            !after.contains(MARKED_SOURCE_LINE),
+            "harness: cp -af left the marked line in place"
+        );
+
+        let stderr = String::from_utf8_lossy(&cp.stderr).into_owned();
+        let mut extra: Vec<String> = Vec::new();
+        let skel_names: Vec<String> = std::fs::read_dir(&skel)
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().into_owned())
+            .collect();
+        for entry in std::fs::read_dir(&home).unwrap() {
+            let name = entry.unwrap().file_name().to_string_lossy().into_owned();
+            if !skel_names.iter().any(|n| n == &name) {
+                extra.push(name);
+            }
+        }
+        extra.sort();
+
+        let mut traced = names_marked(&stderr);
+        for name in &extra {
+            traced = traced || names_marked(name);
+            let body = std::fs::read_to_string(home.join(name)).unwrap_or_default();
+            traced = traced || names_marked(&body);
+        }
+        let verdict = assess_handoff(&after, &handoff_canonical(), true);
+        let warned = verdict.status == Status::Warn && names_marked(&verdict.message);
+        assert!(
+            traced || warned,
+            "cp -af deleted the planted marked source line and nothing noticed\n\
+             marked line absent: true\n\
+             cp stderr: {:?}\n\
+             trace files: {:?}\n\
+             shell_handoff: {:?} {}\n\
+             expected a warning that names the marked source line (novashell-omarchy)",
+            stderr,
+            extra,
+            verdict.status,
+            verdict.message
+        );
+    }
 }
