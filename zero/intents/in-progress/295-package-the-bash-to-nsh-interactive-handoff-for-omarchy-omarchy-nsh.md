@@ -2,7 +2,7 @@
 id: 295
 date: 2026-10-18
 type: future
-title: "Package the bash-to-nsh interactive handoff for Omarchy (omarchy-nsh)"
+title: "Package the bash-to-nsh handoff as novashell-omarchy"
 status: in-progress
 tags: [nsh, omarchy, handoff, package, terminal, resilience]
 depends_on: [277]
@@ -10,58 +10,93 @@ depends_on: [277]
 
 ## Vision
 Turning nsh on as the interactive shell on Omarchy is one command, turning it off is one command,
-and the files that do it live outside Omarchy's own, so an Omarchy update or a config reset does
-not silently undo them. bash stays the passwd shell. The handoff is the one INT-277 proves and
-hardens, not a second design. A broken nsh costs a prompt, never a terminal, a tty or a session.
-Whether the form is an install script, a package built from this repo, or a contribution to
-Omarchy is decided at G1 by measurement and by Christian, not assumed.
+and bash stays the passwd shell. The handoff logic lives in a file the package installs under /usr.
+~/.bashrc gets one marked line that sources it. An Omarchy package update does not remove that
+line. omarchy-reinstall-configs does, and the doctor is what says so. The handoff is the one
+INT-277 proves and hardens, not a second design. A broken nsh costs a prompt, never a terminal,
+a tty or a session.
 
 ## The Problem
-Measured 2026-10-18 on Omarchy 4.0.4.
+Laptop, 2026-11-09: Omarchy 4.5.0-3 and omarchy-settings 4.5.0-3. Source of that tree:
+github.com/omacom/omarchy tag v4.5.0, commit ac2690cd (tag object 97e664bd). PKGBUILDs:
+github.com/omacom/omarchy-pkgs, master 9ede717, which pins a948d8a at pkgrel 2. An earlier
+release commit, 1187e06, pinned 76e11b4 at pkgrel 1. The installed package is pkgrel 3.
+default/bash/init and omarchy-reinstall-configs are the same bytes at 76e11b4, a948d8a and
+ac2690cd, and those bytes are what the laptop hashed (init e6a253e4, reinstall-configs
+d9abe210).
 
-- Today the handoff is four lines Christian wrote by hand at the end of ~/.bashrc (lines 43-46):
-  interactive, NSH_ACTIVE unset, ~/.local/bin/nsh executable, then export NSH_ACTIVE=1 and exec.
-  It cannot be installed, reverted or shared. Nothing catches a crash after the exec, and
-  omarchy-reinstall-configs overwrites the file with no backup (INT-277 G7 measured both).
-- INT-277 (depends_on 286, 287, 289, 290) already owns proving and hardening that path: G1 the
-  handoff contract, G2 crash fallback, off switch and always-bash door, G6 ghostty parity, G7
-  survival of Omarchy updates. It edits Christian's own ~/.bashrc by hand and ships nothing. This
-  intent packages what 277 proves and adds no second mechanism.
-- Omarchy's shared shell config is bash code: /usr/share/omarchy/default/bash holds aliases,
-  completions, env-bootstrap, envs, fns, functions, init, inputrc, rc and shell. ~/.bashrc line 9
-  sources rc before the exec. The exec keeps the environment (envs, PATH) and discards the aliases,
-  functions and hooks, and nsh cannot source bash functions. So "source the same shared files"
-  cannot be the design; what reaches nsh, by translation or not at all, is a G1 ruling. 277 G1
-  records the per-hook gaps for Christian's machine.
-- The premise that Omarchy ships omarchy-zsh and omarchy-fish packages is unconfirmed. Installed
-  omarchy packages are omarchy, omarchy-settings, omarchy-keyring, omarchy-emacs, omarchy-nvim,
-  omarchy-themes-intros and linux-omarchy with its headers. No zsh or fish package is installed and
-  no script in /usr/share/omarchy/bin or /usr/share/omarchy/install mentions zsh or fish. Whether the
-  repository offers one is not measured; G0 checks the sync database.
-- omarchy-shell, omarchy-launch-shell, omarchy-restart-shell and omarchy-refresh-shell exist. They
-  appear to concern Omarchy's desktop shell, not a command shell; G0 confirms, so the names are not
-  confused.
-- The Omarchy manual lists Alacritty as the default terminal, with Ghostty, Foot and Kitty
-  supported. Christian's machine runs ghostty with no command line, so it starts the passwd shell.
-- Audience is undecided: Christian's machine only, or other Omarchy users. His standing rule is that
-  changes stay inside his own tools and never modify Omarchy's own code; a package in Omarchy's
-  repository would be exactly that, so it is a ruling and not a default.
+- The thing to package is 277's child block, not the old four-line exec. ~/.bashrc is 61 lines.
+  Line 9 sources Omarchy's rc. Christian reports the block at lines 31-59. The canonical file
+  is zero/shell/novashell/handoff/bashrc-handoff.sh, 27 lines, so the doctor's byte compare is
+  still the check that "intact" means. The block runs nsh as a child of interactive bash and
+  stays in bash on status 101, 132, 134, 135 or 139 (277, lines 224-231). Any other status
+  exits bash with nsh's status. ~/.config/nsh/off is absent, so the handoff is on. It cannot
+  be installed or reverted as a package yet.
+- omarchy-reinstall-configs still does `cp -af /etc/skel/. ~/` with no backup
+  (bin/omarchy-reinstall-configs line 19 at ac2690cd). That wipes ~/.bashrc. The line added
+  in 4.5.0, omarchy-install-video-decode, writes mpv and Chromium settings and does not
+  restore bashrc.
+- Omarchy's rc sources only files under $OMARCHY_PATH (default/bash/rc). It reads nothing
+  under $HOME. nsh has alias and set, and no function syntax (zero/shell/novashell/src/config.rs).
+  277 G1 carries environment and PATH. z and zi are native. Starship, the try and mise
+  functions, fzf key bindings and bash completions do not carry. v4.5.0's init drops
+  fzf's completion.bash and keeps the key bindings.
+- omarchy-zsh 1.5.0-2 and omarchy-fish 1.5.0-1 are in the sync database and are not installed.
+  Sources, tag v1.5.0: github.com/omacom-io/omarchy-zsh 4f79a296 and
+  github.com/omacom-io/omarchy-fish 3658ad06. Recipes in omarchy-pkgs. pacman -S does not edit
+  home and does not chsh. omarchy-setup-zsh and omarchy-setup-fish replace the whole ~/.bashrc,
+  after a timestamped backup, with a template that execs zsh or fish. There is no crash
+  fallback. Uninstall does not restore the backup.
+- omarchy-shell, omarchy-launch-shell, omarchy-restart-shell and omarchy-refresh-shell are
+  Quickshell, the desktop shell. The v4.0.4 to v4.5.0 diff of the first three does not mention
+  bashrc or nsh.
+- Foot is the default terminal (manual/15-terminal.md at v4.5.0; the system and user xdg lists
+  are foot.desktop). Ghostty is installed. Alacritty and kitty are not. No command or shell
+  key in the installed configs. TERMINAL=xdg-terminal-exec. SHELL=/usr/bin/bash.
+- /etc/skel/.bashrc is owned by bash 5.3.20-1 and its bytes match Omarchy's default/bashrc.
+  omarchy-settings post_upgrade copies /usr/share/omarchy/etc-overrides/dot.bashrc onto that
+  path (omarchy-settings.install). Arch bash lists etc/skel/.bashrc in backup=, so a bash
+  upgrade keeps the modified skel file. It does not touch ~/.bashrc.
 
 ## The Solution
-Wait for 277's G1, G2 and G7 rulings and evidence, then census, then rule, then build the smallest
-installable form of exactly that contract.
+Package 277's block as novashell-omarchy. Christian builds the PKGBUILD himself. It is not a
+contribution to omarchy-pkgs for now.
 
-- G0 measures what Omarchy ships, where a user-owned handoff can live so that reinstall-configs does
-  not wipe it, and how many of Omarchy's aliases and functions are portable to nsh.
-- G1 rules the form (install script with a drop-in, a PKGBUILD in this repo that Christian builds and
-  installs himself, or a contribution), the home of the handoff, what carries to nsh, and the name:
-  the omarchy- prefix is Omarchy's namespace.
-- G2 to G5 build and prove it on a stand-in HOME first, never against the live ~/.bashrc, red
-  before green.
-- G6 is Christian running it by hand on his machine.
+- The handoff logic is a file the package installs under /usr. ~/.bashrc gets one marked line
+  that sources it. The line is the only edit to his file.
+- The mechanism stays 277 G2: nsh is a child, the off file is ~/.config/nsh/off, and the
+  always-bash door is NSH_ACTIVE=1. Not an exec.
+- What carries is the environment and PATH. No alias is translated.
+- Install and revert are a command he runs. pacman post_install does not edit ~/.bashrc.
+  Revert deletes the marked line. The sha256 of ~/.bashrc is compared to the value taken
+  before install.
+- Each of G2 to G5 and G7 is one small PR, red first, on a stand-in HOME. G6 is Christian
+  on his laptop. No gate edits the live ~/.bashrc.
+
+## Rulings (G1, 2026-11-09)
+Christian ruled each of these.
+
+1. Form: a PKGBUILD he builds himself. Not a contribution to omarchy-pkgs for now.
+2. Name: novashell-omarchy. The omarchy-* prefix is left to Omarchy. The filename of this
+   intent stays; core intent validate checks the id prefix, not the title.
+3. Home: the handoff logic lives in a file outside /etc/skel, installed by the package under
+   /usr. ~/.bashrc gets one marked line that sources it. Omarchy's rc sources nothing under
+   $HOME, so the line is what makes the file run.
+4. Mechanism: 277's child, with the crash fallback. Status 101, 132, 134, 135 or 139 stays
+   in bash. Not exec.
+5. Carry: environment and PATH only. No alias translation. c, d, h and ls would hide nsh
+   builtins, and d is the doctor.
+6. Revert: delete the marked line, and compare the sha256 of ~/.bashrc with the value saved
+   before install.
+7. Install: a command Christian runs. Never a pacman post_install. No chsh. No terminal
+   config edit.
+8. G6 terminals: foot and ghostty. No terminal config change.
+9. Known risk: omarchy-reinstall-configs wipes the marked line. zero-doctor's shell_handoff
+   must notice, and the setup command puts the line back. The doctor's check today compares
+   ~/.bashrc with the whole 27-line block. It has to compare the marked line instead.
 
 ## Success Criteria
-- [ ] G0 census, read-only; start only once 277 G2 has its rulings. Evidence is the output, kept in
+- [x] G0 census, read-only; start only once 277 G2 has its rulings. Evidence is the output, kept in
       ~/.cache/zero:
       a. 277's G1, G2 and G7 rulings and evidence as written in that intent: crash mechanism (child
          or exec plus stamp), off-switch file, always-bash door, the d check.
@@ -80,48 +115,64 @@ installable form of exactly that contract.
       f. Every premise in The Problem that a result above contradicts (the unconfirmed omarchy-zsh
          and omarchy-fish packages, the desktop-shell commands, line numbers) is corrected in this
          file before G1 starts.
-- [ ] G1 rulings before any code, each approved by Christian: the form and the audience (install
+<!-- evidence: 2026-11-09. Census of v4.0.4 (c668141e) plus the addendum against the laptop script ~/.cache/zero/int-295-g0-laptop.txt. a. 277 G2 is the child, off file ~/.config/nsh/off, always-bash door NSH_ACTIVE=1; shell_handoff warns and never fails. b. v4.5.0 ac2690cd; rc sources only $OMARCHY_PATH; no user drop-in; reinstall-configs is cp -af with no backup (d9abe210); the four omarchy-*-shell commands are Quickshell. Laptop: pacman -Qo says bash 5.3.20-1 owns /etc/skel/.bashrc and the bytes match Omarchy default/bashrc; omarchy-settings owns etc-overrides/dot.bashrc; sync db has omarchy-zsh 1.5.0-2 and omarchy-fish 1.5.0-1, not installed. c. Nothing in default/bash is portable to nsh as written. 24 aliases can be rewritten. Functions, init and shell are bash-only. c, d, h and ls would hide builtins. d. VM debug nsh 5.3.11, not Omarchy: --version exits 0 before the runtime; there is no -i; nsh -c : exits 1, command not found, so it is a false failure; nsh does not read NSH_ACTIVE. e. TERMINAL=xdg-terminal-exec; Foot is the default; ghostty installed; alacritty and kitty absent; no command or shell key. f. The Problem section above is that correction. omarchy-pkgs master 9ede717. -->
+- [x] G1 rulings before any code, each approved by Christian: the form and the audience (install
       script with a drop-in, PKGBUILD built and installed by Christian, or an Omarchy contribution);
       the handoff's home and what survives reinstall-configs; the mechanism, which is 277 G2's
       ruling and not a new one; what carries to nsh and how (translation or recorded gap); the name;
       the one-command revert. Gates G2 to G6 are then re-read against these rulings and amended in this
       file before any code, if a ruling changes their shape (a contribution, for instance, is not
       tested on a stand-in HOME).
-- [ ] G2 red, on a stand-in HOME made from Omarchy's default skeleton, never the live files: there is
-      no one-command install today, and a simulated reinstall-configs (cp -af of the skeleton) removes
-      the handoff with no trace. Both cases fail now.
-- [ ] G3 build. G2 green. The smallest installable form per G1. Install is idempotent (twice gives the
-      same bytes), backs up before touching anything, writes only its own files plus one marked
-      block, and the revert restores the original byte for byte (sha256 compared). No root step is
-      run by an agent; any such step is written out for Christian.
-- [ ] G4 parity. What G1 says carries to nsh does carry: Omarchy's environment and PATH entries, and
-      each translated alias or function, shown in a real nsh through an nsh-test Repl case or a
-      recorded run. Every item that cannot carry is listed in the package README, not dropped
-      silently.
-- [ ] G5 non-locking, red first on the packaged form: a stand-in nsh that dies before its prompt lands
-      in bash with one stderr line; the off file lands in bash; the always-bash door lands in bash;
-      a simulated reinstall-configs leaves a working bash and a re-install restores the handoff.
-      Run twice.
-- [ ] G6 live, by Christian by hand. Before the install, 277 G2's off switch and always-bash door are
-      shown working on the live machine, and a tty or second terminal stays open as the way out.
-      Then: install; a new ghostty terminal lands in nsh; the passwd shell is still bash; revert
-      returns a plain bash terminal; d 0 failed. Terminals other than ghostty are checked or
-      deferred with a reason.
-- [ ] G7 doors: nsh on PATH, nsh-test all passing, d 0 failed, core intent validate clean; the
-      package README states install and revert and who owns it per INT-291's rule; commits carry
-      Intent INT-295 and the plan Seal with its note under refs/notes/seals; main and
-      refs/notes/seals pushed; core intent trace reads every seal intact; each gate carries
-      evidence per INT-158.
+<!-- evidence: 2026-11-09, Christian. Recorded in ## Rulings. Form: PKGBUILD he builds, not an omarchy-pkgs contribution for now. Name: novashell-omarchy. Home: one marked source line in ~/.bashrc, logic in a package file under /usr. Mechanism: 277's child. Carry: environment and PATH only. Revert: delete the line and compare sha256 to the pre-install value. Install: a command he runs, never post_install; no chsh; no terminal config. G6: foot and ghostty. G2 to G7 below are amended to that shape. No code in this commit. -->
+- [ ] G2 red, one PR, on a stand-in HOME made from Omarchy's default/bashrc, never the live files.
+      Two failures, both shown failing: there is no novashell-omarchy setup command, and a simulated
+      reinstall-configs (`cp -af` of the skeleton onto the stand-in) deletes a planted marked source
+      line and leaves no trace. Red first. The fix is not in this gate.
+- [ ] G3 build, one PR. G2's missing-command case goes green. The PKGBUILD is novashell-omarchy,
+      built and installed by Christian. The setup command is not a pacman post_install. On a
+      stand-in HOME it is idempotent (twice gives the same bytes), saves the sha256 of ~/.bashrc
+      before it writes, writes only the package file under a stand-in /usr plus one marked source
+      line, and does not chsh or edit a terminal config. Revert deletes that line and the sha256
+      of ~/.bashrc matches the saved value. No root step is run by an agent. Any pacman command
+      is written out for Christian. The path under /usr is recorded in this file in that PR.
+- [ ] G4 parity, one PR, red first, stand-in HOME. What G1 carries does carry: the environment and
+      the PATH entries 277 G1 names (OMARCHY_PATH, mise shims, ~/.local/bin, ~/.cargo/bin), shown
+      in a real nsh through an nsh-test Repl case or a recorded run. No alias is translated. The
+      package README lists what does not carry, including c, d, h and ls, and the bash functions,
+      starship, mise, and the fzf key bindings. A missing entry is a failure, not a silence.
+- [ ] G5 non-locking, one PR, red first, stand-in HOME, on the packaged form. Red: shell_handoff
+      still compares ~/.bashrc with the whole 27-line block, so a file that has only the marked
+      line is reported as no handoff. Green: the check compares the marked line, passes when the
+      line is present and the file it sources is the packaged handoff, and warns when the line is
+      gone. A stand-in nsh that exits 101, 132, 134, 135 or 139 lands in bash with one stderr
+      line. Any other status exits bash with that status. The off file lands in bash. NSH_ACTIVE=1
+      lands in bash. A simulated reinstall-configs removes the marked line and leaves a working
+      bash. Running the setup command puts the line back. Run twice.
+- [ ] G6 live, one sitting, by Christian by hand on his laptop. Not an agent. Before the install,
+      277 G2's off switch and always-bash door are shown working, and a tty or a second terminal
+      stays open. Then he runs the setup command. A new foot terminal lands in nsh. A new ghostty
+      terminal lands in nsh. No terminal config is edited. The passwd shell is still bash. Revert
+      deletes the marked line and the sha256 of ~/.bashrc matches the pre-install value. d 0 failed.
+      Alacritty and kitty are not installed, so they stay out.
+- [ ] G7 doors, one PR: cargo test -p novashell, nsh-test all passing, d 0 failed, core intent
+      validate clean. The package README states install, revert, and who owns the file, per
+      INT-291. Commits carry Intent: INT-295 and the plan Seal, with the note under
+      refs/notes/seals. main and refs/notes/seals are pushed. core intent trace reads every seal
+      intact. Each gate carries evidence per INT-158.
 
 ## Non-goals
 - No chsh and no login shell. That door is INT-277 G8 and, only if it opens, INT-288.
 - No second handoff mechanism: crash fallback, off switch and the always-bash door are INT-277 G2's.
+  The zsh and fish exec is not adopted.
 - No sudo or root step run by an agent; install steps that need root are written for Christian.
-- No change to bash, sh, /etc/profile or any Omarchy file; the package owns only its own files.
-- No contribution to Omarchy's repository unless Christian rules it at G1.
-- No NovaShell change here; anything nsh needs becomes its own intent.
+- No change to bash, sh, /etc/profile or any Omarchy file. The package owns its file under /usr.
+  The one marked line is the only write in ~/.bashrc, and only when Christian runs the command.
+- No contribution to omarchy-pkgs for now. Ruled at G1, 2026-11-09.
+- No NovaShell change here. The shell_handoff compare in G5 is zero-doctor. Anything nsh
+  itself needs becomes its own intent.
 - Ghostty integration parity (ssh, OSC 7, 2 and 133) is INT-277 G6's, not this intent's.
 - No desktop-shell (Quickshell) work. No new crates. AGENTS.md is not edited here.
+- No alias translation.
 
 ## Dependencies
 depends_on: 277. The edge is whole-intent: this intent starts after 277 closes, so 277's G8 answer
