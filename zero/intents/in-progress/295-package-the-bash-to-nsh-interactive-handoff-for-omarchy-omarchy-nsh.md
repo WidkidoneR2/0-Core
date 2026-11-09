@@ -3,7 +3,7 @@ id: 295
 date: 2026-10-18
 type: future
 title: "Package the bash-to-nsh interactive handoff for Omarchy (omarchy-nsh)"
-status: planned
+status: in-progress
 tags: [nsh, omarchy, handoff, package, terminal, resilience]
 depends_on: [277]
 ---
