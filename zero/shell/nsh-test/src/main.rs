@@ -7389,6 +7389,47 @@ fn slug(line: &str) -> String {
     s
 }
 
+/// Repo-relative path of this crate's manifest.
+///
+/// The shell check below reads novashell's Cargo.toml from the current directory and stays
+/// quiet when that read fails. This is the same read for nsh-test. The directory comes from
+/// zero_core::paths::SHELL_PARENT, the one owner of where the shell crates live, so the path
+/// is not a second hardcoded location and is not the home checkout: a tree that is not ~/0-core
+/// still answers when the suite is run from its root.
+fn nsh_test_manifest_rel() -> std::path::PathBuf {
+    std::path::Path::new(zero_core::paths::SHELL_PARENT)
+        .join("nsh-test")
+        .join("Cargo.toml")
+}
+
+/// The package version in a Cargo.toml body.
+///
+/// Same read as the shell check: the first line that starts with `version`, then the first
+/// quoted field. None when that line is absent or has no quotes, so a file that is not a
+/// crate manifest stays unknown rather than a guessed match.
+fn cargo_package_version(toml: &str) -> Option<&str> {
+    toml.lines()
+        .find(|l| l.trim_start().starts_with("version"))
+        .and_then(|l| l.split('"').nth(1))
+        .filter(|v| !v.is_empty())
+}
+
+/// One banner line when the running nsh-test binary and the repo source disagree.
+///
+/// Equal versions say nothing. A source file that cannot be read, or that has no version
+/// line, says nothing: unknown is not a mismatch, and a warning that fires on every run
+/// from outside the repo is one nobody reads. The caller only prints the line. It does
+/// not change a pass, a fail, or the exit status.
+fn nsh_test_source_warning(running: &str, source_toml: Option<&str>) -> Option<String> {
+    let source = source_toml.and_then(cargo_package_version)?;
+    if source == running {
+        return None;
+    }
+    Some(format!(
+        "  ⚠️  nsh-test source is {source}; this binary is {running} -- ship nsh-test"
+    ))
+}
+
 // INT-256-EXEMPT: INT-219. Exits 2 with its own hook ON PURPOSE -- a truncated test run must not read as a complete one, and 141 would claim we died of SIGPIPE when we caught EPIPE and chose to stop.
 fn main() {
     // INT-219: A TRUNCATED RUN MUST NOT LOOK LIKE A COMPLETE ONE.
@@ -7470,6 +7511,17 @@ fn main() {
         "{}",
         concat!("  nsh-test v", env!("CARGO_PKG_VERSION")).bold()
     );
+    // THE SUITE CHECKS THE SHELL AND DID NOT CHECK ITSELF. On 2026-11-07 the installed
+    // binary was one patch behind this Cargo.toml, and the banner said nothing until
+    // `ship nsh-test` was run by hand. Same rule as the shell check below: the source
+    // version is read from the workspace at runtime, and a file that cannot be read
+    // stays silent. Unknown is not a mismatch. A mismatch is a warning, not a failure.
+    let nsh_test_source = std::fs::read_to_string(nsh_test_manifest_rel()).ok();
+    if let Some(warning) =
+        nsh_test_source_warning(env!("CARGO_PKG_VERSION"), nsh_test_source.as_deref())
+    {
+        println!("{warning}");
+    }
     // ASK THE SHELL WHO IT IS, rather than trusting the path we passed it. Refusing a
     // MISSING binary catches a typo; this catches the case that actually cost a session --
     // a path that exists and is the WRONG BUILD. /run/current-system/... exists perfectly
@@ -7728,3 +7780,71 @@ fn main() {
 // Additional tests will be added here via append
 
 // This won't work as append - need to insert before main()
+
+#[cfg(test)]
+mod nsh_test_source_warning_tests {
+    use super::{nsh_test_manifest_rel, nsh_test_source_warning};
+
+    /// A version built from numbers. zero-core's registry scan rejects an x.y.z literal
+    /// written into crate source, so a fixture must not contain one.
+    fn ver(major: u32, minor: u32, patch: u32) -> String {
+        format!("{major}.{minor}.{patch}")
+    }
+
+    fn manifest(version: &str) -> String {
+        let dep = ver(0, 31, 0);
+        format!(
+            "[package]\nname = \"nsh-test\"\nversion = \"{version}\"\nedition = \"2021\"\n\nrusqlite = {{ version = \"{dep}\" }}\n"
+        )
+    }
+
+    #[test]
+    fn equal_versions_say_nothing() {
+        let version = ver(2, 0, 14);
+        assert_eq!(
+            nsh_test_source_warning(&version, Some(&manifest(&version))),
+            None
+        );
+    }
+
+    #[test]
+    fn different_versions_warn_either_way_and_name_ship() {
+        let source = ver(2, 0, 14);
+        let older = ver(2, 0, 13);
+        let newer = ver(2, 0, 15);
+        let behind = nsh_test_source_warning(&older, Some(&manifest(&source)))
+            .expect("an older binary warns");
+        assert_eq!(
+            behind,
+            format!("  ⚠️  nsh-test source is {source}; this binary is {older} -- ship nsh-test")
+        );
+        assert_eq!(behind.lines().count(), 1);
+        let ahead = nsh_test_source_warning(&newer, Some(&manifest(&source)))
+            .expect("a newer binary warns");
+        assert_eq!(
+            ahead,
+            format!("  ⚠️  nsh-test source is {source}; this binary is {newer} -- ship nsh-test")
+        );
+    }
+
+    #[test]
+    fn missing_source_says_nothing() {
+        let running = ver(2, 0, 14);
+        assert_eq!(nsh_test_source_warning(&running, None), None);
+        assert_eq!(nsh_test_source_warning(&running, Some("")), None);
+        assert_eq!(
+            nsh_test_source_warning(&running, Some("[package]\nname = \"nsh-test\"\n")),
+            None
+        );
+    }
+
+    #[test]
+    fn manifest_path_stays_relative_to_the_workspace() {
+        let path = nsh_test_manifest_rel();
+        let text = path.to_string_lossy();
+        assert!(path.is_relative(), "{text}");
+        assert!(path.ends_with("nsh-test/Cargo.toml"), "{text}");
+        assert!(!text.starts_with('/'), "{text}");
+        assert!(!text.contains("0-core"), "{text}");
+    }
+}
