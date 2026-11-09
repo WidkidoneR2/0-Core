@@ -3,6 +3,11 @@
 # the setup command is what edits ~/.bashrc, and only when he runs it.
 # pkgver is the handoff version. It is the first line of VERSION, beside this file.
 # Bump VERSION and pkgver together when bashrc-handoff.sh changes.
+#
+# makepkg looks up a local source by its basename in this directory (or SRCDEST).
+# A source entry of ../bashrc-handoff.sh is sought as ./bashrc-handoff.sh and missed.
+# bashrc-handoff.sh here is a symlink to the canonical block one directory up, so
+# sha256sums covers that file and there is one copy of the block.
 pkgname=novashell-omarchy
 pkgver=277.1
 pkgrel=1
@@ -11,11 +16,14 @@ arch=('any')
 url='https://github.com/WidkidoneR2/0-Core'
 license=('MIT')
 depends=('bash' 'coreutils')
-source=('novashell-omarchy')
-sha256sums=('3d45311731d69a5a0942804c49563c6822b7d2ec9bd26d1de4e2e7482aa6e15b')
+source=('bashrc-handoff.sh' 'novashell-omarchy')
+sha256sums=(
+    '178960349fa03a05e13094fd073cd8c878ec31509b32293f0908da76c2675f1b'
+    '0d8e484829210a24c4ba0b01fa8c51832e1ed0fbeb8dc5994062792297b65316'
+)
 
 package() {
-    install -Dm644 "$startdir/../bashrc-handoff.sh" \
+    install -Dm644 "$srcdir/bashrc-handoff.sh" \
         "$pkgdir/usr/share/novashell-omarchy/bashrc-handoff.sh"
     install -Dm755 "$srcdir/novashell-omarchy" \
         "$pkgdir/usr/bin/novashell-omarchy"

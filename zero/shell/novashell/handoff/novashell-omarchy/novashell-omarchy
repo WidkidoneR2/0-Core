@@ -9,7 +9,7 @@ set -euo pipefail
 export LC_ALL=C
 
 VERSION=277.1
-MARKED='source /usr/share/novashell-omarchy/bashrc-handoff.sh # novashell-omarchy'
+MARKED='[ -r /usr/share/novashell-omarchy/bashrc-handoff.sh ] && source /usr/share/novashell-omarchy/bashrc-handoff.sh # novashell-omarchy'
 HANDOFF_FILE=/usr/share/novashell-omarchy/bashrc-handoff.sh
 INLINE_FIRST='if [[ $- == *i* ]] && [[ -z "$NSH_ACTIVE" ]] && [[ -x "$HOME/.local/bin/nsh" ]]; then'
 

@@ -360,8 +360,10 @@ mod tests {
     );
     const OMBASHRC_SHA: &str = "d78bd5405919c9c0d9aa5a3db47696286aa9c9d0a1c759785719054605da9a4b";
     /// One marked source line. The token is what a notice has to name.
+    /// The `[ -r ... ] &&` guard means a removed package does not make bash
+    /// print "No such file" on every terminal.
     const MARKED_SOURCE_LINE: &str =
-        "source /usr/share/novashell-omarchy/bashrc-handoff.sh # novashell-omarchy";
+        "[ -r /usr/share/novashell-omarchy/bashrc-handoff.sh ] && source /usr/share/novashell-omarchy/bashrc-handoff.sh # novashell-omarchy";
 
     struct StandIn(std::path::PathBuf);
 
@@ -1131,6 +1133,76 @@ mod tests {
         assert!(output_text(&door.stdout).contains("STILL_IN_BASH"));
     }
 
+    /// Lines bash writes because this session has no terminal. The source line
+    /// is judged on what is left.
+    fn stderr_from_the_rc(stderr: &str) -> String {
+        stderr
+            .lines()
+            .filter(|line| {
+                !line.contains("cannot set terminal process group")
+                    && !line.contains("no job control in this shell")
+            })
+            .collect::<Vec<_>>()
+            .join("\n")
+    }
+
+    #[test]
+    fn g3_a_missing_handoff_file_is_silent_and_bash_continues() {
+        assert_eq!(
+            MARKED_SOURCE_LINE,
+            "[ -r /usr/share/novashell-omarchy/bashrc-handoff.sh ] && source /usr/share/novashell-omarchy/bashrc-handoff.sh # novashell-omarchy"
+        );
+        let root = stand_in("g3-absent");
+        let home = home_dir(&root);
+        std::fs::create_dir(&home).unwrap();
+        refuse_real_home(&home);
+        let missing = root.0.join("usr/share/novashell-omarchy/bashrc-handoff.sh");
+        assert!(
+            !missing.exists(),
+            "the stand-in handoff file must be absent"
+        );
+        let real = std::path::Path::new("/usr/share/novashell-omarchy/bashrc-handoff.sh");
+        let line = if !real.exists() {
+            MARKED_SOURCE_LINE.to_string()
+        } else {
+            format!(
+                "[ -r {p} ] && source {p} # novashell-omarchy",
+                p = missing.display()
+            )
+        };
+        let rc = home.join("rc");
+        std::fs::write(&rc, format!("{line}\necho STILL_IN_BASH\n")).unwrap();
+        let guarded = bash_rc(&home, &rc, &[]);
+        assert_eq!(guarded.status.code(), Some(0), "{guarded:?}");
+        let stdout = output_text(&guarded.stdout);
+        assert!(
+            stdout.contains("STILL_IN_BASH"),
+            "bash did not continue:\n{stdout}"
+        );
+        assert!(
+            stdout.contains("AFTER"),
+            "bash did not reach the next command:\n{stdout}"
+        );
+        let noise = stderr_from_the_rc(&output_text(&guarded.stderr));
+        assert!(
+            noise.is_empty(),
+            "a missing handoff file wrote to stderr:\n{noise}"
+        );
+
+        let bare = home.join("bare");
+        std::fs::write(
+            &bare,
+            format!("source {}\necho STILL_IN_BASH\n", missing.display()),
+        )
+        .unwrap();
+        let noisy = bash_rc(&home, &bare, &[]);
+        let noise = stderr_from_the_rc(&output_text(&noisy.stderr));
+        assert!(
+            noise.contains("No such file"),
+            "an unguarded source of a missing file was silent:\n{noise}"
+        );
+    }
+
     #[test]
     fn g3_pkgbuild_packages_the_handoff_and_the_command() {
         let dir = package_dir();
@@ -1155,8 +1227,16 @@ mod tests {
         assert!(pkg.contains("/usr/share/novashell-omarchy/bashrc-handoff.sh"));
         assert!(pkg.contains("/usr/bin/novashell-omarchy"));
         assert!(
-            pkg.contains("../bashrc-handoff.sh"),
-            "the PKGBUILD does not install the canonical handoff block"
+            pkg.contains("source=('bashrc-handoff.sh' 'novashell-omarchy')"),
+            "source= does not name both files:\n{pkg}"
+        );
+        assert!(
+            pkg.contains("\"$srcdir/bashrc-handoff.sh\""),
+            "package() does not install the checksummed handoff source"
+        );
+        assert!(
+            !pkg.contains("$startdir/../"),
+            "package() reads the handoff from outside the checksummed sources"
         );
         assert!(!pkg.contains("post_install"));
         assert!(!pkg.contains("chsh"));
@@ -1177,16 +1257,27 @@ mod tests {
             script_text.contains("VERSION=277.1"),
             "the setup command does not carry handoff version 277.1"
         );
-        let sum = sha256_hex(&script);
-        assert!(
-            pkg.contains(&sum),
-            "PKGBUILD sha256sums does not match the setup command ({sum})"
-        );
-        let shipped = std::fs::read(dir.join("../bashrc-handoff.sh")).unwrap();
+        let link = std::fs::read_link(dir.join("bashrc-handoff.sh"))
+            .unwrap_or_else(|e| panic!("bashrc-handoff.sh symlink: {e}"));
         assert_eq!(
-            shipped,
+            link,
+            std::path::PathBuf::from("../bashrc-handoff.sh"),
+            "the packaged handoff is not a link to the canonical block"
+        );
+        let handoff = std::fs::read(dir.join("bashrc-handoff.sh")).unwrap();
+        assert_eq!(
+            handoff,
             handoff_canonical().into_bytes(),
             "the file the PKGBUILD installs is not the canonical 277 block"
+        );
+        let sums: Vec<&str> = pkg
+            .split(|c: char| !c.is_ascii_hexdigit())
+            .filter(|s| s.len() == 64)
+            .collect();
+        assert_eq!(
+            sums,
+            vec![sha256_hex(&handoff), sha256_hex(&script)],
+            "sha256sums are not the handoff file then the setup command"
         );
 
         let root = stand_in("g3-help");
