@@ -2920,7 +2920,7 @@ fn repl_main() -> Result<()> {
         // Phase 8 — announce completed background jobs before prompt
         job_table.check_completed();
 
-        // Phase 17 — render two-line context above input
+        // Phase 17 — render the context line above input
         let ctx = prompt::PromptContext {
             last_duration_ms,
             last_exit_code: engine.last_exit(),

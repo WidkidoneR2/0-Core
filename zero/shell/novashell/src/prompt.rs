@@ -1,7 +1,7 @@
 #![allow(clippy::all)]
 // NovaShell -- prompt and status line
 // render_line    -- single-line readline prompt (no emoji, Tab completion safe)
-// render_context -- two-line context printed BEFORE the input line
+// render_context -- the context line printed BEFORE the input line
 // INT-033        -- neon candy truecolor semantic colors
 
 use crate::db::StateDb;
@@ -109,14 +109,11 @@ fn fc_rl(r: u8, g: u8, b: u8, text: &str) -> String {
 // Meaning: lime=structure/peak, aqua=location, lavender=intent/focus,
 //          gold=caution, rose=attention/fail, near-green=quiet separators.
 // Health
-const C_HEALTH_PEAK: (u8, u8, u8) = (176, 246, 42); // electric lime (neon70)
 const C_HEALTH_ADVISORY: (u8, u8, u8) = (252, 213, 78); // gold (neon70)
-const C_HEALTH_CRITICAL: (u8, u8, u8) = (255, 95, 135); // hot rose (neon70)
                                                         // Prompt
 const C_CWD: (u8, u8, u8) = (40, 242, 216); // aqua (neon70)
 const C_PROMPT_OK: (u8, u8, u8) = (176, 246, 42); // electric lime (neon70)
 const C_PROMPT_FAIL: (u8, u8, u8) = (255, 130, 168); // rose (neon70)
-const C_INTENT: (u8, u8, u8) = (186, 156, 255); // lavender (neon70)
 const C_BRANCH_CLEAN: (u8, u8, u8) = (158, 224, 78); // soft lime (neon70)
 const C_BRANCH_DIRTY: (u8, u8, u8) = (252, 213, 78); // gold (neon70)
 const C_DIMMED: (u8, u8, u8) = (90, 110, 95); // near-green quiet
@@ -238,64 +235,6 @@ fn cwd_color() -> (u8, u8, u8) {
         C_DIR_ROOT
     }
 }
-/// INT-299 G4. The prompt badge for a health that may not exist. No health says unknown and
-/// never shows a number nobody measured.
-fn health_badge(health: Option<i64>) -> String {
-    match health {
-        Some(h) => health_str(h),
-        None => fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "unknown"),
-    }
-}
-
-#[cfg(test)]
-mod health_badge_tests {
-    use super::*;
-
-    #[test]
-    fn g4_unmeasured_health_says_unknown_not_zero() {
-        let badge = health_badge(None);
-        assert!(
-            badge.contains("unknown"),
-            "no health must say unknown: {badge:?}"
-        );
-        assert!(
-            !badge.contains("0%"),
-            "no health must not show a number: {badge:?}"
-        );
-    }
-
-    #[test]
-    fn g4_a_measured_zero_stays_zero() {
-        assert!(health_badge(Some(0)).contains("0%"));
-    }
-
-    #[test]
-    fn g4_measured_numbers_are_unchanged() {
-        assert!(health_badge(Some(89)).contains("89%"));
-        assert!(health_badge(Some(100)).contains("100%"));
-    }
-}
-
-fn health_str(health: i64) -> String {
-    let text = format!("{}%", health);
-    if health >= 95 {
-        fc_bold(C_HEALTH_PEAK.0, C_HEALTH_PEAK.1, C_HEALTH_PEAK.2, &text)
-    } else if health >= 80 {
-        fc_bold(
-            C_HEALTH_ADVISORY.0,
-            C_HEALTH_ADVISORY.1,
-            C_HEALTH_ADVISORY.2,
-            &text,
-        )
-    } else {
-        fc_bold(
-            C_HEALTH_CRITICAL.0,
-            C_HEALTH_CRITICAL.1,
-            C_HEALTH_CRITICAL.2,
-            &text,
-        )
-    }
-}
 
 fn git_info() -> Option<(String, bool)> {
     let cwd = std::env::current_dir().ok()?;
@@ -322,29 +261,7 @@ fn git_info() -> Option<(String, bool)> {
     Some((branch, dirty))
 }
 
-fn active_intent(db: &StateDb) -> Option<String> {
-    db.conn
-        .query_row(
-            "SELECT value FROM shell_state WHERE key='focus_intent'",
-            [],
-            |r| r.get::<_, String>(0),
-        )
-        .ok()
-}
-
-fn commits_today(db: &StateDb) -> i64 {
-    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
-    db.conn
-        .query_row(
-            "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' \
-         AND datetime(timestamp, 'unixepoch', 'localtime') LIKE ?1",
-            rusqlite::params![format!("{}%", today)],
-            |r| r.get(0),
-        )
-        .unwrap_or(0)
-}
-
-// ── Phase 17 -- Prompt v2 Context Lines ─────────────────────────────────────
+// ── Phase 17 -- Prompt context line ─────────────────────────────────────────
 
 pub struct PromptContext {
     pub last_duration_ms: Option<u64>,
@@ -360,16 +277,7 @@ pub fn render_context(db: &StateDb, ctx: &PromptContext) {
         return;
     }
     let _ = ctx;
-    let is_friday = theme == "friday";
     let cwd = cwd_str(35);
-    // INT-299 G4: the badge takes an Option; the history below is why.
-    // INT-230 G4: was unwrap_or(95). On a machine that has never run the
-    // doctor this asserted 95% health ON EVERY PROMPT. The August work
-    // fixed the FILE reader (read_health, Option in all three callers)
-    // and left this SCORE reader four lines away still fabricating.
-    // ⚠️ 0 is not honest either -- it is less wrong than 95. Threading
-    // Option through the powerline badge: done, health_badge shows unknown for None.
-    let health = db.health_score();
     let git = git_info();
 
     // ── Line 1: candy powerline (INT-103) -- directory / repo / devshell ──
@@ -465,98 +373,11 @@ pub fn render_context(db: &StateDb, ctx: &PromptContext) {
             )
         ));
     }
-    // ── Line 2: health · intent · commits ───────────────────────────────
-    let h_str = health_badge(health);
-    let intent = active_intent(db);
-    let today_commits = commits_today(db);
-
-    let mut parts: Vec<String> = vec![h_str];
-
-    if let Some(ref i) = intent {
-        parts.push(fc_bold(C_INTENT.0, C_INTENT.1, C_INTENT.2, i));
-    }
-
-    if today_commits > 0 {
-        parts.push(fc_dim(
-            C_DIMMED.0,
-            C_DIMMED.1,
-            C_DIMMED.2,
-            &format!("{} today", today_commits),
-        ));
-    }
-
-    if is_friday {
-        // INT-230: read future/ for `status: in-progress`. cistart moves a started
-        // intent into in-progress/, so the hint could never fire. The adapter
-        // reads the lifecycle folders and returns None when 0-Core is absent,
-        // which renders as no hint rather than a wrong one.
-        let next_intent = crate::core_integration::ledger().and_then(|l| {
-            let mut ids: Vec<String> = l.active().iter().map(|i| format!("INT-{}", i.id)).collect();
-            ids.sort();
-            ids.first().cloned()
-        });
-
-        let trend_hint = {
-            // Absent health used to fall back to 100 -- twice -- and the branch
-            // below then printed "peak". A machine that had never run the doctor
-            // claimed peak health on every render. None now yields no hint at all.
-            match crate::core_integration::health().map(u32::from) {
-                // "unknown" IS a trend hint. An early return here would have
-                // exited render_context entirely and dropped the intent hint
-                // with it -- invisible except on a machine that has never run
-                // the doctor, which is the machine nobody tests on.
-                None => fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "unknown"),
-                Some(h) if h >= 100 => {
-                    fc_bold(C_HEALTH_PEAK.0, C_HEALTH_PEAK.1, C_HEALTH_PEAK.2, "peak")
-                }
-                Some(h) if h >= 95 => fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "stable"),
-                Some(_) => fc(
-                    C_HEALTH_ADVISORY.0,
-                    C_HEALTH_ADVISORY.1,
-                    C_HEALTH_ADVISORY.2,
-                    "advisory",
-                ),
-            }
-        };
-
-        let friday_hint = match next_intent {
-            Some(id) => format!(
-                "▸ {} · {}",
-                fc(C_INTENT.0, C_INTENT.1, C_INTENT.2, &id),
-                trend_hint
-            ),
-            None => format!("▸ {}", trend_hint),
-        };
-        parts.push(friday_hint);
-
-        let db_path = zero_core::paths::state_db();
-        let has_friday_msg = zero_core::state_db::open_at(
-            std::path::Path::new(&db_path),
-            rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY,
-        )
-        .ok()
-        .and_then(|c| {
-            c.query_row(
-                "SELECT COUNT(*) FROM friday_daemon_messages WHERE read = 0",
-                [],
-                |r| r.get::<_, i64>(0),
-            )
-            .ok()
-        })
-        .unwrap_or(0)
-            > 0;
-        if has_friday_msg {
-            parts.push("◉".to_string());
-        }
-    }
-
-    let sep = fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, " · ");
-    let _line2 = format!(
-        "  {} {}",
-        fc_dim(C_DIMMED.0, C_DIMMED.1, C_DIMMED.2, "→"),
-        parts.join(&sep)
-    );
-
+    // a001b8e8 stopped printing the second line ("health/rebuild line removed
+    // (lives on bar + d)") and left the work that built it: the health read,
+    // the focus-intent query, today's commit count, and on the friday theme a
+    // ledger scan plus a second open of state.db. Nothing printed that line,
+    // and nothing else reads those results.
     println!("{}", line1);
 }
 
@@ -606,3 +427,261 @@ pub fn render_line(db: &StateDb, _last_exit: Option<i32>) -> String {
 // a machine that had never run the doctor. Dead code carrying a lie is worse
 // than dead code: nobody sees it fail, so nobody fixes it, and whoever wires
 // it up later inherits the defect silently.
+
+#[cfg(test)]
+mod line1_tests {
+    use super::*;
+    use std::io::{Read, Write};
+    use std::os::unix::io::FromRawFd;
+
+    // Recorded from render_context before the unprinted second line was removed.
+    // Fixture: a clean git repo named work, branch main, HOME set to its parent,
+    // in-memory state db. The debug-build marker is not part of these literals;
+    // shown() adds it the same way render_context does.
+    const QUIET: &str = "  \u{1b}[48;2;40;242;216m\u{1b}[1m\u{1b}[38;2;12;20;15m \u{e5ff} ~/work \u{1b}[0m\u{1b}[48;2;158;224;78m\u{1b}[38;2;40;242;216m\u{e0b0}\u{1b}[0m\u{1b}[48;2;158;224;78m\u{1b}[1m\u{1b}[38;2;12;20;15m \u{e0a0} main \u{1b}[0m\u{1b}[38;2;158;224;78m\u{e0b0}\u{1b}[0m";
+    const BUSY: &str = "  \u{1b}[48;2;40;242;216m\u{1b}[1m\u{1b}[38;2;12;20;15m \u{e5ff} ~/work \u{1b}[0m\u{1b}[48;2;158;224;78m\u{1b}[38;2;40;242;216m\u{e0b0}\u{1b}[0m\u{1b}[48;2;158;224;78m\u{1b}[1m\u{1b}[38;2;12;20;15m \u{e0a0} main \u{1b}[0m\u{1b}[38;2;158;224;78m\u{e0b0}\u{1b}[0m \u{1b}[1m\u{1b}[38;2;255;130;168m[\u{2717} 7]\u{1b}[0m \u{1b}[38;2;252;213;78m[2 jobs]\u{1b}[0m \u{1b}[2m\u{1b}[38;2;90;110;95m[2.5s]\u{1b}[0m";
+    const MILLIS: &str = "  \u{1b}[48;2;40;242;216m\u{1b}[1m\u{1b}[38;2;12;20;15m \u{e5ff} ~/work \u{1b}[0m\u{1b}[48;2;158;224;78m\u{1b}[38;2;40;242;216m\u{e0b0}\u{1b}[0m\u{1b}[48;2;158;224;78m\u{1b}[1m\u{1b}[38;2;12;20;15m \u{e0a0} main \u{1b}[0m\u{1b}[38;2;158;224;78m\u{e0b0}\u{1b}[0m \u{1b}[2m\u{1b}[38;2;90;110;95m[150ms]\u{1b}[0m";
+    const FAST: &str = "  \u{1b}[48;2;40;242;216m\u{1b}[1m\u{1b}[38;2;12;20;15m \u{e5ff} ~/work \u{1b}[0m\u{1b}[48;2;158;224;78m\u{1b}[38;2;40;242;216m\u{e0b0}\u{1b}[0m\u{1b}[48;2;158;224;78m\u{1b}[1m\u{1b}[38;2;12;20;15m \u{e0a0} main \u{1b}[0m\u{1b}[38;2;158;224;78m\u{e0b0}\u{1b}[0m \u{1b}[38;2;252;213;78m[1 job]\u{1b}[0m";
+    const MINIMAL: &str = "  \u{1b}[38;2;40;242;216m~/work\u{1b}[0m";
+
+    fn shown(release: &str) -> String {
+        if cfg!(debug_assertions) {
+            format!(
+                "\u{1f527}{release} {}",
+                fc_bold(
+                    C_PROMPT_FAIL.0,
+                    C_PROMPT_FAIL.1,
+                    C_PROMPT_FAIL.2,
+                    "[DEBUG BUILD]"
+                )
+            )
+        } else {
+            release.to_string()
+        }
+    }
+
+    struct StdoutGuard {
+        saved: i32,
+        write_end: i32,
+    }
+
+    impl Drop for StdoutGuard {
+        fn drop(&mut self) {
+            let _ = std::io::stdout().flush();
+            unsafe {
+                libc::dup2(self.saved, libc::STDOUT_FILENO);
+                libc::close(self.saved);
+                libc::close(self.write_end);
+            }
+        }
+    }
+
+    fn capture_stdout(f: impl FnOnce()) -> String {
+        let _ = std::io::stdout().flush();
+        let mut fds = [0i32; 2];
+        assert_eq!(unsafe { libc::pipe(fds.as_mut_ptr()) }, 0, "pipe");
+        let saved = unsafe { libc::dup(libc::STDOUT_FILENO) };
+        assert!(saved >= 0, "dup");
+        assert_eq!(
+            unsafe { libc::dup2(fds[1], libc::STDOUT_FILENO) },
+            libc::STDOUT_FILENO,
+            "dup2"
+        );
+        let guard = StdoutGuard {
+            saved,
+            write_end: fds[1],
+        };
+        f();
+        drop(guard);
+        let mut file = unsafe { std::fs::File::from_raw_fd(fds[0]) };
+        let mut buf = String::new();
+        file.read_to_string(&mut buf).unwrap();
+        buf
+    }
+
+    fn git(repo: &std::path::Path, args: &[&str]) {
+        let template = repo
+            .parent()
+            .unwrap()
+            .parent()
+            .unwrap()
+            .join("empty-template");
+        std::fs::create_dir_all(&template).unwrap();
+        let st = std::process::Command::new("git")
+            .args(args)
+            .current_dir(repo)
+            .env("GIT_CONFIG_GLOBAL", "/dev/null")
+            .env("GIT_CONFIG_NOSYSTEM", "1")
+            .env("GIT_TEMPLATE_DIR", &template)
+            .status()
+            .unwrap_or_else(|e| panic!("git {args:?}: {e}"));
+        assert!(st.success(), "git {args:?} -> {st}");
+    }
+
+    fn render_cases() -> String {
+        let base = std::env::temp_dir().join(format!("nsh-prompt-line1-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&base);
+        let home = base.join("home");
+        let repo = home.join("work");
+        std::fs::create_dir_all(&repo).unwrap();
+        git(&repo, &["init", "-b", "main"]);
+        git(
+            &repo,
+            &[
+                "-c",
+                "user.email=t@example.com",
+                "-c",
+                "user.name=Test",
+                "-c",
+                "commit.gpgsign=false",
+                "commit",
+                "--allow-empty",
+                "-m",
+                "init",
+            ],
+        );
+        unsafe {
+            std::env::set_var("HOME", &home);
+            std::env::set_var("GIT_CONFIG_GLOBAL", "/dev/null");
+            std::env::set_var("GIT_CONFIG_NOSYSTEM", "1");
+        }
+        std::env::set_current_dir(&repo).unwrap();
+
+        let db = crate::db::StateDb::open_in_memory().unwrap();
+        let quiet = PromptContext {
+            last_duration_ms: None,
+            last_exit_code: Some(0),
+            job_count: 0,
+        };
+        let busy = PromptContext {
+            last_duration_ms: Some(2500),
+            last_exit_code: Some(7),
+            job_count: 2,
+        };
+        let ms = PromptContext {
+            last_duration_ms: Some(150),
+            last_exit_code: None,
+            job_count: 0,
+        };
+        let fast = PromptContext {
+            last_duration_ms: Some(99),
+            last_exit_code: None,
+            job_count: 1,
+        };
+
+        let mut out = String::new();
+        for (name, theme, ctx) in [
+            ("zero-quiet", "zero", &quiet),
+            ("friday-quiet", "friday", &quiet),
+            ("classic-quiet", "classic", &quiet),
+            ("other-quiet", "other", &quiet),
+            ("minimal-quiet", "minimal", &quiet),
+            ("zero-busy", "zero", &busy),
+            ("friday-busy", "friday", &busy),
+            ("zero-ms", "zero", &ms),
+            ("zero-fast", "zero", &fast),
+        ] {
+            db.set_theme(theme).unwrap();
+            let printed = capture_stdout(|| render_context(&db, ctx));
+            out.push_str(&format!("== {name} ==\n"));
+            out.push_str(&printed);
+            if !printed.ends_with('\n') {
+                out.push('\n');
+            }
+        }
+
+        db.conn
+            .execute(
+                "INSERT OR REPLACE INTO shell_state (key, value) VALUES ('focus_intent', 'INT-9')",
+                [],
+            )
+            .unwrap();
+        db.conn
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS events (
+                    id INTEGER PRIMARY KEY,
+                    domain TEXT,
+                    action TEXT,
+                    payload TEXT,
+                    timestamp INTEGER
+                );
+                INSERT INTO events (domain, action, payload, timestamp)
+                VALUES ('git', 'commit', 'x', strftime('%s','now'));",
+            )
+            .unwrap();
+        for (name, theme) in [("zero-loaded", "zero"), ("friday-loaded", "friday")] {
+            db.set_theme(theme).unwrap();
+            let printed = capture_stdout(|| render_context(&db, &quiet));
+            out.push_str(&format!("== {name} ==\n"));
+            out.push_str(&printed);
+            if !printed.ends_with('\n') {
+                out.push('\n');
+            }
+        }
+        let _ = std::fs::remove_dir_all(&base);
+        out
+    }
+
+    fn section<'a>(report: &'a str, name: &str) -> &'a str {
+        let marker = format!("== {name} ==\n");
+        let start = report
+            .find(&marker)
+            .unwrap_or_else(|| panic!("missing section {name}"));
+        let rest = &report[start + marker.len()..];
+        let end = rest.find("\n== ").map(|i| i + 1).unwrap_or(rest.len());
+        &rest[..end]
+    }
+
+    fn expect(name: &str, line: &str) -> (String, String) {
+        (name.to_string(), format!("{line}\n"))
+    }
+
+    #[test]
+    fn prompt_line1_matches_the_recorded_output() {
+        if std::env::var_os("NSH_PROMPT_LINE1_CHILD").is_some() {
+            let path = std::env::var("NSH_PROMPT_LINE1_OUT").expect("out path");
+            std::fs::write(&path, render_cases()).unwrap();
+            return;
+        }
+        let out = std::env::temp_dir().join(format!(
+            "nsh-prompt-line1-{}-{}.txt",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let exe = std::env::current_exe().unwrap();
+        let status = std::process::Command::new(&exe)
+            .args([
+                "prompt::line1_tests::prompt_line1_matches_the_recorded_output",
+                "--exact",
+                "--test-threads=1",
+                "--nocapture",
+            ])
+            .env("NSH_PROMPT_LINE1_CHILD", "1")
+            .env("NSH_PROMPT_LINE1_OUT", &out)
+            .status()
+            .unwrap();
+        assert!(status.success(), "child exit {status}");
+        let got = std::fs::read_to_string(&out).unwrap();
+        let _ = std::fs::remove_file(&out);
+        let quiet = shown(QUIET);
+        let expected = [
+            expect("zero-quiet", &quiet),
+            expect("friday-quiet", &quiet),
+            expect("classic-quiet", &quiet),
+            expect("other-quiet", &quiet),
+            expect("minimal-quiet", MINIMAL),
+            expect("zero-busy", &shown(BUSY)),
+            expect("friday-busy", &shown(BUSY)),
+            expect("zero-ms", &shown(MILLIS)),
+            expect("zero-fast", &shown(FAST)),
+            expect("zero-loaded", &quiet),
+            expect("friday-loaded", &quiet),
+        ];
+        for (name, line) in &expected {
+            assert_eq!(section(&got, name), line.as_str(), "{name}");
+        }
+    }
+}
