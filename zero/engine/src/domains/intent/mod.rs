@@ -1784,6 +1784,13 @@ fn decide_versions(
     Ok(plans)
 }
 
+/// INT-306: the commit message cicomplete suggests for a version bump. cicomplete does not
+/// commit. The Release trailer is what makes that commit exempt. Red stub: wrong on purpose.
+fn release_commit_message(id: &str, versions: &[String]) -> String {
+    let _ = (id, versions);
+    String::new()
+}
+
 /// INT-271: write every planned bump through the one owner, then sync Cargo.lock for it. Returns
 /// the Versions receipt for the intent. A write that fails stops the close: the caller does not
 /// move the intent, and the message names what was written and how to finish.
@@ -4885,5 +4892,26 @@ mod template_tests {
     #[test]
     fn future_row_exists() {
         assert!(super::TEMPLATES.iter().any(|(t, ..)| *t == "future"));
+    }
+}
+
+/// INT-306 G5. Ignored until the guard exists, so a bare cargo test stays green.
+#[cfg(test)]
+mod g5_release_tests {
+    #[test]
+    #[ignore = "INT-306 G5 red; cicomplete does not yet name the Release trailer"]
+    fn g5_release_commit_message_names_the_versions() {
+        let msg = super::release_commit_message(
+            "295",
+            &[
+                "nsh 5.3.12".to_string(),
+                "nsh-test 2.0.15".to_string(),
+                "zero-doctor 0.1.4".to_string(),
+            ],
+        );
+        assert_eq!(
+            msg,
+            "INT-295: complete; nsh 5.3.12, nsh-test 2.0.15, zero-doctor 0.1.4\n\nIntent: INT-295\nRelease: nsh 5.3.12, nsh-test 2.0.15, zero-doctor 0.1.4\n"
+        );
     }
 }
