@@ -1,0 +1,124 @@
+INT-306: started; G0 recon stands and G1-G3 are ruled -- plan
+  E1 zero/intents/future/306-commits-that-name-an-intent-carry-its-seal.md -> zero/intents/in-progress/306-commits-that-name-an-intent-carry-its-seal.md: cistart, status planned to in-progress
+     - status: planned
+     + status: in-progress
+  E2 zero/intents/in-progress/306-commits-that-name-an-intent-carry-its-seal.md: seal_digest is trace.rs:227
+     - (zero/engine/src/domains/intent/trace.rs:226) is the first 16 hex of sha256 over
+     + (zero/engine/src/domains/intent/trace.rs:227) is the first 16 hex of sha256 over
+  E3 zero/intents/in-progress/306-commits-that-name-an-intent-carry-its-seal.md: tick G0; the recon stands
+     - - [ ] G0 The recon in The Problem is read against the tree and either stands or
+     -       is corrected here before any other gate. Re-read: .githooks has no
+     -       commit-msg and no post-commit; zero-gate's stages are pre-commit, pre-push
+     -       and all, and none reads a trailer; check_seal is the one verdict; a note
+     -       cannot be added until the commit object exists; post-commit cannot refuse;
+     -       d69ff1ec carries Intent and no Seal; F-0116's lookup goes through
+     -       parse_fixes and drops a 16-hex value. Proof: a dated line in this file
+     -       saying the recon stands, or the correction.
+     + - [x] G0 The recon in The Problem is read against the tree and either stands or
+     +       is corrected here before any other gate. Re-read: .githooks has no
+     +       commit-msg and no post-commit; zero-gate's stages are pre-commit, pre-push
+     +       and all, and none reads a trailer; check_seal is the one verdict; a note
+     +       cannot be added until the commit object exists; post-commit cannot refuse;
+     +       d69ff1ec carries Intent and no Seal; F-0116's lookup goes through
+     +       parse_fixes and drops a 16-hex value. Proof: a dated line in this file
+     +       saying the recon stands, or the correction.
+     + <!-- evidence: 2026-11-10. Re-read against 8691e49f. The recon stands after one citation. .githooks holds pre-commit, pre-push, lib/nsh-test-gate.sh and README.md; no commit-msg and no post-commit. pre-commit and pre-push each exec an executable at target/debug/zero-gate, then target/release/zero-gate, then zero-gate on PATH, and exit 1 if none is there. zero-gate answers pre-commit (secrets, gitleaks, formatting, retired spawns), pre-push (.githooks/lib/nsh-test-gate.sh, then cargo test -p core) and all; no stage reads an Intent or Seal trailer. Cargo.toml depends on libc only. --help is that list. README.md still says pre-commit is secrets, risk tiers, formatting and pre-push is the shell test suite. check_seal is trace.rs:253. seal_digest is the function at trace.rs:227; the filed text said 226, which is the doc comment, and that citation is corrected above. check_commit_seal is 442, trace_commit 501, trace_seal 532, seal_commits 467, parse_fixes 79, is_finding_id 74. parse_fixes returns only values is_finding_id accepts, F- and four digits, so a 16-hex seal is dropped. d69ff1ec carries Intent: INT-295 and no Seal. INT-266 line 67 records git notes --ref=seals add --no-stripspace -F. A note is stored on the commit object, so it cannot be added until that object exists, and post-commit cannot refuse. core.hooksPath is not a file in the tree; .githooks/README.md says to set it to .githooks. -->
+  E4 zero/intents/in-progress/306-commits-that-name-an-intent-carry-its-seal.md: tick G1
+     - - [ ] G1 Where the guard lives. Christian rules one home, or a split, and why.
+     -       The options left open: a script at .githooks/commit-msg; a new zero-gate
+     -       stage, knowing the crate does not depend on zero-core; a core intent
+     -       subcommand that a hook calls; another place he names. The ruling says what
+     -       that home can see when it runs, and what it cannot. No code before this
+     -       line exists. Proof: the RULED line.
+     + - [x] G1 Where the guard lives. Christian rules one home, or a split, and why.
+     +       The options left open: a script at .githooks/commit-msg; a new zero-gate
+     +       stage, knowing the crate does not depend on zero-core; a core intent
+     +       subcommand that a hook calls; another place he names. The ruling says what
+     +       that home can see when it runs, and what it cannot. No code before this
+     +       line exists. Proof: the RULED line.
+     + RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): the trailer check lives in a new .githooks/commit-msg script that refuses a message carrying Intent: INT-xxx without Seal: of 16 hex; the note check lives in core intent (a subcommand the hook calls), so zero-gate stays free of the intent ledger. commit-msg sees the message only; core intent sees the commit and refs/notes/seals.
+  E5 zero/intents/in-progress/306-commits-that-name-an-intent-carry-its-seal.md: tick G2
+     - - [ ] G2 How the note is checked. One check cannot both refuse the message and
+     -       hash the note, because the note can be added only after the commit exists.
+     -       Christian rules the split. One shape to accept, change or reject:
+     -       commit-msg refuses a message that carries Intent: and no Seal: of 16 hex,
+     -       and a later check requires the note under refs/notes/seals and requires
+     -       its sha256 to match the seal. post-commit can only warn. pre-push can
+     -       refuse. The ruling names which of those, or another, does the hash, and
+     -       names the command that stores the note. stripspace makes a true plan read
+     -       Broken (F-0023, F-0063). The forms already in use are --no-stripspace -F,
+     -       and hash-object -w then notes add -C. The hash stays seal_digest; the
+     -       later check asks that verdict (check_seal, as core intent trace and
+     -       core intent seals already do) rather than a second implementation.
+     -       Proof: the RULED line.
+     + - [x] G2 How the note is checked. One check cannot both refuse the message and
+     +       hash the note, because the note can be added only after the commit exists.
+     +       Christian rules the split. One shape to accept, change or reject:
+     +       commit-msg refuses a message that carries Intent: and no Seal: of 16 hex,
+     +       and a later check requires the note under refs/notes/seals and requires
+     +       its sha256 to match the seal. post-commit can only warn. pre-push can
+     +       refuse. The ruling names which of those, or another, does the hash, and
+     +       names the command that stores the note. stripspace makes a true plan read
+     +       Broken (F-0023, F-0063). The forms already in use are --no-stripspace -F,
+     +       and hash-object -w then notes add -C. The hash stays seal_digest; the
+     +       later check asks that verdict (check_seal, as core intent trace and
+     +       core intent seals already do) rather than a second implementation.
+     +       Proof: the RULED line.
+     + RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): pre-push does the hash, calling the core intent check that uses check_seal (no second implementation); a missing or broken note refuses the push. Notes are stored with `git notes --ref=seals add --no-stripspace -F <plan> <commit>`.
+  E6 zero/intents/in-progress/306-commits-that-name-an-intent-carry-its-seal.md: tick G3
+     - - [ ] G3 The escape hatch for a release commit. d69ff1ec carries Intent: and no
+     -       Seal:, and it is the cicomplete version bump. Christian rules whether that
+     -       class is exempt, and how an exemption is named so a skipped check cannot
+     -       look like a passed one. If nothing is exempt, he rules what cicomplete
+     -       must start putting on the bump commit. a36327cc through 200f5cbd and
+     -       d69ff1ec stay as they are either way. Proof: the RULED line.
+     + - [x] G3 The escape hatch for a release commit. d69ff1ec carries Intent: and no
+     +       Seal:, and it is the cicomplete version bump. Christian rules whether that
+     +       class is exempt, and how an exemption is named so a skipped check cannot
+     +       look like a passed one. If nothing is exempt, he rules what cicomplete
+     +       must start putting on the bump commit. a36327cc through 200f5cbd and
+     +       d69ff1ec stay as they are either way. Proof: the RULED line.
+     + RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): a release commit is exempt only when it carries a `Release:` trailer naming the version bump; cicomplete adds it to its bump commit; the exemption is printed by the check so a skip never reads as a pass. Earlier commits stay as they are.
+  E7 zero/intents/in-progress/306-commits-that-name-an-intent-carry-its-seal.md: rule G4, leave open
+     - - [ ] G4 Whether to also fix F-0116 (trace by seal value). The cause is in The
+     -       Problem. Christian rules: fix it in this intent, or leave it open. If it
+     -       is fixed here, a failing test comes first, under its own plan Seal, and
+     -       the commit that turns it green carries Fixes: F-0116. If it is left, this
+     -       gate says so and F-0116 stays open. Proof: the RULED line, and, if the fix
+     -       landed, core intent trace of a seal that trace by commit already reads as
+     -       intact.
+     + - [ ] G4 Whether to also fix F-0116 (trace by seal value). The cause is in The
+     +       Problem. Christian rules: fix it in this intent, or leave it open. If it
+     +       is fixed here, a failing test comes first, under its own plan Seal, and
+     +       the commit that turns it green carries Fixes: F-0116. If it is left, this
+     +       gate says so and F-0116 stays open. Proof: the RULED line, and, if the fix
+     +       landed, core intent trace of a seal that trace by commit already reads as
+     +       intact.
+     + RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): fix F-0116 in this intent, failing test first under its own Seal, the green commit carries Fixes: F-0116.
+  E8 zero/intents/in-progress/306-commits-that-name-an-intent-carry-its-seal.md: rule G7, leave the wording open
+     - - [ ] G7 Optional. Christian floated tying seals to cistart. Today cistart is
+     -       core intent start (zero/engine/src/domains/intent/mod.rs, start, around
+     -       line 905): it moves the file from future/ to in-progress/, sets focus, and
+     -       prints the id, the title and that the intent is focused. It does not
+     -       mention Seal. He rules whether cistart also prints a reminder that commits
+     -       for this intent need a Seal. Declining it, with the reason, closes the
+     -       gate. If he wants the line, the wording is his and it is shown before it
+     -       is added. Proof: the RULED line, and the printed reminder if one was added.
+     + - [ ] G7 Optional. Christian floated tying seals to cistart. Today cistart is
+     +       core intent start (zero/engine/src/domains/intent/mod.rs, start, around
+     +       line 905): it moves the file from future/ to in-progress/, sets focus, and
+     +       prints the id, the title and that the intent is focused. It does not
+     +       mention Seal. He rules whether cistart also prints a reminder that commits
+     +       for this intent need a Seal. Declining it, with the reason, closes the
+     +       gate. If he wants the line, the wording is his and it is shown before it
+     +       is added. Proof: the RULED line, and the printed reminder if one was added.
+     + RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): cistart prints a one-line seal reminder; the wording is Christian's and is shown to him before it is added.
+  E9 zero/intents/in-progress/306-commits-that-name-an-intent-carry-its-seal.md: Open for Christian keeps the G7 wording
+     - ## Open for Christian
+     - - G1, where the guard lives.
+     - - G2, which hook hashes the note, and the command that stores it.
+     - - G3, whether a cicomplete bump may carry Intent: and no Seal:.
+     - - G4, whether F-0116 is fixed here.
+     - - G7, whether cistart prints the reminder.
+     + ## Open for Christian
+     + - G7, the wording of the one-line seal reminder cistart prints. It is Christian's and is shown to him before it is added.
