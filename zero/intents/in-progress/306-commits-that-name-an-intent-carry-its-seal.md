@@ -119,7 +119,7 @@ RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): pre-
       must start putting on the bump commit. a36327cc through 200f5cbd and
       d69ff1ec stay as they are either way. Proof: the RULED line.
 RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): a release commit is exempt only when it carries a `Release:` trailer naming the version bump; cicomplete adds it to its bump commit; the exemption is printed by the check so a skip never reads as a pass. Earlier commits stay as they are.
-- [ ] G4 Whether to also fix F-0116 (trace by seal value). The cause is in The
+- [x] G4 Whether to also fix F-0116 (trace by seal value). The cause is in The
       Problem. Christian rules: fix it in this intent, or leave it open. If it
       is fixed here, a failing test comes first, under its own plan Seal, and
       the commit that turns it green carries Fixes: F-0116. If it is left, this
@@ -127,6 +127,7 @@ RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): a re
       landed, core intent trace of a seal that trace by commit already reads as
       intact.
 RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): fix F-0116 in this intent, failing test first under its own Seal, the green commit carries Fixes: F-0116.
+<!-- evidence: 2026-11-10. Red commit 348fedc2, Seal 77dfcd32120bcd22. cargo test -p core g4_ -- --ignored --nocapture --test-threads=1 exited 101: 0 passed, 1 failed, 0.03s. The failure is trace by seal value finds the one commit whose Seal trailer matches 474153ed4ed68b90, got [], left 0 right 1. cargo test -p core on that commit: 265 passed, 0 failed, 1 ignored. Green, this commit: the ignore is gone. seal_commits keeps a value is_seal_token accepts, and the verdict is check_seal. core intent trace 68ca1811565da386 prints 507f95c5 and "seal 68ca1811565da386 intact -- the plan text kept in refs/notes/seals hashes to it". -->
 - [x] G5 Red, then the guard, only after G1, G2 and G3 are ruled. Shown failing
       first: a message that carries Intent: and no Seal:; a Seal whose note is
       missing; a note that hashes to something else. Then the ruled exemption

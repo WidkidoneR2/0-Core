@@ -463,8 +463,9 @@ fn commit_header(core_root: &str, rev: &str) -> Result<(String, String), String>
     }
 }
 
-/// Every seal on the current branch with the commit that carries it -- the same line shape as
-/// Fixes:, so parse_fixes reads it. Err when git cannot be read.
+/// Every seal on the current branch with the commit that carries it. The log line has the
+/// same shape as Fixes:, and parse_fixes keeps only F-NNNN, so a 16-hex seal was dropped
+/// (F-0116). A value counts when is_seal_token accepts it. Err when git cannot be read.
 fn seal_commits(core_root: &str) -> Result<Vec<(String, String)>, String> {
     let text = git_read(
         core_root,
@@ -474,7 +475,23 @@ fn seal_commits(core_root: &str) -> Result<Vec<(String, String)>, String> {
             "HEAD",
         ],
     )?;
-    Ok(parse_fixes(&text))
+    Ok(parse_seals(&text))
+}
+
+/// One line per commit: the hash, a TAB, then its Seal values, comma-separated. A value is
+/// kept only when it is 16 lowercase hex, the same rule as the commit-msg guard.
+fn parse_seals(text: &str) -> Vec<(String, String)> {
+    let mut got = Vec::new();
+    for line in text.lines() {
+        if let Some((hash, values)) = line.split_once('\t') {
+            for value in values.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+                if is_seal_token(value) {
+                    got.push((value.to_string(), hash.to_string()));
+                }
+            }
+        }
+    }
+    got
 }
 
 /// Print each finding id a trailer names, with what its record says. Returns how many it printed.
@@ -1978,8 +1995,8 @@ mod g5_seal_guard_tests {
     }
 }
 
-/// INT-306 G4. Ignored until trace by a seal value keeps a 16-hex seal, so a
-/// bare cargo test stays green. The red run is cargo test -p core g4_ -- --ignored.
+/// INT-306 G4. Trace by a seal value finds the commit whose Seal trailer matches and
+/// reads the verdict through check_seal. The test was ignored on the red commit.
 #[cfg(test)]
 mod g4_trace_by_seal_tests {
     use super::{check_commit_seal, seal_commits, seal_digest, seal_notes, SealCheck};
@@ -2084,7 +2101,6 @@ mod g4_trace_by_seal_tests {
     }
 
     #[test]
-    #[ignore = "INT-306 G4 red; trace by seal value drops a 16-hex seal, so cargo test does not run this"]
     fn g4_trace_by_seal_value_finds_the_commit_and_reads_its_verdict() {
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
