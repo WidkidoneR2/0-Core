@@ -1,0 +1,543 @@
+INT-307: G7 is green -- findings is the cheat-style screen -- plan
+  E1 Cargo.lock: core depends on ratatui 0.28.1 and crossterm 0.28.1
+     +  "crossterm 0.28.1",
+     +  "ratatui 0.28.1",
+  E2 zero/engine/Cargo.toml: the findings screen uses ratatui and crossterm, the cheat framework
+     + ratatui = "0.28"
+     + crossterm = "0.28"
+  E3 zero/engine/src/app/dispatcher.rs: core findings opens the screen
+     +         Command::Findings => {
+     +             ctx.capabilities.require(
+     +                 "intent",
+     +                 &[Capability::FilesystemReadHome, Capability::SpawnProcess],
+     +             )?;
+     +             crate::domains::intent::findings_tui::run(ctx)
+     +         }
+  E4 zero/engine/src/cli/commands.rs: Command::Findings
+     +     /// INT-307: open the findings screen.
+     +     Findings,
+  E5 zero/engine/src/cli/mod.rs: parse Findings
+     +         Commands::Findings => Command::Findings,
+  E6 zero/engine/src/cli/parser.rs: core findings
+     +     /// INT-307: the findings screen. Same framework as cheat.
+     +     Findings,
+  E7 zero/engine/src/domains/intent/mod.rs: declare the screen module
+     + /// INT-307: the findings screen. ratatui and crossterm, the same framework as cheat.
+     + pub mod findings_tui;
+     - /// INT-307: the findings screen's rows, sort, filter, and color. Red: the tests are ignored.
+     + /// INT-307: the findings screen's rows, sort, filter, and color.
+  E8 zero/engine/src/domains/intent/view.rs: the rows, sort, filter, color, guard, and detail answer; the ignores are gone
+     - use super::bug::{day_number, FixFacts};
+     + use super::bug::{day_number, story, FixFacts};
+     - use super::trace::{SealCheck, State};
+     + use super::trace::{state_of, State};
+     -     pub fn enter(screen: S) -> Self {
+     +     pub fn enter(mut screen: S) -> Self {
+     +         screen.enter_raw();
+     +         screen.enter_alt();
+     -             active: false,
+     +             active: true,
+     -     pub fn restore(&mut self) {}
+     +     pub fn restore(&mut self) {
+     +         if self.active {
+     +             self.screen.leave_alt();
+     +             self.screen.leave_raw();
+     +             self.active = false;
+     +         }
+     +     }
+     -     let _ = (records, fixes, days);
+     -     Vec::new()
+     +     let mut rows = Vec::with_capacity(records.len());
+     +     for record in records {
+     +         let state = state_of(record, fixes);
+     +         let (word, mut tone, fixed) = match &state {
+     +             State::Fixed(hashes) => ("fixed", Tone::Fixed, fixed_date(hashes, days)),
+     +             State::Open => ("open", Tone::Open, EM_DASH.to_string()),
+     +             State::Closed(_) => ("closed", Tone::Open, EM_DASH.to_string()),
+     +             State::Unread(_) => ("unknown", Tone::Open, EM_DASH.to_string()),
+     +         };
+     +         if !matches!(state, State::Fixed(_)) && record.severity == "unrated" {
+     +             tone = Tone::Unrated;
+     +         }
+     +         let high_marker = record.severity == "high" && !matches!(state, State::Fixed(_));
+     +         rows.push(FindingRow {
+     +             id: record.id.clone(),
+     +             description: record.what.clone(),
+     +             found: date_or_dash(&record.found_on),
+     +             fixed,
+     +             severity: record.severity.clone(),
+     +             state: word.to_string(),
+     +             tone,
+     +             high_marker,
+     +         });
+     +     }
+     +     order(rows)
+     - pub fn order(rows: Vec<FindingRow>) -> Vec<FindingRow> {
+     + pub fn order(mut rows: Vec<FindingRow>) -> Vec<FindingRow> {
+     +     rows.sort_by(|a, b| {
+     +         let group = |row: &FindingRow| if row.state == "fixed" { 1 } else { 0 };
+     +         let sev = |row: &FindingRow| {
+     +             if row.state == "fixed" {
+     +                 0
+     +             } else {
+     +                 severity_rank(&row.severity)
+     +             }
+     +         };
+     +         group(a)
+     +             .cmp(&group(b))
+     +             .then_with(|| sev(a).cmp(&sev(b)))
+     +             .then_with(|| a.id.cmp(&b.id))
+     +     });
+     -     let _ = (query, key);
+     -     rows.to_vec()
+     +     let q = query.to_lowercase();
+     +     rows.iter()
+     +         .filter(|row| {
+     +             let typed = q.is_empty()
+     +                 || row
+     +                     .columns()
+     +                     .iter()
+     +                     .any(|col| col.to_lowercase().contains(&q));
+     +             let keyed = match key {
+     +                 KeyFilter::All => true,
+     +                 KeyFilter::Open => row.state == "open",
+     +                 KeyFilter::High => row.severity == "high",
+     +             };
+     +             typed && keyed
+     +         })
+     +         .cloned()
+     +         .collect()
+     -     let _ = color;
+     +     let plain = row.columns().join("  ");
+     +     if !color {
+     +         return Paint {
+     +             text: plain,
+     +             ansi: false,
+     +             tone: row.tone,
+     +             bold: false,
+     +         };
+     +     }
+     +     let (r, g, b) = match row.tone {
+     +         Tone::Fixed => (57, 255, 20),
+     +         Tone::Open => (255, 80, 80),
+     +         Tone::Unrated => (255, 200, 50),
+     +     };
+     +     let body = format!("\x1b[38;2;{r};{g};{b}m{plain}\x1b[0m");
+     +     let text = if row.high_marker {
+     +         format!("\x1b[1m{body}")
+     +     } else {
+     +         body
+     +     };
+     -         text: row.columns().join("  "),
+     +         text,
+     -         tone: Tone::Open,
+     -         bold: false,
+     +         tone: row.tone,
+     +         bold: row.high_marker,
+     -     let _ = (record, state, facts);
+     -     String::new()
+     +     story(record, state, facts).text
+     + /// A row plus the text Enter shows.
+     + #[derive(Debug, Clone, PartialEq, Eq)]
+     + pub struct Card {
+     +     pub row: FindingRow,
+     +     pub detail: String,
+     + }
+     +
+     + /// The screen's list. Records come from the findings reader, state from
+     + /// `state_of`, days and seals from git. A date git cannot give is the em dash.
+     + pub fn load_cards(ctx: &crate::app::context::AppContext) -> Result<Vec<Card>, String> {
+     +     use super::bug::fix_day;
+     +     use super::trace::{check_commit_seal, git_read, seal_notes};
+     +
+     +     let dir = super::intents_dir(ctx).join("findings");
+     +     let records = super::findings::read_records(&dir)?;
+     +     let fixes = super::trace::fixes(&ctx.core_root);
+     +     let mut days: HashMap<String, String> = HashMap::new();
+     +     if let Ok(named) = &fixes {
+     +         for (_, hash) in named {
+     +             if days.contains_key(hash) {
+     +                 continue;
+     +             }
+     +             if let Ok(day) = fix_day(&ctx.core_root, std::slice::from_ref(hash)) {
+     +                 days.insert(hash.clone(), day);
+     +             }
+     +         }
+     +     }
+     +     let rows = assemble(&records, &fixes, &days);
+     +     let notes = seal_notes(&ctx.core_root).unwrap_or_default();
+     +     let mut cards = Vec::with_capacity(records.len());
+     +     for record in &records {
+     +         let state = state_of(record, &fixes);
+     +         let facts = match &state {
+     +             State::Fixed(hashes) => hashes
+     +                 .iter()
+     +                 .filter_map(|hash| {
+     +                     let day = days
+     +                         .get(hash)
+     +                         .cloned()
+     +                         .unwrap_or_else(|| EM_DASH.to_string());
+     +                     let subject = git_read(&ctx.core_root, &["log", "-1", "--format=%s", hash])
+     +                         .unwrap_or_default();
+     +                     let seal = check_commit_seal(&ctx.core_root, &notes, hash).ok()?;
+     +                     Some(FixFacts {
+     +                         hash: hash.clone(),
+     +                         day,
+     +                         subject: subject.trim().to_string(),
+     +                         seal,
+     +                     })
+     +                 })
+     +                 .collect(),
+     +             _ => Vec::new(),
+     +         };
+     +         let detail = detail_text(record, &state, &facts);
+     +         if let Some(row) = rows.iter().find(|row| row.id == record.id) {
+     +             cards.push(Card {
+     +                 row: row.clone(),
+     +                 detail,
+     +             });
+     +         }
+     +     }
+     +     cards.sort_by_key(|card| {
+     +         rows.iter()
+     +             .position(|row| row.id == card.row.id)
+     +             .unwrap_or(usize::MAX)
+     +     });
+     +     Ok(cards)
+     + }
+     +
+     +     use super::super::trace::SealCheck;
+     -     #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
+  E9 zero/engine/src/domains/intent/findings_tui.rs: create: the screen, ratatui and crossterm, Enter shows the finding and its seal
+     + //! INT-307: `findings` -- the findings screen. Same shape as cheat: ratatui,
+     + //! crossterm, the alternate screen. The rows come from `view`, which asks the
+     + //! one findings reader.
+     +
+     + use super::view::{
+     +     apply_filter, colors_enabled, load_cards, paint, Card, Guard, KeyFilter, Screen, Tone,
+     + };
+     + use crate::app::context::AppContext;
+     + use crate::errors::{CoreError, CoreResult};
+     + use crossterm::{
+     +     event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+     +     execute,
+     +     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
+     + };
+     + use ratatui::{
+     +     backend::CrosstermBackend,
+     +     layout::{Constraint, Direction, Layout},
+     +     style::{Color, Modifier, Style},
+     +     text::{Line, Span},
+     +     widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
+     +     Frame, Terminal,
+     + };
+     + use std::io::{self, IsTerminal, Write};
+     +
+     + struct TermScreen;
+     +
+     + impl Screen for TermScreen {
+     +     fn enter_raw(&mut self) {
+     +         let _ = enable_raw_mode();
+     +     }
+     +     fn leave_raw(&mut self) {
+     +         let _ = disable_raw_mode();
+     +     }
+     +     fn enter_alt(&mut self) {
+     +         let _ = execute!(io::stdout(), EnterAlternateScreen);
+     +     }
+     +     fn leave_alt(&mut self) {
+     +         let _ = execute!(io::stdout(), LeaveAlternateScreen);
+     +     }
+     + }
+     +
+     + fn tone_style(tone: Tone, color: bool, bold: bool) -> Style {
+     +     if !color {
+     +         return Style::default();
+     +     }
+     +     let rgb = match tone {
+     +         Tone::Fixed => Color::Rgb(57, 255, 20),
+     +         Tone::Open => Color::Rgb(255, 80, 80),
+     +         Tone::Unrated => Color::Rgb(255, 200, 50),
+     +     };
+     +     let style = Style::default().fg(rgb);
+     +     if bold {
+     +         style.add_modifier(Modifier::BOLD)
+     +     } else {
+     +         style
+     +     }
+     + }
+     +
+     + /// Open the screen. A pipe prints the rows in plain text and does not take
+     + /// the terminal. NO_COLOR keeps the screen and drops the color.
+     + pub fn run(ctx: &AppContext) -> CoreResult<()> {
+     +     let cards = load_cards(ctx).map_err(CoreError::Runtime)?;
+     +     let color = colors_enabled(
+     +         std::env::var_os("NO_COLOR").is_some(),
+     +         io::stdout().is_terminal(),
+     +     );
+     +     if !io::stdout().is_terminal() {
+     +         let mut out = io::stdout();
+     +         for card in &cards {
+     +             let _ = writeln!(out, "{}", paint(&card.row, false).text);
+     +         }
+     +         return Ok(());
+     +     }
+     +
+     +     let mut guard = Guard::enter(TermScreen);
+     +     let backend = CrosstermBackend::new(io::stdout());
+     +     let mut terminal = match Terminal::new(backend) {
+     +         Ok(t) => t,
+     +         Err(e) => {
+     +             guard.restore();
+     +             return Err(CoreError::Runtime(format!(
+     +                 "findings: the terminal did not open ({e}). The screen was restored."
+     +             )));
+     +         }
+     +     };
+     +     let panicked = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+     +         run_loop(&mut terminal, &cards, color);
+     +     }));
+     +     drop(terminal);
+     +     guard.restore();
+     +     if let Err(payload) = panicked {
+     +         std::panic::resume_unwind(payload);
+     +     }
+     +     Ok(())
+     + }
+     +
+     + fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, cards: &[Card], color: bool) {
+     +     let mut key = KeyFilter::All;
+     +     let mut search = String::new();
+     +     let mut searching = false;
+     +     let mut list_state = ListState::default();
+     +     list_state.select(Some(0));
+     +     let mut detail = false;
+     +     let mut scroll: u16 = 0;
+     +     loop {
+     +         let rows: Vec<_> = cards.iter().map(|c| c.row.clone()).collect();
+     +         let shown = apply_filter(&rows, &search, key);
+     +         let _ = terminal.draw(|f| {
+     +             draw(
+     +                 f,
+     +                 cards,
+     +                 &shown.iter().map(|r| r.id.as_str()).collect::<Vec<_>>(),
+     +                 &mut list_state,
+     +                 key,
+     +                 &search,
+     +                 searching,
+     +                 detail,
+     +                 scroll,
+     +                 color,
+     +             );
+     +         });
+     +         let Ok(Event::Key(KeyEvent {
+     +             code, modifiers, ..
+     +         })) = event::read()
+     +         else {
+     +             continue;
+     +         };
+     +         if searching {
+     +             match code {
+     +                 KeyCode::Esc => {
+     +                     searching = false;
+     +                     search.clear();
+     +                     list_state.select(Some(0));
+     +                 }
+     +                 KeyCode::Enter => searching = false,
+     +                 KeyCode::Backspace => {
+     +                     search.pop();
+     +                     list_state.select(Some(0));
+     +                 }
+     +                 KeyCode::Char(c) => {
+     +                     search.push(c);
+     +                     list_state.select(Some(0));
+     +                 }
+     +                 _ => {}
+     +             }
+     +             continue;
+     +         }
+     +         if detail {
+     +             match code {
+     +                 KeyCode::Esc | KeyCode::Enter | KeyCode::Char('q') => detail = false,
+     +                 KeyCode::Char('c') if modifiers.contains(KeyModifiers::CONTROL) => return,
+     +                 KeyCode::Down | KeyCode::Char('j') => scroll = scroll.saturating_add(1),
+     +                 KeyCode::Up | KeyCode::Char('k') => scroll = scroll.saturating_sub(1),
+     +                 _ => {}
+     +             }
+     +             continue;
+     +         }
+     +         match (code, modifiers) {
+     +             (KeyCode::Char('q'), _) | (KeyCode::Esc, _) => return,
+     +             (KeyCode::Char('c'), m) if m.contains(KeyModifiers::CONTROL) => return,
+     +             (KeyCode::Down, _) | (KeyCode::Char('j'), _) => {
+     +                 let i = list_state.selected().unwrap_or(0);
+     +                 let n = shown.len().saturating_sub(1);
+     +                 list_state.select(Some((i + 1).min(n)));
+     +                 scroll = 0;
+     +             }
+     +             (KeyCode::Up, _) | (KeyCode::Char('k'), _) => {
+     +                 let i = list_state.selected().unwrap_or(0);
+     +                 list_state.select(Some(i.saturating_sub(1)));
+     +                 scroll = 0;
+     +             }
+     +             (KeyCode::Char('o'), _) => {
+     +                 key = KeyFilter::Open;
+     +                 list_state.select(Some(0));
+     +             }
+     +             (KeyCode::Char('h'), _) => {
+     +                 key = KeyFilter::High;
+     +                 list_state.select(Some(0));
+     +             }
+     +             (KeyCode::Char('a'), _) => {
+     +                 key = KeyFilter::All;
+     +                 search.clear();
+     +                 list_state.select(Some(0));
+     +             }
+     +             (KeyCode::Char('/'), _) => searching = true,
+     +             (KeyCode::Enter, _) => detail = true,
+     +             _ => {}
+     +         }
+     +     }
+     + }
+     +
+     + fn selected_id<'a>(ids: &'a [&str], state: &ListState) -> Option<&'a str> {
+     +     ids.get(state.selected().unwrap_or(0)).copied()
+     + }
+     +
+     + fn draw(
+     +     f: &mut Frame,
+     +     cards: &[Card],
+     +     ids: &[&str],
+     +     list_state: &mut ListState,
+     +     key: KeyFilter,
+     +     search: &str,
+     +     searching: bool,
+     +     detail: bool,
+     +     scroll: u16,
+     +     color: bool,
+     + ) {
+     +     let chunks = Layout::default()
+     +         .direction(Direction::Vertical)
+     +         .constraints([
+     +             Constraint::Length(3),
+     +             Constraint::Min(8),
+     +             Constraint::Length(3),
+     +         ])
+     +         .split(f.area());
+     +     let key_name = match key {
+     +         KeyFilter::All => "all",
+     +         KeyFilter::Open => "open",
+     +         KeyFilter::High => "high",
+     +     };
+     +     let query = if searching {
+     +         format!("/{search}_")
+     +     } else if search.is_empty() {
+     +         String::new()
+     +     } else {
+     +         format!("/{search}")
+     +     };
+     +     let header = Paragraph::new(Line::from(vec![
+     +         Span::styled(
+     +             "  findings  ",
+     +             Style::default()
+     +                 .fg(Color::Rgb(107, 227, 163))
+     +                 .add_modifier(Modifier::BOLD),
+     +         ),
+     +         Span::raw(format!("{}  {key_name}  {query}", ids.len())),
+     +     ]))
+     +     .block(Block::default().borders(Borders::ALL).title(" F-findings "));
+     +     f.render_widget(header, chunks[0]);
+     +
+     +     if detail {
+     +         let id = selected_id(ids, list_state).unwrap_or("");
+     +         let text = cards
+     +             .iter()
+     +             .find(|c| c.row.id == id)
+     +             .map(|c| c.detail.clone())
+     +             .unwrap_or_default();
+     +         let lines: Vec<Line> = text
+     +             .lines()
+     +             .skip(scroll as usize)
+     +             .map(|l| Line::from(l.to_string()))
+     +             .collect();
+     +         let body = Paragraph::new(lines).wrap(Wrap { trim: false }).block(
+     +             Block::default()
+     +                 .borders(Borders::ALL)
+     +                 .title(format!(" {id}  enter/esc closes ")),
+     +         );
+     +         f.render_widget(body, chunks[1]);
+     +     } else {
+     +         let items: Vec<ListItem> = ids
+     +             .iter()
+     +             .filter_map(|id| cards.iter().find(|c| c.row.id == *id))
+     +             .map(|card| {
+     +                 let style = tone_style(card.row.tone, color, card.row.high_marker && color);
+     +                 let text = card.row.columns().join("  ");
+     +                 let text = if card.row.high_marker {
+     +                     format!("* {text}")
+     +                 } else {
+     +                     text
+     +                 };
+     +                 ListItem::new(text).style(style)
+     +             })
+     +             .collect();
+     +         let list = List::new(items)
+     +             .block(
+     +                 Block::default()
+     +                     .borders(Borders::ALL)
+     +                     .title(" id  description  found  fixed  severity  state "),
+     +             )
+     +             .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
+     +         f.render_stateful_widget(list, chunks[1], list_state);
+     +     }
+     +
+     +     let footer = Paragraph::new(
+     +         "  / filter    o open    h high    a all    enter finding    j/k move    q quit",
+     +     )
+     +     .block(Block::default().borders(Borders::ALL));
+     +     f.render_widget(footer, chunks[2]);
+     + }
+  E10 zero/intents/in-progress/307-f-finding-report-browser-or-tui.md: tick G7, the red-then-green evidence
+     - - [ ] G7 Red, then the viewer, only after G1 through G6 are ruled. Shown
+     + - [x] G7 Red, then the viewer, only after G1 through G6 are ruled. Shown
+     -       findings. Red is in: the tests are ignored, and they fail. The screen
+     -       ruling is cheat-style, same framework. Then the same tests pass. The
+     -       suite is the one the ruled home already uses: cargo test -p core, cargo
+     -       test -p novashell, or an nsh-test row. Proof: the red output, then the
+     -       green output, each under its plan Seal.
+     +       findings. Red failed first, under its own plan Seal. The screen ruling
+     +       is cheat-style, same framework. Then the same tests pass. The suite is
+     +       the one the ruled home already uses: cargo test -p core, cargo test -p
+     +       novashell, or an nsh-test row. Proof: the red output, then the green
+     +       output, each under its plan Seal.
+     + <!-- evidence: 2026-11-10. Red commit ee6a4846, Seal baa4438095ea0cff. cargo test -p core g7_ -- --ignored --test-threads=1: 1 passed, 10 failed. The pass is g7_key_a_shows_all, because the stub returns every row it is given and assemble returns none. cargo test -p core on that commit: 266 passed, 0 failed, 11 ignored. Green: cargo test -p core 277 passed, 0 failed, 0 ignored. cargo test -p novashell 258 passed. cargo test -p nsh-test 6 passed. cargo doc -p core --no-deps and cargo doc -p novashell --no-deps: 0 warnings. cargo fmt --check clean. -->
+     - - G7, green. Red is in, and the command is findings.
+  E11 zero/shell/novashell/src/commands/builtin_names.rs: findings is a builtin, like cheat
+     +     &["findings"],
+  E12 zero/shell/novashell/src/main.rs: the REPL catches findings and runs core findings
+     +                 // INT-307: findings opens the findings screen. The reader lives
+     +                 // in core, so the screen runs there and nsh hands it the terminal.
+     +                 // A missing core, or a screen that exits, returns to the prompt.
+     +                 if line.trim() == "findings" {
+     +                     match std::process::Command::new("core").arg("findings").status() {
+     +                         Ok(status) if !status.success() => {
+     +                             eprintln!(
+     +                                 "  x findings: core findings exited {}",
+     +                                 status.code().unwrap_or(1)
+     +                             );
+     +                         }
+     +                         Err(e) => eprintln!("  x findings: core is not on PATH ({e})"),
+     +                         Ok(_) => {}
+     +                     }
+     +                     continue 'repl;
+     +                 }
