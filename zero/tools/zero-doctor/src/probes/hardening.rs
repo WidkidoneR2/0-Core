@@ -1393,4 +1393,39 @@ mod tests {
         );
     }
 
+    /// INT-295 G4. The G0 census of what Omarchy's bash rc does not carry into
+    /// nsh (v4.5.0 default/bash at ac2690cd, ruling 5). The package README has
+    /// to name every entry. A missing one is a failure, not silence.
+    const CENSUS_DOES_NOT_CARRY: &[&str] = &[
+        "`c`",
+        "`d`",
+        "`h`",
+        "`ls`",
+        "hide nsh builtins",
+        "d is the doctor",
+        "bash functions",
+        "`try`",
+        "mise functions",
+        "starship",
+        "mise activation",
+        "fzf key bindings",
+        "bash completions",
+    ];
+
+    #[test]
+    fn g4_readme_names_every_census_entry_that_does_not_carry() {
+        let path = package_dir().join("README.md");
+        let text = std::fs::read_to_string(&path).unwrap_or_default();
+        let missing: Vec<&str> = CENSUS_DOES_NOT_CARRY
+            .iter()
+            .copied()
+            .filter(|entry| !text.contains(entry))
+            .collect();
+        assert!(
+            missing.is_empty(),
+            "README {} is missing census entries. A missing entry is a failure, not silence.\nmissing:\n{}",
+            path.display(),
+            missing.join("\n")
+        );
+    }
 }

@@ -4033,6 +4033,65 @@ print('CLASS-DONE')"##;
         },
     ));
 
+    // INT-295 G4. The packaged form: the rc is the marked line, and that line
+    // sources bashrc-handoff.sh. OMARCHY_PATH and the PATH entries 277 G1 names
+    // are in the real nsh. The bash aliases planted above the line are not.
+    results.push(test(
+        "repl_295_packaged_line_carries_env_and_path",
+        Category::Repl,
+        || {
+            let run = repl::HandoffRun {
+                mise: repl::HandoffMise::PackagedCarry,
+                ..repl::HandoffRun::new(repl::HandoffNsh::Real)
+            };
+            let end = repl::run_repl_handoff(
+                &[
+                    "echo carry-omarchy:$OMARCHY_PATH",
+                    "echo path-is:$PATH",
+                    "alias",
+                ],
+                run,
+            )?;
+            // lines is the last command's window. transcript is everything after
+            // the first prompt, which is where the earlier answers are.
+            let mut seen = end.transcript.clone();
+            seen.extend(end.lines.iter().cloned());
+            seen.iter()
+                .find(|l| {
+                    l.contains("carry-omarchy:/usr/share/omarchy") && !l.contains("$OMARCHY_PATH")
+                })
+                .ok_or_else(|| format!("OMARCHY_PATH did not carry: {seen:?}"))?;
+            let said = repl::handoff_path_answer(&end)
+                .or_else(|| {
+                    seen.iter()
+                        .find(|l| l.contains("path-is:/") && !l.contains("$PATH"))
+                        .cloned()
+                })
+                .ok_or_else(|| format!("no PATH answer in {seen:?}"))?;
+            for entry in [
+                "/usr/share/omarchy/bin",
+                "/mise/shims",
+                "/.local/bin",
+                "/.cargo/bin",
+            ] {
+                if !said.contains(entry) {
+                    return Err(format!("nsh PATH lost {entry}: {said}"));
+                }
+            }
+            // nsh may already have its own aliases from a fresh config.nsh.
+            // The bash aliases planted above the marked line must not be among them.
+            let joined = seen.join("\n");
+            for body in ["ALIAS_C", "ALIAS_D", "ALIAS_H", "ALIAS_LS"] {
+                if joined.contains(body) {
+                    return Err(format!(
+                        "bash alias {body} was translated into nsh: {joined}"
+                    ));
+                }
+            }
+            Ok(())
+        },
+    ));
+
     // The exec reload (C9): nsh replaces itself in place, still the child of the same bash, and
     // the session carries on to its own exit. Measured 2026-10-26: nsh answers the exec line with
     // a 133;D before the new shell prompts, so it is an ordinary line. A first version declared it

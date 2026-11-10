@@ -524,6 +524,10 @@ pub enum HandoffMise {
     ShimsAndInstalls,
     /// An install dir and no shims dir.
     InstallsOnly,
+    /// INT-295 G4. The rc exports OMARCHY_PATH and the PATH entries 277 G1
+    /// names, plants bash aliases, then sources the block through the marked
+    /// line. The block is not inlined.
+    PackagedCarry,
 }
 
 /// The PATH a handoff session answered with for `echo path-is:$PATH`: the output line, not the
@@ -622,25 +626,50 @@ pub fn run_repl_handoff(cmds: &[&str], run: HandoffRun) -> Result<SessionEnd, St
         std::fs::write(format!("{}/off", cfg), "").map_err(|e| format!("off switch: {e}"))?;
     }
     let rc = format!("{}/rc.bashrc", home);
-    let head = match run.mise {
-        HandoffMise::Off => String::new(),
-        HandoffMise::ShimsAndInstalls => format!(
-            "export PATH=\"{h}/.local/share/mise/installs/node/9.9.9/bin:{h}/.local/share/mise/installs/gh/9.9.9/bin:{h}/.local/share/mise/shims:$PATH\"\n",
-            h = home
+    let (head, block) = match run.mise {
+        HandoffMise::Off => (String::new(), HANDOFF_BLOCK.to_string()),
+        HandoffMise::ShimsAndInstalls => (
+            format!(
+                "export PATH=\"{h}/.local/share/mise/installs/node/9.9.9/bin:{h}/.local/share/mise/installs/gh/9.9.9/bin:{h}/.local/share/mise/shims:$PATH\"\n",
+                h = home
+            ),
+            HANDOFF_BLOCK.to_string(),
         ),
         // The inherited PATH may already hold mise entries; this case has to start without a shims dir.
-        HandoffMise::InstallsOnly => format!(
-            "export PATH=\"{h}/.local/share/mise/installs/node/9.9.9/bin:{rest}\"\n",
-            h = home,
-            rest = std::env::var("PATH")
-                .unwrap_or_default()
-                .split(':')
-                .filter(|d| !d.contains("/mise/"))
-                .collect::<Vec<_>>()
-                .join(":")
+        HandoffMise::InstallsOnly => (
+            format!(
+                "export PATH=\"{h}/.local/share/mise/installs/node/9.9.9/bin:{rest}\"\n",
+                h = home,
+                rest = std::env::var("PATH")
+                    .unwrap_or_default()
+                    .split(':')
+                    .filter(|d| !d.contains("/mise/"))
+                    .collect::<Vec<_>>()
+                    .join(":")
+            ),
+            HANDOFF_BLOCK.to_string(),
         ),
+        // The marked line sources the packaged file. The file lives under the
+        // stand-in home: this process cannot write /usr. The line is the same
+        // shape as the one install appends.
+        HandoffMise::PackagedCarry => {
+            let share = format!("{home}/share/novashell-omarchy");
+            std::fs::create_dir_all(&share).map_err(|e| format!("handoff share: {e}"))?;
+            let file = format!("{share}/bashrc-handoff.sh");
+            std::fs::write(&file, HANDOFF_BLOCK).map_err(|e| format!("handoff file: {e}"))?;
+            let head = format!(
+                "export OMARCHY_PATH=/usr/share/omarchy\n\
+                 export PATH=\"$OMARCHY_PATH/bin:{home}/.local/share/mise/shims:{home}/.local/bin:{home}/.cargo/bin:$PATH\"\n\
+                 alias c='echo ALIAS_C'\n\
+                 alias d='echo ALIAS_D'\n\
+                 alias h='echo ALIAS_H'\n\
+                 alias ls='echo ALIAS_LS'\n"
+            );
+            let block = format!("[ -r {file} ] && source {file} # novashell-omarchy\n");
+            (head, block)
+        }
     };
-    std::fs::write(&rc, format!("{}{}{}", head, HANDOFF_BLOCK, HANDOFF_MARKS))
+    std::fs::write(&rc, format!("{head}{block}{HANDOFF_MARKS}"))
         .map_err(|e| format!("rc file: {e}"))?;
     HANDOFF.with(|h| {
         *h.borrow_mut() = Some(HandoffPaths {
