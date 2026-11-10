@@ -1,4 +1,4 @@
-use clap::{Parser, Subcommand};
+use clap::{Args, Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(name = "core")]
@@ -607,6 +607,36 @@ pub enum DoctorCommands {
     },
 }
 
+/// `core intent seals` (INT-274) and `core intent seals check` (INT-306).
+#[derive(Args)]
+pub struct SealsArgs {
+    #[command(subcommand)]
+    pub command: Option<SealsCommand>,
+    /// How many commits back from HEAD. Exit 0 nothing broken or unproven, 1 a seal is broken,
+    /// 2 a seal names a plan that is not kept, 3 could not answer.
+    #[arg(short = 'n', default_value = "15")]
+    pub n: String,
+    /// Only commits whose Intent: trailer names this intent (INT-x or x)
+    #[arg(long)]
+    pub intent: Option<String>,
+}
+
+/// `core intent seals check <range>` -- each commit in a git rev-list range that carries Intent:.
+#[derive(Subcommand)]
+pub enum SealsCommand {
+    /// Intact passes. Release: is exempt and the line says so. NoSeal, NoNote and Broken fail.
+    Check {
+        /// git rev-list arguments: a range, or a sha then --not --remotes
+        #[arg(
+            required = true,
+            num_args = 1..,
+            trailing_var_arg = true,
+            allow_hyphen_values = true
+        )]
+        range: Vec<String>,
+    },
+}
+
 #[derive(Subcommand)]
 pub enum IntentCommands {
     /// Set focused intent
@@ -754,18 +784,8 @@ pub enum IntentCommands {
         /// INT-x (or x), F-x, a commit hash, or a 16-hex seal
         target: String,
     },
-    /// Every commit seal in the last N on HEAD, re-checked: sealed, broken, no plan, legacy, unsealed (INT-274)
-    ///
-    /// Exit 0 nothing broken or unproven, 1 a seal is broken, 2 a seal names a plan that is not
-    /// kept, 3 could not answer. A clap usage error (an unknown flag) also exits 2.
-    Seals {
-        /// How many commits back from HEAD
-        #[arg(short = 'n', default_value = "15")]
-        n: String,
-        /// Only commits whose Intent: trailer names this intent (INT-x or x)
-        #[arg(long)]
-        intent: Option<String>,
-    },
+    /// Every commit seal in the last N on HEAD, re-checked (INT-274), or check a range (INT-306)
+    Seals(SealsArgs),
     /// File a finding: something found and not fixed (INT-266)
     Find {
         /// What was found, in one line

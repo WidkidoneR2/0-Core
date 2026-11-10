@@ -19,8 +19,9 @@ Requiring the operator to opt in is the security property, not an oversight.
 Everything is `zero-gate`, which is in this repository and has no dependencies. It is silent on
 success and reports anything it could not run rather than passing quietly.
 
-    pre-commit   secrets, risk tiers, formatting
-    pre-push     the shell test suite
+    pre-commit   secrets, gitleaks, formatting, retired spawns
+    commit-msg   a message with Intent: INT-xxx needs Seal: of 16 lowercase hex, unless it carries Release:
+    pre-push     nsh-test, then cargo test -p core, then core intent seals check on each pushed ref
 
 ## What this replaced
 

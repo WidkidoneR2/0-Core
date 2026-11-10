@@ -21,9 +21,9 @@ use parser::{
     GoalsCommands, IntegrityCommands, IntentCommands, JournalCommands, LedgerCommands,
     NotifyCommands, PartnerCommands, PlanCommands, PluginCommands, PredictCommands,
     PrioritizeCommands, ProfileCommands, ReactCommands, RegistryCommands, ReleaseCommands,
-    SandboxCommands, SecurityCommands, SelfCommands, SimulateCommands, StrategyCommands,
-    StressCommands, TraceCommands, TradeoffCommands, ValuesCommands, WeightCommands, WhyCommands,
-    WorkspaceCommands,
+    SandboxCommands, SealsCommand, SecurityCommands, SelfCommands, SimulateCommands,
+    StrategyCommands, StressCommands, TraceCommands, TradeoffCommands, ValuesCommands,
+    WeightCommands, WhyCommands, WorkspaceCommands,
 };
 
 pub fn parse() -> Command {
@@ -256,7 +256,13 @@ pub fn parse() -> Command {
                 severity,
             },
             IntentCommands::Trace { target } => IntentCommand::Trace { target },
-            IntentCommands::Seals { n, intent } => IntentCommand::Seals { n, intent },
+            IntentCommands::Seals(args) => match args.command {
+                Some(SealsCommand::Check { range }) => IntentCommand::SealsCheck { range },
+                None => IntentCommand::Seals {
+                    n: args.n,
+                    intent: args.intent,
+                },
+            },
         }),
         Commands::Delegate { command } => Command::Delegate(match command {
             DelegateCommands::Simulate { action } => DelegateCommand::Simulate { action },

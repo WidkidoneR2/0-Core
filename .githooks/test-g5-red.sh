@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# INT-306 G5 red. Not run by a bare cargo test -p core: the g5_ tests are
-# ignored until the guard exists, so main stays green. This runs them.
-# They fail while the stubs answer untouched and the hook is absent.
+# INT-306 G5. The tests were ignored while they were red (test-g5-red.sh
+# ran them with --ignored and they failed). They are not ignored now.
+# cargo test -p core runs them. This runs the same filter.
 set -euo pipefail
 root=$(cd "$(dirname "$0")/.." && pwd)
 if [[ ! -f "$root/Cargo.toml" ]]; then
@@ -9,4 +9,4 @@ if [[ ! -f "$root/Cargo.toml" ]]; then
     exit 2
 fi
 cd "$root"
-exec cargo test -p core g5_ -- --ignored --nocapture --test-threads=1
+exec cargo test -p core g5_ -- --test-threads=1

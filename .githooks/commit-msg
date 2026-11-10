@@ -1,0 +1,90 @@
+#!/usr/bin/env bash
+# Tracked hook -- see .githooks/README.md
+#
+# INT-306. A message that carries Intent: INT-xxx needs Seal: of 16 lowercase
+# hex, unless it carries Release:. The note is not checked here: the commit
+# object does not exist yet. pre-push asks `core intent seals check`.
+# This hook does not run cargo. The same rules are commit_message_gate in
+# zero/engine/src/domains/intent/trace.rs.
+set -euo pipefail
+
+msg_file=${1:-}
+if [[ -z "$msg_file" || ! -f "$msg_file" ]]; then
+    echo "commit-msg: no message file to read. Nothing was committed." >&2
+    exit 1
+fi
+if ! command -v git >/dev/null 2>&1; then
+    echo "commit-msg: git is not on PATH, so the trailers cannot be read. Nothing was committed." >&2
+    exit 1
+fi
+
+color() {
+    if [[ -n "${NO_COLOR:-}" || ! -t 2 ]]; then
+        printf '%s\n' "$2" >&2
+    else
+        printf '\033[%sm%s\033[0m\n' "$1" "$2" >&2
+    fi
+}
+
+trim() {
+    local s=$1
+    s=${s#"${s%%[![:space:]]*}"}
+    s=${s%"${s##*[![:space:]]}"}
+    printf '%s' "$s"
+}
+
+is_intent() {
+    local rest=${1#INT-}
+    [[ "$1" == INT-* && -n "$rest" && "$rest" != *[!0-9]* ]]
+}
+
+is_seal() {
+    [[ "$1" == [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f] ]]
+}
+
+if ! trailers=$(git interpret-trailers --parse < "$msg_file"); then
+    echo "commit-msg: git could not read the trailers. Nothing was committed." >&2
+    exit 1
+fi
+intent=""
+seal_ok=0
+release=""
+while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ -z "$line" ]] && continue
+    key=${line%%:*}
+    val=$(trim "${line#*:}")
+    case "$key" in
+        Intent)
+            if [[ -z "$intent" ]] && is_intent "$val"; then
+                intent=$val
+            fi
+            ;;
+        Seal)
+            if is_seal "$val"; then
+                seal_ok=1
+            fi
+            ;;
+        Release)
+            if [[ -z "$release" && -n "$val" ]]; then
+                release=$val
+            fi
+            ;;
+    esac
+done <<< "$trailers"
+
+if [[ -z "$intent" ]]; then
+    exit 0
+fi
+if [[ -n "$release" ]]; then
+    color 33 "commit-msg: release exemption used (Release: ${release})"
+    exit 0
+fi
+if [[ "$seal_ok" -eq 1 ]]; then
+    exit 0
+fi
+color 31 "refused: this message carries Intent: ${intent} and no Seal: of 16 lowercase hex."
+printf '%s\n' "Add this trailer:" >&2
+printf '%s\n' "  Seal: <16 lowercase hex>" >&2
+printf '%s\n' "A version bump carries this instead, and the exemption is printed:" >&2
+printf '%s\n' "  Release: <tool versions>" >&2
+exit 1

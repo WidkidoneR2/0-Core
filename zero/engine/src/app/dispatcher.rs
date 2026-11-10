@@ -198,6 +198,9 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Seals { n, intent } => {
                     crate::domains::intent::trace::seals(ctx, &n, intent.as_deref())
                 }
+                IntentCommand::SealsCheck { range } => {
+                    crate::domains::intent::trace::seals_check(ctx, &range)
+                }
             }
         }
 

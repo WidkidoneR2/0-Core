@@ -1785,10 +1785,10 @@ fn decide_versions(
 }
 
 /// INT-306: the commit message cicomplete suggests for a version bump. cicomplete does not
-/// commit. The Release trailer is what makes that commit exempt. Red stub: wrong on purpose.
+/// commit. The Release trailer is what makes that commit exempt.
 fn release_commit_message(id: &str, versions: &[String]) -> String {
-    let _ = (id, versions);
-    String::new()
+    let list = versions.join(", ");
+    format!("INT-{id}: complete; {list}\n\nIntent: INT-{id}\nRelease: {list}\n")
 }
 
 /// INT-271: write every planned bump through the one owner, then sync Cargo.lock for it. Returns
@@ -1920,6 +1920,14 @@ fn write_versions(ctx: &AppContext, id: &str, plans: &[VersionPlan]) -> CoreResu
                 ));
             }
         }
+    }
+    if !written.is_empty() {
+        println!();
+        println!(
+            "  {} cicomplete does not commit. Suggested commit message:",
+            "\u{1f4dd}".normal()
+        );
+        print!("{}", release_commit_message(id, &written));
     }
     Ok(receipt)
 }
@@ -4899,7 +4907,6 @@ mod template_tests {
 #[cfg(test)]
 mod g5_release_tests {
     #[test]
-    #[ignore = "INT-306 G5 red; cicomplete does not yet name the Release trailer"]
     fn g5_release_commit_message_names_the_versions() {
         let msg = super::release_commit_message(
             "295",

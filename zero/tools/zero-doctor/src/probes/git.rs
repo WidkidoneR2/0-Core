@@ -78,7 +78,7 @@ pub fn hooks() -> Measurement {
         return Measurement::fail(format!("core.hooksPath is {}, not .githooks", path));
     }
     let mut not_exec: Vec<String> = Vec::new();
-    for hook in ["pre-commit", "pre-push"] {
+    for hook in ["pre-commit", "commit-msg", "pre-push"] {
         let f = std::path::Path::new(&root).join(".githooks").join(hook);
         let ok = std::fs::metadata(&f)
             .map(|m| {

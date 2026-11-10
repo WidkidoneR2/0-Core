@@ -127,13 +127,14 @@ RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): a re
       landed, core intent trace of a seal that trace by commit already reads as
       intact.
 RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): fix F-0116 in this intent, failing test first under its own Seal, the green commit carries Fixes: F-0116.
-- [ ] G5 Red, then the guard, only after G1, G2 and G3 are ruled. Shown failing
+- [x] G5 Red, then the guard, only after G1, G2 and G3 are ruled. Shown failing
       first: a message that carries Intent: and no Seal:; a Seal whose note is
       missing; a note that hashes to something else. Then the ruled exemption
       passes, and a message of the same shape that is not exempt fails. The
       suite is the one the ruled home already uses: cargo test -p zero-gate,
       cargo test -p core, or an nsh-test row. Proof: the red output, then the
       green output, each under its plan Seal.
+<!-- evidence: 2026-11-10. Red commit 117770c6, Seal 9aed05fabf20e79d, the note under refs/notes/seals hashes to it. cargo test -p core g5_ -- --ignored --test-threads=1 exited 101: 1 passed, 10 failed, 0.06s. The pass is g5_commit_message_gate_leaves_a_message_with_no_intent, because the stub answers untouched. The ten failures are the refusal, the 16-hex seal, a seal that is not 16 lowercase hex, the Release exemption, the exempt (release) line, the range check (Intact, NoSeal, NoNote, Broken, Release-exempt, no-Intent ignored), a missing range, the commit-msg script (REFUSE: commit-msg is not an executable hook), and pre-push (does not call core intent seals check). cargo test -p core on that commit: 254 passed, 0 failed, 11 ignored. Green, this commit: the ignore is gone. cargo test -p core: 265 passed, 0 failed, 0 ignored. cargo test -p zero-gate: 4 passed. Scratch commit, hooks path holding only commit-msg: Intent: INT-306 and no Seal refused, exit 1, "refused: this message carries Intent: INT-306 and no Seal: of 16 lowercase hex." and the lines that say to add Seal: or Release:. The same repo with Release: nsh 1.0.0 printed "commit-msg: release exemption used (Release: nsh 1.0.0)" and exited 0. Before this commit, core intent seals check 8691e49f..HEAD exited 0: 43ecc66e intact, 117770c6 intact. core intent seals check a36327cc^..200f5cbd exited 1, NoSeal: a1389f57 4ac3356c 9be9d059 6b8722bc 305c8245 7ed2fc90 0fa00a33 9531c1ee 250a8e35 200f5cbd. cicomplete does not commit; it prints the suggested message with Intent: and Release:. pre-push reads the ref lines before zero-gate and runs the gate with stdin from /dev/null. .githooks/test-pre-push.sh gives the refs to a gate that reads stdin; the gate sees nothing and the seal check still sees both refs. -->
 - [ ] G6 Doors, after any ship. cargo test -p novashell passes. nsh-test passes
       after `cargo build -p novashell -p nsh-test`. core intent validate reports
       every intent valid. d reports 0 failed. A commit this intent makes from a

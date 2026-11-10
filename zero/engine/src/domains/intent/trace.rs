@@ -10,7 +10,8 @@ use crate::app::context::AppContext;
 use crate::capabilities::Capability;
 use crate::errors::{CoreError, CoreResult};
 use colored::*;
-use std::process::Command;
+use std::io::Write;
+use std::process::{Command, Stdio};
 
 /// Read from git in `core_root`. Err when git could not run or exited non-zero; Ok is git's
 /// stdout, untrimmed.
@@ -866,10 +867,92 @@ pub enum MessageGate {
     Refused { intent: String },
 }
 
-/// INT-306 red stub. The tests name the behaviour. This answer is wrong on purpose.
+/// True when a trailer value is `INT-` and digits, the form the guard requires.
+fn is_intent_id(value: &str) -> bool {
+    let Some(rest) = value.trim().strip_prefix("INT-") else {
+        return false;
+    };
+    !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit())
+}
+
+/// True when a trailer value is exactly 16 lowercase hex.
+fn is_seal_token(value: &str) -> bool {
+    let value = value.trim();
+    value.len() == 16
+        && value
+            .chars()
+            .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
+}
+
+/// Trailers git would keep, as `git interpret-trailers --parse` prints them.
+fn interpret_trailers(text: &str) -> Result<Vec<(String, String)>, String> {
+    let mut child = Command::new("git")
+        .args(["interpret-trailers", "--parse"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .map_err(|e| format!("git interpret-trailers could not run: {e}"))?;
+    {
+        let mut stdin = child
+            .stdin
+            .take()
+            .ok_or("git interpret-trailers took no stdin")?;
+        stdin
+            .write_all(text.as_bytes())
+            .map_err(|e| format!("could not write the message: {e}"))?;
+    }
+    let out = child
+        .wait_with_output()
+        .map_err(|e| format!("git interpret-trailers could not be read: {e}"))?;
+    if !out.status.success() {
+        let code = out
+            .status
+            .code()
+            .map_or("by signal".to_string(), |c| c.to_string());
+        return Err(format!(
+            "git interpret-trailers exited {}: {}",
+            code,
+            String::from_utf8_lossy(&out.stderr).trim()
+        ));
+    }
+    let mut pairs = Vec::new();
+    for line in String::from_utf8_lossy(&out.stdout).lines() {
+        if let Some((key, value)) = line.split_once(':') {
+            pairs.push((key.trim().to_string(), value.trim().to_string()));
+        }
+    }
+    Ok(pairs)
+}
+
+/// What the commit-msg hook decides. The hook is a shell script and does not call this;
+/// the two must agree, and g5_commit_msg_hook runs the script.
 pub fn commit_message_gate(text: &str) -> Result<MessageGate, String> {
-    let _ = text;
-    Ok(MessageGate::Untouched)
+    let mut intent: Option<String> = None;
+    let mut sealed = false;
+    let mut release: Option<String> = None;
+    for (key, value) in interpret_trailers(text)? {
+        match key.as_str() {
+            "Intent" if intent.is_none() && is_intent_id(&value) => {
+                intent = Some(value.trim().to_string());
+            }
+            "Seal" if is_seal_token(&value) => sealed = true,
+            "Release" if release.is_none() && !value.trim().is_empty() => {
+                release = Some(value.trim().to_string());
+            }
+            _ => {}
+        }
+    }
+    let Some(intent) = intent else {
+        return Ok(MessageGate::Untouched);
+    };
+    if let Some(release) = release {
+        return Ok(MessageGate::Exempt(release));
+    }
+    if sealed {
+        return Ok(MessageGate::Sealed);
+    }
+    Ok(MessageGate::Refused { intent })
 }
 
 /// One commit a range check looked at, because it carries Intent:.
@@ -898,19 +981,116 @@ pub struct IntentRangeReport {
     pub failed: bool,
 }
 
-/// INT-306 red stub. The tests name the behaviour. This answer is wrong on purpose.
-pub fn check_intent_range(core_root: &str, rev_args: &[&str]) -> Result<IntentRangeReport, String> {
-    let _ = (core_root, rev_args);
-    Ok(IntentRangeReport {
-        rows: Vec::new(),
-        failed: false,
-    })
+fn names_an_intent(intent: &Option<String>) -> bool {
+    intent
+        .as_deref()
+        .map(|value| value.split(',').map(str::trim).any(is_intent_id))
+        .unwrap_or(false)
 }
 
-/// INT-306 red stub. The line the command prints. Wrong on purpose.
+/// Each commit in a git rev-list range that carries Intent:. Intact passes. A Release:
+/// trailer is exempt and does not ask the note. NoSeal, NoNote, Broken and Legacy fail.
+/// Commits with no Intent: are left out. The verdict is check_seal; this does not hash.
+pub fn check_intent_range(core_root: &str, rev_args: &[&str]) -> Result<IntentRangeReport, String> {
+    if rev_args.is_empty() {
+        return Err("seals check needs a rev-list range".to_string());
+    }
+    let mut args = vec!["rev-list", "--reverse"];
+    args.extend(rev_args);
+    let list = git_read(core_root, &args)?;
+    let notes = seal_notes(core_root)?;
+    let mut rows = Vec::new();
+    let mut failed = false;
+    for hash in list.lines().map(str::trim).filter(|line| !line.is_empty()) {
+        if !names_an_intent(&trailer(core_root, hash, "Intent")?) {
+            continue;
+        }
+        let (abbr, subject) = commit_header(core_root, hash)?;
+        let release = trailer(core_root, hash, "Release")?;
+        let verdict = if release
+            .as_deref()
+            .is_some_and(|value| !value.trim().is_empty())
+        {
+            IntentRangeVerdict::Exempt
+        } else {
+            match check_commit_seal(core_root, &notes, hash)? {
+                SealCheck::Intact(_) => IntentRangeVerdict::Intact,
+                SealCheck::NoSeal => {
+                    failed = true;
+                    IntentRangeVerdict::NoSeal
+                }
+                SealCheck::NoNote(_) => {
+                    failed = true;
+                    IntentRangeVerdict::NoNote
+                }
+                SealCheck::Broken { .. } => {
+                    failed = true;
+                    IntentRangeVerdict::Broken
+                }
+                SealCheck::Legacy(_) => {
+                    failed = true;
+                    IntentRangeVerdict::Legacy
+                }
+            }
+        };
+        rows.push(IntentRangeRow {
+            hash: abbr,
+            subject,
+            verdict,
+        });
+    }
+    Ok(IntentRangeReport { rows, failed })
+}
+
+/// The line `core intent seals check` prints. An exemption says so.
 pub fn intent_range_line(row: &IntentRangeRow) -> String {
-    let _ = row;
-    String::new()
+    let word = match row.verdict {
+        IntentRangeVerdict::Intact => "intact",
+        IntentRangeVerdict::Exempt => "exempt (release)",
+        IntentRangeVerdict::NoSeal => "NoSeal",
+        IntentRangeVerdict::NoNote => "NoNote",
+        IntentRangeVerdict::Broken => "Broken",
+        IntentRangeVerdict::Legacy => "Legacy",
+    };
+    format!("{} {}", row.hash, word)
+}
+
+/// `core intent seals check <range>`. Exit 0 when every Intent commit is intact or
+/// exempt, 1 when one is not, 3 when the range could not be read.
+pub fn seals_check(ctx: &AppContext, range: &[String]) -> CoreResult<()> {
+    let args: Vec<&str> = range.iter().map(String::as_str).collect();
+    let report = (|| {
+        ctx.capabilities
+            .require(
+                "intent",
+                &[Capability::FilesystemReadHome, Capability::SpawnProcess],
+            )
+            .map_err(|e| e.to_string())?;
+        check_intent_range(&ctx.core_root, &args)
+    })();
+    match report {
+        Ok(report) => {
+            if report.rows.is_empty() {
+                println!("  no commit in the range carries Intent:");
+            }
+            for row in &report.rows {
+                let line = intent_range_line(row);
+                match row.verdict {
+                    IntentRangeVerdict::Intact => println!("{}", line.green()),
+                    IntentRangeVerdict::Exempt => println!("{}", line.yellow()),
+                    _ => println!("{}", line.red()),
+                }
+            }
+            if report.failed {
+                std::process::exit(1);
+            }
+            Ok(())
+        }
+        Err(e) => {
+            eprintln!("{} {}", "\u{2717}".bright_red(), e);
+            std::process::exit(3);
+        }
+    }
 }
 
 /// INT-274 G3 and G6: a real repository in a temp directory, one commit per verdict, walked by the
@@ -1441,7 +1621,6 @@ mod g5_seal_guard_tests {
     }
 
     #[test]
-    #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
     fn g5_commit_message_gate_leaves_a_message_with_no_intent() {
         assert_eq!(gate("just a subject\n"), MessageGate::Untouched);
         assert_eq!(
@@ -1454,7 +1633,6 @@ mod g5_seal_guard_tests {
     }
 
     #[test]
-    #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
     fn g5_commit_message_gate_refuses_intent_without_a_seal() {
         assert_eq!(
             gate("fix\n\nIntent: INT-306\n"),
@@ -1465,7 +1643,6 @@ mod g5_seal_guard_tests {
     }
 
     #[test]
-    #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
     fn g5_commit_message_gate_accepts_sixteen_lowercase_hex() {
         assert_eq!(
             gate("fix\n\nIntent: INT-306\nSeal: 0123456789abcdef\n"),
@@ -1474,7 +1651,6 @@ mod g5_seal_guard_tests {
     }
 
     #[test]
-    #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
     fn g5_commit_message_gate_rejects_a_seal_that_is_not_sixteen_lowercase_hex() {
         for seal in [
             "0123456789ABCDEF",
@@ -1493,7 +1669,6 @@ mod g5_seal_guard_tests {
     }
 
     #[test]
-    #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
     fn g5_commit_message_gate_exempts_a_release() {
         assert_eq!(
             gate("INT-295: complete; nsh 5.3.12\n\nIntent: INT-295\nRelease: nsh 5.3.12, nsh-test 2.0.15\n"),
@@ -1507,7 +1682,6 @@ mod g5_seal_guard_tests {
     }
 
     #[test]
-    #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
     fn g5_exempt_line_says_exempt_release() {
         let row = IntentRangeRow {
             hash: "abc1234".to_string(),
@@ -1602,7 +1776,6 @@ mod g5_seal_guard_tests {
     }
 
     #[test]
-    #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
     fn g5_range_check_intact_noseal_nonote_broken_release_and_ignores_no_intent() {
         let nanos = std::time::SystemTime::now()
             .duration_since(std::time::UNIX_EPOCH)
@@ -1709,14 +1882,12 @@ mod g5_seal_guard_tests {
     }
 
     #[test]
-    #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
     fn g5_a_range_check_without_a_range_refuses() {
         let err = check_intent_range("/tmp", &[]).expect_err("no range");
         assert!(err.contains("range"), "{err}");
     }
 
     #[test]
-    #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
     fn g5_commit_msg_hook() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let root = root.canonicalize().expect("repo root");
@@ -1735,7 +1906,6 @@ mod g5_seal_guard_tests {
     }
 
     #[test]
-    #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
     fn g5_pre_push_asks_seals_check_for_each_pushed_ref() {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
         let root = root.canonicalize().expect("repo root");
@@ -1792,6 +1962,18 @@ mod g5_seal_guard_tests {
             format!(
                 "intent seals check {remote}..{local}\nintent seals check {newb} --not --remotes\n"
             )
+        );
+        let stdin_test = root.join(".githooks/test-pre-push.sh");
+        let hooked = Command::new("bash")
+            .arg(&stdin_test)
+            .current_dir(&root)
+            .output()
+            .expect("bash runs");
+        assert!(
+            hooked.status.success(),
+            "pre-push stdin test failed\nstdout:\n{}\nstderr:\n{}",
+            String::from_utf8_lossy(&hooked.stdout),
+            String::from_utf8_lossy(&hooked.stderr)
         );
     }
 }

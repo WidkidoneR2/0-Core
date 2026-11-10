@@ -374,6 +374,10 @@ pub enum IntentCommand {
         n: String,
         intent: Option<String>,
     },
+    /// INT-306: each Intent commit in a rev-list range, re-checked by check_seal.
+    SealsCheck {
+        range: Vec<String>,
+    },
     Find {
         what: String,
         at: Option<String>,

@@ -24,7 +24,7 @@ This map describes the tree as it is. A move changes the tree and this map in th
 | `docs/` | human documentation; nothing reads it at boot |
 | `labs/` | experiments, listed by nsh's experiment command; nothing here is wired into a host |
 | `assets/` | branding images and a font |
-| `.githooks/` | zero-gate's pre-commit and pre-push hooks |
+| `.githooks/` | pre-commit, commit-msg and pre-push hooks |
 | `.cargo/` | audit.toml, read there by cargo-audit |
 | `AGENTS.md` | the operating contract for agents |
 | `README.md` | the front page |
