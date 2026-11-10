@@ -1,0 +1,4 @@
+INT-306: rustdoc does not warn on the gates usage line -- plan
+  E1 zero/engine/src/domains/intent/mod.rs: escape the brackets rustdoc read as a link to id
+     - /// core intent gates [id] [--unmet] [--none]
+     + /// core intent gates \[id\] \[--unmet\] \[--none\]
