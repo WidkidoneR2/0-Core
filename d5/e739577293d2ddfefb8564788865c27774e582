@@ -1,0 +1,23 @@
+INT-295 G7 is ticked, and F-0117 names the unsealed commits -- plan
+  E1 zero/intents/findings/F-0117.md: create
+     + ---
+     + id: F-0117
+     + what: INT-295 commits a36327cc to 200f5cbd carry Intent: but no Seal: trailer and no note under refs/notes/seals
+     + at: unknown
+     + found_by: INT-295
+     + found_on: 2026-11-09
+     + closed_without_fix: no
+     + severity: low
+     + ---
+  E2 zero/intents/in-progress/295-package-the-bash-to-nsh-interactive-handoff-for-omarchy-omarchy-nsh.md: tick G7
+     - - [ ] G7 doors, one PR: cargo test -p novashell, nsh-test all passing, d 0 failed, core intent
+     -       validate clean. The package README states install, revert, and who owns the file, per
+     -       INT-291. Commits carry Intent: INT-295 and the plan Seal, with the note under
+     -       refs/notes/seals. main and refs/notes/seals are pushed. core intent trace reads every seal
+     -       intact. Each gate carries evidence per INT-158.
+     + - [x] G7 doors, one PR: cargo test -p novashell, nsh-test all passing, d 0 failed, core intent
+     +       validate clean. The package README states install, revert, and who owns the file, per
+     +       INT-291. Commits carry Intent: INT-295 and the plan Seal, with the note under
+     +       refs/notes/seals. main and refs/notes/seals are pushed. core intent trace reads every seal
+     +       intact. Each gate carries evidence per INT-158.
+     + <!-- evidence: 2026-11-09, Christian's laptop, branch int-295-g7 on 200f5cbd. README commit 1ce5d253 (seal 3d11f0e298b8523f) states install, revert and who owns the file per INT-291 and carries HAND-MAINTAINED; core intent trace 1ce5d253: 'seal 3d11f0e298b8523f intact -- the plan text kept in refs/notes/seals hashes to it'. Doors on that branch: cargo test -p zero-doctor --lib 95 passed 0 failed 0 ignored; cargo test -p novashell 258 passed; nsh-test 303/303; core intent validate 342 valid; d 0 failed (26/28, warnings only: branch unpushed/uncommitted and the 1 known rustdoc warning), Shell Handoff 'marked line present; packaged handoff matches the canonical block; nsh is executable; nothing below it'. Seals: the G2-G6 commits a36327cc..200f5cbd carry Intent: INT-295 but no Seal and no note, filed as F-0117 (Christian ruled: seal G7, file a finding, no history rewrite); the G7 commits carry Seal: with notes under refs/notes/seals. Trace by seal does not find a seal while trace by commit does; that is F-0116, already filed. main and refs/notes/seals are pushed by Christian after this commit. Each gate carries evidence per INT-158. -->
