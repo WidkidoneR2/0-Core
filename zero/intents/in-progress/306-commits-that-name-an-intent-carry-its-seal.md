@@ -142,7 +142,7 @@ RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): fix 
       reviewed plan carries Intent: INT-306 and Seal:, and the note under
       refs/notes/seals hashes to that seal. core intent trace of one such commit
       reads the seal intact. Proof: the door output.
-- [ ] G7 Optional. Christian floated tying seals to cistart. Today cistart is
+- [x] G7 Optional. Christian floated tying seals to cistart. Today cistart is
       core intent start (zero/engine/src/domains/intent/mod.rs, start, around
       line 905): it moves the file from future/ to in-progress/, sets focus, and
       prints the id, the title and that the intent is focused. It does not
@@ -151,6 +151,8 @@ RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): fix 
       gate. If he wants the line, the wording is his and it is shown before it
       is added. Proof: the RULED line, and the printed reminder if one was added.
 RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): cistart prints a one-line seal reminder; the wording is Christian's and is shown to him before it is added.
+RULED 2026-11-10 (Christian: "just go with what is the best, you have my approval"): the line, after the start banner, is "🔏 Commits for INT-<id> carry Intent: and Seal:, note under refs/notes/seals".
+<!-- evidence: 2026-11-10. core intent start prints that line after the closing bar, with the id filled in. The mark is green, the same color as the focus mark in the banner. -->
 
 ## Out of scope
 - Rewriting a36327cc through 200f5cbd, d69ff1ec, or any other commit on main.
@@ -158,6 +160,3 @@ RULED 2026-11-10 (Christian, accepted Jarvis's recommendation: "i accept"): cist
 - Editing AGENTS.md. The Seal rule is already written there (INT-266). Any new
   sentence waits on its own ruling and a reviewed plan.
 - A guard that writes the plan. It checks a trailer and a note.
-
-## Open for Christian
-- G7, the wording of the one-line seal reminder cistart prints. It is Christian's and is shown to him before it is added.

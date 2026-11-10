@@ -1036,6 +1036,11 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
     );
     println!("  {} Intent is now focused", "🎯".green());
     println!("{}", "━".repeat(50).dimmed());
+    println!(
+        "  {} Commits for INT-{} carry Intent: and Seal:, note under refs/notes/seals",
+        "🔏".green(),
+        intent.id
+    );
 
     Ok(())
 }
