@@ -3,7 +3,7 @@ id: 295
 date: 2026-10-18
 type: future
 title: "Package the bash-to-nsh handoff as novashell-omarchy"
-status: in-progress
+status: complete
 tags: [nsh, omarchy, handoff, package, terminal, resilience]
 depends_on: [277]
 ---
@@ -223,3 +223,8 @@ cancelled with that answer quoted and this intent continues unchanged. Sibling o
 follower of it.
 Informs INT-291 and INT-293: the package README is a hand-owned file and the package is one more
 tool record.
+
+## Versions
+- nsh 5.3.11 -> 5.3.12 (patch)
+- nsh-test 2.0.14 -> 2.0.15 (patch)
+- zero-doctor 0.1.3 -> 0.1.4 (patch)

@@ -51,7 +51,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "nsh"
-version = "5.3.11"
+version = "5.3.12"
 category = "shell"
 description = "NovaShell -- the structured shell of Project 0. Package: novashell."
 expected_usage = "high"
@@ -285,7 +285,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "zero-doctor"
-version = "0.1.3"
+version = "0.1.4"
 category = "core"
 description = "The doctor engine library -- definition format, states, tiers, probe registry, validation; shared by core doctor and nsh doctor (lib, not a binary)"
 expected_usage = "medium"
@@ -322,7 +322,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "nsh-test"
-version = "2.0.14"
+version = "2.0.15"
 category = "development"
 description = "fsh regression and bash-conformance suite -- gates every push"
 expected_usage = "medium"

@@ -1602,7 +1602,7 @@ dependencies = [
 
 [[package]]
 name = "novashell"
-version = "5.3.11"
+version = "5.3.12"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1626,7 +1626,7 @@ dependencies = [
 
 [[package]]
 name = "nsh-test"
-version = "2.0.14"
+version = "2.0.15"
 dependencies = [
  "chrono",
  "colored",
@@ -3674,7 +3674,7 @@ dependencies = [
 
 [[package]]
 name = "zero-doctor"
-version = "0.1.3"
+version = "0.1.4"
 dependencies = [
  "chrono",
  "rusqlite",
