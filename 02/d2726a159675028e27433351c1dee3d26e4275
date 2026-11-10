@@ -1,0 +1,149 @@
+INT-306: G4 is red -- trace by a seal value does not find the commit -- plan
+  E1 zero/engine/src/domains/intent/trace.rs: an ignored test that trace by a seal value finds the commit and reads its verdict
+     +
+     + /// INT-306 G4. Ignored until trace by a seal value keeps a 16-hex seal, so a
+     + /// bare cargo test stays green. The red run is cargo test -p core g4_ -- --ignored.
+     + #[cfg(test)]
+     + mod g4_trace_by_seal_tests {
+     +     use super::{check_commit_seal, seal_commits, seal_digest, seal_notes, SealCheck};
+     +     use std::path::{Path, PathBuf};
+     +     use std::process::Command;
+     +
+     +     struct Fixture(PathBuf);
+     +     impl Drop for Fixture {
+     +         fn drop(&mut self) {
+     +             let _ = std::fs::remove_dir_all(&self.0);
+     +         }
+     +     }
+     +
+     +     fn git(dir: &str, args: &[&str]) {
+     +         let st = Command::new("git")
+     +             .arg("-C")
+     +             .arg(dir)
+     +             .args([
+     +                 "-c",
+     +                 "user.name=int306",
+     +                 "-c",
+     +                 "user.email=int306@localhost",
+     +                 "-c",
+     +                 "commit.gpgsign=false",
+     +                 "-c",
+     +                 "core.hooksPath=/dev/null",
+     +             ])
+     +             .args(args)
+     +             .status()
+     +             .expect("git runs");
+     +         assert!(st.success(), "fixture git {args:?} failed");
+     +     }
+     +
+     +     fn git_out(dir: &str, args: &[&str]) -> String {
+     +         let out = Command::new("git")
+     +             .arg("-C")
+     +             .arg(dir)
+     +             .args(args)
+     +             .output()
+     +             .expect("git runs");
+     +         assert!(
+     +             out.status.success(),
+     +             "fixture git {args:?} failed: {}",
+     +             String::from_utf8_lossy(&out.stderr)
+     +         );
+     +         String::from_utf8_lossy(&out.stdout).into_owned()
+     +     }
+     +
+     +     fn commit(dir: &str, subject: &str, trailers: &[&str]) {
+     +         let mut args = vec!["commit", "-q", "--allow-empty", "-m", subject];
+     +         let owned: Vec<String> = trailers.iter().map(|t| (*t).to_string()).collect();
+     +         for t in &owned {
+     +             args.push("--trailer");
+     +             args.push(t);
+     +         }
+     +         git(dir, &args);
+     +     }
+     +
+     +     fn note(dir: &Path, name: &str, bytes: &[u8]) {
+     +         let path = dir.join(name);
+     +         std::fs::write(&path, bytes).expect("note bytes");
+     +         git(
+     +             dir.to_str().unwrap(),
+     +             &[
+     +                 "notes",
+     +                 "--ref=seals",
+     +                 "add",
+     +                 "--no-stripspace",
+     +                 "-F",
+     +                 path.to_str().unwrap(),
+     +                 "HEAD",
+     +             ],
+     +         );
+     +     }
+     +
+     +     fn short_hash(dir: &str, subject: &str) -> String {
+     +         git_out(dir, &["log", "--format=%h%x09%s"])
+     +             .lines()
+     +             .find_map(|line| {
+     +                 let (hash, sub) = line.split_once('\t')?;
+     +                 (sub == subject).then(|| hash.to_string())
+     +             })
+     +             .unwrap_or_else(|| panic!("no commit {subject}"))
+     +     }
+     +
+     +     /// The commit whose Seal trailer equals `seal`, and the verdict check_seal reads for it.
+     +     fn traced(dir: &str, seal: &str) -> (String, SealCheck) {
+     +         let seals = seal_commits(dir).expect("the seals on HEAD can be read");
+     +         let hits: Vec<&String> = seals
+     +             .iter()
+     +             .filter(|(value, _)| value == seal)
+     +             .map(|(_, hash)| hash)
+     +             .collect();
+     +         assert_eq!(
+     +             hits.len(),
+     +             1,
+     +             "trace by seal value finds the one commit whose Seal trailer matches {seal}, got {seals:?}"
+     +         );
+     +         let notes = seal_notes(dir).expect("the seal notes can be read");
+     +         let verdict = check_commit_seal(dir, &notes, hits[0]).expect("the verdict can be read");
+     +         (hits[0].clone(), verdict)
+     +     }
+     +
+     +     #[test]
+     +     #[ignore = "INT-306 G4 red; trace by seal value drops a 16-hex seal, so cargo test does not run this"]
+     +     fn g4_trace_by_seal_value_finds_the_commit_and_reads_its_verdict() {
+     +         let nanos = std::time::SystemTime::now()
+     +             .duration_since(std::time::UNIX_EPOCH)
+     +             .map(|d| d.as_nanos())
+     +             .unwrap_or(0);
+     +         let dir = std::env::temp_dir().join(format!("int306-g4-{}-{}", std::process::id(), nanos));
+     +         std::fs::create_dir_all(&dir).expect("temp dir");
+     +         let fix = Fixture(dir);
+     +         let d = fix.0.to_str().expect("utf-8").to_string();
+     +         git(&d, &["init", "-q"]);
+     +
+     +         let intact_plan = b"plan intact\n";
+     +         let broken_plan = b"plan broken\n";
+     +         let other = b"plan other\n";
+     +         let intact_seal = seal_digest(intact_plan);
+     +         let broken_seal = seal_digest(broken_plan);
+     +         let intact_trailer = format!("Seal: {intact_seal}");
+     +         let broken_trailer = format!("Seal: {broken_seal}");
+     +
+     +         commit(&d, "intact", &["Intent: INT-306", &intact_trailer]);
+     +         note(&fix.0, "plan-intact", intact_plan);
+     +         commit(&d, "broken", &["Intent: INT-306", &broken_trailer]);
+     +         note(&fix.0, "plan-other", other);
+     +
+     +         let (hash, verdict) = traced(&d, &intact_seal);
+     +         assert_eq!(hash, short_hash(&d, "intact"));
+     +         assert_eq!(verdict, SealCheck::Intact(intact_seal));
+     +
+     +         let (hash, verdict) = traced(&d, &broken_seal);
+     +         assert_eq!(hash, short_hash(&d, "broken"));
+     +         assert_eq!(
+     +             verdict,
+     +             SealCheck::Broken {
+     +                 seal: broken_seal,
+     +                 got: seal_digest(other),
+     +             }
+     +         );
+     +     }
+     + }
