@@ -1,0 +1,575 @@
+INT-306: G5 the guard refuses an Intent with no Seal, and pre-push checks the note -- plan
+  E1 .githooks/commit-msg: create: refuse Intent without a 16-hex Seal, print a Release exemption
+     + #!/usr/bin/env bash
+     + # Tracked hook -- see .githooks/README.md
+     + #
+     + # INT-306. A message that carries Intent: INT-xxx needs Seal: of 16 lowercase
+     + # hex, unless it carries Release:. The note is not checked here: the commit
+     + # object does not exist yet. pre-push asks `core intent seals check`.
+     + # This hook does not run cargo. The same rules are commit_message_gate in
+     + # zero/engine/src/domains/intent/trace.rs.
+     + set -euo pipefail
+     +
+     + msg_file=${1:-}
+     + if [[ -z "$msg_file" || ! -f "$msg_file" ]]; then
+     +     echo "commit-msg: no message file to read. Nothing was committed." >&2
+     +     exit 1
+     + fi
+     + if ! command -v git >/dev/null 2>&1; then
+     +     echo "commit-msg: git is not on PATH, so the trailers cannot be read. Nothing was committed." >&2
+     +     exit 1
+     + fi
+     +
+     + color() {
+     +     if [[ -n "${NO_COLOR:-}" || ! -t 2 ]]; then
+     +         printf '%s\n' "$2" >&2
+     +     else
+     +         printf '\033[%sm%s\033[0m\n' "$1" "$2" >&2
+     +     fi
+     + }
+     +
+     + trim() {
+     +     local s=$1
+     +     s=${s#"${s%%[![:space:]]*}"}
+     +     s=${s%"${s##*[![:space:]]}"}
+     +     printf '%s' "$s"
+     + }
+     +
+     + is_intent() {
+     +     local rest=${1#INT-}
+     +     [[ "$1" == INT-* && -n "$rest" && "$rest" != *[!0-9]* ]]
+     + }
+     +
+     + is_seal() {
+     +     [[ "$1" == [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f] ]]
+     + }
+     +
+     + if ! trailers=$(git interpret-trailers --parse < "$msg_file"); then
+     +     echo "commit-msg: git could not read the trailers. Nothing was committed." >&2
+     +     exit 1
+     + fi
+     + intent=""
+     + seal_ok=0
+     + release=""
+     + while IFS= read -r line || [[ -n "$line" ]]; do
+     +     [[ -z "$line" ]] && continue
+     +     key=${line%%:*}
+     +     val=$(trim "${line#*:}")
+     +     case "$key" in
+     +         Intent)
+     +             if [[ -z "$intent" ]] && is_intent "$val"; then
+     +                 intent=$val
+     +             fi
+     +             ;;
+     +         Seal)
+     +             if is_seal "$val"; then
+     +                 seal_ok=1
+     +             fi
+     +             ;;
+     +         Release)
+     +             if [[ -z "$release" && -n "$val" ]]; then
+     +                 release=$val
+     +             fi
+     +             ;;
+     +     esac
+     + done <<< "$trailers"
+     +
+     + if [[ -z "$intent" ]]; then
+     +     exit 0
+     + fi
+     + if [[ -n "$release" ]]; then
+     +     color 33 "commit-msg: release exemption used (Release: ${release})"
+     +     exit 0
+     + fi
+     + if [[ "$seal_ok" -eq 1 ]]; then
+     +     exit 0
+     + fi
+     + color 31 "refused: this message carries Intent: ${intent} and no Seal: of 16 lowercase hex."
+     + printf '%s\n' "Add this trailer:" >&2
+     + printf '%s\n' "  Seal: <16 lowercase hex>" >&2
+     + printf '%s\n' "A version bump carries this instead, and the exemption is printed:" >&2
+     + printf '%s\n' "  Release: <tool versions>" >&2
+     + exit 1
+  E2 .githooks/pre-push: after zero-gate, seals check; save the ref lines before the gate and give the gate /dev/null
+     - # ⚠️ FINDING THE BINARY IS THE WHOLE PROBLEM THIS SOLVES, so it is done in the open:
+     - # a built binary first (a working tree), then PATH (an installed system). If neither exists the
+     - # hook FAILS rather than passing, because a gate that cannot run must never look like one that did.
+     + # zero-gate runs first (nsh-test, then cargo test -p core). Then each pushed
+     + # ref is checked with core intent seals check (INT-306). An absent binary is
+     + # not a pass.
+     - for candidate in "$root/target/debug/zero-gate" "$root/target/release/zero-gate"; do
+     -     if [ -x "$candidate" ]; then
+     -         exec "$candidate" "pre-push"
+     +
+     + find_bin() {
+     +     local name=$1
+     +     local candidate
+     +     for candidate in "$root/target/debug/$name" "$root/target/release/$name"; do
+     +         if [[ -x "$candidate" ]]; then
+     +             printf '%s\n' "$candidate"
+     +             return 0
+     +         fi
+     +     done
+     +     if command -v "$name" >/dev/null 2>&1; then
+     +         command -v "$name"
+     +         return 0
+     - done
+     - if command -v zero-gate > /dev/null 2>&1; then
+     -     exec zero-gate "pre-push"
+     +     return 1
+     + }
+     +
+     + # stdin is the push's ref lines:
+     + #   <local ref> <local sha> <remote ref> <remote sha>
+     + # A delete (local sha all zeros) is skipped. A new ref (remote sha all zeros)
+     + # is the commits on the local sha that are not on any remote. An update is
+     + # remote..local.
+     + check_pushed_refs() {
+     +     local core=$1
+     +     local local_ref local_sha remote_ref remote_sha
+     +     local zeros=0000000000000000000000000000000000000000
+     +     while IFS=' ' read -r local_ref local_sha remote_ref remote_sha; do
+     +         [[ -n "${local_sha:-}" ]] || continue
+     +         if [[ "$local_sha" == "$zeros" ]]; then
+     +             continue
+     +         fi
+     +         if [[ "$remote_sha" == "$zeros" ]]; then
+     +             "$core" intent seals check "$local_sha" --not --remotes
+     +         else
+     +             "$core" intent seals check "${remote_sha}..${local_sha}"
+     +         fi
+     +     done
+     + }
+     +
+     + if [[ "${BASH_SOURCE[0]}" != "$0" ]]; then
+     +     return 0
+     - echo "zero-gate not found -- build it (cargo build -p zero-gate) or install it." >&2
+     - echo "Refusing to pass: an absent gate is not a satisfied gate." >&2
+     - exit 1
+     + # The ref lines are on stdin. Read them before zero-gate: its pre-push runs
+     + # nsh-test and cargo test, and a child that reads stdin would swallow the
+     + # lines. The seal check would then see an empty push and pass.
+     + push_lines=$(cat)
+     +
+     + gate=$(find_bin zero-gate) || {
+     +     echo "zero-gate not found -- build it (cargo build -p zero-gate) or install it." >&2
+     +     echo "Refusing to pass: an absent gate is not a satisfied gate." >&2
+     +     exit 1
+     + }
+     + "$gate" pre-push </dev/null
+     +
+     + corebin=$(find_bin core) || {
+     +     echo "core not found -- build it (cargo build -p core) or install it." >&2
+     +     echo "Refusing to pass: an absent seal check is not a satisfied check." >&2
+     +     exit 1
+     + }
+     + printf '%s\n' "$push_lines" | check_pushed_refs "$corebin"
+  E3 .githooks/README.md: name the real stages, commit-msg, and the seal check
+     -     pre-commit   secrets, risk tiers, formatting
+     -     pre-push     the shell test suite
+     +     pre-commit   secrets, gitleaks, formatting, retired spawns
+     +     commit-msg   a message with Intent: INT-xxx needs Seal: of 16 lowercase hex, unless it carries Release:
+     +     pre-push     nsh-test, then cargo test -p core, then core intent seals check on each pushed ref
+  E4 .githooks/test-g5-red.sh: the tests are no longer ignored
+     - # INT-306 G5 red. Not run by a bare cargo test -p core: the g5_ tests are
+     - # ignored until the guard exists, so main stays green. This runs them.
+     - # They fail while the stubs answer untouched and the hook is absent.
+     + # INT-306 G5. The tests were ignored while they were red (test-g5-red.sh
+     + # ran them with --ignored and they failed). They are not ignored now.
+     + # cargo test -p core runs them. This runs the same filter.
+     - exec cargo test -p core g5_ -- --ignored --nocapture --test-threads=1
+     + exec cargo test -p core g5_ -- --test-threads=1
+  E5 .githooks/test-pre-push.sh: create: refs survive a gate that reads stdin
+     + #!/usr/bin/env bash
+     + # INT-306: pre-push keeps the push's ref lines even when the gate reads stdin.
+     + # cargo test -p core runs g5_pre_push_asks_seals_check_for_each_pushed_ref,
+     + # which runs this. A temp repository holds a zero-gate that reads stdin and
+     + # a core that records its arguments. The real hook is executed there.
+     + set -euo pipefail
+     + root=$(cd "$(dirname "$0")/.." && pwd)
+     + hook="$root/.githooks/pre-push"
+     + if [[ ! -x "$hook" ]]; then
+     +     echo "REFUSE: $hook is not an executable hook" >&2
+     +     exit 1
+     + fi
+     +
+     + tmp=$(mktemp -d)
+     + trap 'rm -rf "$tmp"' EXIT
+     + git -C "$tmp" init -q
+     + mkdir -p "$tmp/target/debug"
+     + cat > "$tmp/target/debug/zero-gate" << 'EOF'
+     + #!/bin/sh
+     + cat > "$GATE_SEEN"
+     + printf 'ran\n' > "$GATE_RAN"
+     + exit 0
+     + EOF
+     + cat > "$tmp/target/debug/core" << 'EOF'
+     + #!/bin/sh
+     + printf '%s\n' "$*" >> "$CALLS"
+     + exit 0
+     + EOF
+     + chmod 755 "$tmp/target/debug/zero-gate" "$tmp/target/debug/core"
+     +
+     + zeros=0000000000000000000000000000000000000000
+     + local_sha=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+     + remote_sha=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
+     + newb=cccccccccccccccccccccccccccccccccccccccc
+     + seen="$tmp/seen"
+     + ran="$tmp/ran"
+     + calls="$tmp/calls"
+     + : > "$calls"
+     + (
+     +     cd "$tmp"
+     +     printf '%s\n' \
+     +         "refs/heads/main $local_sha refs/heads/main $remote_sha" \
+     +         "refs/heads/topic $newb refs/heads/topic $zeros" \
+     +         "refs/heads/old $zeros refs/heads/old $remote_sha" \
+     +         | env GATE_SEEN="$seen" GATE_RAN="$ran" CALLS="$calls" \
+     +             "$hook"
+     + )
+     + if [[ ! -f "$ran" ]]; then
+     +     echo "REFUSE: the gate did not run" >&2
+     +     exit 1
+     + fi
+     + got=$(cat "$seen" 2>/dev/null || true)
+     + if [[ -n "$got" ]]; then
+     +     echo "REFUSE: the gate read the ref lines:" >&2
+     +     printf '%s\n' "$got" >&2
+     +     exit 1
+     + fi
+     + want=$(printf '%s\n' \
+     +     "intent seals check ${remote_sha}..${local_sha}" \
+     +     "intent seals check ${newb} --not --remotes")
+     + have=$(cat "$calls")
+     + if [[ "$have" != "$want" ]]; then
+     +     echo "REFUSE: the seal check did not see the saved refs" >&2
+     +     printf 'got:\n%s\nwant:\n%s\n' "$have" "$want" >&2
+     +     exit 1
+     + fi
+     + echo "ok refs survive a gate that reads stdin"
+  E6 zero/engine/src/domains/intent/trace.rs: commit_message_gate, check_intent_range, seals check; the tests run, including the stdin hook test
+     - use std::process::Command;
+     + use std::io::Write;
+     + use std::process::{Command, Stdio};
+     - /// INT-306 red stub. The tests name the behaviour. This answer is wrong on purpose.
+     + /// True when a trailer value is `INT-` and digits, the form the guard requires.
+     + fn is_intent_id(value: &str) -> bool {
+     +     let Some(rest) = value.trim().strip_prefix("INT-") else {
+     +         return false;
+     +     };
+     +     !rest.is_empty() && rest.chars().all(|c| c.is_ascii_digit())
+     + }
+     +
+     + /// True when a trailer value is exactly 16 lowercase hex.
+     + fn is_seal_token(value: &str) -> bool {
+     +     let value = value.trim();
+     +     value.len() == 16
+     +         && value
+     +             .chars()
+     +             .all(|c| c.is_ascii_digit() || ('a'..='f').contains(&c))
+     + }
+     +
+     + /// Trailers git would keep, as `git interpret-trailers --parse` prints them.
+     + fn interpret_trailers(text: &str) -> Result<Vec<(String, String)>, String> {
+     +     let mut child = Command::new("git")
+     +         .args(["interpret-trailers", "--parse"])
+     +         .stdin(Stdio::piped())
+     +         .stdout(Stdio::piped())
+     +         .stderr(Stdio::piped())
+     +         .spawn()
+     +         .map_err(|e| format!("git interpret-trailers could not run: {e}"))?;
+     +     {
+     +         let mut stdin = child
+     +             .stdin
+     +             .take()
+     +             .ok_or("git interpret-trailers took no stdin")?;
+     +         stdin
+     +             .write_all(text.as_bytes())
+     +             .map_err(|e| format!("could not write the message: {e}"))?;
+     +     }
+     +     let out = child
+     +         .wait_with_output()
+     +         .map_err(|e| format!("git interpret-trailers could not be read: {e}"))?;
+     +     if !out.status.success() {
+     +         let code = out
+     +             .status
+     +             .code()
+     +             .map_or("by signal".to_string(), |c| c.to_string());
+     +         return Err(format!(
+     +             "git interpret-trailers exited {}: {}",
+     +             code,
+     +             String::from_utf8_lossy(&out.stderr).trim()
+     +         ));
+     +     }
+     +     let mut pairs = Vec::new();
+     +     for line in String::from_utf8_lossy(&out.stdout).lines() {
+     +         if let Some((key, value)) = line.split_once(':') {
+     +             pairs.push((key.trim().to_string(), value.trim().to_string()));
+     +         }
+     +     }
+     +     Ok(pairs)
+     + }
+     +
+     + /// What the commit-msg hook decides. The hook is a shell script and does not call this;
+     + /// the two must agree, and g5_commit_msg_hook runs the script.
+     -     let _ = text;
+     -     Ok(MessageGate::Untouched)
+     +     let mut intent: Option<String> = None;
+     +     let mut sealed = false;
+     +     let mut release: Option<String> = None;
+     +     for (key, value) in interpret_trailers(text)? {
+     +         match key.as_str() {
+     +             "Intent" if intent.is_none() && is_intent_id(&value) => {
+     +                 intent = Some(value.trim().to_string());
+     +             }
+     +             "Seal" if is_seal_token(&value) => sealed = true,
+     +             "Release" if release.is_none() && !value.trim().is_empty() => {
+     +                 release = Some(value.trim().to_string());
+     +             }
+     +             _ => {}
+     +         }
+     +     }
+     +     let Some(intent) = intent else {
+     +         return Ok(MessageGate::Untouched);
+     +     };
+     +     if let Some(release) = release {
+     +         return Ok(MessageGate::Exempt(release));
+     +     }
+     +     if sealed {
+     +         return Ok(MessageGate::Sealed);
+     +     }
+     +     Ok(MessageGate::Refused { intent })
+     - /// INT-306 red stub. The tests name the behaviour. This answer is wrong on purpose.
+     + fn names_an_intent(intent: &Option<String>) -> bool {
+     +     intent
+     +         .as_deref()
+     +         .map(|value| value.split(',').map(str::trim).any(is_intent_id))
+     +         .unwrap_or(false)
+     + }
+     +
+     + /// Each commit in a git rev-list range that carries Intent:. Intact passes. A Release:
+     + /// trailer is exempt and does not ask the note. NoSeal, NoNote, Broken and Legacy fail.
+     + /// Commits with no Intent: are left out. The verdict is check_seal; this does not hash.
+     -     let _ = (core_root, rev_args);
+     -     Ok(IntentRangeReport {
+     -         rows: Vec::new(),
+     -         failed: false,
+     -     })
+     +     if rev_args.is_empty() {
+     +         return Err("seals check needs a rev-list range".to_string());
+     +     }
+     +     let mut args = vec!["rev-list", "--reverse"];
+     +     args.extend(rev_args);
+     +     let list = git_read(core_root, &args)?;
+     +     let notes = seal_notes(core_root)?;
+     +     let mut rows = Vec::new();
+     +     let mut failed = false;
+     +     for hash in list.lines().map(str::trim).filter(|line| !line.is_empty()) {
+     +         if !names_an_intent(&trailer(core_root, hash, "Intent")?) {
+     +             continue;
+     +         }
+     +         let (abbr, subject) = commit_header(core_root, hash)?;
+     +         let release = trailer(core_root, hash, "Release")?;
+     +         let verdict = if release
+     +             .as_deref()
+     +             .is_some_and(|value| !value.trim().is_empty())
+     +         {
+     +             IntentRangeVerdict::Exempt
+     +         } else {
+     +             match check_commit_seal(core_root, &notes, hash)? {
+     +                 SealCheck::Intact(_) => IntentRangeVerdict::Intact,
+     +                 SealCheck::NoSeal => {
+     +                     failed = true;
+     +                     IntentRangeVerdict::NoSeal
+     +                 }
+     +                 SealCheck::NoNote(_) => {
+     +                     failed = true;
+     +                     IntentRangeVerdict::NoNote
+     +                 }
+     +                 SealCheck::Broken { .. } => {
+     +                     failed = true;
+     +                     IntentRangeVerdict::Broken
+     +                 }
+     +                 SealCheck::Legacy(_) => {
+     +                     failed = true;
+     +                     IntentRangeVerdict::Legacy
+     +                 }
+     +             }
+     +         };
+     +         rows.push(IntentRangeRow {
+     +             hash: abbr,
+     +             subject,
+     +             verdict,
+     +         });
+     +     }
+     +     Ok(IntentRangeReport { rows, failed })
+     - /// INT-306 red stub. The line the command prints. Wrong on purpose.
+     + /// The line `core intent seals check` prints. An exemption says so.
+     -     let _ = row;
+     -     String::new()
+     +     let word = match row.verdict {
+     +         IntentRangeVerdict::Intact => "intact",
+     +         IntentRangeVerdict::Exempt => "exempt (release)",
+     +         IntentRangeVerdict::NoSeal => "NoSeal",
+     +         IntentRangeVerdict::NoNote => "NoNote",
+     +         IntentRangeVerdict::Broken => "Broken",
+     +         IntentRangeVerdict::Legacy => "Legacy",
+     +     };
+     +     format!("{} {}", row.hash, word)
+     + }
+     +
+     + /// `core intent seals check <range>`. Exit 0 when every Intent commit is intact or
+     + /// exempt, 1 when one is not, 3 when the range could not be read.
+     + pub fn seals_check(ctx: &AppContext, range: &[String]) -> CoreResult<()> {
+     +     let args: Vec<&str> = range.iter().map(String::as_str).collect();
+     +     let report = (|| {
+     +         ctx.capabilities
+     +             .require(
+     +                 "intent",
+     +                 &[Capability::FilesystemReadHome, Capability::SpawnProcess],
+     +             )
+     +             .map_err(|e| e.to_string())?;
+     +         check_intent_range(&ctx.core_root, &args)
+     +     })();
+     +     match report {
+     +         Ok(report) => {
+     +             if report.rows.is_empty() {
+     +                 println!("  no commit in the range carries Intent:");
+     +             }
+     +             for row in &report.rows {
+     +                 let line = intent_range_line(row);
+     +                 match row.verdict {
+     +                     IntentRangeVerdict::Intact => println!("{}", line.green()),
+     +                     IntentRangeVerdict::Exempt => println!("{}", line.yellow()),
+     +                     _ => println!("{}", line.red()),
+     +                 }
+     +             }
+     +             if report.failed {
+     +                 std::process::exit(1);
+     +             }
+     +             Ok(())
+     +         }
+     +         Err(e) => {
+     +             eprintln!("{} {}", "\u{2717}".bright_red(), e);
+     +             std::process::exit(3);
+     +         }
+     +     }
+     -     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     -     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     +         let stdin_test = root.join(".githooks/test-pre-push.sh");
+     +         let hooked = Command::new("bash")
+     +             .arg(&stdin_test)
+     +             .current_dir(&root)
+     +             .output()
+     +             .expect("bash runs");
+     +         assert!(
+     +             hooked.status.success(),
+     +             "pre-push stdin test failed\nstdout:\n{}\nstderr:\n{}",
+     +             String::from_utf8_lossy(&hooked.stdout),
+     +             String::from_utf8_lossy(&hooked.stderr)
+     +         );
+  E7 zero/engine/src/domains/intent/mod.rs: cicomplete prints a suggested message with Release:
+     - /// commit. The Release trailer is what makes that commit exempt. Red stub: wrong on purpose.
+     + /// commit. The Release trailer is what makes that commit exempt.
+     -     let _ = (id, versions);
+     -     String::new()
+     +     let list = versions.join(", ");
+     +     format!("INT-{id}: complete; {list}\n\nIntent: INT-{id}\nRelease: {list}\n")
+     +     if !written.is_empty() {
+     +         println!();
+     +         println!(
+     +             "  {} cicomplete does not commit. Suggested commit message:",
+     +             "\u{1f4dd}".normal()
+     +         );
+     +         print!("{}", release_commit_message(id, &written));
+     +     }
+     -     #[ignore = "INT-306 G5 red; cicomplete does not yet name the Release trailer"]
+  E8 zero/engine/src/cli/parser.rs: core intent seals check
+     - use clap::{Parser, Subcommand};
+     + use clap::{Args, Parser, Subcommand};
+     + /// `core intent seals` (INT-274) and `core intent seals check` (INT-306).
+     + #[derive(Args)]
+     + pub struct SealsArgs {
+     +     #[command(subcommand)]
+     +     pub command: Option<SealsCommand>,
+     +     /// How many commits back from HEAD. Exit 0 nothing broken or unproven, 1 a seal is broken,
+     +     /// 2 a seal names a plan that is not kept, 3 could not answer.
+     +     #[arg(short = 'n', default_value = "15")]
+     +     pub n: String,
+     +     /// Only commits whose Intent: trailer names this intent (INT-x or x)
+     +     #[arg(long)]
+     +     pub intent: Option<String>,
+     + }
+     +
+     + /// `core intent seals check <range>` -- each commit in a git rev-list range that carries Intent:.
+     + #[derive(Subcommand)]
+     + pub enum SealsCommand {
+     +     /// Intact passes. Release: is exempt and the line says so. NoSeal, NoNote and Broken fail.
+     +     Check {
+     +         /// git rev-list arguments: a range, or a sha then --not --remotes
+     +         #[arg(
+     +             required = true,
+     +             num_args = 1..,
+     +             trailing_var_arg = true,
+     +             allow_hyphen_values = true
+     +         )]
+     +         range: Vec<String>,
+     +     },
+     + }
+     +
+     -     /// Every commit seal in the last N on HEAD, re-checked: sealed, broken, no plan, legacy, unsealed (INT-274)
+     -     ///
+     -     /// Exit 0 nothing broken or unproven, 1 a seal is broken, 2 a seal names a plan that is not
+     -     /// kept, 3 could not answer. A clap usage error (an unknown flag) also exits 2.
+     -     Seals {
+     -         /// How many commits back from HEAD
+     -         #[arg(short = 'n', default_value = "15")]
+     -         n: String,
+     -         /// Only commits whose Intent: trailer names this intent (INT-x or x)
+     -         #[arg(long)]
+     -         intent: Option<String>,
+     -     },
+     +     /// Every commit seal in the last N on HEAD, re-checked (INT-274), or check a range (INT-306)
+     +     Seals(SealsArgs),
+  E9 zero/engine/src/cli/commands.rs: SealsCheck
+     +     /// INT-306: each Intent commit in a rev-list range, re-checked by check_seal.
+     +     SealsCheck {
+     +         range: Vec<String>,
+     +     },
+  E10 zero/engine/src/cli/mod.rs: map seals check
+     -     SandboxCommands, SecurityCommands, SelfCommands, SimulateCommands, StrategyCommands,
+     -     StressCommands, TraceCommands, TradeoffCommands, ValuesCommands, WeightCommands, WhyCommands,
+     -     WorkspaceCommands,
+     +     SandboxCommands, SealsCommand, SecurityCommands, SelfCommands, SimulateCommands,
+     +     StrategyCommands, StressCommands, TraceCommands, TradeoffCommands, ValuesCommands,
+     +     WeightCommands, WhyCommands, WorkspaceCommands,
+     -             IntentCommands::Seals { n, intent } => IntentCommand::Seals { n, intent },
+     +             IntentCommands::Seals(args) => match args.command {
+     +                 Some(SealsCommand::Check { range }) => IntentCommand::SealsCheck { range },
+     +                 None => IntentCommand::Seals {
+     +                     n: args.n,
+     +                     intent: args.intent,
+     +                 },
+     +             },
+  E11 zero/engine/src/app/dispatcher.rs: dispatch seals check
+     +                 IntentCommand::SealsCheck { range } => {
+     +                     crate::domains::intent::trace::seals_check(ctx, &range)
+     +                 }
+  E12 zero/tools/zero-doctor/src/probes/git.rs: commit-msg must be executable
+     -     for hook in ["pre-commit", "pre-push"] {
+     +     for hook in ["pre-commit", "commit-msg", "pre-push"] {
+  E13 docs/TREE.md: the hooks line names commit-msg
+     - | `.githooks/` | zero-gate's pre-commit and pre-push hooks |
+     + | `.githooks/` | pre-commit, commit-msg and pre-push hooks |
+  E14 zero/intents/in-progress/306-commits-that-name-an-intent-carry-its-seal.md: tick G5
+     - - [ ] G5 Red, then the guard, only after G1, G2 and G3 are ruled. Shown failing
+     + - [x] G5 Red, then the guard, only after G1, G2 and G3 are ruled. Shown failing
+     + <!-- evidence: 2026-11-10. Red commit 117770c6, Seal 9aed05fabf20e79d, the note under refs/notes/seals hashes to it. cargo test -p core g5_ -- --ignored --test-threads=1 exited 101: 1 passed, 10 failed, 0.06s. The pass is g5_commit_message_gate_leaves_a_message_with_no_intent, because the stub answers untouched. The ten failures are the refusal, the 16-hex seal, a seal that is not 16 lowercase hex, the Release exemption, the exempt (release) line, the range check (Intact, NoSeal, NoNote, Broken, Release-exempt, no-Intent ignored), a missing range, the commit-msg script (REFUSE: commit-msg is not an executable hook), and pre-push (does not call core intent seals check). cargo test -p core on that commit: 254 passed, 0 failed, 11 ignored. Green, this commit: the ignore is gone. cargo test -p core: 265 passed, 0 failed, 0 ignored. cargo test -p zero-gate: 4 passed. Scratch commit, hooks path holding only commit-msg: Intent: INT-306 and no Seal refused, exit 1, "refused: this message carries Intent: INT-306 and no Seal: of 16 lowercase hex." and the lines that say to add Seal: or Release:. The same repo with Release: nsh 1.0.0 printed "commit-msg: release exemption used (Release: nsh 1.0.0)" and exited 0. Before this commit, core intent seals check 8691e49f..HEAD exited 0: 43ecc66e intact, 117770c6 intact. core intent seals check a36327cc^..200f5cbd exited 1, NoSeal: a1389f57 4ac3356c 9be9d059 6b8722bc 305c8245 7ed2fc90 0fa00a33 9531c1ee 250a8e35 200f5cbd. cicomplete does not commit; it prints the suggested message with Intent: and Release:. pre-push reads the ref lines before zero-gate and runs the gate with stdin from /dev/null. .githooks/test-pre-push.sh gives the refs to a gate that reads stdin; the gate sees nothing and the seal check still sees both refs. -->
