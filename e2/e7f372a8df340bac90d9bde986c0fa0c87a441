@@ -1,0 +1,15 @@
+INT-306: cistart prints the seal a commit for this intent carries -- plan
+  E1 zero/engine/src/domains/intent/mod.rs: after the start banner, one green-marked line naming Intent and Seal
+     +     println!(
+     +         "  {} Commits for INT-{} carry Intent: and Seal:, note under refs/notes/seals",
+     +         "🔏".green(),
+     +         intent.id
+     +     );
+  E2 zero/intents/in-progress/306-commits-that-name-an-intent-carry-its-seal.md: G7 is ticked with the approved wording, and it is no longer open
+     - - [ ] G7 Optional. Christian floated tying seals to cistart. Today cistart is
+     + - [x] G7 Optional. Christian floated tying seals to cistart. Today cistart is
+     + RULED 2026-11-10 (Christian: "just go with what is the best, you have my approval"): the line, after the start banner, is "🔏 Commits for INT-<id> carry Intent: and Seal:, note under refs/notes/seals".
+     + <!-- evidence: 2026-11-10. core intent start prints that line after the closing bar, with the id filled in. The mark is green, the same color as the focus mark in the banner. -->
+     -
+     - ## Open for Christian
+     - - G7, the wording of the one-line seal reminder cistart prints. It is Christian's and is shown to him before it is added.
