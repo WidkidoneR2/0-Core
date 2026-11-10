@@ -1,0 +1,34 @@
+INT-306: trace by a seal value finds the commit and reads its verdict -- plan
+  E1 zero/engine/src/domains/intent/trace.rs: seal_commits keeps a 16-hex seal through is_seal_token, and the G4 test runs
+     - /// Every seal on the current branch with the commit that carries it -- the same line shape as
+     - /// Fixes:, so parse_fixes reads it. Err when git cannot be read.
+     + /// Every seal on the current branch with the commit that carries it. The log line has the
+     + /// same shape as Fixes:, and parse_fixes keeps only F-NNNN, so a 16-hex seal was dropped
+     + /// (F-0116). A value counts when is_seal_token accepts it. Err when git cannot be read.
+     -     Ok(parse_fixes(&text))
+     +     Ok(parse_seals(&text))
+     + }
+     +
+     + /// One line per commit: the hash, a TAB, then its Seal values, comma-separated. A value is
+     + /// kept only when it is 16 lowercase hex, the same rule as the commit-msg guard.
+     + fn parse_seals(text: &str) -> Vec<(String, String)> {
+     +     let mut got = Vec::new();
+     +     for line in text.lines() {
+     +         if let Some((hash, values)) = line.split_once('\t') {
+     +             for value in values.split(',').map(str::trim).filter(|s| !s.is_empty()) {
+     +                 if is_seal_token(value) {
+     +                     got.push((value.to_string(), hash.to_string()));
+     +                 }
+     +             }
+     +         }
+     +     }
+     +     got
+     - /// INT-306 G4. Ignored until trace by a seal value keeps a 16-hex seal, so a
+     - /// bare cargo test stays green. The red run is cargo test -p core g4_ -- --ignored.
+     + /// INT-306 G4. Trace by a seal value finds the commit whose Seal trailer matches and
+     + /// reads the verdict through check_seal. The test was ignored on the red commit.
+     -     #[ignore = "INT-306 G4 red; trace by seal value drops a 16-hex seal, so cargo test does not run this"]
+  E2 zero/intents/in-progress/306-commits-that-name-an-intent-carry-its-seal.md: G4 is ticked, with the red failure and the trace of 68ca1811565da386
+     - - [ ] G4 Whether to also fix F-0116 (trace by seal value). The cause is in The
+     + - [x] G4 Whether to also fix F-0116 (trace by seal value). The cause is in The
+     + <!-- evidence: 2026-11-10. Red commit 348fedc2, Seal 77dfcd32120bcd22. cargo test -p core g4_ -- --ignored --nocapture --test-threads=1 exited 101: 0 passed, 1 failed, 0.03s. The failure is trace by seal value finds the one commit whose Seal trailer matches 474153ed4ed68b90, got [], left 0 right 1. cargo test -p core on that commit: 265 passed, 0 failed, 1 ignored. Green, this commit: the ignore is gone. seal_commits keeps a value is_seal_token accepts, and the verdict is check_seal. core intent trace 68ca1811565da386 prints 507f95c5 and "seal 68ca1811565da386 intact -- the plan text kept in refs/notes/seals hashes to it". -->
