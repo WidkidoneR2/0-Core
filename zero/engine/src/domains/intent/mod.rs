@@ -3550,7 +3550,7 @@ fn gates_text(ledger: &Path, id: Option<&str>, unmet: bool, none: bool) -> Strin
     out
 }
 
-/// core intent gates [id] [--unmet] [--none]
+/// core intent gates \[id\] \[--unmet\] \[--none\]
 pub fn gates_query(ctx: &AppContext, id: Option<&str>, unmet: bool, none: bool) -> CoreResult<()> {
     ctx.capabilities
         .require("intent", &[Capability::FilesystemReadHome])?;
