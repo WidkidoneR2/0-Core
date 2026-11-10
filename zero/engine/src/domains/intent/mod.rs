@@ -15,6 +15,8 @@ pub mod findings;
 pub mod folders;
 pub mod gates;
 pub mod trace;
+/// INT-307: the findings screen's rows, sort, filter, and color. Red: the tests are ignored.
+pub mod view;
 
 #[derive(Debug, Clone)]
 pub struct Intent {

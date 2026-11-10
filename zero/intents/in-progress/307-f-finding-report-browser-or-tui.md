@@ -147,11 +147,13 @@ RULED 2026-11-10 (Christian): type-to-filter like cheat (substring), plus single
 RULED 2026-11-10 (Christian): colors are off when NO_COLOR is set, or when output is not a terminal, including when it is piped. The terminal is always restored on exit, including a panic or a crash. It must never break the shell.
 - [ ] G7 Red, then the viewer, only after G1 through G6 are ruled. Shown
       failing first, under its own plan Seal: the row, each filter (the
-      substring filter, o, h, and a), and the restore. The command name is
-      chosen in this step. The screen ruling is cheat-style, same framework.
-      Then the same tests pass. The suite is the one the ruled home already
-      uses: cargo test -p core, cargo test -p novashell, or an nsh-test row.
-      Proof: the red output, then the green output, each under its plan Seal.
+      substring filter, o, h, and a), and the restore. The command is
+      findings. Red is in: the tests are ignored, and they fail. The screen
+      ruling is cheat-style, same framework. Then the same tests pass. The
+      suite is the one the ruled home already uses: cargo test -p core, cargo
+      test -p novashell, or an nsh-test row. Proof: the red output, then the
+      green output, each under its plan Seal.
+RULED 2026-11-10 (Christian): the command is findings.
 - [ ] G8 Doors, after any ship. cargo test -p core passes. cargo test -p
       novashell passes. nsh-test passes after cargo build -p novashell -p
       nsh-test. core intent validate reports every intent valid. d reports 0
@@ -174,5 +176,5 @@ RULED 2026-11-10 (Christian): colors are off when NO_COLOR is set, or when outpu
 
 ## Open for Christian
 - G0, whether the recon stands.
-- G7, the red tests, one for each filter, and the command name.
+- G7, green. Red is in, and the command is findings.
 - G8, the doors.
