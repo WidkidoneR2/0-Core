@@ -40,13 +40,43 @@ These stay in bash too:
 
 A line missing from this list is a failed test, not a quiet omission.
 
-## The files
+## Install
 
-The package installs the handoff at
-`/usr/share/novashell-omarchy/bashrc-handoff.sh` and the command at
-`/usr/bin/novashell-omarchy`.
+Build in this directory with `makepkg -f`. Christian installs the package
+himself with `sudo pacman -U novashell-omarchy-<ver>-any.pkg.tar.zst`. That
+is a root step. An agent never runs it. There is no pacman post_install.
 
-The package owns that file under `/usr`. The marked line is the only write in
-`~/.bashrc`, and only when you run the command. `install` adds the line.
-`revert` removes it and checks the sha256 taken before the edit. pacman does
-not touch `~/.bashrc`.
+If `~/.bashrc` still holds the inline 27-line 277 block,
+`novashell-omarchy install` refuses and writes nothing. Christian deletes that
+block by hand. Then `novashell-omarchy install` saves the sha256 of
+`~/.bashrc` to `~/.local/state/novashell-omarchy/bashrc.sha256` and appends
+this one line:
+
+`[ -r /usr/share/novashell-omarchy/bashrc-handoff.sh ] && source /usr/share/novashell-omarchy/bashrc-handoff.sh # novashell-omarchy`
+
+`novashell-omarchy status` shows line, handoff, off and nsh.
+
+`~/.config/nsh/off` stays in bash. `NSH_ACTIVE=1` stays in bash.
+`omarchy-reinstall-configs` can wipe the marked line. The doctor warns, and
+`novashell-omarchy install` puts the line back.
+
+## Revert
+
+`novashell-omarchy revert` deletes the marked line and checks the sha256 of
+`~/.bashrc` against the saved value. Then `sudo pacman -R novashell-omarchy`
+if wanted. A removed package with the line left behind is quiet, and bash
+continues.
+
+## Ownership
+
+The package owns `/usr/share/novashell-omarchy/bashrc-handoff.sh` and
+`/usr/bin/novashell-omarchy`. Christian owns `~/.bashrc`. The one marked
+line is the only write there, and only when he runs the command. pacman
+never touches `~/.bashrc`.
+
+The canonical handoff is `zero/shell/novashell/handoff/bashrc-handoff.sh`
+in 0-core. Change it there first.
+
+This README is person-owned.
+
+HAND-MAINTAINED
