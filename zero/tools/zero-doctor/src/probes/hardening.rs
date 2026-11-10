@@ -7,27 +7,55 @@ use std::process::Command;
 ///
 /// `omarchy-reinstall-configs` overwrites `~/.bashrc` with no backup, and two installers append
 /// below whatever is there. Neither tells anyone, and the first sign would be a terminal that
-/// quietly opens bash. This measures three things: the block is in `.bashrc` and identical to the
-/// canonical file, `~/.local/bin/nsh` can run, and nothing but blank lines and comments sits
-/// below the block. A line appended below it runs only when nsh is off or has crashed, so an
-/// nsh session never sees the PATH or activation lines an installer added there.
+/// quietly opens bash. Two shapes count as the handoff. The older one is the 27-line block in
+/// `.bashrc`, identical to the canonical file. The packaged one (INT-295) is one marked line
+/// that sources `/usr/share/novashell-omarchy/bashrc-handoff.sh`, and that file has to be the
+/// same bytes. Either way `~/.local/bin/nsh` has to be able to run, and nothing but blank lines
+/// and comments may sit below the handoff. A line appended below it runs only when nsh is off
+/// or has crashed, so an nsh session never sees the PATH or activation lines an installer added
+/// there.
 ///
 /// ⚠️ NEVER `fail`. The handoff is a choice, and a machine that has not adopted it is not broken.
-/// It warns, and the recovery text says how to restore it.
+/// It warns, and the recovery text says how to restore it. An intact inline block with no
+/// package installed still passes: that is the laptop until G6.
 const HANDOFF_IN_CRATE: &str = "handoff/bashrc-handoff.sh";
 
-/// The verdict from three texts and one fact, so every case is testable without a home directory.
-fn assess_handoff(rc: &str, block: &str, target_runs: bool) -> Measurement {
-    let want: Vec<&str> = block.lines().collect();
-    let have: Vec<&str> = rc.lines().collect();
-    let first = match want.first() {
-        Some(first) => *first,
-        None => return Measurement::unknown("the canonical handoff block is empty"),
-    };
-    let start = match have.iter().position(|line| *line == first) {
-        Some(start) => start,
-        None => return Measurement::warn("the handoff is not in .bashrc; terminals open bash"),
-    };
+/// The file the package installs. Tests pass another path; this is the default.
+const PACKAGED_HANDOFF: &str = "/usr/share/novashell-omarchy/bashrc-handoff.sh";
+
+/// The one line `novashell-omarchy install` appends. The token is the marker.
+const MARKED_SOURCE_LINE: &str = "[ -r /usr/share/novashell-omarchy/bashrc-handoff.sh ] && source /usr/share/novashell-omarchy/bashrc-handoff.sh # novashell-omarchy";
+
+/// `override_path` is `ZERO_DOCTOR_HANDOFF` when that variable is set. Empty is
+/// ignored, so the default path is not replaced by a blank value.
+fn packaged_handoff_path(override_path: Option<&str>) -> &str {
+    match override_path {
+        Some(path) if !path.is_empty() => path,
+        _ => PACKAGED_HANDOFF,
+    }
+}
+
+fn lines_below<'a>(lines: &'a [&'a str], end: usize) -> Vec<&'a str> {
+    lines[end..]
+        .iter()
+        .map(|line| line.trim())
+        .filter(|line| !line.is_empty() && !line.starts_with('#'))
+        .collect()
+}
+
+fn warn_below(below: &[&str]) -> Measurement {
+    Measurement::warn(format!(
+        "{} line(s) below the handoff run only when nsh is off or has crashed; nsh sessions never see them; first: {}",
+        below.len(),
+        below[0]
+    ))
+}
+
+fn warn_nsh_missing() -> Measurement {
+    Measurement::warn("~/.local/bin/nsh is missing or not executable; terminals stay in bash")
+}
+
+fn assess_inline(have: &[&str], start: usize, want: &[&str], target_runs: bool) -> Measurement {
     let end = start + want.len();
     if have.len() < end || have[start..end] != want[..] {
         return Measurement::warn(
@@ -35,64 +63,172 @@ fn assess_handoff(rc: &str, block: &str, target_runs: bool) -> Measurement {
         );
     }
     if !target_runs {
-        return Measurement::warn(
-            "~/.local/bin/nsh is missing or not executable; terminals stay in bash",
-        );
+        return warn_nsh_missing();
     }
-    let below: Vec<&str> = have[end..]
-        .iter()
-        .map(|line| line.trim())
-        .filter(|line| !line.is_empty() && !line.starts_with('#'))
-        .collect();
+    let below = lines_below(have, end);
     if !below.is_empty() {
-        return Measurement::warn(format!(
-            "{} line(s) below the handoff run only when nsh is off or has crashed; nsh sessions never see them; first: {}",
-            below.len(),
-            below[0]
-        ));
+        return warn_below(&below);
     }
     Measurement::pass("handoff block intact in .bashrc; nsh is executable; nothing below it")
 }
 
-/// `ZERO_DOCTOR_BASHRC` names the rc file to judge instead of `~/.bashrc`, so a copy can be
-/// checked without touching the real one.
-pub fn shell_handoff() -> Measurement {
-    let home = std::env::var("HOME").unwrap_or_default();
-    let rc_path = match std::env::var("ZERO_DOCTOR_BASHRC") {
-        Ok(path) if !path.is_empty() => path,
-        _ => format!("{}/.bashrc", home),
+fn assess_marked(
+    have: &[&str],
+    marked_at: usize,
+    block: &str,
+    packaged_path: &str,
+    packaged: Option<&str>,
+    target_runs: bool,
+) -> Measurement {
+    let Some(text) = packaged else {
+        return Measurement::warn(format!(
+            "the novashell-omarchy marked line is in .bashrc but {packaged_path} is missing; terminals open bash"
+        ));
     };
+    if text != block {
+        return Measurement::warn(format!(
+            "the novashell-omarchy marked line is in .bashrc but {packaged_path} differs from the canonical block; terminals open bash"
+        ));
+    }
+    if !target_runs {
+        return warn_nsh_missing();
+    }
+    let below = lines_below(have, marked_at + 1);
+    if !below.is_empty() {
+        return warn_below(&below);
+    }
+    Measurement::pass(
+        "marked line present; packaged handoff matches the canonical block; nsh is executable; nothing below it",
+    )
+}
+
+/// The verdict from the rc text, the canonical block, and the packaged file.
+///
+/// `packaged` is the text of the file the marked line sources. `None` means that
+/// file is missing. `packaged_path` is where it was read from: the default under
+/// `/usr/share`, or the path a test passed in. Every case is decidable without a
+/// home directory, and none of them returns `fail`.
+fn assess_handoff(
+    rc: &str,
+    block: &str,
+    packaged_path: &str,
+    packaged: Option<&str>,
+    target_runs: bool,
+) -> Measurement {
+    let want: Vec<&str> = block.lines().collect();
+    let have: Vec<&str> = rc.lines().collect();
+    let first = match want.first() {
+        Some(first) => *first,
+        None => return Measurement::unknown("the canonical handoff block is empty"),
+    };
+    let marked: Vec<usize> = have
+        .iter()
+        .enumerate()
+        .filter(|(_, line)| **line == MARKED_SOURCE_LINE)
+        .map(|(index, _)| index)
+        .collect();
+    let inline = have.iter().position(|line| *line == first);
+    match (inline, marked.len()) {
+        (Some(_), n) if n > 0 => Measurement::warn(
+            "both the inline handoff block and the novashell-omarchy marked line are in .bashrc; that is a double handoff",
+        ),
+        (Some(start), _) => assess_inline(&have, start, &want, target_runs),
+        (None, 0) => Measurement::warn(
+            "the handoff is not in .bashrc; the novashell-omarchy marked line is gone; terminals open bash; run novashell-omarchy install to put it back",
+        ),
+        (None, _) => assess_marked(
+            &have,
+            marked[0],
+            block,
+            packaged_path,
+            packaged,
+            target_runs,
+        ),
+    }
+}
+
+fn nsh_executable(home: &str) -> bool {
+    let target = format!("{home}/.local/bin/nsh");
+    std::fs::metadata(&target)
+        .map(|m| {
+            use std::os::unix::fs::PermissionsExt;
+            m.is_file() && m.permissions().mode() & 0o111 != 0
+        })
+        .unwrap_or(false)
+}
+
+fn canonical_block_path() -> Result<String, Measurement> {
     let crate_dir = match zero_core::paths::crate_rel_dir("novashell") {
         Some(dir) => dir,
-        None => return Measurement::unknown("could not locate the novashell crate"),
+        None => return Err(Measurement::unknown("could not locate the novashell crate")),
     };
-    let block_path = format!(
+    Ok(format!(
         "{}/{}/{}",
         zero_core::paths::core_root_string(),
         crate_dir,
         HANDOFF_IN_CRATE
-    );
-    let rc = match std::fs::read_to_string(&rc_path) {
+    ))
+}
+
+/// Judge one rc and one packaged file. `shell_handoff` resolves the real paths,
+/// including `ZERO_DOCTOR_HANDOFF`, and then calls this. Tests pass a stand-in
+/// handoff path, and the canonical block by its path in this crate, so nothing
+/// is written under `/usr` and the lookup does not require `~/0-core`.
+fn shell_handoff_at(
+    rc_path: &std::path::Path,
+    handoff_path: &std::path::Path,
+    home: &std::path::Path,
+    block_path: &std::path::Path,
+) -> Measurement {
+    let rc = match std::fs::read_to_string(rc_path) {
         Ok(text) => text,
-        Err(e) => return Measurement::unknown(format!("could not read {} ({})", rc_path, e)),
+        Err(e) => {
+            return Measurement::unknown(format!("could not read {} ({})", rc_path.display(), e))
+        }
     };
     let block = match std::fs::read_to_string(&block_path) {
         Ok(text) => text,
         Err(e) => {
             return Measurement::unknown(format!(
                 "could not read the canonical handoff {} ({})",
-                block_path, e
+                block_path.display(),
+                e
             ))
         }
     };
-    let target = format!("{}/.local/bin/nsh", home);
-    let runs = std::fs::metadata(&target)
-        .map(|m| {
-            use std::os::unix::fs::PermissionsExt;
-            m.is_file() && m.permissions().mode() & 0o111 != 0
-        })
-        .unwrap_or(false);
-    assess_handoff(&rc, &block, runs)
+    let packaged = std::fs::read_to_string(handoff_path).ok();
+    let runs = nsh_executable(&home.to_string_lossy());
+    assess_handoff(
+        &rc,
+        &block,
+        &handoff_path.to_string_lossy(),
+        packaged.as_deref(),
+        runs,
+    )
+}
+
+/// `ZERO_DOCTOR_BASHRC` names the rc file to judge instead of `~/.bashrc`.
+/// `ZERO_DOCTOR_HANDOFF` names the packaged handoff file instead of
+/// `/usr/share/novashell-omarchy/bashrc-handoff.sh`. Either one lets a copy be
+/// checked without touching the real home or `/usr`.
+pub fn shell_handoff() -> Measurement {
+    let home = std::env::var("HOME").unwrap_or_default();
+    let rc_path = match std::env::var("ZERO_DOCTOR_BASHRC") {
+        Ok(path) if !path.is_empty() => path,
+        _ => format!("{home}/.bashrc"),
+    };
+    let override_path = std::env::var("ZERO_DOCTOR_HANDOFF").ok();
+    let handoff_path = packaged_handoff_path(override_path.as_deref()).to_string();
+    let block_path = match canonical_block_path() {
+        Ok(path) => path,
+        Err(measurement) => return measurement,
+    };
+    shell_handoff_at(
+        std::path::Path::new(&rc_path),
+        std::path::Path::new(&handoff_path),
+        std::path::Path::new(&home),
+        std::path::Path::new(&block_path),
+    )
 }
 
 /// Units that enforce a firewall.
@@ -288,17 +424,22 @@ mod tests {
         format!("{above}\n{block}{below}")
     }
 
+    /// Inline-block cases. No packaged file: that is the laptop before G6.
+    fn judge_rc(rc: &str, block: &str, runs: bool) -> Measurement {
+        assess_handoff(rc, block, PACKAGED_HANDOFF, None, runs)
+    }
+
     #[test]
     fn shell_handoff_intact_block_passes() {
         let b = handoff_canonical();
-        let m = assess_handoff(&handoff_rc("# omarchy\nsource x", &b, ""), &b, true);
+        let m = judge_rc(&handoff_rc("# omarchy\nsource x", &b, ""), &b, true);
         assert_eq!(m.status, Status::Pass, "{}", m.message);
     }
 
     #[test]
     fn shell_handoff_missing_block_warns() {
         let b = handoff_canonical();
-        let m = assess_handoff("# omarchy\nsource x\n", &b, true);
+        let m = judge_rc("# omarchy\nsource x\n", &b, true);
         assert_eq!(m.status, Status::Warn);
         assert!(m.message.contains("not in .bashrc"), "{}", m.message);
     }
@@ -308,7 +449,7 @@ mod tests {
         let b = handoff_canonical();
         let edited = b.replace("exit \"$nsh_status\"", "true");
         assert_ne!(edited, b, "the edit must change the block");
-        let m = assess_handoff(&handoff_rc("# omarchy", &edited, ""), &b, true);
+        let m = judge_rc(&handoff_rc("# omarchy", &edited, ""), &b, true);
         assert_eq!(m.status, Status::Warn);
         assert!(m.message.contains("differs"), "{}", m.message);
     }
@@ -317,7 +458,7 @@ mod tests {
     fn shell_handoff_a_line_appended_below_warns_and_names_it() {
         let b = handoff_canonical();
         let rc = handoff_rc("# omarchy", &b, "export PATH=\"$HOME/.cargo/bin:$PATH\"\n");
-        let m = assess_handoff(&rc, &b, true);
+        let m = judge_rc(&rc, &b, true);
         assert_eq!(m.status, Status::Warn);
         assert!(m.message.contains(".cargo/bin"), "{}", m.message);
     }
@@ -326,14 +467,14 @@ mod tests {
     fn shell_handoff_blank_lines_and_comments_below_are_fine() {
         let b = handoff_canonical();
         let rc = handoff_rc("# omarchy", &b, "\n# a note\n   \n");
-        let m = assess_handoff(&rc, &b, true);
+        let m = judge_rc(&rc, &b, true);
         assert_eq!(m.status, Status::Pass, "{}", m.message);
     }
 
     #[test]
     fn shell_handoff_a_target_that_cannot_run_warns() {
         let b = handoff_canonical();
-        let m = assess_handoff(&handoff_rc("# omarchy", &b, ""), &b, false);
+        let m = judge_rc(&handoff_rc("# omarchy", &b, ""), &b, false);
         assert_eq!(m.status, Status::Warn);
         assert!(m.message.contains("not executable"), "{}", m.message);
     }
@@ -348,9 +489,9 @@ mod tests {
     // zero/shell/novashell/handoff/novashell-omarchy/novashell-omarchy
     // (G2 looked for a file named novashell-omarchy directly in handoff/; the
     // package is a directory, so the lookup is one level deeper).
-    // G5 turns g2_reinstall_deletes_the_marked_line_and_nothing_notices green when
-    // assess_handoff (the judgment shell_handoff uses) warns and that warning
-    // names the marked source line, the token novashell-omarchy.
+    // G5: assess_handoff warns when the marked line is gone, and that warning
+    // names the marked source line, the token novashell-omarchy. The reinstall
+    // test below is that case, and it is no longer ignored.
 
     /// Omarchy v4.5.0 default/bashrc, commit ac2690cd.
     /// Source: https://github.com/omacom/omarchy/blob/ac2690cd/default/bashrc
@@ -359,12 +500,6 @@ mod tests {
         "/../../shell/novashell/handoff/omarchy-v4.5.0-default.bashrc"
     );
     const OMBASHRC_SHA: &str = "d78bd5405919c9c0d9aa5a3db47696286aa9c9d0a1c759785719054605da9a4b";
-    /// One marked source line. The token is what a notice has to name.
-    /// The `[ -r ... ] &&` guard means a removed package does not make bash
-    /// print "No such file" on every terminal.
-    const MARKED_SOURCE_LINE: &str =
-        "[ -r /usr/share/novashell-omarchy/bashrc-handoff.sh ] && source /usr/share/novashell-omarchy/bashrc-handoff.sh # novashell-omarchy";
-
     struct StandIn(std::path::PathBuf);
 
     impl Drop for StandIn {
@@ -494,7 +629,6 @@ mod tests {
     }
 
     #[test]
-    #[ignore = "INT-295 G2 red; G5 turns green"]
     fn g2_reinstall_deletes_the_marked_line_and_nothing_notices() {
         let root = stand_in("reinstall");
         let skel = root.0.join("skel");
@@ -557,7 +691,7 @@ mod tests {
             let body = std::fs::read_to_string(home.join(name)).unwrap_or_default();
             traced = traced || names_marked(&body);
         }
-        let verdict = assess_handoff(&after, &handoff_canonical(), true);
+        let verdict = judge_rc(&after, &handoff_canonical(), true);
         let warned = verdict.status == Status::Warn && names_marked(&verdict.message);
         assert!(
             traced || warned,
@@ -1426,6 +1560,428 @@ mod tests {
             "README {} is missing census entries. A missing entry is a failure, not silence.\nmissing:\n{}",
             path.display(),
             missing.join("\n")
+        );
+    }
+
+    // INT-295 G5. The packaged form: one marked line, and the file it sources
+    // is the canonical block. Stand-in homes only. bash and the setup command
+    // go through bash_rc and run_setup, which call setsid with stdin /dev/null.
+
+    fn assert_not_fail(m: &Measurement, what: &str) {
+        assert_ne!(
+            m.status,
+            Status::Fail,
+            "{what}: shell_handoff must warn, never fail: {}",
+            m.message
+        );
+    }
+
+    fn rc_with_marked_line() -> String {
+        let mut rc = vendored_bashrc();
+        if !rc.ends_with('\n') {
+            rc.push('\n');
+        }
+        rc.push_str(MARKED_SOURCE_LINE);
+        rc.push('\n');
+        rc
+    }
+
+    fn canonical_block_file() -> std::path::PathBuf {
+        std::path::PathBuf::from(concat!(
+            env!("CARGO_MANIFEST_DIR"),
+            "/../../shell/novashell/handoff/bashrc-handoff.sh"
+        ))
+    }
+
+    #[test]
+    fn g5_marked_line_with_matching_packaged_file_passes() {
+        let block = handoff_canonical();
+        assert!(
+            sha256_hex(block.as_bytes()).starts_with("178960349fa03a05"),
+            "the canonical block is not sha256 178960349fa03a05"
+        );
+        let rc = rc_with_marked_line();
+        assert!(
+            !rc.contains("if [[ $- == *i* ]]"),
+            "harness: the rc must be the marked line, not the inline block"
+        );
+        let stand_in_path = "/tmp/int295-g5-packaged/bashrc-handoff.sh";
+        let m = assess_handoff(&rc, &block, stand_in_path, Some(&block), true);
+        assert_not_fail(&m, "matching packaged file");
+        assert_eq!(m.status, Status::Pass, "{}", m.message);
+        assert!(
+            m.message.contains("marked line present"),
+            "pass did not name the marked line: {}",
+            m.message
+        );
+    }
+
+    #[test]
+    fn g5_marked_line_without_the_packaged_file_warns() {
+        let block = handoff_canonical();
+        let m = assess_handoff(&rc_with_marked_line(), &block, PACKAGED_HANDOFF, None, true);
+        assert_not_fail(&m, "missing packaged file");
+        assert_eq!(m.status, Status::Warn, "{}", m.message);
+        assert!(m.message.contains("novashell-omarchy"), "{}", m.message);
+        assert!(m.message.contains("missing"), "{}", m.message);
+        assert!(m.message.contains(PACKAGED_HANDOFF), "{}", m.message);
+    }
+
+    #[test]
+    fn g5_marked_line_with_a_different_packaged_file_warns() {
+        let block = handoff_canonical();
+        let mut different = block.clone();
+        different.push_str("# not the canonical block\n");
+        assert_ne!(different.as_bytes(), block.as_bytes());
+        let path = "/tmp/int295-g5-differs/bashrc-handoff.sh";
+        let m = assess_handoff(&rc_with_marked_line(), &block, path, Some(&different), true);
+        assert_not_fail(&m, "different packaged file");
+        assert_eq!(m.status, Status::Warn, "{}", m.message);
+        assert!(m.message.contains("differs"), "{}", m.message);
+        assert!(m.message.contains(path), "{}", m.message);
+        assert!(m.message.contains("novashell-omarchy"), "{}", m.message);
+    }
+
+    #[test]
+    fn g5_intact_inline_block_with_no_package_still_passes() {
+        let block = handoff_canonical();
+        let rc = handoff_rc("# omarchy\nsource x", &block, "");
+        assert!(
+            !rc.contains(MARKED_SOURCE_LINE),
+            "harness: this case is the inline block alone"
+        );
+        let m = assess_handoff(&rc, &block, PACKAGED_HANDOFF, None, true);
+        assert_not_fail(&m, "inline block");
+        assert_eq!(m.status, Status::Pass, "{}", m.message);
+        assert!(
+            m.message.contains("handoff block intact"),
+            "the inline block no longer reports OK: {}",
+            m.message
+        );
+    }
+
+    #[test]
+    fn g5_inline_block_and_marked_line_warns_double_handoff() {
+        let block = handoff_canonical();
+        let mut rc = handoff_rc("# omarchy", &block, "");
+        rc.push_str(MARKED_SOURCE_LINE);
+        rc.push('\n');
+        let m = assess_handoff(&rc, &block, PACKAGED_HANDOFF, Some(&block), true);
+        assert_not_fail(&m, "double handoff");
+        assert_eq!(m.status, Status::Warn, "{}", m.message);
+        assert!(m.message.contains("double handoff"), "{}", m.message);
+        assert!(m.message.contains("novashell-omarchy"), "{}", m.message);
+    }
+
+    #[test]
+    fn g5_missing_line_names_novashell_omarchy_install() {
+        let block = handoff_canonical();
+        let m = assess_handoff(
+            "# omarchy\nsource x\n",
+            &block,
+            PACKAGED_HANDOFF,
+            None,
+            true,
+        );
+        assert_not_fail(&m, "missing line");
+        assert_eq!(m.status, Status::Warn, "{}", m.message);
+        assert!(m.message.contains("not in .bashrc"), "{}", m.message);
+        assert!(m.message.contains("novashell-omarchy"), "{}", m.message);
+        assert!(
+            m.message.contains("novashell-omarchy install"),
+            "the warning does not say to run novashell-omarchy install: {}",
+            m.message
+        );
+    }
+
+    #[test]
+    fn g5_a_line_below_the_marked_line_warns() {
+        let block = handoff_canonical();
+        let mut rc = rc_with_marked_line();
+        rc.push_str("export PATH=\"$HOME/.cargo/bin:$PATH\"\n");
+        let m = assess_handoff(&rc, &block, PACKAGED_HANDOFF, Some(&block), true);
+        assert_not_fail(&m, "line below");
+        assert_eq!(m.status, Status::Warn, "{}", m.message);
+        assert!(m.message.contains(".cargo/bin"), "{}", m.message);
+    }
+
+    #[test]
+    fn g5_packaged_path_is_overridable() {
+        assert_eq!(packaged_handoff_path(None), PACKAGED_HANDOFF);
+        assert_eq!(packaged_handoff_path(Some("")), PACKAGED_HANDOFF);
+        let stand = "/tmp/int295-g5-override/bashrc-handoff.sh";
+        assert_eq!(packaged_handoff_path(Some(stand)), stand);
+
+        let root = stand_in("g5-override");
+        let home = home_dir(&root);
+        std::fs::create_dir(&home).unwrap();
+        refuse_real_home(&home);
+        let handoff = root.0.join("share/bashrc-handoff.sh");
+        std::fs::create_dir_all(handoff.parent().unwrap()).unwrap();
+        let block = handoff_canonical();
+        std::fs::write(&handoff, &block).unwrap();
+        std::fs::write(home.join(".bashrc"), rc_with_marked_line()).unwrap();
+        write_stand_in_nsh(&home, "#!/bin/sh\nexit 0\n");
+        let m = shell_handoff_at(
+            &home.join(".bashrc"),
+            &handoff,
+            &home,
+            &canonical_block_file(),
+        );
+        assert_not_fail(&m, "override path");
+        assert_eq!(m.status, Status::Pass, "{}", m.message);
+        assert_ne!(
+            handoff,
+            std::path::PathBuf::from(PACKAGED_HANDOFF),
+            "the stand-in path must not be the hardcoded /usr path"
+        );
+    }
+
+    fn rc_stderr_lines(stderr: &str) -> Vec<String> {
+        stderr_from_the_rc(stderr)
+            .lines()
+            .filter(|line| !line.is_empty())
+            .map(|line| line.to_string())
+            .collect()
+    }
+
+    fn marked_line_sourcing(path: &std::path::Path) -> String {
+        format!(
+            "[ -r {p} ] && source {p} # novashell-omarchy",
+            p = path.display()
+        )
+    }
+
+    /// The packaged block, under the stand-in root, and an rc that sources it
+    /// by that path. /usr/share is not writable here. The bytes are the
+    /// canonical file.
+    struct PackagedBash {
+        _root: StandIn,
+        home: std::path::PathBuf,
+        rc: std::path::PathBuf,
+    }
+
+    fn packaged_bash(label: &str) -> PackagedBash {
+        let root = stand_in(label);
+        let home = root.0.join("home");
+        std::fs::create_dir(&home).unwrap();
+        refuse_real_home(&home);
+        let share = root.0.join("usr/share/novashell-omarchy");
+        std::fs::create_dir_all(&share).unwrap();
+        let handoff = share.join("bashrc-handoff.sh");
+        let block = handoff_canonical();
+        std::fs::write(&handoff, &block).unwrap();
+        assert_eq!(
+            std::fs::read(&handoff).unwrap(),
+            block.as_bytes(),
+            "the sourced file is not the canonical handoff"
+        );
+        let rc = home.join("rc");
+        std::fs::write(
+            &rc,
+            format!("{}\necho STILL_IN_BASH\n", marked_line_sourcing(&handoff)),
+        )
+        .unwrap();
+        PackagedBash {
+            _root: root,
+            home,
+            rc,
+        }
+    }
+
+    #[test]
+    fn g5_crash_statuses_stay_in_bash_with_one_stderr_line() {
+        let pack = packaged_bash("g5-crash");
+        let cases = [
+            (101, "panic"),
+            (132, "SIGILL"),
+            (134, "SIGABRT"),
+            (135, "SIGBUS"),
+            (139, "SIGSEGV"),
+        ];
+        for (status, why) in cases {
+            write_stand_in_nsh(&pack.home, &format!("#!/bin/sh\nexit {status}\n"));
+            let out = bash_rc(&pack.home, &pack.rc, &[]);
+            assert_eq!(
+                out.status.code(),
+                Some(0),
+                "status {status} did not stay in bash: {}",
+                output_text(&out.stderr)
+            );
+            let stdout = output_text(&out.stdout);
+            assert!(
+                stdout.contains("STILL_IN_BASH"),
+                "status {status} left bash:\n{stdout}"
+            );
+            assert!(
+                stdout.contains("AFTER"),
+                "status {status} did not reach the next command:\n{stdout}"
+            );
+            let lines = rc_stderr_lines(&output_text(&out.stderr));
+            assert_eq!(
+                lines.len(),
+                1,
+                "status {status} should be exactly one stderr line: {lines:?}"
+            );
+            let want = format!("nsh crashed ({why}, status {status})");
+            assert!(lines[0].contains(&want), "status {status}: {lines:?}");
+        }
+    }
+
+    #[test]
+    fn g5_any_other_status_exits_bash_with_that_status() {
+        let pack = packaged_bash("g5-other");
+        let others = [0, 1, 2, 100, 130, 131, 133, 136, 137, 138, 140, 200, 255];
+        for status in others {
+            write_stand_in_nsh(&pack.home, &format!("#!/bin/sh\nexit {status}\n"));
+            let out = bash_rc(&pack.home, &pack.rc, &[]);
+            assert_eq!(
+                out.status.code(),
+                Some(status),
+                "status {status} did not exit bash with that status\nstdout:\n{}\nstderr:\n{}",
+                output_text(&out.stdout),
+                output_text(&out.stderr)
+            );
+            let stdout = output_text(&out.stdout);
+            assert!(
+                !stdout.contains("STILL_IN_BASH"),
+                "status {status} stayed in bash:\n{stdout}"
+            );
+            assert!(
+                !stdout.contains("AFTER"),
+                "status {status} ran the command after rc:\n{stdout}"
+            );
+        }
+    }
+
+    #[test]
+    fn g5_off_file_lands_in_bash() {
+        let pack = packaged_bash("g5-off");
+        let ran = pack.home.join("ran");
+        write_stand_in_nsh(&pack.home, "#!/bin/sh\necho RAN > \"$HOME/ran\"\nexit 0\n");
+        let off = pack.home.join(".config/nsh/off");
+        std::fs::create_dir_all(off.parent().unwrap()).unwrap();
+        std::fs::write(&off, "").unwrap();
+        let out = bash_rc(&pack.home, &pack.rc, &[]);
+        assert_eq!(out.status.code(), Some(0), "{:?}", output_text(&out.stderr));
+        assert!(!ran.exists(), "the off file still ran nsh");
+        assert!(
+            output_text(&out.stdout).contains("STILL_IN_BASH"),
+            "the off file left bash:\n{}",
+            output_text(&out.stdout)
+        );
+        let lines = rc_stderr_lines(&output_text(&out.stderr));
+        assert_eq!(lines.len(), 1, "{lines:?}");
+        assert!(
+            lines[0].contains("nsh handoff is off"),
+            "off stderr: {lines:?}"
+        );
+    }
+
+    #[test]
+    fn g5_nsh_active_lands_in_bash() {
+        let pack = packaged_bash("g5-active");
+        let ran = pack.home.join("ran");
+        write_stand_in_nsh(&pack.home, "#!/bin/sh\necho RAN > \"$HOME/ran\"\nexit 0\n");
+        let out = bash_rc(&pack.home, &pack.rc, &[("NSH_ACTIVE", "1")]);
+        assert_eq!(out.status.code(), Some(0), "{:?}", output_text(&out.stderr));
+        assert!(!ran.exists(), "NSH_ACTIVE=1 still ran nsh");
+        assert!(
+            output_text(&out.stdout).contains("STILL_IN_BASH"),
+            "NSH_ACTIVE=1 left bash:\n{}",
+            output_text(&out.stdout)
+        );
+        let lines = rc_stderr_lines(&output_text(&out.stderr));
+        assert!(
+            lines
+                .iter()
+                .all(|line| !line.contains("nsh crashed") && !line.contains("handoff is off")),
+            "NSH_ACTIVE=1 wrote a handoff line: {lines:?}"
+        );
+    }
+
+    #[test]
+    fn g5_reinstall_removes_the_line_and_install_puts_it_back() {
+        let root = stand_in("g5-reinstall");
+        let skel = root.0.join("skel");
+        let home = root.0.join("home");
+        std::fs::create_dir(&skel).unwrap();
+        std::fs::create_dir(&home).unwrap();
+        refuse_real_home(&home);
+        let omarchy = root.0.join("omarchy");
+        std::fs::create_dir_all(omarchy.join("default/bash")).unwrap();
+        std::fs::write(omarchy.join("default/bash/rc"), "# stand-in omarchy rc\n").unwrap();
+
+        let base = vendored_bashrc();
+        std::fs::write(skel.join(".bashrc"), &base).unwrap();
+        std::fs::write(home.join(".bashrc"), rc_with_marked_line()).unwrap();
+        let share = root.0.join("usr/share/novashell-omarchy");
+        std::fs::create_dir_all(&share).unwrap();
+        let handoff = share.join("bashrc-handoff.sh");
+        let block = handoff_canonical();
+        std::fs::write(&handoff, &block).unwrap();
+        write_stand_in_nsh(&home, "#!/bin/sh\nexit 0\n");
+        let bashrc = home.join(".bashrc");
+        let block_file = canonical_block_file();
+
+        let planted = shell_handoff_at(&bashrc, &handoff, &home, &block_file);
+        assert_not_fail(&planted, "before reinstall");
+        assert_eq!(planted.status, Status::Pass, "{}", planted.message);
+
+        let skel_dot = format!("{}/.", skel.display());
+        let home_slash = format!("{}/", home.display());
+        let cp = std::process::Command::new("cp")
+            .args(["-af", &skel_dot, &home_slash])
+            .output()
+            .unwrap_or_else(|e| panic!("cp -af: {e}"));
+        assert!(
+            cp.status.success(),
+            "cp -af failed: {}",
+            output_text(&cp.stderr)
+        );
+        let wiped = std::fs::read_to_string(&bashrc).unwrap();
+        assert!(
+            !wiped.contains(MARKED_SOURCE_LINE),
+            "cp -af left the marked line in place"
+        );
+
+        let omarchy_path = omarchy.to_str().expect("omarchy path is utf-8");
+        let bash = bash_rc(&home, &bashrc, &[("OMARCHY_PATH", omarchy_path)]);
+        assert_eq!(
+            bash.status.code(),
+            Some(0),
+            "reinstall did not leave a working bash: {}",
+            output_text(&bash.stderr)
+        );
+        assert!(
+            output_text(&bash.stdout).contains("AFTER"),
+            "bash did not run a command after reinstall:\n{}",
+            output_text(&bash.stdout)
+        );
+
+        let noticed = shell_handoff_at(&bashrc, &handoff, &home, &block_file);
+        assert_not_fail(&noticed, "after reinstall");
+        assert_eq!(noticed.status, Status::Warn, "{}", noticed.message);
+        assert!(
+            noticed.message.contains("novashell-omarchy install"),
+            "the doctor did not say to run novashell-omarchy install: {}",
+            noticed.message
+        );
+
+        assert_ok(&run_setup(&home, &["install"]), "install");
+        let restored = std::fs::read(&bashrc).unwrap();
+        assert_eq!(
+            marked_count(&restored),
+            1,
+            "install did not put the line back"
+        );
+        let ok = shell_handoff_at(&bashrc, &handoff, &home, &block_file);
+        assert_not_fail(&ok, "after install");
+        assert_eq!(ok.status, Status::Pass, "{}", ok.message);
+        assert!(
+            ok.message.contains("marked line present"),
+            "the doctor did not go back to OK: {}",
+            ok.message
         );
     }
 }

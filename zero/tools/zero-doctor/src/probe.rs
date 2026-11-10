@@ -84,7 +84,7 @@ pub enum Probe {
     VmState,
     /// This machine and tree against the recorded fingerprint (INT-269).
     Fingerprint,
-    /// The bash handoff block is in .bashrc, intact, with nsh executable and nothing below it (INT-277).
+    /// The bash handoff is intact: the inline block, or the novashell-omarchy marked line whose packaged file matches it, with nsh executable and nothing below it (INT-277, INT-295).
     ShellHandoff,
 }
 

@@ -261,7 +261,7 @@ section = "\U0001F4E6 System State"
 tier = "user"
 probe = "shell_handoff"
 severities = ["pass", "warn"]
-recovery = "Back up ~/.bashrc, then restore the block from zero/shell/novashell/handoff/bashrc-handoff.sh and keep it below any other startup lines"
+recovery = "Run novashell-omarchy install to put the marked line back. An intact inline block is still accepted; if that block was edited, back up ~/.bashrc and restore it from zero/shell/novashell/handoff/bashrc-handoff.sh, below any other startup lines"
 
 [[check]]
 id = "package_cache"
