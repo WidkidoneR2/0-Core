@@ -285,6 +285,7 @@ pub fn parse() -> Command {
             DelegateCommands::AccuracyReport => DelegateCommand::AccuracyReport,
             DelegateCommands::Activate { contract } => DelegateCommand::Activate { contract },
         }),
+        Commands::Findings => Command::Findings,
         Commands::Bug { command } => Command::Bug(match command.unwrap_or_default() {
             parser::BugCommands::Dashboard => commands::BugCommand::Dashboard,
             parser::BugCommands::Welcome => commands::BugCommand::Welcome,

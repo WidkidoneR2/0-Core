@@ -72,6 +72,8 @@ pub enum Commands {
         #[command(subcommand)]
         command: Option<BugCommands>,
     },
+    /// INT-307: the findings screen. Same framework as cheat.
+    Findings,
     Profile {
         #[command(subcommand)]
         command: ProfileCommands,

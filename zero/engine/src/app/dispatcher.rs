@@ -204,6 +204,13 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             }
         }
 
+        Command::Findings => {
+            ctx.capabilities.require(
+                "intent",
+                &[Capability::FilesystemReadHome, Capability::SpawnProcess],
+            )?;
+            crate::domains::intent::findings_tui::run(ctx)
+        }
         Command::Bug(c) => {
             ctx.capabilities
                 .require("intent", &[Capability::FilesystemReadHome])?;

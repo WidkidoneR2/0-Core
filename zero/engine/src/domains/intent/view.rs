@@ -3,9 +3,9 @@
 //! A row is built from the one finding reader and from `state_of`. Nothing here
 //! parses a finding file or a Fixes trailer a second time.
 
-use super::bug::{day_number, FixFacts};
+use super::bug::{day_number, story, FixFacts};
 use super::findings::{parse_record, Record};
-use super::trace::{SealCheck, State};
+use super::trace::{state_of, State};
 use std::collections::HashMap;
 
 /// The glyph a missing or not-applicable date shows. Never a guessed day.
@@ -85,15 +85,23 @@ pub struct Guard<S: Screen> {
 
 impl<S: Screen> Guard<S> {
     /// Take the terminal. Raw mode, then the alternate screen.
-    pub fn enter(screen: S) -> Self {
+    pub fn enter(mut screen: S) -> Self {
+        screen.enter_raw();
+        screen.enter_alt();
         Self {
             screen,
-            active: false,
+            active: true,
         }
     }
 
     /// Give the terminal back. A second call does nothing.
-    pub fn restore(&mut self) {}
+    pub fn restore(&mut self) {
+        if self.active {
+            self.screen.leave_alt();
+            self.screen.leave_raw();
+            self.active = false;
+        }
+    }
 }
 
 impl<S: Screen> Drop for Guard<S> {
@@ -146,21 +154,73 @@ pub fn assemble(
     fixes: &Result<Vec<(String, String)>, String>,
     days: &HashMap<String, String>,
 ) -> Vec<FindingRow> {
-    let _ = (records, fixes, days);
-    Vec::new()
+    let mut rows = Vec::with_capacity(records.len());
+    for record in records {
+        let state = state_of(record, fixes);
+        let (word, mut tone, fixed) = match &state {
+            State::Fixed(hashes) => ("fixed", Tone::Fixed, fixed_date(hashes, days)),
+            State::Open => ("open", Tone::Open, EM_DASH.to_string()),
+            State::Closed(_) => ("closed", Tone::Open, EM_DASH.to_string()),
+            State::Unread(_) => ("unknown", Tone::Open, EM_DASH.to_string()),
+        };
+        if !matches!(state, State::Fixed(_)) && record.severity == "unrated" {
+            tone = Tone::Unrated;
+        }
+        let high_marker = record.severity == "high" && !matches!(state, State::Fixed(_));
+        rows.push(FindingRow {
+            id: record.id.clone(),
+            description: record.what.clone(),
+            found: date_or_dash(&record.found_on),
+            fixed,
+            severity: record.severity.clone(),
+            state: word.to_string(),
+            tone,
+            high_marker,
+        });
+    }
+    order(rows)
 }
 
 /// Open findings first: high, then medium, then low, then no severity.
 /// Fixed findings sink to the bottom.
-pub fn order(rows: Vec<FindingRow>) -> Vec<FindingRow> {
+pub fn order(mut rows: Vec<FindingRow>) -> Vec<FindingRow> {
+    rows.sort_by(|a, b| {
+        let group = |row: &FindingRow| if row.state == "fixed" { 1 } else { 0 };
+        let sev = |row: &FindingRow| {
+            if row.state == "fixed" {
+                0
+            } else {
+                severity_rank(&row.severity)
+            }
+        };
+        group(a)
+            .cmp(&group(b))
+            .then_with(|| sev(a).cmp(&sev(b)))
+            .then_with(|| a.id.cmp(&b.id))
+    });
     rows
 }
 
 /// Substring on every column, then the key. `Open` keeps state open. `High`
 /// keeps severity high. `All` keeps every row the substring left.
 pub fn apply_filter(rows: &[FindingRow], query: &str, key: KeyFilter) -> Vec<FindingRow> {
-    let _ = (query, key);
-    rows.to_vec()
+    let q = query.to_lowercase();
+    rows.iter()
+        .filter(|row| {
+            let typed = q.is_empty()
+                || row
+                    .columns()
+                    .iter()
+                    .any(|col| col.to_lowercase().contains(&q));
+            let keyed = match key {
+                KeyFilter::All => true,
+                KeyFilter::Open => row.state == "open",
+                KeyFilter::High => row.severity == "high",
+            };
+            typed && keyed
+        })
+        .cloned()
+        .collect()
 }
 
 /// Color is on only for a terminal, and only when NO_COLOR is unset.
@@ -170,20 +230,38 @@ pub fn colors_enabled(no_color_set: bool, is_terminal: bool) -> bool {
 
 /// The line the screen prints. Color off means the text and no escapes.
 pub fn paint(row: &FindingRow, color: bool) -> Paint {
-    let _ = color;
+    let plain = row.columns().join("  ");
+    if !color {
+        return Paint {
+            text: plain,
+            ansi: false,
+            tone: row.tone,
+            bold: false,
+        };
+    }
+    let (r, g, b) = match row.tone {
+        Tone::Fixed => (57, 255, 20),
+        Tone::Open => (255, 80, 80),
+        Tone::Unrated => (255, 200, 50),
+    };
+    let body = format!("\x1b[38;2;{r};{g};{b}m{plain}\x1b[0m");
+    let text = if row.high_marker {
+        format!("\x1b[1m{body}")
+    } else {
+        body
+    };
     Paint {
-        text: row.columns().join("  "),
+        text,
         ansi: true,
-        tone: Tone::Open,
-        bold: false,
+        tone: row.tone,
+        bold: row.high_marker,
     }
 }
 
 /// The full finding: the record, the fixing commits, and each seal, from the
 /// one story the bug report already prints.
 pub fn detail_text(record: &Record, state: &State, facts: &[FixFacts]) -> String {
-    let _ = (record, state, facts);
-    String::new()
+    story(record, state, facts).text
 }
 
 /// Read one finding record the way the ledger writes it.
@@ -191,8 +269,78 @@ pub fn record_from(body: &str) -> Record {
     parse_record(body)
 }
 
+/// A row plus the text Enter shows.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct Card {
+    pub row: FindingRow,
+    pub detail: String,
+}
+
+/// The screen's list. Records come from the findings reader, state from
+/// `state_of`, days and seals from git. A date git cannot give is the em dash.
+pub fn load_cards(ctx: &crate::app::context::AppContext) -> Result<Vec<Card>, String> {
+    use super::bug::fix_day;
+    use super::trace::{check_commit_seal, git_read, seal_notes};
+
+    let dir = super::intents_dir(ctx).join("findings");
+    let records = super::findings::read_records(&dir)?;
+    let fixes = super::trace::fixes(&ctx.core_root);
+    let mut days: HashMap<String, String> = HashMap::new();
+    if let Ok(named) = &fixes {
+        for (_, hash) in named {
+            if days.contains_key(hash) {
+                continue;
+            }
+            if let Ok(day) = fix_day(&ctx.core_root, std::slice::from_ref(hash)) {
+                days.insert(hash.clone(), day);
+            }
+        }
+    }
+    let rows = assemble(&records, &fixes, &days);
+    let notes = seal_notes(&ctx.core_root).unwrap_or_default();
+    let mut cards = Vec::with_capacity(records.len());
+    for record in &records {
+        let state = state_of(record, &fixes);
+        let facts = match &state {
+            State::Fixed(hashes) => hashes
+                .iter()
+                .filter_map(|hash| {
+                    let day = days
+                        .get(hash)
+                        .cloned()
+                        .unwrap_or_else(|| EM_DASH.to_string());
+                    let subject = git_read(&ctx.core_root, &["log", "-1", "--format=%s", hash])
+                        .unwrap_or_default();
+                    let seal = check_commit_seal(&ctx.core_root, &notes, hash).ok()?;
+                    Some(FixFacts {
+                        hash: hash.clone(),
+                        day,
+                        subject: subject.trim().to_string(),
+                        seal,
+                    })
+                })
+                .collect(),
+            _ => Vec::new(),
+        };
+        let detail = detail_text(record, &state, &facts);
+        if let Some(row) = rows.iter().find(|row| row.id == record.id) {
+            cards.push(Card {
+                row: row.clone(),
+                detail,
+            });
+        }
+    }
+    cards.sort_by_key(|card| {
+        rows.iter()
+            .position(|row| row.id == card.row.id)
+            .unwrap_or(usize::MAX)
+    });
+    Ok(cards)
+}
+
 #[cfg(test)]
 mod g7_findings_view_tests {
+    use super::super::trace::SealCheck;
     use super::*;
     use std::sync::{Arc, Mutex};
 
@@ -248,7 +396,6 @@ mod g7_findings_view_tests {
         rows.iter().map(|r| r.id.as_str()).collect()
     }
 
-    #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
     #[test]
     fn g7_rows_sort_open_high_medium_low_unrated_then_fixed() {
         assert_eq!(
@@ -257,7 +404,6 @@ mod g7_findings_view_tests {
         );
     }
 
-    #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
     #[test]
     fn g7_columns_are_id_description_found_fixed_severity_state() {
         let row = rows().into_iter().find(|r| r.id == "F-0001").unwrap();
@@ -270,7 +416,6 @@ mod g7_findings_view_tests {
         assert_eq!(fixed.columns()[5], "fixed");
     }
 
-    #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
     #[test]
     fn g7_missing_dates_are_an_em_dash_and_never_guessed() {
         let rows = rows();
@@ -285,7 +430,6 @@ mod g7_findings_view_tests {
         assert_ne!(no_day.fixed, "2026-11-10");
     }
 
-    #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
     #[test]
     fn g7_state_color_green_fixed_red_open_yellow_unrated_bold_high() {
         let rows = rows();
@@ -310,7 +454,6 @@ mod g7_findings_view_tests {
         assert_eq!(paint(fixed, true).tone, Tone::Fixed);
     }
 
-    #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
     #[test]
     fn g7_substring_filter() {
         let rows = rows();
@@ -320,7 +463,6 @@ mod g7_findings_view_tests {
         assert_eq!(ids(&lows), vec!["F-0003", "F-0005"]);
     }
 
-    #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
     #[test]
     fn g7_key_o_is_open_only() {
         let rows = rows();
@@ -332,7 +474,6 @@ mod g7_findings_view_tests {
         );
     }
 
-    #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
     #[test]
     fn g7_key_h_is_high_only() {
         let rows = rows();
@@ -341,7 +482,6 @@ mod g7_findings_view_tests {
         assert_eq!(ids(&high), vec!["F-0001", "F-0006"]);
     }
 
-    #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
     #[test]
     fn g7_key_a_shows_all() {
         let rows = rows();
@@ -350,7 +490,6 @@ mod g7_findings_view_tests {
         assert_eq!(ids(&all), ids(&rows));
     }
 
-    #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
     #[test]
     fn g7_color_off_when_no_color_or_not_a_terminal() {
         assert!(!colors_enabled(true, true));
@@ -382,7 +521,6 @@ mod g7_findings_view_tests {
         }
     }
 
-    #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
     #[test]
     fn g7_terminal_guard_restores_on_drop_after_panic() {
         let log = Arc::new(Mutex::new(Vec::new()));
@@ -399,7 +537,6 @@ mod g7_findings_view_tests {
         );
     }
 
-    #[ignore = "INT-307 G7 red; the findings screen is not built, so cargo test does not run this"]
     #[test]
     fn g7_detail_names_the_fixing_commit_and_the_seal() {
         let record = rec("F-0005", "low fixed", "2026-01-05", Some("low"), "no");

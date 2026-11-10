@@ -12,10 +12,12 @@ pub mod bug;
 pub mod finder;
 /// INT-266: findings -- one record per file under intents/findings/.
 pub mod findings;
+/// INT-307: the findings screen. ratatui and crossterm, the same framework as cheat.
+pub mod findings_tui;
 pub mod folders;
 pub mod gates;
 pub mod trace;
-/// INT-307: the findings screen's rows, sort, filter, and color. Red: the tests are ignored.
+/// INT-307: the findings screen's rows, sort, filter, and color.
 pub mod view;
 
 #[derive(Debug, Clone)]

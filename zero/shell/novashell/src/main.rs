@@ -3123,6 +3123,22 @@ fn repl_main() -> Result<()> {
                     cheatsheet_tui::run_cheatsheet_tui(engine.core_root());
                     continue 'repl;
                 }
+                // INT-307: findings opens the findings screen. The reader lives
+                // in core, so the screen runs there and nsh hands it the terminal.
+                // A missing core, or a screen that exits, returns to the prompt.
+                if line.trim() == "findings" {
+                    match std::process::Command::new("core").arg("findings").status() {
+                        Ok(status) if !status.success() => {
+                            eprintln!(
+                                "  x findings: core findings exited {}",
+                                status.code().unwrap_or(1)
+                            );
+                        }
+                        Err(e) => eprintln!("  x findings: core is not on PATH ({e})"),
+                        Ok(_) => {}
+                    }
+                    continue 'repl;
+                }
                 // INT-254: it opens intent ledger TUI
                 if line.trim() == "it" {
                     // INT-230 G4: refuse BEFORE the alternate screen. An absent

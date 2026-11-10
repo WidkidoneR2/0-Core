@@ -162,6 +162,7 @@ pub const BUILTINS: &[&[&str]] = &[
     &["edit"],
     &["clear", "c", "cls"],
     &["cheat"],
+    &["findings"],
     &["it"],
     &["jobs"],
     &["fg"],

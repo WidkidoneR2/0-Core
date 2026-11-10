@@ -146,6 +146,8 @@ pub enum Command {
     },
     Intent(IntentCommand),
     Bug(BugCommand),
+    /// INT-307: open the findings screen.
+    Findings,
     Profile(ProfileCommand),
     Security(SecurityCommand),
     Sandbox(SandboxCommand),
