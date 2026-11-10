@@ -5,7 +5,7 @@
 
 [[tool]]
 name = "core"
-version = "4.4.7"
+version = "4.5.0"
 category = "core"
 description = "Main engine — 15 domains, capability model"
 expected_usage = "high"
@@ -285,7 +285,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "zero-doctor"
-version = "0.1.4"
+version = "0.2.0"
 category = "core"
 description = "The doctor engine library -- definition format, states, tiers, probe registry, validation; shared by core doctor and nsh doctor (lib, not a binary)"
 expected_usage = "medium"

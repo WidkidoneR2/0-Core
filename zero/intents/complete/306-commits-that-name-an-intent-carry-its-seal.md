@@ -3,7 +3,7 @@ id: 306
 date: 2026-11-10
 type: future
 title: "Commits that name an intent carry its seal"
-status: in-progress
+status: complete
 tags: [seals, intent, git]
 ---
 
@@ -161,3 +161,7 @@ RULED 2026-11-10 (Christian: "just go with what is the best, you have my approva
 - Editing AGENTS.md. The Seal rule is already written there (INT-266). Any new
   sentence waits on its own ruling and a reviewed plan.
 - A guard that writes the plan. It checks a trailer and a note.
+
+## Versions
+- core 4.4.7 -> 4.5.0 (minor)
+- zero-doctor 0.1.4 -> 0.2.0 (minor)
