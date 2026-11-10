@@ -622,8 +622,8 @@ mod tests {
         cmd.args(args)
             .env("HOME", home)
             .env("NO_COLOR", "1")
-            .env_remove("NSH_ACTIVE")
-            .stdin(std::process::Stdio::null());
+            .env_remove("NSH_ACTIVE");
+        detach_from_controlling_terminal(&mut cmd);
         cmd.output()
             .unwrap_or_else(|e| panic!("run novashell-omarchy: {e}"))
     }
@@ -945,12 +945,13 @@ mod tests {
         let home = home_dir(&root);
         let setup = require_setup();
 
-        let piped = std::process::Command::new(&setup)
+        let mut piped_cmd = std::process::Command::new(&setup);
+        piped_cmd
             .arg("status")
             .env("HOME", &home)
-            .env_remove("NO_COLOR")
-            .output()
-            .unwrap();
+            .env_remove("NO_COLOR");
+        detach_from_controlling_terminal(&mut piped_cmd);
+        let piped = piped_cmd.output().unwrap();
         assert_ok(&piped, "piped status");
         let piped_text = output_text(&piped.stdout) + &output_text(&piped.stderr);
         assert!(
@@ -959,18 +960,20 @@ mod tests {
         );
 
         let log = root.0.join("color.log");
-        let colored = std::process::Command::new("script")
-            .args([
-                "-q",
-                "-e",
-                "-c",
-                &format!(
-                    "env -u NO_COLOR HOME={} {} status",
-                    home.display(),
-                    setup.display()
-                ),
-                log.to_str().unwrap(),
-            ])
+        let mut colored_cmd = std::process::Command::new("script");
+        colored_cmd.args([
+            "-q",
+            "-e",
+            "-c",
+            &format!(
+                "env -u NO_COLOR HOME={} {} status",
+                home.display(),
+                setup.display()
+            ),
+            log.to_str().unwrap(),
+        ]);
+        detach_from_controlling_terminal(&mut colored_cmd);
+        let colored = colored_cmd
             .output()
             .unwrap_or_else(|e| panic!("script: {e}"));
         assert!(
@@ -986,20 +989,20 @@ mod tests {
         );
         assert!(shown.contains("line:"), "{shown:?}");
 
-        let plain = std::process::Command::new("script")
-            .args([
-                "-q",
-                "-e",
-                "-c",
-                &format!(
-                    "NO_COLOR=1 HOME={} {} status",
-                    home.display(),
-                    setup.display()
-                ),
-                log.to_str().unwrap(),
-            ])
-            .output()
-            .unwrap();
+        let mut plain_cmd = std::process::Command::new("script");
+        plain_cmd.args([
+            "-q",
+            "-e",
+            "-c",
+            &format!(
+                "NO_COLOR=1 HOME={} {} status",
+                home.display(),
+                setup.display()
+            ),
+            log.to_str().unwrap(),
+        ]);
+        detach_from_controlling_terminal(&mut plain_cmd);
+        let plain = plain_cmd.output().unwrap();
         assert!(plain.status.success(), "{}", output_text(&plain.stderr));
         let shown = output_text(&plain.stdout);
         assert!(
@@ -1007,6 +1010,34 @@ mod tests {
             "NO_COLOR on a tty still colored:\n{shown:?}"
         );
         assert!(shown.contains("line: absent"), "{shown:?}");
+    }
+
+    /// stdin is `/dev/null`, and the child calls setsid before exec.
+    ///
+    /// `process_group(0)` only makes a new process group in the same session.
+    /// Measured on a pty: that child stays stopped (state T) and an interactive
+    /// bash still opens `/dev/tty` and calls tcsetpgrp, which stops the cargo
+    /// test job with SIGTTIN or SIGTTOU. setsid drops the controlling terminal,
+    /// so the child cannot take it. The `setsid` symbol is libc, which libstd
+    /// already links; this crate does not take a libc dependency for it.
+    fn detach_from_controlling_terminal(cmd: &mut std::process::Command) {
+        use std::os::unix::process::CommandExt;
+        cmd.stdin(std::process::Stdio::null());
+        // SAFETY: setsid is async-signal-safe. pre_exec runs in the forked
+        // child before any other thread exists there. That child is not a
+        // process-group leader, so setsid is allowed to start a session.
+        unsafe {
+            cmd.pre_exec(|| {
+                extern "C" {
+                    fn setsid() -> i32;
+                }
+                if setsid() < 0 {
+                    Err(std::io::Error::last_os_error())
+                } else {
+                    Ok(())
+                }
+            });
+        }
     }
 
     fn bash_rc(
@@ -1031,7 +1062,71 @@ mod tests {
         for (key, value) in extra {
             cmd.env(key, value);
         }
+        detach_from_controlling_terminal(&mut cmd);
         cmd.output().unwrap_or_else(|e| panic!("bash: {e}"))
+    }
+
+    /// Session id from /proc/pid/stat, the field after pgrp.
+    fn proc_session(pid: u32) -> String {
+        let stat = std::fs::read_to_string(format!("/proc/{pid}/stat"))
+            .unwrap_or_else(|e| panic!("stat {pid}: {e}"));
+        let rest = stat
+            .rsplit_once(')')
+            .map(|(_, tail)| tail.trim_start())
+            .unwrap_or("");
+        rest.split_whitespace().nth(3).unwrap_or("").to_string()
+    }
+
+    fn tagged_line(text: &str, tag: &str) -> String {
+        text.lines()
+            .find_map(|line| line.trim().strip_prefix(tag).map(|rest| rest.to_string()))
+            .unwrap_or_default()
+    }
+
+    /// INT-295. `bash -i` with the test's controlling terminal calls tcsetpgrp
+    /// and the cargo test job stops (SIGTTIN / SIGTTOU). bash_rc is the spawn
+    /// the handoff tests use. It has to start a new session, with stdin
+    /// `/dev/null`, so the child has no controlling terminal.
+    #[test]
+    fn bash_rc_cannot_take_the_controlling_terminal() {
+        let root = stand_in("detach");
+        let home = home_dir(&root);
+        std::fs::create_dir(&home).unwrap();
+        refuse_real_home(&home);
+        let rc = home.join("rc");
+        std::fs::write(
+            &rc,
+            "stat=$(cat /proc/self/stat)\n\
+             rest=${stat##*)}\n\
+             set -- $rest\n\
+             printf 'sid:%s\\n' \"$4\"\n\
+             printf 'tpgid:%s\\n' \"$6\"\n\
+             printf 'fd:%s\\n' \"$(readlink /proc/self/fd/0)\"\n",
+        )
+        .unwrap();
+        let out = bash_rc(&home, &rc, &[]);
+        assert!(
+            out.status.success(),
+            "bash did not finish (stopped?): {}\n{}",
+            out.status,
+            output_text(&out.stderr)
+        );
+        let text = output_text(&out.stdout);
+        let sid = tagged_line(&text, "sid:");
+        let parent = proc_session(std::process::id());
+        assert_ne!(
+            sid, parent,
+            "bash stayed in the test's session {parent}\n{text}"
+        );
+        assert!(
+            text.contains("fd:/dev/null"),
+            "stdin was not /dev/null:\n{text}"
+        );
+        assert_eq!(
+            tagged_line(&text, "tpgid:"),
+            "-1",
+            "bash still has a controlling terminal:\n{text}"
+        );
     }
 
     fn write_stand_in_nsh(home: &std::path::Path, body: &str) {
@@ -1297,4 +1392,5 @@ mod tests {
             "an unknown command wrote under HOME"
         );
     }
+
 }
