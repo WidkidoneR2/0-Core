@@ -1,0 +1,588 @@
+INT-306: G5 is red -- an Intent without a Seal is not refused yet -- plan
+  E1 zero/engine/src/domains/intent/trace.rs: red stubs for the message gate and the range check, and the ignored tests
+     + /// INT-306: what a commit message's trailers require, before the commit object exists.
+     + /// `commit-msg` applies the same rules and does not call this: the hook must not need cargo.
+     + /// A message with no `Intent: INT-xxx` trailer is left alone.
+     + #[derive(Debug, PartialEq, Clone)]
+     + pub enum MessageGate {
+     +     /// No Intent: INT-xxx trailer.
+     +     Untouched,
+     +     /// Intent: and a Seal: of 16 lowercase hex.
+     +     Sealed,
+     +     /// Intent: and a non-empty Release: trailer. The check says so.
+     +     Exempt(String),
+     +     /// Intent: and neither a 16-hex Seal: nor a Release:.
+     +     Refused { intent: String },
+     + }
+     +
+     + /// INT-306 red stub. The tests name the behaviour. This answer is wrong on purpose.
+     + pub fn commit_message_gate(text: &str) -> Result<MessageGate, String> {
+     +     let _ = text;
+     +     Ok(MessageGate::Untouched)
+     + }
+     +
+     + /// One commit a range check looked at, because it carries Intent:.
+     + #[derive(Debug, PartialEq, Clone)]
+     + pub struct IntentRangeRow {
+     +     pub hash: String,
+     +     pub subject: String,
+     +     pub verdict: IntentRangeVerdict,
+     + }
+     +
+     + /// The check_seal verdict, plus the release exemption. Legacy is a Fingerprint with no Seal.
+     + #[derive(Debug, PartialEq, Clone)]
+     + pub enum IntentRangeVerdict {
+     +     Intact,
+     +     Exempt,
+     +     NoSeal,
+     +     NoNote,
+     +     Broken,
+     +     Legacy,
+     + }
+     +
+     + /// The rows a range produced, and whether any of them fail the push.
+     + #[derive(Debug, PartialEq)]
+     + pub struct IntentRangeReport {
+     +     pub rows: Vec<IntentRangeRow>,
+     +     pub failed: bool,
+     + }
+     +
+     + /// INT-306 red stub. The tests name the behaviour. This answer is wrong on purpose.
+     + pub fn check_intent_range(core_root: &str, rev_args: &[&str]) -> Result<IntentRangeReport, String> {
+     +     let _ = (core_root, rev_args);
+     +     Ok(IntentRangeReport {
+     +         rows: Vec::new(),
+     +         failed: false,
+     +     })
+     + }
+     +
+     + /// INT-306 red stub. The line the command prints. Wrong on purpose.
+     + pub fn intent_range_line(row: &IntentRangeRow) -> String {
+     +     let _ = row;
+     +     String::new()
+     + }
+     +
+     +
+     + /// INT-306 G5. Ignored until the guard exists, so a bare cargo test stays green.
+     + /// The red run is `.githooks/test-g5-red.sh`.
+     + #[cfg(test)]
+     + mod g5_seal_guard_tests {
+     +     use super::{
+     +         check_intent_range, commit_message_gate, intent_range_line, seal_digest, IntentRangeReport,
+     +         IntentRangeRow, IntentRangeVerdict, MessageGate,
+     +     };
+     +     use std::os::unix::fs::PermissionsExt;
+     +     use std::path::{Path, PathBuf};
+     +     use std::process::{Command, Stdio};
+     +
+     +     fn gate(text: &str) -> MessageGate {
+     +         commit_message_gate(text).expect("git interpret-trailers runs")
+     +     }
+     +
+     +     #[test]
+     +     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     +     fn g5_commit_message_gate_leaves_a_message_with_no_intent() {
+     +         assert_eq!(gate("just a subject\n"), MessageGate::Untouched);
+     +         assert_eq!(
+     +             gate("mentioned\n\nThe prose names Intent: INT-9 but not as a trailer line.\n"),
+     +             MessageGate::Untouched
+     +         );
+     +         // The first line is the subject. Git does not treat it as a trailer.
+     +         assert_eq!(gate("Intent: INT-306\n"), MessageGate::Untouched);
+     +         assert_eq!(gate("fix\n\nIntent: not-an-id\n"), MessageGate::Untouched);
+     +     }
+     +
+     +     #[test]
+     +     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     +     fn g5_commit_message_gate_refuses_intent_without_a_seal() {
+     +         assert_eq!(
+     +             gate("fix\n\nIntent: INT-306\n"),
+     +             MessageGate::Refused {
+     +                 intent: "INT-306".to_string()
+     +             }
+     +         );
+     +     }
+     +
+     +     #[test]
+     +     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     +     fn g5_commit_message_gate_accepts_sixteen_lowercase_hex() {
+     +         assert_eq!(
+     +             gate("fix\n\nIntent: INT-306\nSeal: 0123456789abcdef\n"),
+     +             MessageGate::Sealed
+     +         );
+     +     }
+     +
+     +     #[test]
+     +     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     +     fn g5_commit_message_gate_rejects_a_seal_that_is_not_sixteen_lowercase_hex() {
+     +         for seal in [
+     +             "0123456789ABCDEF",
+     +             "0123456789abcde",
+     +             "0123456789abcdef0",
+     +             "0123456789abcdeg",
+     +         ] {
+     +             assert_eq!(
+     +                 gate(&format!("fix\n\nIntent: INT-306\nSeal: {seal}\n")),
+     +                 MessageGate::Refused {
+     +                     intent: "INT-306".to_string()
+     +                 },
+     +                 "{seal}"
+     +             );
+     +         }
+     +     }
+     +
+     +     #[test]
+     +     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     +     fn g5_commit_message_gate_exempts_a_release() {
+     +         assert_eq!(
+     +             gate("INT-295: complete; nsh 5.3.12\n\nIntent: INT-295\nRelease: nsh 5.3.12, nsh-test 2.0.15\n"),
+     +             MessageGate::Exempt("nsh 5.3.12, nsh-test 2.0.15".to_string())
+     +         );
+     +         // A Release trailer is the exemption even when a Seal is also present.
+     +         assert_eq!(
+     +             gate("bump\n\nIntent: INT-9\nSeal: 0123456789abcdef\nRelease: nsh 1.2.3\n"),
+     +             MessageGate::Exempt("nsh 1.2.3".to_string())
+     +         );
+     +     }
+     +
+     +     #[test]
+     +     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     +     fn g5_exempt_line_says_exempt_release() {
+     +         let row = IntentRangeRow {
+     +             hash: "abc1234".to_string(),
+     +             subject: "bump".to_string(),
+     +             verdict: IntentRangeVerdict::Exempt,
+     +         };
+     +         let line = intent_range_line(&row);
+     +         assert!(
+     +             line.contains("exempt (release)"),
+     +             "the exemption has to be visible, got {line:?}"
+     +         );
+     +     }
+     +
+     +     struct Fixture(PathBuf);
+     +     impl Drop for Fixture {
+     +         fn drop(&mut self) {
+     +             let _ = std::fs::remove_dir_all(&self.0);
+     +         }
+     +     }
+     +
+     +     fn git(dir: &str, args: &[&str]) {
+     +         let st = Command::new("git")
+     +             .arg("-C")
+     +             .arg(dir)
+     +             .args([
+     +                 "-c",
+     +                 "user.name=int306",
+     +                 "-c",
+     +                 "user.email=int306@localhost",
+     +                 "-c",
+     +                 "commit.gpgsign=false",
+     +                 "-c",
+     +                 "core.hooksPath=/dev/null",
+     +             ])
+     +             .args(args)
+     +             .status()
+     +             .expect("git runs");
+     +         assert!(st.success(), "fixture git {args:?} failed");
+     +     }
+     +
+     +     fn git_out(dir: &str, args: &[&str]) -> String {
+     +         let out = Command::new("git")
+     +             .arg("-C")
+     +             .arg(dir)
+     +             .args(args)
+     +             .output()
+     +             .expect("git runs");
+     +         assert!(out.status.success(), "fixture git {args:?} failed");
+     +         String::from_utf8_lossy(&out.stdout).into_owned()
+     +     }
+     +
+     +     fn commit(dir: &str, subject: &str, trailers: &[&str]) {
+     +         let mut args = vec!["commit", "-q", "--allow-empty", "-m", subject];
+     +         let owned: Vec<String> = trailers.iter().map(|t| (*t).to_string()).collect();
+     +         for t in &owned {
+     +             args.push("--trailer");
+     +             args.push(t);
+     +         }
+     +         git(dir, &args);
+     +     }
+     +
+     +     fn note(dir: &Path, name: &str, bytes: &[u8]) {
+     +         let path = dir.join(name);
+     +         std::fs::write(&path, bytes).expect("note bytes");
+     +         git(
+     +             dir.to_str().unwrap(),
+     +             &[
+     +                 "notes",
+     +                 "--ref=seals",
+     +                 "add",
+     +                 "--no-stripspace",
+     +                 "-F",
+     +                 path.to_str().unwrap(),
+     +                 "HEAD",
+     +             ],
+     +         );
+     +     }
+     +
+     +     fn hash_of(dir: &str, subject: &str) -> String {
+     +         git_out(dir, &["log", "--format=%H%x09%s"])
+     +             .lines()
+     +             .find_map(|line| {
+     +                 let (hash, sub) = line.split_once('\t')?;
+     +                 (sub == subject).then(|| hash.to_string())
+     +             })
+     +             .unwrap_or_else(|| panic!("no commit {subject}"))
+     +     }
+     +
+     +     fn between(dir: &str, from: &str, to: &str) -> IntentRangeReport {
+     +         let spec = format!("{from}..{to}");
+     +         check_intent_range(dir, &[&spec]).expect("range")
+     +     }
+     +
+     +     #[test]
+     +     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     +     fn g5_range_check_intact_noseal_nonote_broken_release_and_ignores_no_intent() {
+     +         let nanos = std::time::SystemTime::now()
+     +             .duration_since(std::time::UNIX_EPOCH)
+     +             .map(|d| d.as_nanos())
+     +             .unwrap_or(0);
+     +         let dir = std::env::temp_dir().join(format!("int306-g5-{}-{}", std::process::id(), nanos));
+     +         std::fs::create_dir_all(&dir).expect("temp dir");
+     +         let fix = Fixture(dir);
+     +         let d = fix.0.to_str().expect("utf-8").to_string();
+     +         git(&d, &["init", "-q"]);
+     +         let plan = b"plan intact\n";
+     +         let other = b"plan other\n";
+     +         let seal = format!("Seal: {}", seal_digest(plan));
+     +
+     +         commit(&d, "plain", &[]);
+     +         commit(&d, "mentioned", &[]);
+     +         // The body names an intent and is not a trailer. Amend keeps the subject.
+     +         git(
+     +             &d,
+     +             &[
+     +                 "commit",
+     +                 "-q",
+     +                 "--amend",
+     +                 "--allow-empty",
+     +                 "-m",
+     +                 "mentioned\n\nThe prose names Intent: INT-9 but not as a trailer line.",
+     +             ],
+     +         );
+     +         commit(&d, "intact", &["Intent: INT-9", &seal]);
+     +         note(&fix.0, "plan-intact", plan);
+     +         commit(&d, "noseal", &["Intent: INT-9"]);
+     +         commit(&d, "nonote", &["Intent: INT-9", &seal]);
+     +         commit(&d, "broken", &["Intent: INT-9", &seal]);
+     +         note(&fix.0, "plan-other", other);
+     +         commit(&d, "release", &["Intent: INT-9", "Release: nsh 1.2.3"]);
+     +         commit(
+     +             &d,
+     +             "release-broken",
+     +             &["Intent: INT-9", &seal, "Release: nsh 1.2.3"],
+     +         );
+     +         note(&fix.0, "plan-other-again", other);
+     +
+     +         let subjects = git_out(&d, &["log", "--format=%s"]);
+     +         assert!(
+     +             subjects.lines().any(|s| s == "plain"),
+     +             "the no-intent commit has to be in the repo to be ignored, not absent"
+     +         );
+     +
+     +         let plain = hash_of(&d, "plain");
+     +         let mentioned = hash_of(&d, "mentioned");
+     +         let intact = hash_of(&d, "intact");
+     +         let noseal = hash_of(&d, "noseal");
+     +         let nonote = hash_of(&d, "nonote");
+     +         let broken = hash_of(&d, "broken");
+     +         let release = hash_of(&d, "release");
+     +         let release_broken = hash_of(&d, "release-broken");
+     +
+     +         let one = between(&d, &mentioned, &intact);
+     +         assert!(!one.failed, "intact passes: {one:?}");
+     +         assert_eq!(one.rows.len(), 1);
+     +         assert_eq!(one.rows[0].verdict, IntentRangeVerdict::Intact);
+     +         assert!(intent_range_line(&one.rows[0]).contains("intact"));
+     +
+     +         let one = between(&d, &intact, &noseal);
+     +         assert!(one.failed);
+     +         assert_eq!(one.rows[0].verdict, IntentRangeVerdict::NoSeal);
+     +         assert!(intent_range_line(&one.rows[0]).contains("NoSeal"));
+     +
+     +         let one = between(&d, &noseal, &nonote);
+     +         assert!(one.failed);
+     +         assert_eq!(one.rows[0].verdict, IntentRangeVerdict::NoNote);
+     +         assert!(intent_range_line(&one.rows[0]).contains("NoNote"));
+     +
+     +         let one = between(&d, &nonote, &broken);
+     +         assert!(one.failed);
+     +         assert_eq!(one.rows[0].verdict, IntentRangeVerdict::Broken);
+     +         assert!(intent_range_line(&one.rows[0]).contains("Broken"));
+     +
+     +         let one = between(&d, &broken, &release);
+     +         assert!(!one.failed, "release is exempt: {one:?}");
+     +         assert_eq!(one.rows[0].verdict, IntentRangeVerdict::Exempt);
+     +         assert!(
+     +             intent_range_line(&one.rows[0]).contains("exempt (release)"),
+     +             "{}",
+     +             intent_range_line(&one.rows[0])
+     +         );
+     +
+     +         let one = between(&d, &release, &release_broken);
+     +         assert!(
+     +             !one.failed,
+     +             "Release exempts a commit whose note would be Broken: {one:?}"
+     +         );
+     +         assert_eq!(one.rows[0].verdict, IntentRangeVerdict::Exempt);
+     +
+     +         let all = check_intent_range(&d, &["HEAD"]).expect("HEAD");
+     +         assert!(all.failed);
+     +         let seen: Vec<&str> = all.rows.iter().map(|r| r.subject.as_str()).collect();
+     +         assert!(
+     +             !seen.contains(&"plain") && !seen.contains(&"mentioned"),
+     +             "no-Intent commits are ignored, saw {seen:?}"
+     +         );
+     +         assert!(seen.contains(&"intact") && seen.contains(&"noseal"));
+     +         let _ = plain;
+     +     }
+     +
+     +     #[test]
+     +     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     +     fn g5_a_range_check_without_a_range_refuses() {
+     +         let err = check_intent_range("/tmp", &[]).expect_err("no range");
+     +         assert!(err.contains("range"), "{err}");
+     +     }
+     +
+     +     #[test]
+     +     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     +     fn g5_commit_msg_hook() {
+     +         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+     +         let root = root.canonicalize().expect("repo root");
+     +         let script = root.join(".githooks/test-commit-msg.sh");
+     +         let out = Command::new("bash")
+     +             .arg(&script)
+     +             .current_dir(&root)
+     +             .output()
+     +             .expect("bash runs");
+     +         assert!(
+     +             out.status.success(),
+     +             "commit-msg script failed\nstdout:\n{}\nstderr:\n{}",
+     +             String::from_utf8_lossy(&out.stdout),
+     +             String::from_utf8_lossy(&out.stderr)
+     +         );
+     +     }
+     +
+     +     #[test]
+     +     #[ignore = "INT-306 G5 red; the guard is not built, so cargo test does not run this"]
+     +     fn g5_pre_push_asks_seals_check_for_each_pushed_ref() {
+     +         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../..");
+     +         let root = root.canonicalize().expect("repo root");
+     +         let script = root.join(".githooks/pre-push");
+     +         let text = std::fs::read_to_string(&script).expect("pre-push");
+     +         assert!(
+     +             text.contains("intent seals check"),
+     +             "pre-push does not call core intent seals check"
+     +         );
+     +         let dir = std::env::temp_dir().join(format!("g5-push-{}", std::process::id()));
+     +         let _ = std::fs::remove_dir_all(&dir);
+     +         std::fs::create_dir_all(&dir).unwrap();
+     +         let log = dir.join("calls");
+     +         let fake = dir.join("core");
+     +         std::fs::write(&fake, "#!/bin/sh\nprintf '%s\\n' \"$*\" >> \"$CALLS\"\n").unwrap();
+     +         std::fs::set_permissions(&fake, std::fs::Permissions::from_mode(0o755)).unwrap();
+     +         let zeros = "0000000000000000000000000000000000000000";
+     +         let local = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa";
+     +         let remote = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb";
+     +         let newb = "cccccccccccccccccccccccccccccccccccccccc";
+     +         let stdin = format!(
+     +             "refs/heads/main {local} refs/heads/main {remote}\nrefs/heads/topic {newb} refs/heads/topic {zeros}\nrefs/heads/old {zeros} refs/heads/old {remote}\n"
+     +         );
+     +         let mut child = Command::new("bash")
+     +             .arg("-c")
+     +             .arg("source \"$1\"; check_pushed_refs \"$2\"")
+     +             .arg("bash")
+     +             .arg(&script)
+     +             .arg(&fake)
+     +             .current_dir(&root)
+     +             .env("CALLS", &log)
+     +             .stdin(Stdio::piped())
+     +             .stdout(Stdio::piped())
+     +             .stderr(Stdio::piped())
+     +             .spawn()
+     +             .expect("bash");
+     +         use std::io::Write;
+     +         child
+     +             .stdin
+     +             .take()
+     +             .unwrap()
+     +             .write_all(stdin.as_bytes())
+     +             .unwrap();
+     +         let out = child.wait_with_output().unwrap();
+     +         let calls = std::fs::read_to_string(&log).unwrap_or_default();
+     +         let _ = std::fs::remove_dir_all(&dir);
+     +         assert!(
+     +             out.status.success(),
+     +             "pre-push source failed\nstderr:\n{}\ncalls:\n{calls}",
+     +             String::from_utf8_lossy(&out.stderr)
+     +         );
+     +         assert_eq!(
+     +             calls,
+     +             format!(
+     +                 "intent seals check {remote}..{local}\nintent seals check {newb} --not --remotes\n"
+     +             )
+     +         );
+     +     }
+     + }
+  E2 zero/engine/src/domains/intent/mod.rs: red stub for the release commit message, and the ignored test
+     + /// INT-306: the commit message cicomplete suggests for a version bump. cicomplete does not
+     + /// commit. The Release trailer is what makes that commit exempt. Red stub: wrong on purpose.
+     + fn release_commit_message(id: &str, versions: &[String]) -> String {
+     +     let _ = (id, versions);
+     +     String::new()
+     + }
+     +
+     +
+     + /// INT-306 G5. Ignored until the guard exists, so a bare cargo test stays green.
+     + #[cfg(test)]
+     + mod g5_release_tests {
+     +     #[test]
+     +     #[ignore = "INT-306 G5 red; cicomplete does not yet name the Release trailer"]
+     +     fn g5_release_commit_message_names_the_versions() {
+     +         let msg = super::release_commit_message(
+     +             "295",
+     +             &[
+     +                 "nsh 5.3.12".to_string(),
+     +                 "nsh-test 2.0.15".to_string(),
+     +                 "zero-doctor 0.1.4".to_string(),
+     +             ],
+     +         );
+     +         assert_eq!(
+     +             msg,
+     +             "INT-295: complete; nsh 5.3.12, nsh-test 2.0.15, zero-doctor 0.1.4\n\nIntent: INT-295\nRelease: nsh 5.3.12, nsh-test 2.0.15, zero-doctor 0.1.4\n"
+     +         );
+     +     }
+     + }
+  E3 .githooks/test-commit-msg.sh: create
+     + #!/usr/bin/env bash
+     + # INT-306: the commit-msg hook. Not a zero-gate stage. cargo test -p core runs
+     + # g5_commit_msg_hook, which runs this. A message with no Intent: is left alone.
+     + # A message with Intent: INT-xxx and no Seal: of 16 lowercase hex is refused,
+     + # unless it carries Release:, and that exemption is printed.
+     + set -euo pipefail
+     + root=$(cd "$(dirname "$0")/.." && pwd)
+     + hook="$root/.githooks/commit-msg"
+     + if [[ ! -x "$hook" ]]; then
+     +     echo "REFUSE: $hook is not an executable hook" >&2
+     +     exit 1
+     + fi
+     +
+     + tmp=$(mktemp -d)
+     + trap 'rm -rf "$tmp"' EXIT
+     +
+     + one() {
+     +     local name=$1 expect=$2 needle=$3 body=$4
+     +     local f="$tmp/$name"
+     +     printf '%s' "$body" > "$f"
+     +     local before after err rc
+     +     before=$(cat "$f")
+     +     set +e
+     +     err=$("$hook" "$f" 2>&1)
+     +     rc=$?
+     +     set -e
+     +     after=$(cat "$f")
+     +     if [[ "$before" != "$after" ]]; then
+     +         echo "REFUSE: $name: the hook rewrote the message" >&2
+     +         exit 1
+     +     fi
+     +     if [[ "$rc" != "$expect" ]]; then
+     +         echo "REFUSE: $name: exit $rc, wanted $expect" >&2
+     +         printf '%s\n' "$err" >&2
+     +         exit 1
+     +     fi
+     +     if [[ -n "$needle" && "$err" != *"$needle"* ]]; then
+     +         echo "REFUSE: $name: output did not contain: $needle" >&2
+     +         printf '%s\n' "$err" >&2
+     +         exit 1
+     +     fi
+     +     if [[ -z "$needle" && -n "$err" ]]; then
+     +         echo "REFUSE: $name: expected no output, got:" >&2
+     +         printf '%s\n' "$err" >&2
+     +         exit 1
+     +     fi
+     +     echo "ok $name"
+     + }
+     +
+     + one no-intent 0 "" "just a subject
+     + "
+     + one prose 0 "" "mentioned
+     +
+     + The prose names Intent: INT-9 but not as a trailer line.
+     + "
+     + one subject-only 0 "" "Intent: INT-306
+     + "
+     + one not-an-id 0 "" "fix
+     +
+     + Intent: not-an-id
+     + "
+     + one no-seal 1 "refused:" "fix
+     +
+     + Intent: INT-306
+     + "
+     + one uppercase 1 "refused:" "fix
+     +
+     + Intent: INT-306
+     + Seal: 0123456789ABCDEF
+     + "
+     + one short 1 "refused:" "fix
+     +
+     + Intent: INT-306
+     + Seal: 0123456789abcde
+     + "
+     + one sealed 0 "" "fix
+     +
+     + Intent: INT-306
+     + Seal: 0123456789abcdef
+     + "
+     + one release 0 "release exemption used" "INT-295: complete; nsh 5.3.12
+     +
+     + Intent: INT-295
+     + Release: nsh 5.3.12, nsh-test 2.0.15
+     + "
+     + one release-and-seal 0 "release exemption used" "bump
+     +
+     + Intent: INT-9
+     + Seal: 0123456789abcdef
+     + Release: nsh 1.2.3
+     + "
+     +
+     + # The refusal says what to add.
+     + f="$tmp/says-what"
+     + printf '%s' "fix
+     +
+     + Intent: INT-306
+     + " > "$f"
+     + set +e
+     + err=$("$hook" "$f" 2>&1)
+     + rc=$?
+     + set -e
+     + if [[ "$rc" != 1 || "$err" != *"Seal:"* || "$err" != *"Release:"* ]]; then
+     +     echo "REFUSE: the refusal does not say to add Seal: or Release:" >&2
+     +     printf '%s\n' "$err" >&2
+     +     exit 1
+     + fi
+     + echo "ok says-what"
+     + echo "commit-msg ok"
+  E4 .githooks/test-g5-red.sh: create
+     + #!/usr/bin/env bash
+     + # INT-306 G5 red. Not run by a bare cargo test -p core: the g5_ tests are
+     + # ignored until the guard exists, so main stays green. This runs them.
+     + # They fail while the stubs answer untouched and the hook is absent.
+     + set -euo pipefail
+     + root=$(cd "$(dirname "$0")/.." && pwd)
+     + if [[ ! -f "$root/Cargo.toml" ]]; then
+     +     echo "REFUSE: cannot find the repo root from $0" >&2
+     +     exit 2
+     + fi
+     + cd "$root"
+     + exec cargo test -p core g5_ -- --ignored --nocapture --test-threads=1
