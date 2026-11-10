@@ -1,0 +1,5 @@
+INT-306: G6 is ticked from the laptop doors -- plan
+  E1 zero/intents/in-progress/306-commits-that-name-an-intent-carry-its-seal.md: G6 is ticked, with the 2026-11-10 door output
+     - - [ ] G6 Doors, after any ship. cargo test -p novashell passes. nsh-test passes
+     + - [x] G6 Doors, after any ship. cargo test -p novashell passes. nsh-test passes
+     + <!-- evidence: 2026-11-10. cargo test -p core: 266 passed, 0 failed. cargo test -p zero-doctor --lib: 95 passed. cargo test -p novashell: 258 passed. nsh-test: 303/303 passed. core intent validate: All 343 intents valid. .githooks/test-commit-msg.sh: commit-msg ok (11 cases). test-pre-push.sh: ok refs survive a gate that reads stdin. core intent seals check 507f95c5..HEAD: 02d2726a 851ada5c e2e7f372 7935342d intact; pre-push on the real push printed the same four intact. core intent trace 68ca1811565da386 -> 507f95c5 seal intact; trace F-0116 -> fixed by 851ada5c, seal 8361c7e30e965125 intact. ship core 4.4.7 shipped; d: HEALTHY 100%, 28/28, Git Hooks 'hooks executable', Rust Docs 'cargo doc clean, 0 warnings'. -->
