@@ -1,0 +1,358 @@
+INT-308..311: filed; F-0118 filed -- plan
+  E1 zero/intents/future/308-ledger-commands-for-cistart-intent-add-and-the-seal-note.md: create: INT-308, cistart, add, and the seal note
+     + ---
+     + id: 308
+     + date: 2026-11-10
+     + type: future
+     + title: "Ledger commands for cistart, intent add, and the seal note"
+     + status: planned
+     + tags: [intent, ledger, nsh, git]
+     + ---
+     +
+     + ## Vision
+     + Three ledger commands do the thing a person already has to do by hand. cistart
+     + moves a future intent into in-progress and says so if the move fails. core
+     + intent add can be given the category, title, status, and tags without a
+     + terminal, and the wizard stays when there is one. core intent note stores the
+     + plan under refs/notes/seals and prints the seal. No code is written before the
+     + gates below are ruled.
+     +
+     + ## The Problem
+     + Re-read 2026-11-10 against 57ca26ea. The study cited start's replace at
+     + mod.rs:1003 and the rename at 1014. Those lines moved. The behaviour did not.
+     +
+     + start is zero/engine/src/domains/intent/mod.rs:909. It rewrites the whole file
+     + (1007-1010): every "status: planned", "status: future", and "status: deferred"
+     + becomes "status: in-progress". A body that quotes one of those strings changes
+     + too. If the path contains /intents/future/, it renames the file into
+     + in-progress/ (1013-1018). There is no create_dir for that directory. The rename
+     + error is discarded: `let _ = fs::rename`. On a tree where in-progress is
+     + missing, the status is already written and the file stays in future/.
+     +
+     + add is mod.rs:2746. With no terminal it returns at 2764 and names core intent
+     + new. new_intent (2976) takes a category, a template, and a title. Status and
+     + tags come from TEMPLATES, not from the caller. create_in (2917) is the one
+     + writer. A non-interactive add that set status or tags would still have to end
+     + there.
+     +
+     + There is no core intent note command. seal_digest (trace.rs:228) is the first
+     + 16 hex of sha256 of the plan bytes. The note is stored by hand, with
+     + `git notes --ref=seals add --no-stripspace -F`, or with hash-object -w and
+     + notes add -C. stripspace makes a true plan read Broken (F-0023, F-0063). The
+     + command, if built, must not push.
+     +
+     + ## The Solution
+     + No extra behaviour is chosen here. The three commands are the ones named in
+     + the gates. Each gate is a question or a step for Christian to rule. A ruling
+     + is a RULED line in this file, dated, in his words. Declining a gate, with the
+     + reason, closes it. No code is written before G1, G2, and G3 have those lines.
+     +
+     + ## Success Criteria
+     + - [ ] G0 The recon in The Problem is read against the tree and either stands or
+     +       is corrected here before any other gate. Re-read: the whole-file status
+     +       replace is mod.rs:1007, the discarded rename is 1018, add refuses at
+     +       2764, new_intent does not take status or tags, create_in is the one
+     +       writer, and there is no note command. Proof: a dated line in this file
+     +       saying the recon stands, or the correction.
+     + - [ ] G1 cistart. Christian rules the move. One shape to accept, change, or
+     +       reject: create in-progress if it is missing, replace status only on the
+     +       frontmatter line, and report a rename that did not happen instead of
+     +       discarding it. Proof: the RULED line, and a test that watches a missing
+     +       directory fail first, then pass.
+     + - [ ] G2 core intent add without a terminal. Christian rules the flags. One
+     +       shape to accept, change, or reject: --category, --title, --status, and
+     +       --tags, calling create. The wizard stays when stdin is a terminal. A bad
+     +       flag writes nothing. create_in stays the one writer. Proof: the RULED
+     +       line.
+     + - [ ] G3 core intent note. Christian rules the command. One shape to accept,
+     +       change, or reject: `core intent note <plan> <commit>` stores the note
+     +       with --no-stripspace -F, or with hash-object -w and notes add -C, prints
+     +       seal_digest, refuses a missing commit or a missing plan, and does not
+     +       push. Proof: the RULED line.
+     + - [ ] G4 Red, then the commands, only after G1, G2, and G3 are ruled. Shown
+     +       failing first, under its own plan Seal: a missing in-progress directory,
+     +       a body that quotes "status: planned", add with the four flags and no
+     +       terminal, and a note whose bytes hash to the printed seal. Then the same
+     +       tests pass. The suite is cargo test -p core. Proof: the red output, then
+     +       the green output, each under its plan Seal.
+     + - [ ] G5 Doors, after any ship. cargo test -p core passes. cargo test -p
+     +       novashell passes. nsh-test passes after cargo build -p novashell -p
+     +       nsh-test. core intent validate reports every intent valid. d reports 0
+     +       failed. ship, then reload, and the deployed artifact is what was watched.
+     +       Proof: the door output.
+     +
+     + ## Out of scope
+     + - Rewriting intents that were already moved by the old cistart.
+     + - A second seal hash. seal_digest stays the one definition.
+     + - A command that pushes refs/notes/seals.
+     +
+     + ## Open for Christian
+     + - G1, how cistart reports a rename that did not happen.
+     + - G2, the exact flags on core intent add.
+     + - G3, which of the two note forms the command uses.
+  E2 zero/intents/future/309-gate-fields-and-validate.md: create: INT-309, format 2 keeps the checkbox, validate names old shape
+     + ---
+     + id: 309
+     + date: 2026-11-10
+     + type: future
+     + title: "Gate fields and validate"
+     + status: planned
+     + tags: [intent, ledger, gates]
+     + ---
+     +
+     + ## Vision
+     + A gate keeps its checkbox. Under the box, the question, the ruling, and the
+     + receipt are fields a reader can wrap. Old files stay as they are. validate can
+     + name an old shape without failing the 344 v1 intents. No code is written
+     + before the open gates below are ruled.
+     +
+     + ## The Problem
+     + Re-read 2026-11-10 against 57ca26ea. The study's gate lines still match.
+     +
+     + read_gates (gates.rs:143) is the one reader. A gate is a checkbox, a legacy
+     + emoji, or a signed deferral. live_lines (gates.rs:106) drops the body of an
+     + HTML comment that spans lines. evidence_follows (gates.rs:131) accepts the
+     + receipt only when the next non-blank, non-indented line starts with `<!--` and
+     + contains "evidence". A RULED line is not indented, so it ends that scan, and
+     + RULED is not a token the reader knows. check_completion (gates.rs:228) refuses
+     + an open box. It does not read the evidence flag. A ticked box with no receipt
+     + completes. That is why a v1 file that completes today must still complete.
+     +
+     + validate_issues (intent/mod.rs:446) checks frontmatter, status against the
+     + directory, the id against the filename, and depends_on. It does not require
+     + Vision, The Problem, The Solution, or Success Criteria. A file whose body is
+     + still the template sentence is valid. The study counted, on 2026-11-10, 11
+     + placeholder bodies, 20 copies of the INT-158 "delete this comment" boilerplate,
+     + and 8 `[~]` gates. INT-294 R1 retired `[~]` for new intents. Those counts are
+     + not re-measured in this filing. The reader that would name them does not exist
+     + yet.
+     +
+     + ## The Solution
+     + The shape of format 2 is ruled. What is not ruled is when a new file is born
+     + in that shape, and whether cicomplete requires a receipt on a v2 gate that is
+     + done. Each remaining gate is a question for Christian. A ruling is a RULED
+     + line in this file, dated, in his words. Declining a gate, with the reason,
+     + closes it. No code is written before G2 and G3 have those lines.
+     +
+     + ## Success Criteria
+     + - [ ] G0 The recon in The Problem is read against the tree and either stands or
+     +       is corrected here before any other gate. Re-read: evidence_follows is
+     +       gates.rs:131, live_lines is 106, check_completion is 228, and
+     +       validate_issues does not require a section. Proof: a dated line in this
+     +       file saying the recon stands, or the correction.
+     + - [ ] G1 The format. The shape is ruled. The code that reads it is not. Proof:
+     +       the RULED line, and, when the reader exists, a v2 file whose evidence
+     +       wraps and whose ruling is not hidden from the reader.
+     + RULED 2026-11-10 (Christian): format 2 keeps the checkbox. Under each `- [ ] G<n>` box sit indented keys `ask:`, `ruling:`, and `evidence:`, which may wrap by indentation. A file opts in with `format: 2` in the frontmatter. There is no batch rewrite of the 344 v1 files.
+     + - [ ] G2 The reader. Christian rules the split. One shape to accept, change,
+     +       or reject: the gate reader keeps a wrapped receipt, and a RULED line no
+     +       longer hides the evidence that follows it. A v1 file that completes
+     +       today still completes. Turning the new check on for every old file is
+     +       not this gate. Proof: the RULED line, and a v1 fixture that still
+     +       completes.
+     + - [ ] G3 validate. Christian rules what it prints. One shape to accept, change,
+     +       or reject: validate lists old-shape issues -- placeholder bodies, the
+     +       INT-158 boilerplate, `[~]` gates, and a missing section on a new file --
+     +       and exits 0 for a v1 file. A format 2 file is judged by the v2 rules.
+     +       Proof: the RULED line.
+     + - [ ] G4 Whether create_in writes format 2 by default, and from when. Christian
+     +       rules it. Until that line exists, create_in keeps writing v1. Proof: the
+     +       RULED line.
+     + - [ ] G5 Whether cicomplete requires evidence on a v2 gate that is done.
+     +       Christian rules it. A decline, with the reason, closes the gate. Proof:
+     +       the RULED line.
+     + - [ ] G6 Red, then the reader and validate, only after G2, G3, G4, and G5 are
+     +       ruled. Shown failing first, under its own plan Seal: a wrapped evidence
+     +       block that the reader drops, a RULED line that hides a receipt, and a v1
+     +       file that validate would fail if the old-shape list were a hard error.
+     +       Then the same tests pass. The suite is cargo test -p core. Proof: the
+     +       red output, then the green output, each under its plan Seal.
+     + - [ ] G7 Doors, after any ship. cargo test -p core passes. cargo test -p
+     +       novashell passes. nsh-test passes after cargo build -p novashell -p
+     +       nsh-test. core intent validate reports every intent valid. d reports 0
+     +       failed. ship, then reload, and the deployed artifact is what was watched.
+     +       Proof: the door output.
+     +
+     + ## Out of scope
+     + - A batch rewrite of the v1 intents.
+     + - Replacing the checkbox. Format 2 keeps it.
+     + - Failing d's Intent Ledger check on an old file.
+     +
+     + ## Open for Christian
+     + - G2, how a wrapped receipt and a RULED line are read, without changing v1.
+     + - G3, which old-shape issues validate lists.
+     + - G4, whether create_in writes format 2 by default, and from when.
+     + - G5, whether cicomplete requires evidence on a v2 gate that is done.
+  E3 zero/intents/future/310-one-reader-for-friday-and-the-intent-screen.md: create: INT-310, Friday and it ask the one reader
+     + ---
+     + id: 310
+     + date: 2026-11-10
+     + type: future
+     + title: "One reader for Friday and the intent screen"
+     + status: planned
+     + tags: [intent, ledger, friday, nsh]
+     + ---
+     +
+     + ## Vision
+     + Friday and the nsh `it` screen ask the ledger the way core intent list does.
+     + They do not keep a private list of folders. `it` gives the terminal back when
+     + it fails. Findings stay with the findings screen. No code is written before
+     + the gates below are ruled.
+     +
+     + ## The Problem
+     + Re-read 2026-11-10 against 57ca26ea. The study's Friday and `it` sites are
+     + still the private readers. Two line numbers moved.
+     +
+     + phase2::plan (friday/phase2.rs:200) says it reads planned and in-progress
+     + intents. The loop at line 212 reads the directories `future` and `active`.
+     + `active` is not a ledger directory. in-progress is. Status is a
+     + `contains("status: planned")` on the whole file.
+     +
+     + planning.rs joins HOME to `0-core/intents/future` in two places. The stale
+     + check is at 458-459. active_intents is at 1013-1014, and its comment says it
+     + finds status in-progress inside intents/future. Neither path asks paths.rs,
+     + and neither reads in-progress/.
+     +
+     + seed_knowledge (friday/mod.rs:170) counts files whose text contains
+     + "status: complete". The folder list at 176-185 is complete, decisions,
+     + experiments, philosophy, future, cancelled, deferred, and incidents.
+     + `deferred` is not a directory. planned and in-progress are not in the list.
+     +
+     + load_all is the ledger's reader. None of these three call it. folders.rs is
+     + the one list of directories. They do not ask it either.
+     +
+     + `it` is an nsh REPL arm at novashell main.rs:3143. The study cited 3127. The
+     + findings arm now sits above it, which is why the number moved. The screen is
+     + intent_tui.rs. load_intents (460) reads only future, in-progress, and complete
+     + (468). It does not read planned, cancelled, or the record directories.
+     + run_intent_tui (53) enables raw mode and enters the alternate screen before
+     + Terminal::new. If that call fails it disables raw mode (60-63) and returns
+     + without leaving the alternate screen. A panic inside the loop does not run
+     + the leave at 66-68. Findings are a separate screen, built by INT-307. This
+     + intent does not fold them into `it`.
+     +
+     + ## The Solution
+     + No private folder list is kept, and no second parser of an intent file is
+     + added. Friday and `it` call the reader core intent list already uses. Each
+     + gate is a question for Christian to rule. A ruling is a RULED line in this
+     + file, dated, in his words. Declining a gate, with the reason, closes it. No
+     + code is written before G1 and G2 have those lines.
+     +
+     + ## Success Criteria
+     + - [ ] G0 The recon in The Problem is read against the tree and either stands or
+     +       is corrected here before any other gate. Re-read: phase2.rs:212 names
+     +       future and active, planning.rs:459 and 1014 join HOME to future,
+     +       seed_knowledge's list is mod.rs:176, and it loads three directories at
+     +       intent_tui.rs:468. Proof: a dated line in this file saying the recon
+     +       stands, or the correction.
+     + - [ ] G1 Friday. Christian rules the cut. One shape to accept, change, or
+     +       reject: phase2::plan, the two planning.rs readers, and seed_knowledge
+     +       ask load_all and folders. The private lists, including active, deferred,
+     +       and the HOME joins, go. A quoted "status: planned" in a body is not a
+     +       second status. Proof: the RULED line.
+     + - [ ] G2 `it`. Christian rules the folders and the failure path. One shape to
+     +       accept, change, or reject: load_intents uses the same reader as core
+     +       intent list, including planned, cancelled, and the record directories.
+     +       Findings stay out. The terminal is restored on failure, including when
+     +       Terminal::new fails and when the loop panics. Proof: the RULED line.
+     + - [ ] G3 Red, then the readers, only after G1 and G2 are ruled. Shown failing
+     +       first, under its own plan Seal: Friday misses an in-progress intent, and
+     +       `it` leaves the terminal raw when the screen fails to open. Then the
+     +       same tests pass. The suite is cargo test -p core and cargo test -p
+     +       novashell. Proof: the red output, then the green output, each under its
+     +       plan Seal.
+     + - [ ] G4 Doors, after any ship. cargo test -p core passes. cargo test -p
+     +       novashell passes. nsh-test passes after cargo build -p novashell -p
+     +       nsh-test. core intent validate reports every intent valid. d reports 0
+     +       failed. ship, then reload, and the deployed artifact is what was watched.
+     +       Proof: the door output.
+     +
+     + ## Out of scope
+     + - A second parser of an intent file.
+     + - Showing findings inside `it`. INT-307 owns that screen.
+     + - Changing what Friday says beyond what the one reader returns.
+     +
+     + ## Open for Christian
+     + - G1, which Friday sentences may change when the reader changes.
+     + - G2, which record directories `it` shows, and how a failed open restores the
+     +   terminal.
+  E4 zero/intents/future/311-a-doors-command-that-does-not-ship.md: create: INT-311, a doors command that does not ship
+     + ---
+     + id: 311
+     + date: 2026-11-10
+     + type: future
+     + title: "A doors command that does not ship"
+     + status: planned
+     + tags: [intent, ledger, nsh]
+     + ---
+     +
+     + ## Vision
+     + One command runs the doors a person retypes at the end of an intent, and
+     + prints what came back. It does not ship. It does not reload. d stays the
+     + doctor's door. No code is written before the open gates below are ruled.
+     +
+     + ## The Problem
+     + Re-read 2026-11-10 against 57ca26ea. There is no command that runs the doors.
+     + Each intent's last gate names them again: cargo test -p core, cargo test -p
+     + novashell, nsh-test after cargo build -p novashell -p nsh-test, core intent
+     + validate, and d. The pairing matters. nsh-test's crate needs the registry
+     + feature that a novashell build turns on, so `cargo test -p novashell -p
+     + nsh-test` is one cargo invocation, not two.
+     +
+     + ship copies release binaries into ~/.local/bin and has no rollback. A doors
+     + command that called ship would deploy. reload starts the new nsh. d is core
+     + doctor run. It is not a ledger count, and a copy of its result in another
+     + command can disagree with it.
+     +
+     + ## The Solution
+     + The command prints the results of the tests and of validate. What is not
+     + chosen is its name, whether it is a core subcommand or a script, and whether
+     + zero-doctor's tests are in the set. Each of those is a gate. A ruling is a
+     + RULED line in this file, dated, in his words. Declining a gate, with the
+     + reason, closes it. No code is written before G1, G2, and G3 have those lines.
+     +
+     + ## Success Criteria
+     + - [ ] G0 The recon in The Problem is read against the tree and either stands or
+     +       is corrected here before any other gate. Re-read: no command runs this
+     +       set, and ship is not a test. Proof: a dated line in this file saying the
+     +       recon stands, or the correction.
+     + - [ ] G1 The name. Christian rules the word a person types. Proof: the RULED
+     +       line.
+     + - [ ] G2 The home. Christian rules one place. The options left open: a core
+     +       subcommand, or a script under zero/scripts. The ruling says what that
+     +       home can start, and that it does not call ship and does not reload.
+     +       Proof: the RULED line.
+     + - [ ] G3 Whether zero-doctor is in the set. Christian rules yes or no. d stays
+     +       a separate door either way. Proof: the RULED line.
+     + - [ ] G4 The run, only after G1, G2, and G3 are ruled. The command runs
+     +       cargo test -p core, cargo test -p novashell -p nsh-test as one
+     +       invocation, nsh-test, and core intent validate, and prints their
+     +       results. It does not ship. It does not reload. Shown failing first,
+     +       under its own plan Seal, if the ruled set is short a command or if the
+     +       command reaches ship. Then the same test passes. Proof: the red output,
+     +       then the green output, each under its plan Seal.
+     + - [ ] G5 Doors, after any ship of this command. cargo test -p core passes.
+     +       cargo test -p novashell passes. nsh-test passes after cargo build -p
+     +       novashell -p nsh-test. core intent validate reports every intent valid.
+     +       d reports 0 failed. ship, then reload, and the deployed artifact is what
+     +       was watched. Proof: the door output.
+     +
+     + ## Out of scope
+     + - Calling ship or reload from this command.
+     + - Replacing d. The doctor keeps its own door.
+     + - A second copy of d's health count inside this command's output.
+     +
+     + ## Open for Christian
+     + - G1, the name of the command.
+     + - G2, a core subcommand or a script.
+     + - G3, whether zero-doctor's tests are included.
+  E5 zero/intents/findings/F-0118.md: create: F-0118, clippy lints and the hardcoded doctor path, found by INT-307 on 2026-11-10
+     + ---
+     + id: F-0118
+     + what: clippy -D warnings on rustc 1.99 fails at older sites, and a zero-doctor test hardcodes /home/christian/0-core: paths.rs:404 manual_inspect, hardening.rs:189 needless_borrows_for_generic_args, bug.rs:142 unnecessary_map_or, bug.rs:1391 print_with_newline, doctor/mod.rs:1664 manual_is_multiple_of, and run.rs:148 reads that home path
+     + at: zero/tools/zero-core/src/paths.rs:404
+     + found_by: INT-307
+     + found_on: 2026-11-10
+     + closed_without_fix: no
+     + severity: low
+     + ---
