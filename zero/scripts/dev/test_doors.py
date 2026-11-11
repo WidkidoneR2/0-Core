@@ -110,6 +110,45 @@ class Doors(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("\x1b", out.decode("utf-8", "replace"))
 
+    def test_a_passing_run_hides_the_door_transcript(self):
+        code, out, order = self._run()
+        self.assertEqual(code, 0, out.decode("utf-8", "replace"))
+        text = out.decode("utf-8", "replace")
+        self.assertIn("doors", text)
+        self.assertIn("pass", text)
+        self.assertIn("passed", text)
+        self.assertIn("d is its own door", text)
+        self.assertNotIn("DOORTRANSCRIPT", text)
+        root = order["root"]
+        expect = {
+            "core": "DOORTRANSCRIPT cargo test -p core",
+            "shell": "DOORTRANSCRIPT cargo test -p novashell -p nsh-test",
+            "nsh-test": "DOORTRANSCRIPT nsh-test",
+            "validate": "DOORTRANSCRIPT core intent validate",
+        }
+        for name, needle in expect.items():
+            body = (root / "target" / "doors" / (name + ".log")).read_text()
+            self.assertIn(needle, body)
+
+    def test_a_failing_door_prints_its_log_and_the_others_still_run(self):
+        code, out, order = self._run(cargo_rc="1")
+        self.assertNotEqual(code, 0)
+        text = out.decode("utf-8", "replace")
+        root = order["root"]
+        core_log = root / "target" / "doors" / "core.log"
+        self.assertIn(str(core_log), text)
+        self.assertIn("DOORTRANSCRIPT cargo test -p core", text)
+        self.assertNotIn("DOORTRANSCRIPT core intent validate", text)
+        kept = (root / "target" / "doors" / "validate.log").read_text()
+        self.assertIn("DOORTRANSCRIPT core intent validate", kept)
+        self.assertIn("core intent validate", order["text"])
+
+    def test_any_argument_exits_2(self):
+        for arg in ("-v", "--verbose", "nope"):
+            code, _out, order = self._run(args=[arg])
+            self.assertEqual(code, 2, arg)
+            self.assertEqual(order["text"].strip(), "", arg)
+
     def test_a_symlink_from_another_directory_runs_in_the_repo(self):
         code, out, order = self._run(via_symlink=True)
         root = order["root"].resolve()
@@ -120,7 +159,7 @@ class Doors(unittest.TestCase):
         self.assertTrue(all(cwd == root for cwd in cwds), order["cwd"])
         self.assertEqual(code, 0, out.decode("utf-8", "replace"))
 
-    def _run(self, cargo_rc="0", build_rc=None, tty=False, no_color=None, via_symlink=False):
+    def _run(self, cargo_rc="0", build_rc=None, tty=False, no_color=None, via_symlink=False, args=None):
         if not SCRIPT.is_file():
             self.fail("zero/scripts/doors does not exist")
         if not os.access(SCRIPT, os.X_OK):
@@ -142,6 +181,7 @@ class Doors(unittest.TestCase):
         _fake(
             bindir / "cargo",
             "#!/bin/sh\npwd >> \"$DOORS_LOG/cwd\"\n"
+            "printf 'DOORTRANSCRIPT cargo %s\\n' \"$*\"\n"
             "printf '%s\\n' \"cargo $*\" >> \"$DOORS_LOG/order\"\n"
             "case \"$*\" in\n"
             "  build*) exit \"${DOORS_BUILD_RC:-${DOORS_CARGO_RC:-0}}\" ;;\n"
@@ -151,6 +191,7 @@ class Doors(unittest.TestCase):
         _fake(
             bindir / "core",
             "#!/bin/sh\npwd >> \"$DOORS_LOG/cwd\"\n"
+            "printf 'DOORTRANSCRIPT core %s\\n' \"$*\"\n"
             "printf '%s\\n' \"core $*\" >> \"$DOORS_LOG/order\"\n"
             "exit \"${DOORS_CORE_RC:-0}\"\n",
         )
@@ -166,6 +207,7 @@ class Doors(unittest.TestCase):
         _fake(
             debug / "nsh-test",
             "#!/bin/sh\npwd >> \"$DOORS_LOG/cwd\"\n"
+            "printf 'DOORTRANSCRIPT nsh-test\\n'\n"
             "printf '%s\\n' \"nsh-test NSH_BIN=${NSH_BIN-}\" >> \"$DOORS_LOG/order\"\n"
             "exit \"${DOORS_NSH_TEST_RC:-0}\"\n",
         )
@@ -180,6 +222,8 @@ class Doors(unittest.TestCase):
         if no_color is not None:
             env["NO_COLOR"] = no_color
         argv = [str(dest)]
+        if args:
+            argv.extend(args)
         run_cwd = root
         link = None
         if via_symlink:
