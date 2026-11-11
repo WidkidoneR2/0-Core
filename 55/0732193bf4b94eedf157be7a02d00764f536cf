@@ -1,0 +1,94 @@
+INT-307: the findings list is ID and Description -- plan
+  E1 zero/engine/src/domains/intent/findings_tui.rs: the list header is ID and Description; the detail title is the finding id; the hint is title_bottom
+     -     apply_filter, colors_enabled, load_cards, paint, Card, Guard, KeyFilter, Screen, Tone,
+     +     apply_filter, colors_enabled, detail_chrome, list_line_header, load_cards, paint, Card, Guard,
+     +     KeyFilter, Screen, Tone,
+     +         let chrome = detail_chrome(id);
+     -                 .title(format!(" {id}  enter/esc closes ")),
+     +                 .title(chrome.title)
+     +                 .title_bottom(chrome.hint),
+     -                 let text = card.row.columns().join("  ");
+     -                 let text = if card.row.high_marker {
+     -                     format!("* {text}")
+     -                 } else {
+     -                     text
+     -                 };
+     -                 ListItem::new(text).style(style)
+     +                 ListItem::new(card.row.list_line()).style(style)
+     -                     .title(" id  description  found  fixed  severity  state "),
+     +                     .title(list_line_header()),
+  E2 zero/engine/src/domains/intent/view.rs: the list line is ID and Description; the pipe uses that line; detail chrome is the id with the hint on the bottom
+     + /// The list header, exactly these two words.
+     + pub const LIST_HEADER: [&str; 2] = ["ID", "Description"];
+     +
+     + /// The list header row: the two words and nothing else.
+     + pub fn list_line_header() -> String {
+     +     format!("{}  {}", LIST_HEADER[0], LIST_HEADER[1])
+     + }
+     +
+     + /// The hint on the bottom edge of the detail block.
+     + pub const DETAIL_HINT: &str = "enter/esc closes";
+     +
+     + /// The detail block's title and where its hint sits.
+     + #[derive(Debug, Clone, PartialEq, Eq)]
+     + pub struct DetailChrome {
+     +     pub title: String,
+     +     pub hint: &'static str,
+     +     pub hint_bottom: bool,
+     + }
+     +
+     -     /// The six columns, in the ruled order.
+     +     /// Every stored field. The filter still sees these. The list does not.
+     +
+     +     /// The ID cell. A high row carries its marker here.
+     +     pub fn list_id(&self) -> String {
+     +         if self.high_marker {
+     +             format!("* {}", self.id)
+     +         } else {
+     +             self.id.clone()
+     +         }
+     +     }
+     +
+     +     /// The list line, and the plain pipe line: ID and Description only.
+     +     pub fn list_line(&self) -> String {
+     +         format!("{}  {}", self.list_id(), self.description)
+     +     }
+     + }
+     +
+     + /// Detail chrome for one finding. The title is the id and nothing else.
+     + pub fn detail_chrome(id: &str) -> DetailChrome {
+     +     DetailChrome {
+     +         title: id.to_string(),
+     +         hint: DETAIL_HINT,
+     +         hint_bottom: true,
+     +     }
+     - /// The line the screen prints. Color off means the text and no escapes.
+     + /// The line the screen prints. Color off means the two-column list line and no escapes.
+     -     let plain = row.columns().join("  ");
+     +     let plain = row.list_line();
+     +         assert_eq!(LIST_HEADER, ["ID", "Description"]);
+     +         assert_eq!(list_line_header(), "ID  Description");
+     -         assert_eq!(
+     -             row.columns(),
+     -             ["F-0001", "high open", "2026-01-01", EM_DASH, "high", "open",]
+     -         );
+     +         assert_eq!(row.list_line(), "* F-0001  high open");
+     +         assert!(!row.list_line().contains("2026-01-01"));
+     +         assert!(!row.list_line().contains(EM_DASH));
+     +         assert_eq!(paint(&row, false).text, row.list_line());
+     +         assert_eq!(row.found, "2026-01-01");
+     +         assert_eq!(row.fixed, EM_DASH);
+     +         assert_eq!(row.severity, "high");
+     +         assert_eq!(row.state, "open");
+     -         assert_eq!(fixed.columns()[3], "2026-02-02");
+     -         assert_eq!(fixed.columns()[5], "fixed");
+     +         assert_eq!(fixed.list_line(), "F-0005  low fixed");
+     +         assert!(!fixed.list_line().contains("2026-02-02"));
+     +         assert_eq!(fixed.fixed, "2026-02-02");
+     +         assert_eq!(fixed.state, "fixed");
+     +         let chrome = detail_chrome("F-0066");
+     +         assert_eq!(chrome.title, "F-0066");
+     +         assert_eq!(chrome.hint, DETAIL_HINT);
+     +         assert!(chrome.hint_bottom);
+  E3 zero/intents/in-progress/307-f-finding-report-browser-or-tui.md: G4 ruling: list columns are ID and Description, the rest is in the detail
+     + RULED 2026-11-10 (Christian): the list shows two columns, ID and Description. State and severity stay in the row color and the sort: open high, then medium, then low, then none, in red; no severity is yellow; closed stays red with the open rows; fixed sits at the bottom in green; a high row keeps its bold red marker in the ID cell. Date found, date fixed, severity, and state are in the Enter detail. The detail title is the finding id. The key hint sits on the bottom edge of the detail block.
