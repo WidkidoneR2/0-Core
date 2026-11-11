@@ -1,0 +1,41 @@
+INT-311: symlink test red -- plan
+  E1 zero/scripts/dev/test_doors.py: a link in another directory must still run in the repo
+     -     def _run(self, cargo_rc="0", build_rc=None, tty=False, no_color=None):
+     +     def test_a_symlink_from_another_directory_runs_in_the_repo(self):
+     +         code, out, order = self._run(via_symlink=True)
+     +         root = order["root"].resolve()
+     +         nsh = str(root / "target" / "debug" / "nsh")
+     +         self.assertIn("nsh-test NSH_BIN=" + nsh, order["text"])
+     +         cwds = [Path(line).resolve() for line in order["cwd"].splitlines() if line.strip()]
+     +         self.assertTrue(cwds, "fakes recorded no cwd")
+     +         self.assertTrue(all(cwd == root for cwd in cwds), order["cwd"])
+     +         self.assertEqual(code, 0, out.decode("utf-8", "replace"))
+     +
+     +     def _run(self, cargo_rc="0", build_rc=None, tty=False, no_color=None, via_symlink=False):
+     -             "#!/bin/sh\nprintf '%s\\n' \"cargo $*\" >> \"$DOORS_LOG/order\"\n"
+     +             "#!/bin/sh\npwd >> \"$DOORS_LOG/cwd\"\n"
+     +             "printf '%s\\n' \"cargo $*\" >> \"$DOORS_LOG/order\"\n"
+     -             "#!/bin/sh\nprintf '%s\\n' \"core $*\" >> \"$DOORS_LOG/order\"\n"
+     +             "#!/bin/sh\npwd >> \"$DOORS_LOG/cwd\"\n"
+     +             "printf '%s\\n' \"core $*\" >> \"$DOORS_LOG/order\"\n"
+     -             "#!/bin/sh\nprintf '%s\\n' \"nsh-test NSH_BIN=${NSH_BIN-}\" >> \"$DOORS_LOG/order\"\n"
+     +             "#!/bin/sh\npwd >> \"$DOORS_LOG/cwd\"\n"
+     +             "printf '%s\\n' \"nsh-test NSH_BIN=${NSH_BIN-}\" >> \"$DOORS_LOG/order\"\n"
+     +         run_cwd = root
+     +         link = None
+     +         if via_symlink:
+     +             linkdir = root / "not-the-repo"
+     +             linkdir.mkdir()
+     +             link = linkdir / "doors"
+     +             link.symlink_to(dest)
+     +             run_cwd = root / "unrelated-cwd"
+     +             run_cwd.mkdir()
+     +             argv = [str(link)]
+     -             code, out = _pty(argv, env, root)
+     +             code, out = _pty(argv, env, run_cwd)
+     -             proc = subprocess.run(argv, cwd=root, env=env, capture_output=True)
+     +             proc = subprocess.run(argv, cwd=run_cwd, env=env, capture_output=True)
+     -         return code, out, {"text": text, "root": root}
+     +         cwd_path = log / "cwd"
+     +         cwd_text = cwd_path.read_text() if cwd_path.is_file() else ""
+     +         return code, out, {"text": text, "root": root, "cwd": cwd_text, "link": link}
