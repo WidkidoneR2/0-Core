@@ -48,14 +48,16 @@ and "lets make the doors quieter now."
       the doors as they do today. Any other argument still exits 2. Proof:
       the RULED line.
 RULED 2026-11-10 (Christian): "No verbose flag; doors is always quiet and shows the log only on failure."
-- [ ] G2 Red, in zero/scripts/dev/test_doors.py, only after G1 is ruled. A
+- [x] G2 Red, in zero/scripts/dev/test_doors.py, only after G1 is ruled. A
       passing run prints the header, the timed lines, and the summary, and
       does not print the door's own output. A failing door prints that output
       and the log path. Shown failing first, under its own plan Seal. Proof:
       the red output.
-- [ ] G3 Green. The same tests pass. Quiet by default, full output on failure,
+<!-- evidence: 2026-11-10. Red commit 94618f30, Seal 173417cb500c380c. python3 -m unittest test_doors: 9 passed, 2 failed, exit 1. The failures are test_a_passing_run_hides_the_door_transcript (DOORTRANSCRIPT is on stdout) and test_a_failing_door_prints_its_log_and_the_others_still_run (no target/doors/core.log path). Any argument already exits 2. -->
+- [x] G3 Green. The same tests pass. Quiet by default, full output on failure,
       the ruled flag, colors, keep-going, and the exit codes. Proof: the green
       output under its plan Seal.
+<!-- evidence: 2026-11-10. This commit. python3 -m unittest test_doors: 11 passed. A passing door's transcript is in target/doors/<name>.log and not on stdout. A failing door prints that file and its path. Any argument still exits 2. There is no verbose flag. Proof is this commit's Seal trailer, the plan seal, and the red seal 173417cb500c380c. -->
 - [ ] G4 Christian runs doors on the laptop. A passing run is the quiet
       screen. Proof: the door output.
 
