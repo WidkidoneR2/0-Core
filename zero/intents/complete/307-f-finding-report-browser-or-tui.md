@@ -3,7 +3,7 @@ id: 307
 date: 2026-11-10
 type: future
 title: "F-Finding Report browser or TUI"
-status: in-progress
+status: complete
 tags: [bug report, nsh, novashell, findings]
 ---
 
@@ -177,3 +177,7 @@ RULED 2026-11-10 (Christian): the command is findings.
 - A browser page. G1 leaves it as possible future work, outside this intent.
 - A program that starts at login, or a listener the shell needs in order to
   start.
+
+## Versions
+- core 4.5.0 -> 4.6.0 (minor)
+- nsh 5.3.12 -> 5.4.0 (minor)
