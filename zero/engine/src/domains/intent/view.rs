@@ -36,8 +36,27 @@ pub struct FindingRow {
     pub high_marker: bool,
 }
 
+/// The list header, exactly these two words.
+pub const LIST_HEADER: [&str; 2] = ["ID", "Description"];
+
+/// The list header row: the two words and nothing else.
+pub fn list_line_header() -> String {
+    format!("{}  {}", LIST_HEADER[0], LIST_HEADER[1])
+}
+
+/// The hint on the bottom edge of the detail block.
+pub const DETAIL_HINT: &str = "enter/esc closes";
+
+/// The detail block's title and where its hint sits.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct DetailChrome {
+    pub title: String,
+    pub hint: &'static str,
+    pub hint_bottom: bool,
+}
+
 impl FindingRow {
-    /// The six columns, in the ruled order.
+    /// Every stored field. The filter still sees these. The list does not.
     pub fn columns(&self) -> [&str; 6] {
         [
             &self.id,
@@ -47,6 +66,29 @@ impl FindingRow {
             &self.severity,
             &self.state,
         ]
+    }
+
+    /// The ID cell. A high row carries its marker here.
+    pub fn list_id(&self) -> String {
+        if self.high_marker {
+            format!("* {}", self.id)
+        } else {
+            self.id.clone()
+        }
+    }
+
+    /// The list line, and the plain pipe line: ID and Description only.
+    pub fn list_line(&self) -> String {
+        format!("{}  {}", self.list_id(), self.description)
+    }
+}
+
+/// Detail chrome for one finding. The title is the id and nothing else.
+pub fn detail_chrome(id: &str) -> DetailChrome {
+    DetailChrome {
+        title: id.to_string(),
+        hint: DETAIL_HINT,
+        hint_bottom: true,
     }
 }
 
@@ -228,9 +270,9 @@ pub fn colors_enabled(no_color_set: bool, is_terminal: bool) -> bool {
     !no_color_set && is_terminal
 }
 
-/// The line the screen prints. Color off means the text and no escapes.
+/// The line the screen prints. Color off means the two-column list line and no escapes.
 pub fn paint(row: &FindingRow, color: bool) -> Paint {
-    let plain = row.columns().join("  ");
+    let plain = row.list_line();
     if !color {
         return Paint {
             text: plain,
@@ -406,14 +448,26 @@ mod g7_findings_view_tests {
 
     #[test]
     fn g7_columns_are_id_description_found_fixed_severity_state() {
+        assert_eq!(LIST_HEADER, ["ID", "Description"]);
+        assert_eq!(list_line_header(), "ID  Description");
         let row = rows().into_iter().find(|r| r.id == "F-0001").unwrap();
-        assert_eq!(
-            row.columns(),
-            ["F-0001", "high open", "2026-01-01", EM_DASH, "high", "open",]
-        );
+        assert_eq!(row.list_line(), "* F-0001  high open");
+        assert!(!row.list_line().contains("2026-01-01"));
+        assert!(!row.list_line().contains(EM_DASH));
+        assert_eq!(paint(&row, false).text, row.list_line());
+        assert_eq!(row.found, "2026-01-01");
+        assert_eq!(row.fixed, EM_DASH);
+        assert_eq!(row.severity, "high");
+        assert_eq!(row.state, "open");
         let fixed = rows().into_iter().find(|r| r.id == "F-0005").unwrap();
-        assert_eq!(fixed.columns()[3], "2026-02-02");
-        assert_eq!(fixed.columns()[5], "fixed");
+        assert_eq!(fixed.list_line(), "F-0005  low fixed");
+        assert!(!fixed.list_line().contains("2026-02-02"));
+        assert_eq!(fixed.fixed, "2026-02-02");
+        assert_eq!(fixed.state, "fixed");
+        let chrome = detail_chrome("F-0066");
+        assert_eq!(chrome.title, "F-0066");
+        assert_eq!(chrome.hint, DETAIL_HINT);
+        assert!(chrome.hint_bottom);
     }
 
     #[test]

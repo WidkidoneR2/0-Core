@@ -3,7 +3,8 @@
 //! one findings reader.
 
 use super::view::{
-    apply_filter, colors_enabled, load_cards, paint, Card, Guard, KeyFilter, Screen, Tone,
+    apply_filter, colors_enabled, detail_chrome, list_line_header, load_cards, paint, Card, Guard,
+    KeyFilter, Screen, Tone,
 };
 use crate::app::context::AppContext;
 use crate::errors::{CoreError, CoreResult};
@@ -249,10 +250,12 @@ fn draw(
             .skip(scroll as usize)
             .map(|l| Line::from(l.to_string()))
             .collect();
+        let chrome = detail_chrome(id);
         let body = Paragraph::new(lines).wrap(Wrap { trim: false }).block(
             Block::default()
                 .borders(Borders::ALL)
-                .title(format!(" {id}  enter/esc closes ")),
+                .title(chrome.title)
+                .title_bottom(chrome.hint),
         );
         f.render_widget(body, chunks[1]);
     } else {
@@ -261,20 +264,14 @@ fn draw(
             .filter_map(|id| cards.iter().find(|c| c.row.id == *id))
             .map(|card| {
                 let style = tone_style(card.row.tone, color, card.row.high_marker && color);
-                let text = card.row.columns().join("  ");
-                let text = if card.row.high_marker {
-                    format!("* {text}")
-                } else {
-                    text
-                };
-                ListItem::new(text).style(style)
+                ListItem::new(card.row.list_line()).style(style)
             })
             .collect();
         let list = List::new(items)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
-                    .title(" id  description  found  fixed  severity  state "),
+                    .title(list_line_header()),
             )
             .highlight_style(Style::default().add_modifier(Modifier::REVERSED));
         f.render_stateful_widget(list, chunks[1], list_state);
