@@ -1,0 +1,20 @@
+INT-312: started; G0 and G1 ruled -- plan
+  E1 the intent moves to in-progress: recon stands, no verbose flag
+     - status: planned
+     + status: in-progress
+     - off that screen unless a door fails, or Christian asks to see them. No code
+     - is written before G1 is ruled.
+     + off that screen unless a door fails. No code is written before G1 is ruled.
+     - 3. Recommendation for the flag, not yet a ruling: accept only -v and
+     -    --verbose. Those stream each door as today. Any other argument still
+     -    exits 2, so the script still cannot be handed a command to run.
+     + 3. There is no verbose flag. Any argument still exits 2, so the script
+     +    still cannot be handed a command to run.
+     - - [ ] G0 The recon in The Problem is read against the tree and either stands or
+     + - [x] G0 The recon in The Problem is read against the tree and either stands or
+     - - [ ] G1 The verbose flag. Christian rules yes, no, or a different spelling.
+     + <!-- evidence: 2026-11-10. Re-read on 7d5f93ad, the filing of this intent on 117b0a27. The recon stands. run_door is still zero/scripts/doors lines 39-59, and line 45 runs the command with stdout inherited. Lines 6-8 still refuse every argument and exit 2. -->
+     + - [x] G1 The verbose flag. Christian rules yes, no, or a different spelling.
+     + RULED 2026-11-10 (Christian): "No verbose flag; doors is always quiet and shows the log only on failure."
+     - ## Open for Christian
+     - - G1, whether -v and --verbose are the way to see the full stream.
