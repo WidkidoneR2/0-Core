@@ -3346,6 +3346,41 @@ print('CLASS-DONE')"##;
         },
     ));
     results.push(repo_test(
+        "doors_runs_the_ruled_set",
+        Category::Regression,
+        "needs a real 0-Core: it runs zero/scripts/dev/test_doors.py, which only a checkout has",
+        || {
+            // INT-311: doors is a script, so ship never deploys it. The test is the gate. It fails
+            // when the script is missing, when the ruled set is short a command, or when a run
+            // reaches ship or reload. A missing file, a missing python3, or a run of zero tests
+            // is a failure, not a skip.
+            let dev = std::path::Path::new(&home()).join("0-core/zero/scripts/dev");
+            if !dev.join("test_doors.py").is_file() {
+                return Err(format!(
+                    "{} has no test_doors.py -- the doors tests are missing",
+                    dev.display()
+                ));
+            }
+            let out = Command::new("python3")
+                .args(["-m", "unittest", "test_doors"])
+                .current_dir(&dev)
+                .env("PYTHONDONTWRITEBYTECODE", "1")
+                .output()
+                .map_err(|e| format!("cannot run python3: {}", e))?;
+            let err = String::from_utf8_lossy(&out.stderr);
+            if !out.status.success() {
+                return Err(format!("doors tests failed:\n{}", err.trim_end()));
+            }
+            if !err
+                .lines()
+                .any(|l| l.starts_with("Ran ") && !l.starts_with("Ran 0 "))
+            {
+                return Err(format!("doors tests ran nothing:\n{}", err.trim_end()));
+            }
+            Ok(())
+        },
+    ));
+    results.push(repo_test(
         "every_active_tool_has_a_census_record",
         Category::Regression,
         "needs a real 0-Core: it reads tools.toml and the census directory, which only a checkout has",
