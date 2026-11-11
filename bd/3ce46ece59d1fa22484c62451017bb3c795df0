@@ -1,0 +1,11 @@
+INT-311: G0 ticked -- plan
+  E1 zero/intents/future/311-a-doors-command-that-does-not-ship.md -> in-progress: cistart, recon stands, open list cleared
+     - status: planned
+     + status: in-progress
+     - - [ ] G0 The recon in The Problem is read against the tree and either stands or
+     + - [x] G0 The recon in The Problem is read against the tree and either stands or
+     + <!-- evidence: 2026-11-10. Re-read against 25d085c7. The recon stands. There is no zero/scripts/doors. d is still core doctor run at novashell commands/mod.rs. novashell Cargo.toml turns on zero-core's registry feature and nsh-test's Cargo.toml does not, so the pairing still matters. ship is still the binary at zero/tools/ship. No command runs this set. -->
+     - ## Open for Christian
+     - - G1, the name of the command.
+     - - G2, a core subcommand or a script.
+     - - G3, whether zero-doctor's tests are included.
