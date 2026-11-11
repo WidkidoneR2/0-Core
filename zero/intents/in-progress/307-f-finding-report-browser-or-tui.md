@@ -94,7 +94,7 @@ with the reason, closes it. No code is written before G1 through G6 have those
 lines.
 
 ## Success Criteria
-- [ ] G0 The recon in The Problem is read against the tree and either stands or
+- [x] G0 The recon in The Problem is read against the tree and either stands or
       is corrected here before any other gate. Re-read: 110 finding files,
       highest F-0117, gaps F-0081 through F-0087; render writes seven fields
       and parse_record is the one reader; 21 records have no severity and read
@@ -104,6 +104,7 @@ lines.
       are ratatui and crossterm, cheat's filter is substring and not fzf, and
       it does not load findings. Proof: a dated line in this file saying the
       recon stands, or the correction.
+<!-- evidence: 2026-11-10. Re-read against 55073219. The recon stands, with three citations that moved because this intent inserted code above them. 110 finding files, highest F-0117, gaps F-0081 through F-0087. render is findings.rs:104, parse_record is 139, a missing severity reads unrated at 167. The 21 records with no severity line are the ones named. low 47, medium 36, high 6. None has promoted_to. F-0018, F-0031 and F-0107 are closed without a fix. state_of is trace.rs:130, is_finding_id is 75, trace_finding is 304, seal_line is 407, trace is 166, seal_digest is 228, check_seal is 254, trace_commit is 519. git log on HEAD: 23 Fixes trailers, 18 Finding trailers, and e8679d19 carries both. core bug list is bug.rs:242, render_list 153, Row 22, show 399, story 322, check 462, welcome 1386, dashboard_report 1148. cheat is still main.rs:3122. The -c path still exits at 1088. filter_entries is still cheatsheet_tui.rs:733, a substring contains, not fzf. LeaveAlternateScreen is cheatsheet_tui.rs:348. intent_tui still loads future, in-progress and complete at 468. it is now main.rs:3143 and the absent-0-Core check is 3148 (the filed text said 3127 and 3132). core intent add refuses without a terminal at mod.rs:2764 (filed as 2757). bug with no arguments is parser.rs:861 (filed as 860). The sentence that no name opens a findings screen was true when this recon was written. findings now opens the screen this intent built. -->
 - [x] G1 The surface. Christian rules a TUI, a browser, or both, and why. A
       browser is a page a person opens. A TUI is a screen inside the terminal.
       Both means each is a view of the same rows, not two reports. No code
@@ -156,11 +157,12 @@ RULED 2026-11-10 (Christian): colors are off when NO_COLOR is set, or when outpu
       output, each under its plan Seal.
 RULED 2026-11-10 (Christian): the command is findings.
 <!-- evidence: 2026-11-10. Red commit ee6a4846, Seal baa4438095ea0cff. cargo test -p core g7_ -- --ignored --test-threads=1: 1 passed, 10 failed. The pass is g7_key_a_shows_all, because the stub returns every row it is given and assemble returns none. cargo test -p core on that commit: 266 passed, 0 failed, 11 ignored. Green: cargo test -p core 277 passed, 0 failed, 0 ignored. cargo test -p novashell 258 passed. cargo test -p nsh-test 6 passed. cargo doc -p core --no-deps and cargo doc -p novashell --no-deps: 0 warnings. cargo fmt --check clean. -->
-- [ ] G8 Doors, after any ship. cargo test -p core passes. cargo test -p
+- [x] G8 Doors, after any ship. cargo test -p core passes. cargo test -p
       novashell passes. nsh-test passes after cargo build -p novashell -p
       nsh-test. core intent validate reports every intent valid. d reports 0
       failed. ship, then reload, and the deployed artifact is what was watched.
       Proof: the door output.
+<!-- evidence: 2026-11-10. After ship core, core 4.5.0 shipped, on 55073219. cargo test -p core: 277 passed. zero-doctor: 95 passed, the laptop run at ff8cbdbf; the polish touched only core files. cargo test -p novashell: 258 passed. cargo test -p nsh-test: 6 passed. core intent validate: 344 intents valid. seals 93224bc1, ff8cbdbf and 55073219 intact. Pushed c4c0844c..55073219. d: HEALTHY 100%, 28/28. Working tree clean. findings opens, and Christian approved the look. -->
 
 ## Out of scope
 - Rewriting a finding so a missing severity becomes a stored line. A missing
@@ -175,7 +177,3 @@ RULED 2026-11-10 (Christian): the command is findings.
 - A browser page. G1 leaves it as possible future work, outside this intent.
 - A program that starts at login, or a listener the shell needs in order to
   start.
-
-## Open for Christian
-- G0, whether the recon stands.
-- G8, the doors.
