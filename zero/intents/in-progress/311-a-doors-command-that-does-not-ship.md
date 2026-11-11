@@ -58,11 +58,12 @@ RULED 2026-11-10 (Christian): "I approve on your proposals." zero-doctor is no. 
       command reaches ship. Then the same test passes. Proof: the red output,
       then the green output, each under its plan Seal.
 <!-- evidence: 2026-11-10. Red commit b8f7050c, Seal e70f0083da81b321. python3 -m unittest test_doors: 2 passed, 4 failed, exit 1. The four failures are zero/scripts/doors does not exist. The two passes reject a ship call and a short set. Green, this commit: the same test passes, and it requires cargo build -p novashell -p nsh-test immediately before the nsh-test binary. That build is inside the nsh-test door, so the ruled set stays four doors. A failed build fails that door and does not start the binary. The script does not call ship or reload. Proof is this commit's Seal trailer, the plan seal, and the red seal e70f0083da81b321. -->
-- [ ] G5 Doors, after any ship of this command. cargo test -p core passes.
+- [x] G5 Doors, after any ship of this command. cargo test -p core passes.
       cargo test -p novashell passes. nsh-test passes after cargo build -p
       novashell -p nsh-test. core intent validate reports every intent valid.
       d reports 0 failed. ship, then reload, and the deployed artifact is what
       was watched. Proof: the door output.
+<!-- evidence: 2026-11-10. Christian ran doors through ~/.local/bin/doors on the laptop. core pass 0.2s, 277 passed. shell pass 4.4s, 258 + 6 + 1 passed. nsh-test pass 85.6s, 304/304 passed, NSH_BIN=/home/christian/0-core/target/debug/nsh. validate pass, 348 valid. Summary: 4 passed, 0 failed. d earlier that night: HEALTHY 100%, 28/28, Passed 28, Warnings 0, Failed 0. -->
 RULED 2026-11-10 (Christian): "Yes, have the agent fix the doors link bug with the readlink fix and a symlink test."
 
 ## Out of scope
