@@ -63,6 +63,7 @@ RULED 2026-11-10 (Christian): "I approve on your proposals." zero-doctor is no. 
       novashell -p nsh-test. core intent validate reports every intent valid.
       d reports 0 failed. ship, then reload, and the deployed artifact is what
       was watched. Proof: the door output.
+RULED 2026-11-10 (Christian): "Yes, have the agent fix the doors link bug with the readlink fix and a symlink test."
 
 ## Out of scope
 - Calling ship or reload from this command.
