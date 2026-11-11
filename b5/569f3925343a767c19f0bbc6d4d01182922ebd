@@ -1,0 +1,5 @@
+INT-311: G5 ticked -- plan
+  E1 zero/intents/in-progress/311-a-doors-command-that-does-not-ship.md: laptop doors recorded
+     - - [ ] G5 Doors, after any ship of this command. cargo test -p core passes.
+     + - [x] G5 Doors, after any ship of this command. cargo test -p core passes.
+     + <!-- evidence: 2026-11-10. Christian ran doors through ~/.local/bin/doors on the laptop. core pass 0.2s, 277 passed. shell pass 4.4s, 258 + 6 + 1 passed. nsh-test pass 85.6s, 304/304 passed, NSH_BIN=/home/christian/0-core/target/debug/nsh. validate pass, 348 valid. Summary: 4 passed, 0 failed. d earlier that night: HEALTHY 100%, 28/28, Passed 28, Warnings 0, Failed 0. -->
