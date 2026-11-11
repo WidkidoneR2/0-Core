@@ -1,0 +1,5 @@
+INT-304: G6 ticked -- plan
+  E1 zero/intents/in-progress/304-project-0-orchestration-system-v-10.md: doors recorded, G6 ticked
+     - - [ ] G6 Doors after any ship: nsh-test all passing, d 0 failed, core intent
+     + - [x] G6 Doors after any ship: nsh-test all passing, d 0 failed, core intent
+     + <!-- evidence: 2026-11-10, about 8:54 PM CST, Christian's laptop. d: HEALTHY 100% 28/28, Passed 28, Warnings 0, Failed 0. Git Repository: working tree clean, all commits pushed. Intent Ledger: All 348 intents valid. In progress: INT-304. nsh-test v2.0.15 under test 5.4.0, debug build at target/debug/nsh. It warned same version, different bytes versus target/release/nsh, which is expected. Results: 303 / 303 passed, All tests passed. core intent seals check 244a83ad..bcf285d8 against notes 84abb97c: 02ff4792, 77044d1a, c894c3de, 23428a07, d02f1999, and bcf285d8 intact. 244a83ad, the commit the range starts after, is intact too. No code was shipped. The close commit is the cicomplete 304 commit that follows. -->
