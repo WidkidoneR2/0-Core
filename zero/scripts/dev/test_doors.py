@@ -110,7 +110,17 @@ class Doors(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("\x1b", out.decode("utf-8", "replace"))
 
-    def _run(self, cargo_rc="0", build_rc=None, tty=False, no_color=None):
+    def test_a_symlink_from_another_directory_runs_in_the_repo(self):
+        code, out, order = self._run(via_symlink=True)
+        root = order["root"].resolve()
+        nsh = str(root / "target" / "debug" / "nsh")
+        self.assertIn("nsh-test NSH_BIN=" + nsh, order["text"])
+        cwds = [Path(line).resolve() for line in order["cwd"].splitlines() if line.strip()]
+        self.assertTrue(cwds, "fakes recorded no cwd")
+        self.assertTrue(all(cwd == root for cwd in cwds), order["cwd"])
+        self.assertEqual(code, 0, out.decode("utf-8", "replace"))
+
+    def _run(self, cargo_rc="0", build_rc=None, tty=False, no_color=None, via_symlink=False):
         if not SCRIPT.is_file():
             self.fail("zero/scripts/doors does not exist")
         if not os.access(SCRIPT, os.X_OK):
@@ -131,7 +141,8 @@ class Doors(unittest.TestCase):
         bindir.mkdir()
         _fake(
             bindir / "cargo",
-            "#!/bin/sh\nprintf '%s\\n' \"cargo $*\" >> \"$DOORS_LOG/order\"\n"
+            "#!/bin/sh\npwd >> \"$DOORS_LOG/cwd\"\n"
+            "printf '%s\\n' \"cargo $*\" >> \"$DOORS_LOG/order\"\n"
             "case \"$*\" in\n"
             "  build*) exit \"${DOORS_BUILD_RC:-${DOORS_CARGO_RC:-0}}\" ;;\n"
             "esac\n"
@@ -139,7 +150,8 @@ class Doors(unittest.TestCase):
         )
         _fake(
             bindir / "core",
-            "#!/bin/sh\nprintf '%s\\n' \"core $*\" >> \"$DOORS_LOG/order\"\n"
+            "#!/bin/sh\npwd >> \"$DOORS_LOG/cwd\"\n"
+            "printf '%s\\n' \"core $*\" >> \"$DOORS_LOG/order\"\n"
             "exit \"${DOORS_CORE_RC:-0}\"\n",
         )
         _fake(
@@ -153,7 +165,8 @@ class Doors(unittest.TestCase):
         _fake(debug / "nsh", "#!/bin/sh\nexit 0\n")
         _fake(
             debug / "nsh-test",
-            "#!/bin/sh\nprintf '%s\\n' \"nsh-test NSH_BIN=${NSH_BIN-}\" >> \"$DOORS_LOG/order\"\n"
+            "#!/bin/sh\npwd >> \"$DOORS_LOG/cwd\"\n"
+            "printf '%s\\n' \"nsh-test NSH_BIN=${NSH_BIN-}\" >> \"$DOORS_LOG/order\"\n"
             "exit \"${DOORS_NSH_TEST_RC:-0}\"\n",
         )
         env = os.environ.copy()
@@ -167,14 +180,26 @@ class Doors(unittest.TestCase):
         if no_color is not None:
             env["NO_COLOR"] = no_color
         argv = [str(dest)]
+        run_cwd = root
+        link = None
+        if via_symlink:
+            linkdir = root / "not-the-repo"
+            linkdir.mkdir()
+            link = linkdir / "doors"
+            link.symlink_to(dest)
+            run_cwd = root / "unrelated-cwd"
+            run_cwd.mkdir()
+            argv = [str(link)]
         if tty:
-            code, out = _pty(argv, env, root)
+            code, out = _pty(argv, env, run_cwd)
         else:
-            proc = subprocess.run(argv, cwd=root, env=env, capture_output=True)
+            proc = subprocess.run(argv, cwd=run_cwd, env=env, capture_output=True)
             code, out = proc.returncode, proc.stdout
         order_path = log / "order"
         text = order_path.read_text() if order_path.is_file() else ""
-        return code, out, {"text": text, "root": root}
+        cwd_path = log / "cwd"
+        cwd_text = cwd_path.read_text() if cwd_path.is_file() else ""
+        return code, out, {"text": text, "root": root, "cwd": cwd_text, "link": link}
 
 
 def _pty(argv, env, cwd):
