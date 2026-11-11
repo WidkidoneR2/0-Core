@@ -3,15 +3,14 @@ id: 312
 date: 2026-11-10
 type: future
 title: "doors is quiet unless a door fails"
-status: planned
+status: in-progress
 tags: [doors, nsh, intent]
 ---
 
 ## Vision
 doors stays the four-door run it is. A passing run shows the header, one
 timed line per door, and the summary. The cargo and nsh-test transcripts stay
-off that screen unless a door fails, or Christian asks to see them. No code
-is written before G1 is ruled.
+off that screen unless a door fails. No code is written before G1 is ruled.
 
 ## The Problem
 Re-read 2026-11-10 against 117b0a27. zero/scripts/doors runs each door with
@@ -34,20 +33,21 @@ and "lets make the doors quieter now."
    target/ is already gitignored. A passing door does not print the file.
    A failing door prints the file in full and prints its path. The other
    doors still run. Exit 0 when all pass, exit 1 when any fails.
-3. Recommendation for the flag, not yet a ruling: accept only -v and
-   --verbose. Those stream each door as today. Any other argument still
-   exits 2, so the script still cannot be handed a command to run.
+3. There is no verbose flag. Any argument still exits 2, so the script
+   still cannot be handed a command to run.
 
 ## Success Criteria
-- [ ] G0 The recon in The Problem is read against the tree and either stands or
+- [x] G0 The recon in The Problem is read against the tree and either stands or
       is corrected here before any other gate. Re-read: run_door is
       zero/scripts/doors lines 39-59, and lines 6-8 refuse every argument.
       Proof: a dated line in this file saying the recon stands, or the
       correction.
-- [ ] G1 The verbose flag. Christian rules yes, no, or a different spelling.
+<!-- evidence: 2026-11-10. Re-read on 7d5f93ad, the filing of this intent on 117b0a27. The recon stands. run_door is still zero/scripts/doors lines 39-59, and line 45 runs the command with stdout inherited. Lines 6-8 still refuse every argument and exit 2. -->
+- [x] G1 The verbose flag. Christian rules yes, no, or a different spelling.
       The shape to accept, change, or reject: only -v and --verbose stream
       the doors as they do today. Any other argument still exits 2. Proof:
       the RULED line.
+RULED 2026-11-10 (Christian): "No verbose flag; doors is always quiet and shows the log only on failure."
 - [ ] G2 Red, in zero/scripts/dev/test_doors.py, only after G1 is ruled. A
       passing run prints the header, the timed lines, and the summary, and
       does not print the door's own output. A failing door prints that output
@@ -64,5 +64,3 @@ and "lets make the doors quieter now."
 - Calling ship or reload. Replacing d.
 - A fifth door, or a copy of d's count.
 
-## Open for Christian
-- G1, whether -v and --verbose are the way to see the full stream.
