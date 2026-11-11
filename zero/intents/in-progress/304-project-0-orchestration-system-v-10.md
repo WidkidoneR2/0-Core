@@ -73,8 +73,9 @@ RULED 2026-11-10 (Christian): there is no external spec. The playbook is written
       a story, not a list. Proof: the three files and commit.
 <!-- evidence: 2026-11-10. The three files are zero/handoffs/2026-11-10-jarvis.md, zero/handoffs/2026-11-10-cursor.md, and zero/handoffs/2026-11-10-zero-digest.md. The reply is the read-only recon. The digest is the story. Proof is this commit's Seal trailer, the plan seal kept under refs/notes/seals. -->
 RULED 2026-11-10 (Christian): the G4 loop routes INT-311. The digest is named Zero Digest.
-- [ ] G5 Christian reviews the playbook, schema and loop files and rules keep,
+- [x] G5 Christian reviews the playbook, schema and loop files and rules keep,
       change or stop, as a RULED line with the date. Proof: the RULED line.
+RULED 2026-11-10 (Christian): "Yes i am happy with it." Keep the playbook, the schema, and the loop files.
 - [ ] G6 Doors after any ship: nsh-test all passing, d 0 failed, core intent
       validate all valid, git status clean. Every INT-304 commit carries
       Intent: and Seal:, with the note under refs/notes/seals, and core intent
