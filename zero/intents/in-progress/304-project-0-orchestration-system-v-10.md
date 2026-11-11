@@ -76,9 +76,10 @@ RULED 2026-11-10 (Christian): the G4 loop routes INT-311. The digest is named Ze
 - [x] G5 Christian reviews the playbook, schema and loop files and rules keep,
       change or stop, as a RULED line with the date. Proof: the RULED line.
 RULED 2026-11-10 (Christian): "Yes i am happy with it." Keep the playbook, the schema, and the loop files.
-- [ ] G6 Doors after any ship: nsh-test all passing, d 0 failed, core intent
+- [x] G6 Doors after any ship: nsh-test all passing, d 0 failed, core intent
       validate all valid, git status clean. Every INT-304 commit carries
       Intent: and Seal:, with the note under refs/notes/seals, and core intent
       seals check on the range reads intact, then push. These doors are run by
       hand until INT-311 lands. Then cicomplete 304.
       Proof: the door output and the close commit.
+<!-- evidence: 2026-11-10, about 8:54 PM CST, Christian's laptop. d: HEALTHY 100% 28/28, Passed 28, Warnings 0, Failed 0. Git Repository: working tree clean, all commits pushed. Intent Ledger: All 348 intents valid. In progress: INT-304. nsh-test v2.0.15 under test 5.4.0, debug build at target/debug/nsh. It warned same version, different bytes versus target/release/nsh, which is expected. Results: 303 / 303 passed, All tests passed. core intent seals check 244a83ad..bcf285d8 against notes 84abb97c: 02ff4792, 77044d1a, c894c3de, 23428a07, d02f1999, and bcf285d8 intact. 244a83ad, the commit the range starts after, is intact too. No code was shipped. The close commit is the cicomplete 304 commit that follows. -->
