@@ -3,7 +3,7 @@ id: 312
 date: 2026-11-10
 type: future
 title: "doors is quiet unless a door fails"
-status: in-progress
+status: complete
 tags: [doors, nsh, intent]
 ---
 
