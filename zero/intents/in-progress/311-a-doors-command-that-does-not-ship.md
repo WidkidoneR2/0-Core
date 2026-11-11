@@ -3,7 +3,7 @@ id: 311
 date: 2026-11-10
 type: future
 title: "A doors command that does not ship"
-status: planned
+status: in-progress
 tags: [intent, ledger, nsh]
 ---
 
@@ -33,10 +33,11 @@ RULED line in this file, dated, in his words. Declining a gate, with the
 reason, closes it. No code is written before G1, G2, and G3 have those lines.
 
 ## Success Criteria
-- [ ] G0 The recon in The Problem is read against the tree and either stands or
+- [x] G0 The recon in The Problem is read against the tree and either stands or
       is corrected here before any other gate. Re-read: no command runs this
       set, and ship is not a test. Proof: a dated line in this file saying the
       recon stands, or the correction.
+<!-- evidence: 2026-11-10. Re-read against 25d085c7. The recon stands. There is no zero/scripts/doors. d is still core doctor run at novashell commands/mod.rs. novashell Cargo.toml turns on zero-core's registry feature and nsh-test's Cargo.toml does not, so the pairing still matters. ship is still the binary at zero/tools/ship. No command runs this set. -->
 - [x] G1 The name. Christian rules the word a person types. Proof: the RULED
       line.
 RULED 2026-11-10 (Christian): "I approve on your proposals." The name is doors.
@@ -66,7 +67,3 @@ RULED 2026-11-10 (Christian): "I approve on your proposals." zero-doctor is no. 
 - Replacing d. The doctor keeps its own door.
 - A second copy of d's health count inside this command's output.
 
-## Open for Christian
-- G1, the name of the command.
-- G2, a core subcommand or a script.
-- G3, whether zero-doctor's tests are included.
