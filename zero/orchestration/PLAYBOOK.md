@@ -105,4 +105,6 @@ Run by hand. Three files, in this order.
 3. The Zero Digest, written by Jarvis, blends the two handoffs with what the
    ledger says about INT-311. It is a story, not a list of fields.
 
-No example handoff is in the tree yet. That is the next gate.
+The three files of the first-week loop are in the tree:
+zero/handoffs/2026-11-10-jarvis.md, zero/handoffs/2026-11-10-cursor.md, and
+zero/handoffs/2026-11-10-zero-digest.md.

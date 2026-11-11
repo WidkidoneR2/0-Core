@@ -68,9 +68,10 @@ RULED 2026-11-10 (Christian): there is no external spec. The playbook is written
 - [x] G3 One valid example handoff in zero/handoffs/ with every required field.
       Proof: the file and a field check by hand.
 <!-- evidence: 2026-11-10. zero/handoffs/2026-11-10-jarvis.md. Field check: Agent Jarvis, Status open, Intent INT-311, Owner Cursor, NeedsHuman no, NeedsHumanReason none, Summary two sentences, Details the INT-311 recon and the still-open name, home, and zero-doctor gates, Next one action (read-only recon, reply in a new file, no code before cistart 311), Files the INT-311 path, Links INT-311 and INT-304. Proof is this commit's Seal trailer, the plan seal kept under refs/notes/seals. -->
-- [ ] G4 First-week loop by hand: a Conductor handoff routing INT-311, the
+- [x] G4 First-week loop by hand: a Conductor handoff routing INT-311, the
       specialist reply, and a Zero Digest that blends both with the ledger as
       a story, not a list. Proof: the three files and commit.
+<!-- evidence: 2026-11-10. The three files are zero/handoffs/2026-11-10-jarvis.md, zero/handoffs/2026-11-10-cursor.md, and zero/handoffs/2026-11-10-zero-digest.md. The reply is the read-only recon. The digest is the story. Proof is this commit's Seal trailer, the plan seal kept under refs/notes/seals. -->
 RULED 2026-11-10 (Christian): the G4 loop routes INT-311. The digest is named Zero Digest.
 - [ ] G5 Christian reviews the playbook, schema and loop files and rules keep,
       change or stop, as a RULED line with the date. Proof: the RULED line.
