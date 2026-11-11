@@ -37,14 +37,17 @@ reason, closes it. No code is written before G1, G2, and G3 have those lines.
       is corrected here before any other gate. Re-read: no command runs this
       set, and ship is not a test. Proof: a dated line in this file saying the
       recon stands, or the correction.
-- [ ] G1 The name. Christian rules the word a person types. Proof: the RULED
+- [x] G1 The name. Christian rules the word a person types. Proof: the RULED
       line.
-- [ ] G2 The home. Christian rules one place. The options left open: a core
+RULED 2026-11-10 (Christian): "I approve on your proposals." The name is doors.
+- [x] G2 The home. Christian rules one place. The options left open: a core
       subcommand, or a script under zero/scripts. The ruling says what that
       home can start, and that it does not call ship and does not reload.
       Proof: the RULED line.
-- [ ] G3 Whether zero-doctor is in the set. Christian rules yes or no. d stays
+RULED 2026-11-10 (Christian): "I approve on your proposals." The home is a script at zero/scripts/doors, not a core subcommand. It starts cargo test -p core, cargo test -p novashell -p nsh-test, the nsh-test binary, and core intent validate. It must not call ship or reload.
+- [x] G3 Whether zero-doctor is in the set. Christian rules yes or no. d stays
       a separate door either way. Proof: the RULED line.
+RULED 2026-11-10 (Christian): "I approve on your proposals." zero-doctor is no. The 95 tests stay out. d stays core doctor run.
 - [ ] G4 The run, only after G1, G2, and G3 are ruled. The command runs
       cargo test -p core, cargo test -p novashell -p nsh-test as one
       invocation, nsh-test, and core intent validate, and prints their
