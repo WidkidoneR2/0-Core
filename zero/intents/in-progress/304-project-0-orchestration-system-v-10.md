@@ -14,10 +14,12 @@ one job; handoffs are dated files in the repo; the intent ledger stays the only
 source of truth. v1 is proven by hand before anything is automated.
 
 ## The Problem
-Work moves by copy and paste between Christian, Jarvis and Claude. Long pastes
-arrive empty or cut off, approvals and open items live only in chat, and chat
-is lost when a session ends. Nobody can see at a glance who is working and who
-is waiting on Christian.
+Work moves by copy and paste between Christian, Jarvis and the agents. Long
+pastes arrive empty or cut off. At 244a83ad the tree has neither
+zero/orchestration nor zero/handoffs, so a handoff has nowhere to live. A
+ruling written into an intent is in the ledger. Who is working, and who is
+waiting on Christian, still lives only in chat, and chat is lost when a session
+ends.
 
 ## The Solution (v1 only)
 1. zero/orchestration/PLAYBOOK.md: philosophy, roles and the 12 house rules.
@@ -50,9 +52,10 @@ is waiting on Christian.
 - Herdr (kept under INT-303 G9 rules); a direct Jarvis to Claude link.
 
 ## Success Criteria
-- [ ] G0 The recon in The Problem is read against the tree and either stands or
+- [x] G0 The recon in The Problem is read against the tree and either stands or
       is corrected here before any other gate. Proof: a dated line in this file
       saying the recon stands, or the correction.
+<!-- evidence: 2026-11-10. Re-read against 244a83ad. git ls-files lists no zero/orchestration and no zero/handoffs, and neither directory is on disk. The Problem named only Claude; the ruled roles are Jarvis, Cursor cloud agents, and Claude as backup, so that sentence now says the agents. A RULED line in an intent is an approval on disk, so "approvals live only in chat" was too strong and is corrected above. Who is working and who is waiting still has no file. The rest stands: paste is the channel, and chat does not survive the session. -->
 - [ ] G1 PLAYBOOK.md written at zero/orchestration/PLAYBOOK.md with philosophy,
       v1 roles table and the 12 house rules. Proof: the Plan Seal and commit.
 RULED 2026-11-10 (Christian): roles for v1 are Conductor = Jarvis, coding = Cursor cloud agents, Claude = backup. This supersedes the filed "NovaShell / coding = Claude". On 2026-11-09 Christian decided that Jarvis and Cursor have point and Claude takes the backseat.
