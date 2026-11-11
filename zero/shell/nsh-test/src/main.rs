@@ -3129,10 +3129,11 @@ print('CLASS-DONE')"##;
         Category::Regression,
         "needs a real 0-Core: the links resolve into the checkout's zero/scripts",
         || {
-            // AGENTS.md, Devshell: devshell is typed by name. ship deploys Rust binaries only, so
-            // the four devshell commands reach PATH as links in ~/.local/bin to the repo's
-            // scripts -- a script has no build step, so the repo copy is what runs. Each link must
-            // exist, resolve into zero/scripts, and be executable; a broken or stale link is red.
+            // AGENTS.md, Devshell: devshell is typed by name, and doors is linked the same way.
+            // ship deploys Rust binaries only, so these scripts reach PATH as links in
+            // ~/.local/bin to the repo's scripts. A script has no build step, so the repo copy is
+            // what runs. Each link must exist, resolve into zero/scripts, and be executable; a
+            // broken or stale link is red.
             let home = home();
             let scripts = std::path::Path::new(&home).join("0-core/zero/scripts");
             let bin = std::path::Path::new(&home).join(".local/bin");
@@ -3142,6 +3143,7 @@ print('CLASS-DONE')"##;
                 "devshell-diff",
                 "devshell-promote",
                 "devshell-checkpoint",
+                "doors",
             ] {
                 let link = bin.join(name);
                 let want = std::fs::canonicalize(scripts.join(name))

@@ -46,16 +46,18 @@ RULED 2026-11-10 (Christian): "I approve on your proposals." The name is doors.
       home can start, and that it does not call ship and does not reload.
       Proof: the RULED line.
 RULED 2026-11-10 (Christian): "I approve on your proposals." The home is a script at zero/scripts/doors, not a core subcommand. It starts cargo test -p core, cargo test -p novashell -p nsh-test, the nsh-test binary, and core intent validate. It must not call ship or reload.
+RULED 2026-11-10 (Christian): "Link doors into ~/.local/bin like devshell, with an nsh-test check that the link resolves."
 - [x] G3 Whether zero-doctor is in the set. Christian rules yes or no. d stays
       a separate door either way. Proof: the RULED line.
 RULED 2026-11-10 (Christian): "I approve on your proposals." zero-doctor is no. The 95 tests stay out. d stays core doctor run.
-- [ ] G4 The run, only after G1, G2, and G3 are ruled. The command runs
+- [x] G4 The run, only after G1, G2, and G3 are ruled. The command runs
       cargo test -p core, cargo test -p novashell -p nsh-test as one
       invocation, nsh-test, and core intent validate, and prints their
       results. It does not ship. It does not reload. Shown failing first,
       under its own plan Seal, if the ruled set is short a command or if the
       command reaches ship. Then the same test passes. Proof: the red output,
       then the green output, each under its plan Seal.
+<!-- evidence: 2026-11-10. Red commit b8f7050c, Seal e70f0083da81b321. python3 -m unittest test_doors: 2 passed, 4 failed, exit 1. The four failures are zero/scripts/doors does not exist. The two passes reject a ship call and a short set. Green, this commit: the same test passes, and it requires cargo build -p novashell -p nsh-test immediately before the nsh-test binary. That build is inside the nsh-test door, so the ruled set stays four doors. A failed build fails that door and does not start the binary. The script does not call ship or reload. Proof is this commit's Seal trailer, the plan seal, and the red seal e70f0083da81b321. -->
 - [ ] G5 Doors, after any ship of this command. cargo test -p core passes.
       cargo test -p novashell passes. nsh-test passes after cargo build -p
       novashell -p nsh-test. core intent validate reports every intent valid.

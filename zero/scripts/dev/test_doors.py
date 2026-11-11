@@ -24,7 +24,7 @@ RULED = (
 )
 
 
-def assert_order(order, nsh_bin):
+def assert_order(order, nsh_bin, binary=True):
     lines = [line for line in order.splitlines() if line.strip()]
     banned = [line for line in lines if line.startswith("ship") or line.startswith("reload")]
     if banned:
@@ -32,11 +32,18 @@ def assert_order(order, nsh_bin):
     expect = [
         "cargo test -p core",
         "cargo test -p novashell -p nsh-test",
-        "nsh-test NSH_BIN=" + nsh_bin,
-        "core intent validate",
+        "cargo build -p novashell -p nsh-test",
     ]
+    if binary:
+        expect.append("nsh-test NSH_BIN=" + nsh_bin)
+    expect.append("core intent validate")
     if lines != expect:
         raise AssertionError("ruled set mismatch:\n got: " + repr(lines) + "\n want: " + repr(expect))
+    if binary:
+        build_at = lines.index("cargo build -p novashell -p nsh-test")
+        nxt = lines[build_at + 1]
+        if nxt != "nsh-test NSH_BIN=" + nsh_bin:
+            raise AssertionError("the build did not happen immediately before the nsh-test binary")
 
 
 def _fake(path, body):
@@ -69,6 +76,7 @@ class Doors(unittest.TestCase):
         self.assertIn("doors", text)
         for cmd in RULED:
             self.assertIn(cmd, text)
+        self.assertIn("cargo build -p novashell -p nsh-test", text)
         self.assertIn("pass", text)
         self.assertIn("passed", text)
         self.assertIn("d is its own door", text)
@@ -79,7 +87,18 @@ class Doors(unittest.TestCase):
         code, out, order = self._run(cargo_rc="1")
         self.assertNotEqual(code, 0)
         self.assertIn("fail", out.decode("utf-8", "replace"))
-        assert_order(order["text"], str(order["root"] / "target" / "debug" / "nsh"))
+        nsh_bin = str(order["root"] / "target" / "debug" / "nsh")
+        assert_order(order["text"], nsh_bin, binary=False)
+
+    def test_a_failed_build_skips_the_binary_and_fails_that_door(self):
+        code, out, order = self._run(build_rc="1")
+        self.assertNotEqual(code, 0)
+        text = out.decode("utf-8", "replace")
+        self.assertIn("fail", text)
+        self.assertIn("cargo build -p novashell -p nsh-test", text)
+        nsh_bin = str(order["root"] / "target" / "debug" / "nsh")
+        assert_order(order["text"], nsh_bin, binary=False)
+        self.assertNotIn("nsh-test NSH_BIN=" + nsh_bin, order["text"])
 
     def test_no_color_on_a_terminal_drops_the_escapes(self):
         code, out, _order = self._run(tty=True, no_color="1")
@@ -91,7 +110,7 @@ class Doors(unittest.TestCase):
         self.assertEqual(code, 0)
         self.assertIn("\x1b", out.decode("utf-8", "replace"))
 
-    def _run(self, cargo_rc="0", tty=False, no_color=None):
+    def _run(self, cargo_rc="0", build_rc=None, tty=False, no_color=None):
         if not SCRIPT.is_file():
             self.fail("zero/scripts/doors does not exist")
         if not os.access(SCRIPT, os.X_OK):
@@ -113,6 +132,9 @@ class Doors(unittest.TestCase):
         _fake(
             bindir / "cargo",
             "#!/bin/sh\nprintf '%s\\n' \"cargo $*\" >> \"$DOORS_LOG/order\"\n"
+            "case \"$*\" in\n"
+            "  build*) exit \"${DOORS_BUILD_RC:-${DOORS_CARGO_RC:-0}}\" ;;\n"
+            "esac\n"
             "exit \"${DOORS_CARGO_RC:-0}\"\n",
         )
         _fake(
@@ -138,6 +160,9 @@ class Doors(unittest.TestCase):
         env["PATH"] = str(bindir) + ":/usr/bin:/bin"
         env["DOORS_LOG"] = str(log)
         env["DOORS_CARGO_RC"] = cargo_rc
+        env.pop("DOORS_BUILD_RC", None)
+        if build_rc is not None:
+            env["DOORS_BUILD_RC"] = build_rc
         env.pop("NO_COLOR", None)
         if no_color is not None:
             env["NO_COLOR"] = no_color

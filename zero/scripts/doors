@@ -1,0 +1,86 @@
+#!/usr/bin/env bash
+# INT-311. Run the ruled set. This does not ship and it does not reload.
+# d is its own door. Run that separately.
+set -u
+
+if [[ $# -ne 0 ]]; then
+    printf '%s\n' "doors takes no arguments" >&2
+    exit 2
+fi
+
+here=$(cd "$(dirname "$0")" && pwd)
+root=$(cd "$here/../.." && pwd)
+cd "$root"
+
+use_color=0
+if [[ -t 1 && -z "${NO_COLOR+x}" ]]; then
+    use_color=1
+fi
+c_reset=""
+c_head=""
+c_pass=""
+c_fail=""
+c_dim=""
+if [[ "$use_color" -eq 1 ]]; then
+    c_reset=$'\033[0m'
+    c_head=$'\033[1;36m'
+    c_pass=$'\033[32m'
+    c_fail=$'\033[31m'
+    c_dim=$'\033[2m'
+fi
+
+printf '%s\n' "${c_head}doors${c_reset}"
+printf '%s\n' "${c_dim}four doors, and none of them ship${c_reset}"
+printf '\n'
+
+passed=0
+failed=0
+
+run_door() {
+    local name="$1"
+    local shown_cmd="$2"
+    shift 2
+    local start end tenths secs frac shown rc mark
+    start=$(date +%s%N)
+    "$@"
+    rc=$?
+    end=$(date +%s%N)
+    tenths=$(( (end - start) / 100000000 ))
+    secs=$(( tenths / 10 ))
+    frac=$(( tenths % 10 ))
+    shown="${secs}.${frac}s"
+    if [[ "$rc" -eq 0 ]]; then
+        mark="${c_pass}pass${c_reset}"
+        passed=$(( passed + 1 ))
+    else
+        mark="${c_fail}fail${c_reset}"
+        failed=$(( failed + 1 ))
+    fi
+    printf '  %-10s %s  %6s  %s\n' "$name" "$mark" "$shown" "$shown_cmd"
+}
+
+run_door "core" "cargo test -p core" cargo test -p core
+run_door "shell" "cargo test -p novashell -p nsh-test" cargo test -p novashell -p nsh-test
+nsh_bin="$root/target/debug/nsh"
+nsh_test="$root/target/debug/nsh-test"
+# cargo test does not promise fresh bins. This door builds them, then runs them.
+# A failed build fails the door and does not start the binary.
+nsh_one() {
+    cargo build -p novashell -p nsh-test || return $?
+    env NSH_BIN="$nsh_bin" "$nsh_test"
+}
+run_door "nsh-test" "cargo build -p novashell -p nsh-test && NSH_BIN=$nsh_bin $nsh_test" nsh_one
+run_door "validate" "core intent validate" core intent validate
+
+printf '\n'
+if [[ "$failed" -eq 0 ]]; then
+    printf '%s\n' "${c_pass}${passed} passed, ${failed} failed${c_reset}"
+else
+    printf '%s\n' "${c_fail}${passed} passed, ${failed} failed${c_reset}"
+fi
+printf '%s\n' "${c_dim}d is its own door. Run d separately.${c_reset}"
+
+if [[ "$failed" -ne 0 ]]; then
+    exit 1
+fi
+exit 0
