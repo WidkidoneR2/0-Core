@@ -58,8 +58,9 @@ RULED 2026-11-10 (Christian): "No verbose flag; doors is always quiet and shows 
       the ruled flag, colors, keep-going, and the exit codes. Proof: the green
       output under its plan Seal.
 <!-- evidence: 2026-11-10. This commit. python3 -m unittest test_doors: 11 passed. A passing door's transcript is in target/doors/<name>.log and not on stdout. A failing door prints that file and its path. Any argument still exits 2. There is no verbose flag. Proof is this commit's Seal trailer, the plan seal, and the red seal 173417cb500c380c. -->
-- [ ] G4 Christian runs doors on the laptop. A passing run is the quiet
+- [x] G4 Christian runs doors on the laptop. A passing run is the quiet
       screen. Proof: the door output.
+<!-- evidence: 2026-11-10. Christian ran doors on the laptop. Quiet output, no transcript printed. core pass 0.2s. shell pass 0.1s. nsh-test pass 85.9s. validate pass. Summary: 4 passed, 0 failed. -->
 
 ## Out of scope
 - Changing which four doors run, or the build inside the nsh-test door.
