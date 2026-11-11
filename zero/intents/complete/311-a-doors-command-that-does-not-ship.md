@@ -3,7 +3,7 @@ id: 311
 date: 2026-11-10
 type: future
 title: "A doors command that does not ship"
-status: in-progress
+status: complete
 tags: [intent, ledger, nsh]
 ---
 
@@ -71,3 +71,6 @@ RULED 2026-11-10 (Christian): "Yes, have the agent fix the doors link bug with t
 - Replacing d. The doctor keeps its own door.
 - A second copy of d's health count inside this command's output.
 
+
+## Versions
+- nsh-test 2.0.15 -> 2.1.0 (minor)
