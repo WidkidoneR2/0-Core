@@ -65,8 +65,9 @@ RULED 2026-11-10 (Christian): roles for v1 are Conductor = Jarvis, coding = Curs
       Proof: the Plan Seal and commit.
 <!-- evidence: 2026-11-10. The schema, the ledger rule, and the approval phrases are in zero/orchestration/PLAYBOOK.md. zero/handoffs/README.md names the path and the file rules. Proof is this commit's Seal trailer, the plan seal kept under refs/notes/seals. -->
 RULED 2026-11-10 (Christian): there is no external spec. The playbook is written from this intent alone: the house rules, the handoff schema fields listed in The Solution, the ledger rule that agents propose and Christian applies, the approval phrases, and the first-week loop.
-- [ ] G3 One valid example handoff in zero/handoffs/ with every required field.
+- [x] G3 One valid example handoff in zero/handoffs/ with every required field.
       Proof: the file and a field check by hand.
+<!-- evidence: 2026-11-10. zero/handoffs/2026-11-10-jarvis.md. Field check: Agent Jarvis, Status open, Intent INT-311, Owner Cursor, NeedsHuman no, NeedsHumanReason none, Summary two sentences, Details the INT-311 recon and the still-open name, home, and zero-doctor gates, Next one action (read-only recon, reply in a new file, no code before cistart 311), Files the INT-311 path, Links INT-311 and INT-304. Proof is this commit's Seal trailer, the plan seal kept under refs/notes/seals. -->
 - [ ] G4 First-week loop by hand: a Conductor handoff routing INT-311, the
       specialist reply, and a Zero Digest that blends both with the ledger as
       a story, not a list. Proof: the three files and commit.
