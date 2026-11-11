@@ -3,7 +3,7 @@ id: 304
 date: 2026-11-07
 type: future
 title: "Project 0 Orchestration System v 1.0"
-status: in-progress
+status: complete
 tags: [job, handoff, novashell, devbox, omarchy]
 ---
 
