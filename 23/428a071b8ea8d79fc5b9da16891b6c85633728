@@ -1,0 +1,107 @@
+INT-304: G4 -- plan
+  E1 the reply, the Zero Digest, the playbook line, and G4 ticked
+     + # Handoff 2026-11-10
+     +
+     + - Agent: Cursor
+     + - Status: open
+     + - Intent: INT-311
+     + - Owner: Christian
+     + - NeedsHuman: yes
+     + - NeedsHumanReason: G1-G3 rulings needed before cistart 311
+     + - Summary: Read-only recon of INT-311. The doors a person retypes already exist as separate commands, and nothing runs them together. Three proposals follow. Nothing is applied.
+     + - Details: Re-read against c894c3de. No code, no cistart. INT-311 is still future/, status planned, every gate open, at zero/intents/future/311-a-doors-command-that-does-not-ship.md. It was filed in e32c7755, whose message says the four intents came from the ledger study, re-read against 57ca26ea (INT-307: complete). The study itself is not a file in this tree.
+     +
+     +   What exists today, and the invocation:
+     +
+     +   cargo test -p core. zero/engine holds 277 #[test] attributes. cargo test -p core reported 277 passed on 2026-11-10 (INT-307 evidence). This recon did not re-run it, so there is no fresh wall time.
+     +
+     +   cargo test -p novashell. zero/shell/novashell holds 258 #[test] attributes. The same evidence recorded 258 passed. The package is novashell and the binary is nsh (novashell Cargo.toml).
+     +
+     +   cargo test -p nsh-test is not a separate invocation. nsh-test Cargo.toml depends on zero-core with no features. novashell Cargo.toml asks for zero-core features db and registry. zero-core lib.rs exposes registry only under that feature, and nsh-test calls zero_core::registry::read (nsh-test main.rs). One cargo invocation unifies the feature, so the command is cargo test -p novashell -p nsh-test. The crate's own #[test] count is 6, and the same evidence recorded 6 passed. That is not the suite.
+     +
+     +   The suite is the nsh-test binary. .githooks/lib/nsh-test-gate.sh builds it with cargo build -p novashell -p nsh-test and runs NSH_BIN pointing at target/debug/nsh. The script's own line budgets about 1 minute for that build and run. This recon did not rebuild it.
+     +
+     +   core intent validate. Measured on this checkout: 0.01s, 348 intents valid. That clock is this machine, not the laptop.
+     +
+     +   d is the nsh builtin that runs core doctor run (novashell commands/mod.rs). It is not cargo test -p zero-doctor. zero-doctor holds 95 #[test] attributes, and the INT-307 evidence recorded 95 passed as its own run.
+     +
+     +   ship is a separate binary, zero/tools/ship. It builds release and copies binaries onto PATH. It has no rollback. A doors command that called it would deploy.
+     +
+     +   The push gate is not this command. .githooks/README.md: pre-push runs the nsh-test suite, then cargo test -p core, then core intent seals check. It does not run the novashell tests, validate, or zero-doctor.
+     +
+     +   No command named doors exists. builtin_names.rs lists d, cheat, findings, and it. It does not list doors.
+     +
+     +   Where it could live. A core subcommand would be a new variant beside Doctor and Intent in zero/engine/src/cli/parser.rs, parsed in cli/mod.rs, dispatched from app/dispatcher.rs. core's main acquires the runtime lock before every command (engine main.rs). The engine starts cargo for cargo update (intent/mod.rs) and cargo audit (security/mod.rs), not for the test suite. A script would be a new file under zero/scripts, next to devshell and dev/fpatch.py. INT-311 already names those two homes and says the ruling must say the home does not call ship and does not reload.
+     +
+     +   Proposals only. ProposedStatus: planned. Leave the file where it is.
+     +
+     +   G1, the name. Propose doors. It is the word the ledger already uses, and it is not taken.
+     +
+     +   G2, the home. Propose a script at zero/scripts/doors, not a core subcommand. A doors run is the long commands above, and a core subcommand would hold the runtime lock for the whole of it. The script must not call ship and must not reload.
+     +
+     +   G3, zero-doctor. Propose no. The set INT-311 already names is cargo test -p core, cargo test -p novashell -p nsh-test, the nsh-test binary, and core intent validate. zero-doctor's 95 tests stay a separate cargo test. d stays its own door either way.
+     +
+     +   The jarvis file is answered by this one. Its Status line still says open, because one writer per file and this reply does not edit it.
+     + - Next: Rule G1, G2, and G3 on INT-311 before anyone runs cistart 311.
+     + - Files: zero/intents/future/311-a-doors-command-that-does-not-ship.md, zero/engine/src/cli/parser.rs, zero/scripts/
+     + - Links: zero/handoffs/2026-11-10-jarvis.md answered, INT-311, INT-304
+     + # The Zero Digest: three knocks, then the door
+     +
+     + - Agent: Jarvis
+     + - Status: open
+     + - Intent: INT-311
+     + - Owner: Christian
+     + - NeedsHuman: yes
+     + - NeedsHumanReason: G1, G2, and G3 need a ruling before cistart 311
+     + - Summary: The Conductor sent INT-311 to Cursor. Cursor came back with the tree, not a patch. Three questions are waiting, and the door stays shut until you answer.
+     + - Details:
+     +
+     +   ```
+     +         ______
+     +        |      |
+     +        | 311  |
+     +        |  __  |
+     +        | |  ||
+     +        | |__||
+     +        |______|
+     +   ```
+     +
+     +   🚪 This is the first week, done by hand.
+     +
+     +   On the day INT-307 closed, 57ca26ea, the finding screen was finished and the ledger study was still a study. The next commit, e32c7755, filed four intents and said they came from that study. One of them is INT-311, "A doors command that does not ship." It sits in future/, status planned, every gate open. Nobody has run cistart 311. That is still correct.
+     +
+     +   Jarvis wrote the first knock: zero/handoffs/2026-11-10-jarvis.md. Read the intent. Reply in a new file. Write no code. The file still says Status open. It has one writer, and the writer was Jarvis, so the reply did not touch it. The reply is what calls it answered.
+     +
+     +   Cursor wrote the second knock: zero/handoffs/2026-11-10-cursor.md. The recon holds. There is no doors command. The pieces a person retypes are real, and they do not know about each other.
+     +
+     +   | Knock | What it is | Last word we have |
+     +   |---|---|---|
+     +   | cargo test -p core | the engine's tests | 277, recorded 2026-11-10, not re-run today |
+     +   | cargo test -p novashell -p nsh-test | one invocation, or the registry feature stays off | 258 and 6, same record |
+     +   | the nsh-test binary | the suite, after that same paired build | the push gate budgets about a minute |
+     +   | core intent validate | the ledger's own door | 0.01s here, 348 valid |
+     +   | d | core doctor run | its own door, not a copy |
+     +   | cargo test -p zero-doctor | 95 tests of the doctor engine | proposed out of the set |
+     +   | ship | a release copy onto PATH, no rollback | never called from here |
+     +
+     +   The push hook already runs the suite and cargo test -p core, then the seal check. It does not run the rest. That gap is the whole intent.
+     +
+     +   What happens the moment you rule: three RULED lines land in INT-311, in your words. Then, and only then, cistart 311 is allowed, and the command itself can be written, red first, still not shipping. Until those lines exist, the door in the drawing does not open. ProposedStatus stays planned. Nothing in this digest applies a change.
+     +
+     +   Three questions. Each one takes an approval phrase: yes, no, defer, split this, or ledger update.
+     +
+     +   1. The name. Proposal: doors. The word is free. yes names it doors. no sends the name back. defer leaves G1 open.
+     +
+     +   2. The home. Proposal: a script at zero/scripts/doors, not a core subcommand. A core command would hold the runtime lock for the whole run, and core does not start the test suite today. The script must not call ship and must not reload. yes takes the script. no, if you want core doors instead, say so. defer leaves G2 open.
+     +
+     +   3. zero-doctor. Proposal: no. Leave the 95 tests out. d stays core doctor run either way. yes accepts leaving them out. no means put cargo test -p zero-doctor in the set. defer leaves G3 open.
+     + - Next: Answer the three questions, each with an approval phrase.
+     + - Files: zero/intents/future/311-a-doors-command-that-does-not-ship.md, zero/handoffs/2026-11-10-jarvis.md, zero/handoffs/2026-11-10-cursor.md
+     + - Links: INT-311, INT-304, zero/handoffs/2026-11-10-jarvis.md, zero/handoffs/2026-11-10-cursor.md
+     - - [ ] G4 First-week loop by hand: a Conductor handoff routing INT-311, the
+     + - [x] G4 First-week loop by hand: a Conductor handoff routing INT-311, the
+     + <!-- evidence: 2026-11-10. The three files are zero/handoffs/2026-11-10-jarvis.md, zero/handoffs/2026-11-10-cursor.md, and zero/handoffs/2026-11-10-zero-digest.md. The reply is the read-only recon. The digest is the story. Proof is this commit's Seal trailer, the plan seal kept under refs/notes/seals. -->
+     - No example handoff is in the tree yet. That is the next gate.
+     + The three files of the first-week loop are in the tree:
+     + zero/handoffs/2026-11-10-jarvis.md, zero/handoffs/2026-11-10-cursor.md, and
+     + zero/handoffs/2026-11-10-zero-digest.md.
