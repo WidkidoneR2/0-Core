@@ -1,0 +1,141 @@
+INT-311: G4 green -- plan
+  E1 doors, its test, the PATH link check, and the ruling
+     - Scripts: zero/scripts/devshell and zero/scripts/devshell-lib. devshell-lib is the authority for the exact names, and two nsh-test cases reach these paths. devshell, devshell-diff, devshell-promote and devshell-checkpoint are on PATH as links in ~/.local/bin to these scripts; ship does not deploy scripts, and nsh-test checks that each link resolves.
+     + Scripts: zero/scripts/devshell and zero/scripts/devshell-lib. devshell-lib is the authority for the exact names, and two nsh-test cases reach these paths. devshell, devshell-diff, devshell-promote, devshell-checkpoint and doors are on PATH as links in ~/.local/bin to these scripts; ship does not deploy scripts, and nsh-test checks that each link resolves.
+     - | `zero/scripts/` | fpatch (dev/) and the devshell scripts |
+     + | `zero/scripts/` | fpatch (dev/), the devshell scripts, and doors |
+     + RULED 2026-11-10 (Christian): "Link doors into ~/.local/bin like devshell, with an nsh-test check that the link resolves."
+     - - [ ] G4 The run, only after G1, G2, and G3 are ruled. The command runs
+     + - [x] G4 The run, only after G1, G2, and G3 are ruled. The command runs
+     + <!-- evidence: 2026-11-10. Red commit b8f7050c, Seal e70f0083da81b321. python3 -m unittest test_doors: 2 passed, 4 failed, exit 1. The four failures are zero/scripts/doors does not exist. The two passes reject a ship call and a short set. Green, this commit: the same test passes, and it requires cargo build -p novashell -p nsh-test immediately before the nsh-test binary. That build is inside the nsh-test door, so the ruled set stays four doors. A failed build fails that door and does not start the binary. The script does not call ship or reload. Proof is this commit's Seal trailer, the plan seal, and the red seal e70f0083da81b321. -->
+     - def assert_order(order, nsh_bin):
+     + def assert_order(order, nsh_bin, binary=True):
+     -         "nsh-test NSH_BIN=" + nsh_bin,
+     -         "core intent validate",
+     +         "cargo build -p novashell -p nsh-test",
+     +     if binary:
+     +         expect.append("nsh-test NSH_BIN=" + nsh_bin)
+     +     expect.append("core intent validate")
+     +     if binary:
+     +         build_at = lines.index("cargo build -p novashell -p nsh-test")
+     +         nxt = lines[build_at + 1]
+     +         if nxt != "nsh-test NSH_BIN=" + nsh_bin:
+     +             raise AssertionError("the build did not happen immediately before the nsh-test binary")
+     +         self.assertIn("cargo build -p novashell -p nsh-test", text)
+     -         assert_order(order["text"], str(order["root"] / "target" / "debug" / "nsh"))
+     +         nsh_bin = str(order["root"] / "target" / "debug" / "nsh")
+     +         assert_order(order["text"], nsh_bin, binary=False)
+     +
+     +     def test_a_failed_build_skips_the_binary_and_fails_that_door(self):
+     +         code, out, order = self._run(build_rc="1")
+     +         self.assertNotEqual(code, 0)
+     +         text = out.decode("utf-8", "replace")
+     +         self.assertIn("fail", text)
+     +         self.assertIn("cargo build -p novashell -p nsh-test", text)
+     +         nsh_bin = str(order["root"] / "target" / "debug" / "nsh")
+     +         assert_order(order["text"], nsh_bin, binary=False)
+     +         self.assertNotIn("nsh-test NSH_BIN=" + nsh_bin, order["text"])
+     -     def _run(self, cargo_rc="0", tty=False, no_color=None):
+     +     def _run(self, cargo_rc="0", build_rc=None, tty=False, no_color=None):
+     +             "case \"$*\" in\n"
+     +             "  build*) exit \"${DOORS_BUILD_RC:-${DOORS_CARGO_RC:-0}}\" ;;\n"
+     +             "esac\n"
+     +         env.pop("DOORS_BUILD_RC", None)
+     +         if build_rc is not None:
+     +             env["DOORS_BUILD_RC"] = build_rc
+     + #!/usr/bin/env bash
+     + # INT-311. Run the ruled set. This does not ship and it does not reload.
+     + # d is its own door. Run that separately.
+     + set -u
+     +
+     + if [[ $# -ne 0 ]]; then
+     +     printf '%s\n' "doors takes no arguments" >&2
+     +     exit 2
+     + fi
+     +
+     + here=$(cd "$(dirname "$0")" && pwd)
+     + root=$(cd "$here/../.." && pwd)
+     + cd "$root"
+     +
+     + use_color=0
+     + if [[ -t 1 && -z "${NO_COLOR+x}" ]]; then
+     +     use_color=1
+     + fi
+     + c_reset=""
+     + c_head=""
+     + c_pass=""
+     + c_fail=""
+     + c_dim=""
+     + if [[ "$use_color" -eq 1 ]]; then
+     +     c_reset=$'\033[0m'
+     +     c_head=$'\033[1;36m'
+     +     c_pass=$'\033[32m'
+     +     c_fail=$'\033[31m'
+     +     c_dim=$'\033[2m'
+     + fi
+     +
+     + printf '%s\n' "${c_head}doors${c_reset}"
+     + printf '%s\n' "${c_dim}four doors, and none of them ship${c_reset}"
+     + printf '\n'
+     +
+     + passed=0
+     + failed=0
+     +
+     + run_door() {
+     +     local name="$1"
+     +     local shown_cmd="$2"
+     +     shift 2
+     +     local start end tenths secs frac shown rc mark
+     +     start=$(date +%s%N)
+     +     "$@"
+     +     rc=$?
+     +     end=$(date +%s%N)
+     +     tenths=$(( (end - start) / 100000000 ))
+     +     secs=$(( tenths / 10 ))
+     +     frac=$(( tenths % 10 ))
+     +     shown="${secs}.${frac}s"
+     +     if [[ "$rc" -eq 0 ]]; then
+     +         mark="${c_pass}pass${c_reset}"
+     +         passed=$(( passed + 1 ))
+     +     else
+     +         mark="${c_fail}fail${c_reset}"
+     +         failed=$(( failed + 1 ))
+     +     fi
+     +     printf '  %-10s %s  %6s  %s\n' "$name" "$mark" "$shown" "$shown_cmd"
+     + }
+     +
+     + run_door "core" "cargo test -p core" cargo test -p core
+     + run_door "shell" "cargo test -p novashell -p nsh-test" cargo test -p novashell -p nsh-test
+     + nsh_bin="$root/target/debug/nsh"
+     + nsh_test="$root/target/debug/nsh-test"
+     + # cargo test does not promise fresh bins. This door builds them, then runs them.
+     + # A failed build fails the door and does not start the binary.
+     + nsh_one() {
+     +     cargo build -p novashell -p nsh-test || return $?
+     +     env NSH_BIN="$nsh_bin" "$nsh_test"
+     + }
+     + run_door "nsh-test" "cargo build -p novashell -p nsh-test && NSH_BIN=$nsh_bin $nsh_test" nsh_one
+     + run_door "validate" "core intent validate" core intent validate
+     +
+     + printf '\n'
+     + if [[ "$failed" -eq 0 ]]; then
+     +     printf '%s\n' "${c_pass}${passed} passed, ${failed} failed${c_reset}"
+     + else
+     +     printf '%s\n' "${c_fail}${passed} passed, ${failed} failed${c_reset}"
+     + fi
+     + printf '%s\n' "${c_dim}d is its own door. Run d separately.${c_reset}"
+     +
+     + if [[ "$failed" -ne 0 ]]; then
+     +     exit 1
+     + fi
+     + exit 0
+     -             // AGENTS.md, Devshell: devshell is typed by name. ship deploys Rust binaries only, so
+     -             // the four devshell commands reach PATH as links in ~/.local/bin to the repo's
+     -             // scripts -- a script has no build step, so the repo copy is what runs. Each link must
+     -             // exist, resolve into zero/scripts, and be executable; a broken or stale link is red.
+     +             // AGENTS.md, Devshell: devshell is typed by name, and doors is linked the same way.
+     +             // ship deploys Rust binaries only, so these scripts reach PATH as links in
+     +             // ~/.local/bin to the repo's scripts. A script has no build step, so the repo copy is
+     +             // what runs. Each link must exist, resolve into zero/scripts, and be executable; a
+     +             // broken or stale link is red.
+     +                 "doors",
