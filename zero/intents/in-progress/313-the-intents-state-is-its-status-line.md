@@ -3,7 +3,7 @@ id: 313
 date: 2026-11-13
 type: future
 title: "The intent's state is its status line"
-status: planned
+status: in-progress
 format: 2
 tags: [intent, ledger]
 ---
@@ -35,7 +35,7 @@ lists every one.
 
 On disk: future 43, planned 1, in-progress absent, complete 232, cancelled 31
 plus .gitkeep. Records stay separate: decisions, experiments, incidents,
-philosophy, findings. The study said 12 bodies quote `status: planned`. This
+philosophy, findings. The study said 12 bodies quote `status: in-progress`. This
 tree has that phrase in the body of two files, INT-308 and INT-310, four
 times. A whole-file replace can edit those sentences.
 
