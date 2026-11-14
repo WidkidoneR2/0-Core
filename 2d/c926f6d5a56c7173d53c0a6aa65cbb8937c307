@@ -1,0 +1,121 @@
+INT-313 stage 5a -- plan
+  E1 printed lines and comments stop saying files move
+  E2 completed ids are the live status plus git history of complete/
+     -         "intents/complete/".bright_cyan()
+     +         "git history".bright_cyan()
+     -     let complete_dir = zero_core::paths::intents_dir().join("complete");
+     -     let intent_count = std::fs::read_dir(&complete_dir)
+     -         .map(|d| d.count())
+     -         .unwrap_or(0);
+     +     let intent_count = zero_core::ledger::completed_ids().len();
+     -         "  │    {} completed intents document every architectural decision",
+     +         "  │    {} completed intents are in git (and any still open with status complete)",
+     -     println!("  │    → read intents/complete/ to understand WHY each tool exists");
+     +     println!("  │    → git log --diff-filter=D -- zero/intents");
+     -     println!("  │     intents/complete/ → understand every decision");
+     +     println!("  │     git log --diff-filter=D -- zero/intents → finished intents");
+     -             // INT-279 G10: the intents in progress come from the intent domain's own loader, the same
+     -             // one core intent list reads. The folder scan this replaces looked only in intents/future/,
+     -             // and cistart moves an intent to intents/in-progress/, so it always counted none.
+     +             // INT-279 G10: the intents in progress come from the intent domain's own loader.
+     +             // Status is the frontmatter line on the open shelf.
+     - /// Find intent IDs with status: in-progress in intents/future/*.md
+     + /// Find intent IDs whose frontmatter status is in-progress.
+     - /// list reads. The doctor used to scan intents/future/ for the status line itself, and cistart
+     - /// moves an intent to intents/in-progress/, so that scan never found one.
+     + /// list reads. Status is the frontmatter line. The file stays in open/.
+     -     println!("  {} Moved to intents/complete/", "📁".dimmed());
+     +     println!(
+     +         "  {} Status is complete. The file stays in open/. Older finished intents: git log --diff-filter=D -- zero/intents",
+     +         "📁".dimmed()
+     +     );
+     -     println!("  Moved:   intents/cancelled/");
+     +     println!("  Status:  cancelled. The file stays in open/.");
+     +     println!("  Older cancelled intents: git log --diff-filter=D -- zero/intents");
+     -             // intents/complete/097 claimed a correct tokenizer for nested quotes and
+     +             // INT-097, now only in git history, claimed a correct tokenizer for nested quotes and
+     + /// Intent files. Record shelves are not included.
+     + pub fn live() -> Vec<IntentFile> {
+     +     load()
+     +         .into_iter()
+     +         .filter(|file| !file.is_record())
+     +         .collect()
+     + }
+     +
+     + /// Completed intent ids. The live shelf contributes files whose status is complete.
+     + /// Git contributes every id that ever lived in `zero/intents/complete/`. If git
+     + /// cannot answer, only the live shelf is returned.
+     + pub fn completed_ids() -> std::collections::HashSet<String> {
+     +     let mut ids: std::collections::HashSet<String> = with_status("complete")
+     +         .into_iter()
+     +         .map(|file| file.id)
+     +         .collect();
+     +     if let Some(archived) = git_ids_in(&["complete"]) {
+     +         ids.extend(archived);
+     +     }
+     +     ids
+     + }
+     +
+     + /// Ids git has stored under `zero/intents/<folder>/` for one of `folders`.
+     + /// None when git cannot answer, so the caller does not invent an empty archive.
+     + pub fn git_ids_in(folders: &[&str]) -> Option<std::collections::HashSet<String>> {
+     +     let repo = crate::paths::core_dir();
+     +     let out = std::process::Command::new("git")
+     +         .args([
+     +             "-C",
+     +             repo.to_string_lossy().as_ref(),
+     +             "log",
+     +             "--all",
+     +             "--name-only",
+     +             "--format=",
+     +             "--",
+     +             "zero/intents",
+     +         ])
+     +         .output()
+     +         .ok()?;
+     +     if !out.status.success() {
+     +         return None;
+     +     }
+     +     let text = String::from_utf8(out.stdout).ok()?;
+     +     let mut ids = std::collections::HashSet::new();
+     +     for line in text.lines() {
+     +         if let Some(id) = id_under(line, folders) {
+     +             ids.insert(id);
+     +         }
+     +     }
+     +     Some(ids)
+     + }
+     +
+     + fn id_under(path: &str, folders: &[&str]) -> Option<String> {
+     +     let path = path.trim().trim_matches('"');
+     +     let mut parts = path.split('/');
+     +     if parts.next() != Some("zero") || parts.next() != Some("intents") {
+     +         return None;
+     +     }
+     +     let folder = parts.next()?;
+     +     let file = parts.next()?;
+     +     if parts.next().is_some() || !folders.contains(&folder) || !file.ends_with(".md") {
+     +         return None;
+     +     }
+     +     let stem = &file[..file.len() - 3];
+     +     let (num, rest) = stem.split_once('-')?;
+     +     if rest.is_empty() || num.is_empty() || !num.bytes().all(|b| b.is_ascii_digit()) {
+     +         return None;
+     +     }
+     +     Some(num.to_string())
+     + }
+     +
+     +
+     +     #[test]
+     +     fn a_complete_history_path_is_an_id_and_a_record_shelf_is_not() {
+     +         assert_eq!(
+     +             id_under("zero/intents/complete/277-done.md", &["complete"]).as_deref(),
+     +             Some("277")
+     +         );
+     +         assert_eq!(
+     +             id_under("zero/intents/decisions/137-x.md", &["complete"]),
+     +             None
+     +         );
+     +     }
+     - ///     scan of intents/future/           cistart MOVES started intents to in-progress/
+     + ///     scan of a status line             cistart rewrites status in place (INT-313)
