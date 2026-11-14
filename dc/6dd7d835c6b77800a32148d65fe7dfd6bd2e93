@@ -1,0 +1,49 @@
+INT-313 friday count -- plan
+  E1 active intents are the frontmatter status, not a quote in future/
+     -     // Pattern 1: Active intent count vs alignment
+     -     let active_intents: i64 = {
+     -         let future_dir = ctx.fpath("intents/future");
+     -         std::fs::read_dir(&future_dir)
+     -             .ok()
+     -             .map(|d| {
+     -                 d.filter_map(|e| e.ok())
+     -                     .filter(|e| {
+     -                         std::fs::read_to_string(e.path())
+     -                             .ok()
+     -                             .map(|c| c.contains("status: in-progress"))
+     -                             .unwrap_or(false)
+     -                     })
+     -                     .count() as i64
+     -             })
+     -             .unwrap_or(0)
+     -     };
+     +     // Pattern 1: Active intent count vs alignment.
+     +     // INT-313. The old scan counted every file in future/ whose text contained
+     +     // "status: in-progress", which is a body quote (INT-308) and missed the
+     +     // file whose frontmatter actually says in-progress when it lives elsewhere.
+     +     // Active is the status line.
+     +     let active_intents: i64 = zero_core::ledger::with_status("in-progress").len() as i64;
+     +
+     +     #[test]
+     +     fn in_progress_is_one_status_line_not_every_quote() {
+     +         let dir = std::env::temp_dir().join(format!("ledger-count-{}", std::process::id()));
+     +         let _ = fs::remove_dir_all(&dir);
+     +         fs::create_dir_all(dir.join("future")).unwrap();
+     +         fs::create_dir_all(dir.join("in-progress")).unwrap();
+     +         fs::write(
+     +             dir.join("future/308-quote.md"),
+     +             "---\nid: 308\nstatus: planned\n---\n\nstatus: in-progress\n",
+     +         )
+     +         .unwrap();
+     +         fs::write(
+     +             dir.join("in-progress/313-live.md"),
+     +             "---\nid: 313\nstatus: in-progress\n---\n\n",
+     +         )
+     +         .unwrap();
+     +         let n = load_from(&dir)
+     +             .into_iter()
+     +             .filter(|file| !file.is_record() && file.status == "in-progress")
+     +             .count();
+     +         let _ = fs::remove_dir_all(&dir);
+     +         assert_eq!(n, 1);
+     +     }
