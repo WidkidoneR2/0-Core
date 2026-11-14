@@ -107,34 +107,13 @@ pub(crate) fn in_progress_ids(ctx: &AppContext) -> Vec<String> {
         .collect()
 }
 
-fn load_all(ctx: &AppContext) -> Vec<Intent> {
-    let base = intents_dir(ctx);
-    let folders: Vec<&str> = folders::LIFECYCLE
-        .iter()
-        .chain(folders::RECORDS)
-        .copied()
+fn load_all(_ctx: &AppContext) -> Vec<Intent> {
+    // INT-313 stage 2. The shelf walk lives in zero_core::ledger. A missing
+    // directory is skipped there. Status is the frontmatter line.
+    let mut intents: Vec<Intent> = zero_core::ledger::load()
+        .into_iter()
+        .filter_map(|file| parse_intent(&file.path, &file.folder))
         .collect();
-    let mut intents = vec![];
-
-    for folder in &folders {
-        let dir = base.join(folder);
-        if !dir.exists() {
-            continue;
-        }
-        let Ok(entries) = fs::read_dir(&dir) else {
-            continue;
-        };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if path.extension().and_then(|e| e.to_str()) != Some("md") {
-                continue;
-            }
-            if let Some(intent) = parse_intent(&path, folder) {
-                intents.push(intent);
-            }
-        }
-    }
-
     intents.sort_by(|a, b| a.id.cmp(&b.id));
     intents
 }

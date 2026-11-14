@@ -14,6 +14,7 @@ pub mod error;
 pub mod fingerprint;
 #[cfg(feature = "ui")]
 pub mod glyph;
+pub mod ledger;
 pub mod paths;
 #[cfg(feature = "registry")]
 pub mod registry;
