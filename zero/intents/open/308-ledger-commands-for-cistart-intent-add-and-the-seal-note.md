@@ -3,7 +3,7 @@ id: 308
 date: 2026-11-10
 type: future
 title: "Ledger commands for cistart, intent add, and the seal note"
-status: planned
+status: in-progress
 tags: [intent, ledger, nsh, git]
 ---
 
@@ -46,27 +46,35 @@ is a RULED line in this file, dated, in his words. Declining a gate, with the
 reason, closes it. No code is written before G1, G2, and G3 have those lines.
 
 ## Success Criteria
-- [ ] G0 The recon in The Problem is read against the tree and either stands or
+- [x] G0 The recon in The Problem is read against the tree and either stands or
       is corrected here before any other gate. Re-read: the whole-file status
       replace is mod.rs:1007, the discarded rename is 1018, add refuses at
       2764, new_intent does not take status or tags, create_in is the one
       writer, and there is no note command. Proof: a dated line in this file
       saying the recon stands, or the correction.
-- [ ] G1 cistart. Christian rules the move. One shape to accept, change, or
+      ruling: RULED 2026-11-14 (Christian): re-read against acda9471. The start and rename lines in The Problem are obsolete after INT-313. start is intent/mod.rs:983. It writes only the frontmatter status line through set_frontmatter_status (946, called at 1081) and does not rename. add is 2806 and still returns at 2822 when stdin is not a terminal. new_intent is 3036 and still takes no status or tags. create_in is 2977 and is still the one writer. There is still no note command. seal_digest is trace.rs:228.
+      evidence: the ruling line above.
+- [x] G1 cistart. Christian rules the move. One shape to accept, change, or
       reject: create in-progress if it is missing, replace status only on the
       frontmatter line, and report a rename that did not happen instead of
       discarding it. Proof: the RULED line, and a test that watches a missing
       directory fail first, then pass.
-- [ ] G2 core intent add without a terminal. Christian rules the flags. One
+      ruling: RULED 2026-11-14 (Christian): declined. INT-313 already made cistart edit only the frontmatter status line without moving the file.
+      evidence: status_line_edit_tests::the_status_line_changes_and_a_body_quote_does_not, intent/mod.rs:4927. A body that quotes status: planned stays. start (983) does not rename.
+- [x] G2 core intent add without a terminal. Christian rules the flags. One
       shape to accept, change, or reject: --category, --title, --status, and
       --tags, calling create. The wizard stays when stdin is a terminal. A bad
       flag writes nothing. create_in stays the one writer. Proof: the RULED
       line.
-- [ ] G3 core intent note. Christian rules the command. One shape to accept,
+      ruling: RULED 2026-11-14 (Christian): accepted. --category, --title, --status, --tags. The wizard stays on a terminal. A bad flag writes nothing. create_in stays the one writer. Validate status against known words. Tags are comma-separated.
+      evidence: the ruling line above.
+- [x] G3 core intent note. Christian rules the command. One shape to accept,
       change, or reject: `core intent note <plan> <commit>` stores the note
       with --no-stripspace -F, or with hash-object -w and notes add -C, prints
       seal_digest, refuses a missing commit or a missing plan, and does not
       push. Proof: the RULED line.
+      ruling: RULED 2026-11-14 (Christian): accepted. The --no-stripspace -F form. Commit defaults to HEAD. The command prints the seal (seal_digest), refuses a missing plan or a missing commit, and never pushes. `core intent note <plan> [commit]`.
+      evidence: the ruling line above.
 - [ ] G4 Red, then the commands, only after G1, G2, and G3 are ruled. Shown
       failing first, under its own plan Seal: a missing in-progress directory,
       a body that quotes "status: planned", add with the four flags and no
@@ -85,6 +93,4 @@ reason, closes it. No code is written before G1, G2, and G3 have those lines.
 - A command that pushes refs/notes/seals.
 
 ## Open for Christian
-- G1, how cistart reports a rename that did not happen.
-- G2, the exact flags on core intent add.
-- G3, which of the two note forms the command uses.
+Ruled 2026-11-14. G1 declined. G2 and G3 accepted. See the RULED lines.
