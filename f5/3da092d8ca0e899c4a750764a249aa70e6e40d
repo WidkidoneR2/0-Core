@@ -1,0 +1,5 @@
+INT-313 stage 6b -- plan
+  E1 the brief's Active line is the live in-progress ids
+     INT-N, comma-joined, or none.
+     synthesis_snapshots.active_intent stores that string.
+     The commit count is unchanged.
