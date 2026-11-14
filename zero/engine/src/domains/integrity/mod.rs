@@ -2063,23 +2063,21 @@ mod tests {
     #[test]
     fn a_status_that_does_not_match_its_folder_is_not_a_move() {
         let (ctx, root) = stand_in("move");
-        let future = ctx.fpath("intents/future");
-        let complete = ctx.fpath("intents/complete");
-        std::fs::create_dir_all(&future).unwrap();
-        std::fs::create_dir_all(&complete).unwrap();
-        let bystander = future.join("901-bystander.md");
+        let open = ctx.fpath("intents/open");
+        std::fs::create_dir_all(&open).unwrap();
+        let bystander = open.join("901-bystander.md");
         std::fs::write(
             &bystander,
             "---\nstatus: planned\n---\nThis body only mentions the phrase status: complete\n",
         )
         .unwrap();
-        let done = future.join("902-done.md");
+        let done = open.join("902-done.md");
         std::fs::write(&done, "---\nstatus: complete\n---\n").unwrap();
         let suite: Vec<Box<dyn IntegrityCheck>> =
             vec![Box::new(checks::IntentStatusDirectoryCheck)];
         run_pipeline(&IntegrityContext::new(&ctx), &suite, true);
         let proposed = pending_data(&ctx, "902-done.md%");
-        let stayed = done.exists() && bystander.exists() && !complete.join("902-done.md").exists();
+        let stayed = done.exists() && bystander.exists();
         let _ = std::fs::remove_dir_all(&root);
         assert!(
             proposed.is_empty(),

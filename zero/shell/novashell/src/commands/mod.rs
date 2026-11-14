@@ -16507,47 +16507,39 @@ fn zero_stats_commits(db: &StateDb) -> CommandResult {
 fn zero_stats_intents(_core_root: &str) -> CommandResult {
     // INT-230 G4: an absent 0-Core is REFUSED, not an empty timeline with
     // exit 0. Same shape as the find @intents arm.
-    let complete_dir = match crate::core_integration::intents_root() {
-        Some(r) => r.join("complete").to_string_lossy().to_string(),
-        None => {
-            return CommandResult::Error(
-                "  zstats intents: needs 0-Core, which is not present"
-                    .to_string()
-                    .into(),
-                1,
-            );
-        }
-    };
+    if crate::core_integration::intents_root().is_none() {
+        return CommandResult::Error(
+            "  zstats intents: needs 0-Core, which is not present"
+                .to_string()
+                .into(),
+            1,
+        );
+    }
     let mut out = String::new();
     out.push_str(&format!("  {} Intent Completion Timeline\n", "🎯".normal()));
-    let entries = std::fs::read_dir(&complete_dir).ok();
-    let mut count = 0i32;
-    if let Some(entries) = entries {
-        for _ in entries.flatten() {
-            count += 1;
-        }
-    }
+    let count = zero_core::ledger::completed_ids().len() as i32;
     // Build a growing tree visualization
     let _tree_width = count.min(60) as usize;
     let _trunk = "│";
     let branch = "├─";
     let last = "└─";
     // Simple: show last 20 intents as branches
-    let complete_path = std::path::Path::new(&complete_dir);
-    let mut files: Vec<_> = std::fs::read_dir(complete_path)
-        .ok()
-        .map(|rd| rd.flatten().collect::<Vec<_>>())
-        .unwrap_or_default();
-    files.sort_by_key(|e| e.file_name());
+    let mut files: Vec<String> = zero_core::ledger::with_status("complete")
+        .into_iter()
+        .filter_map(|file| {
+            file.path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+        })
+        .collect();
+    files.sort();
     let recent: Vec<_> = files.iter().rev().take(10).collect();
     out.push_str(&format!(
         "  {} intents complete\n",
         count.to_string().bright_white()
     ));
-    for (i, entry) in recent.iter().enumerate() {
-        let name = entry.file_name();
-        let s = name.to_string_lossy();
-        let short = s.chars().take(50).collect::<String>();
+    for (i, name) in recent.iter().enumerate() {
+        let short = name.chars().take(50).collect::<String>();
         let pfx = if i == recent.len() - 1 { last } else { branch };
         out.push_str(&format!("  {} {}\n", pfx.dimmed(), short.dimmed()));
     }

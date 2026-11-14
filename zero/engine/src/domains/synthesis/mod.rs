@@ -49,31 +49,11 @@ pub fn synthesize_now(ctx: &AppContext) -> CoreResult<SynthesisResult> {
         [], |r| r.get::<_, Option<f64>>(0)
     ).unwrap_or(None).unwrap_or(1.0).clamp(0.0, 1.0);
     // 3. Active intent -- read from filesystem like predict domain
-    let active_intent: String = {
-        let future_dir = ctx.fpath("intents/future");
-        std::fs::read_dir(&future_dir)
-            .ok()
-            .and_then(|d| {
-                d.filter_map(|e| e.ok())
-                    .filter_map(|e| {
-                        let content = std::fs::read_to_string(e.path()).ok()?;
-                        if content.contains("status: in-progress") {
-                            content
-                                .lines()
-                                .find(|l| l.starts_with("title:"))?
-                                .trim_start_matches("title:")
-                                .trim()
-                                .trim_matches('"')
-                                .to_string()
-                                .into()
-                        } else {
-                            None
-                        }
-                    })
-                    .next()
-            })
-            .unwrap_or_default()
-    };
+    let active_intent = zero_core::ledger::with_status("in-progress")
+        .into_iter()
+        .next()
+        .map(|file| file.title)
+        .unwrap_or_default();
     // 4. Session commits today
     let today_start = now - (now % 86400);
     let session_commits: i64 = db

@@ -1328,17 +1328,8 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
 
     // Factor 1: Core intelligence layers (max 40)
     // v9-v12 — check intent ledger for actual completion status
-    let complete_dir = ctx.fpath("intents/complete");
-    let completed_ids: std::collections::HashSet<String> = std::fs::read_dir(&complete_dir)
-        .map(|d| {
-            d.flatten()
-                .filter_map(|e| {
-                    let name = e.file_name().to_string_lossy().to_string();
-                    name.split('-').next().map(|s| s.to_string())
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    // Live status complete, plus every id git stored under zero/intents/complete/.
+    let completed_ids = zero_core::ledger::completed_ids();
 
     // v9 — INT-133, v10 — INT-134, v11 — INT-148 — read from ledger
     let v9_done = completed_ids.contains("133");
@@ -1764,15 +1755,7 @@ pub fn friday_readiness(ctx: &AppContext) -> CoreResult<()> {
             "".to_string()
         }
     );
-    let v12_status = if std::path::PathBuf::from(&ctx.core_root)
-        .join("intents/complete")
-        .read_dir()
-        .map(|d| {
-            d.flatten()
-                .any(|e| e.file_name().to_string_lossy().starts_with("151"))
-        })
-        .unwrap_or(false)
-    {
+    let v12_status = if zero_core::ledger::completed_ids().contains("151") {
         "✅ v12 complete"
     } else {
         "complete v12"
@@ -2333,55 +2316,24 @@ struct ScoredIntent {
 
 fn score_intents(ctx: &AppContext) -> Vec<ScoredIntent> {
     let _root = std::path::PathBuf::from(&ctx.core_root);
-    let future_dir = zero_core::paths::intents_dir().join("future");
-    let complete_dir = zero_core::paths::intents_dir().join("complete");
-
-    // Collect complete intent IDs for dependency checking
-    let complete_ids: std::collections::HashSet<String> = std::fs::read_dir(&complete_dir)
-        .map(|d| {
-            d.flatten()
-                .filter_map(|e| {
-                    let name = e.file_name().to_string_lossy().to_string();
-                    let id = name.split('-').next().unwrap_or("").to_string();
-                    if id.chars().all(|c| c.is_ascii_digit()) {
-                        Some(id)
-                    } else {
-                        None
-                    }
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let complete_ids = zero_core::ledger::completed_ids();
 
     let health = get_health(ctx);
     let in_progress = get_in_progress_intents(ctx);
 
     let mut scored: Vec<ScoredIntent> = vec![];
 
-    let entries = match std::fs::read_dir(&future_dir) {
-        Ok(e) => e,
-        Err(_) => return scored,
-    };
-
-    for entry in entries.flatten() {
-        let path = entry.path();
-        if path.extension().map(|e| e != "md").unwrap_or(true) {
+    for file in zero_core::ledger::with_status("planned") {
+        let content = file.content;
+        if content.contains("status: deferred") {
             continue;
         }
-
-        let content = match std::fs::read_to_string(&path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-
-        // Only planned intents — skip deferred
-        if !content.contains("status: planned") || content.contains("status: deferred") {
-            continue;
-        }
-
-        // Extract ID and title
-        let fname = entry.file_name().to_string_lossy().to_string();
-        let id = fname.split('-').next().unwrap_or("0").to_string();
+        let fname = file
+            .path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let id = file.id;
         let title = content
             .lines()
             .find(|l| l.starts_with("title:"))

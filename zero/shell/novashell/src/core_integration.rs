@@ -381,56 +381,19 @@ pub struct Ledger {
 pub fn ledger() -> Option<Ledger> {
     // INT-230: was present() then intents_root() -- two existence checks for one
     // question. The accessor answers both.
-    let root = intents_root()?;
+    let _root = intents_root()?;
     let mut intents = Vec::new();
-    // future/ and in-progress/ are both live work. deferred/ is paused, not
-    // abandoned, and is read so a caller can distinguish the two.
-    for folder in ["future", "in-progress", "deferred"] {
-        collect(&root.join(folder), &mut intents);
-    }
-    let mut complete_ids = HashSet::new();
-    if let Ok(entries) = std::fs::read_dir(root.join("complete")) {
-        for entry in entries.flatten() {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if let Some(id) = name.split('-').next() {
-                if !id.is_empty() {
-                    complete_ids.insert(id.to_string());
-                }
-            }
+    for file in zero_core::ledger::live() {
+        if file.status == "complete" || file.status == "cancelled" || file.id.is_empty() {
+            continue;
         }
+        intents.push(parse(&file.id, &file.content));
     }
+    let complete_ids = zero_core::ledger::completed_ids();
     Some(Ledger {
         intents,
         complete_ids,
     })
-}
-
-fn collect(dir: &PathBuf, out: &mut Vec<Intent>) {
-    let entries = match std::fs::read_dir(dir) {
-        Ok(e) => e,
-        // A missing lifecycle folder is not a missing 0-Core. `present()` has
-        // already answered that question; this is one folder that may simply
-        // hold nothing yet.
-        Err(_) => return,
-    };
-    let mut entries: Vec<_> = entries.filter_map(|e| e.ok()).collect();
-    entries.sort_by_key(|e| e.file_name());
-    for entry in entries {
-        let path = entry.path();
-        if path.extension().map(|x| x != "md").unwrap_or(true) {
-            continue;
-        }
-        let content = match std::fs::read_to_string(&path) {
-            Ok(c) => c,
-            Err(_) => continue,
-        };
-        let name = entry.file_name().to_string_lossy().to_string();
-        let id = name.split('-').next().unwrap_or("").to_string();
-        if id.is_empty() {
-            continue;
-        }
-        out.push(parse(&id, &content));
-    }
 }
 
 /// Read the frontmatter fields the shell needs.

@@ -570,32 +570,18 @@ fn eligible_intents(
     planned: &[(String, String, String)],
 ) -> Vec<(String, String, String, Vec<u32>, String)> {
     // Load complete intent IDs
-    let complete_dir = zero_core::paths::intents_dir().join("complete");
-    let complete_ids: std::collections::HashSet<u32> = std::fs::read_dir(&complete_dir)
-        .map(|d| {
-            d.filter_map(|e| e.ok())
-                .filter_map(|e| {
-                    let name = e.file_name().to_string_lossy().to_string();
-                    name.split('-').next()?.parse::<u32>().ok()
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-    let future_dir = zero_core::paths::intents_dir().join("future");
+    let complete_ids: std::collections::HashSet<u32> = zero_core::ledger::completed_ids()
+        .into_iter()
+        .filter_map(|id| id.parse().ok())
+        .collect();
     planned
         .iter()
         .filter_map(|(id, title, status)| {
             let _id_num: u32 = id.parse().unwrap_or(999);
-            // Find intent file
-            let path = std::fs::read_dir(&future_dir)
-                .ok()?
-                .filter_map(|e| e.ok())
-                .find(|e| {
-                    e.file_name()
-                        .to_string_lossy()
-                        .starts_with(&format!("{}-", id))
-                })?
-                .path();
+            let path = zero_core::ledger::live()
+                .into_iter()
+                .find(|file| file.id == *id)?
+                .path;
             let (requires, unlocks, strategic) = read_intent_meta(&path);
             // Check if all prerequisites are complete
             let blocked_by: Vec<u32> = requires
@@ -634,32 +620,15 @@ fn strategic_boost(strategic: &str, unlocks_count: usize) -> f64 {
 pub fn predict_why(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
     use colored::*;
     let _core_root = &ctx.core_root;
-    let complete_dir = zero_core::paths::intents_dir().join("complete");
-    let future_dir = zero_core::paths::intents_dir().join("future");
-    let complete_ids: std::collections::HashSet<u32> = std::fs::read_dir(&complete_dir)
-        .map(|d| {
-            d.filter_map(|e| e.ok())
-                .filter_map(|e| {
-                    e.file_name()
-                        .to_string_lossy()
-                        .split('-')
-                        .next()?
-                        .parse::<u32>()
-                        .ok()
-                })
-                .collect()
-        })
-        .unwrap_or_default();
+    let complete_ids: std::collections::HashSet<u32> = zero_core::ledger::completed_ids()
+        .into_iter()
+        .filter_map(|id| id.parse().ok())
+        .collect();
     let _id_num: u32 = intent_id.parse().unwrap_or(0);
-    let path = std::fs::read_dir(&future_dir).ok().and_then(|d| {
-        d.filter_map(|e| e.ok())
-            .find(|e| {
-                e.file_name()
-                    .to_string_lossy()
-                    .starts_with(&format!("{}-", intent_id))
-            })
-            .map(|e| e.path())
-    });
+    let path = zero_core::ledger::live()
+        .into_iter()
+        .find(|file| file.id == intent_id)
+        .map(|file| file.path);
     println!();
     println!(
         "  {} INT-{} prediction analysis",
@@ -668,7 +637,7 @@ pub fn predict_why(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
     );
     println!("  {}", "─".repeat(40).dimmed());
     let Some(path) = path else {
-        println!("  {} Intent not found in future/", "✗".bright_red());
+        println!("  {} Intent not found in the live ledger", "✗".bright_red());
         println!();
         return Ok(());
     };
@@ -735,38 +704,26 @@ pub fn intents(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
     let _core_root = &ctx.core_root;
-    let complete_dir = zero_core::paths::intents_dir().join("complete");
-    let future_dir = zero_core::paths::intents_dir().join("future");
-
     println!("{}", "Predict — Intent Velocity".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
-    // Count complete intents with dates
+    // Dates of intents whose status is complete and that still live in open/.
+    // The archived complete shelf is git history and is not opened here.
     let mut complete_dates: Vec<chrono::NaiveDate> = Vec::new();
-    if let Ok(entries) = std::fs::read_dir(&complete_dir) {
-        for e in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(e.path()) {
-                for line in content.lines() {
-                    if line.starts_with("date:") {
-                        let date_str = line.trim_start_matches("date:").trim();
-                        if let Ok(d) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
-                            complete_dates.push(d);
-                        }
-                        break;
-                    }
+    for file in zero_core::ledger::with_status("complete") {
+        for line in file.content.lines() {
+            if line.starts_with("date:") {
+                let date_str = line.trim_start_matches("date:").trim();
+                if let Ok(d) = chrono::NaiveDate::parse_from_str(date_str, "%Y-%m-%d") {
+                    complete_dates.push(d);
                 }
+                break;
             }
         }
     }
 
-    let planned_count = std::fs::read_dir(&future_dir)
-        .map(|e| {
-            e.flatten()
-                .filter(|f| f.path().extension().map(|x| x == "md").unwrap_or(false))
-                .count()
-        })
-        .unwrap_or(0);
+    let planned_count = zero_core::ledger::with_status("planned").len();
 
     complete_dates.sort();
 
@@ -861,46 +818,15 @@ pub fn next(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
 
     let _core_root = &ctx.core_root;
-    let future_dir = zero_core::paths::intents_dir().join("future");
-
     println!("{}", "Predict — Next Intent".cyan().bold());
     println!("{}", "━".repeat(52).dimmed());
     println!();
 
-    let mut intents: Vec<(String, String, String)> = Vec::new(); // (id, title, status)
-    if let Ok(entries) = std::fs::read_dir(&future_dir) {
-        for e in entries.flatten() {
-            if e.path().extension().map(|x| x == "md").unwrap_or(false) {
-                if let Ok(content) = std::fs::read_to_string(e.path()) {
-                    let mut id = String::new();
-                    let mut title = String::new();
-                    let mut status = String::new();
-                    let mut _priority = String::new();
-                    for line in content.lines().take(15) {
-                        if line.starts_with("id:") {
-                            id = line.trim_start_matches("id:").trim().to_string();
-                        }
-                        if line.starts_with("title:") {
-                            title = line
-                                .trim_start_matches("title:")
-                                .trim()
-                                .trim_matches('"')
-                                .to_string();
-                        }
-                        if line.starts_with("status:") {
-                            status = line.trim_start_matches("status:").trim().to_string();
-                        }
-                        if line.starts_with("priority:") {
-                            _priority = line.trim_start_matches("priority:").trim().to_string();
-                        }
-                    }
-                    if !id.is_empty() {
-                        intents.push((id, title, status));
-                    }
-                }
-            }
-        }
-    }
+    let mut intents: Vec<(String, String, String)> = zero_core::ledger::live()
+        .into_iter()
+        .filter(|file| !file.id.is_empty())
+        .map(|file| (file.id, file.title, file.status))
+        .collect();
 
     // Sort by id numerically
     intents.sort_by(|a, b| {

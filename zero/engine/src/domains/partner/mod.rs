@@ -218,19 +218,7 @@ fn propose(ctx: &AppContext) -> CoreResult<()> {
         .unwrap_or(0);
 
     // Count in-progress intents
-    let _root = std::path::PathBuf::from(&ctx.core_root);
-    let future_dir = zero_core::paths::intents_dir().join("future");
-    let in_progress = std::fs::read_dir(&future_dir)
-        .map(|d| {
-            d.flatten()
-                .filter(|e| {
-                    std::fs::read_to_string(e.path())
-                        .map(|c| c.contains("status: in-progress"))
-                        .unwrap_or(false)
-                })
-                .count()
-        })
-        .unwrap_or(0);
+    let in_progress = zero_core::ledger::with_status("in-progress").len();
 
     let _complete_count: i64 = ctx
         .runtime

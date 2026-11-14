@@ -403,8 +403,6 @@ fn cmd_summary(path: &str) {
 
 fn cmd_decisions(path: &str) {
     let _core_root = std::env::var("HOME").unwrap_or_default() + "/0-core";
-    let intents_dir = zero_core::paths::intents_dir().join("complete");
-
     println!();
     println!("  {} Code ↔ Intent Links", "🔗".normal());
     println!(
@@ -413,40 +411,31 @@ fn cmd_decisions(path: &str) {
     );
     println!();
 
-    // Find recent intents and match to domains
+    // Live intents whose status is complete. Archived titles stay in git.
+    let mut shown: Vec<_> = zero_core::ledger::with_status("complete");
+    shown.sort_by(|a, b| a.id.cmp(&b.id));
     let mut intent_count = 0;
-    if let Ok(entries) = std::fs::read_dir(&intents_dir) {
-        let mut intents: Vec<_> = entries.flatten().collect();
-        intents.sort_by_key(|e| e.file_name());
-        for entry in intents.iter().rev().take(10) {
-            let name = entry.file_name().to_string_lossy().to_string();
-            if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                let title = content
-                    .lines()
-                    .find(|l| l.starts_with("title:"))
-                    .map(|l| {
-                        l.trim_start_matches("title:")
-                            .trim()
-                            .trim_matches('"')
-                            .to_string()
-                    })
-                    .unwrap_or_else(|| name.clone());
-                let tags: Vec<&str> = content
-                    .lines()
-                    .find(|l| l.starts_with("tags:"))
-                    .map(|l| l.split('[').nth(1).unwrap_or("").trim_end_matches(']'))
-                    .unwrap_or("")
-                    .split(',')
-                    .map(|t| t.trim())
-                    .filter(|t| !t.is_empty())
-                    .collect();
-                println!("  {} {}", "→".bright_green(), title.bright_white());
-                if !tags.is_empty() {
-                    println!("    {} {}", "tags:".dimmed(), tags.join(", ").dimmed());
-                }
-                intent_count += 1;
-            }
+    for file in shown.iter().rev().take(10) {
+        let title = if file.title.is_empty() {
+            file.id.clone()
+        } else {
+            file.title.clone()
+        };
+        let tags: Vec<&str> = file
+            .content
+            .lines()
+            .find(|l| l.starts_with("tags:"))
+            .map(|l| l.split('[').nth(1).unwrap_or("").trim_end_matches(']'))
+            .unwrap_or("")
+            .split(',')
+            .map(|t| t.trim())
+            .filter(|t| !t.is_empty())
+            .collect();
+        println!("  {} {}", "→".bright_green(), title.bright_white());
+        if !tags.is_empty() {
+            println!("    {} {}", "tags:".dimmed(), tags.join(", ").dimmed());
         }
+        intent_count += 1;
     }
     println!();
     println!("  {} {} recent decisions shown", "·".dimmed(), intent_count);

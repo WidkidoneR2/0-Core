@@ -122,14 +122,8 @@ fn gather_snapshot_data(ctx: &AppContext) -> SnapshotData {
     };
 
     // Intent counts
-    let complete_dir = zero_core::paths::intents_dir().join("complete");
-    let future_dir = zero_core::paths::intents_dir().join("future");
-    let intents_complete = std::fs::read_dir(&complete_dir)
-        .map(|d| d.count())
-        .unwrap_or(0);
-    let intents_planned = std::fs::read_dir(&future_dir)
-        .map(|d| d.count())
-        .unwrap_or(0);
+    let intents_complete = zero_core::ledger::completed_ids().len();
+    let intents_planned = zero_core::ledger::with_status("planned").len();
 
     // Active policies
     let policies_content =

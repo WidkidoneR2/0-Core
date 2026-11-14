@@ -489,6 +489,23 @@ fn check_dangling_intent_citations(root: &Path) -> Vec<Finding> {
             }
         }
     }
+    // Archived lifecycle ids still count as filed. A missing git answer changes nothing.
+    if root == zero_core::paths::core_dir().as_path() {
+        if let Some(archived) = zero_core::ledger::git_ids_in(&[
+            "future",
+            "planned",
+            "in-progress",
+            "complete",
+            "cancelled",
+            "open",
+        ]) {
+            for id in archived {
+                if let Ok(n) = id.parse() {
+                    filed.insert(n);
+                }
+            }
+        }
+    }
     if filed.is_empty() {
         // ⚠️ A CHECK THAT CANNOT SEE THE LEDGER MUST NOT REPORT EVERY CITATION AS DANGLING. That
         // would be the failure this whole family of checks exists to prevent: an unanswerable
@@ -1552,7 +1569,7 @@ mod citation_check_tests {
         let root =
             std::env::temp_dir().join(format!("deadwood_cite_{name}-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&root);
-        let intents = root.join("zero/intents/complete");
+        let intents = root.join("zero/intents/open");
         std::fs::create_dir_all(&intents).expect("fixture intents");
         for f in filed {
             std::fs::write(intents.join(f), "---\nid: x\n---\n").expect("fixture intent");

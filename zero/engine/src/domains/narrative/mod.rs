@@ -135,14 +135,8 @@ fn full_narrative(ctx: &AppContext, since: Option<&str>) -> CoreResult<()> {
     println!("  │  {}", "Chapter IV — Intentions".bright_white().bold());
     println!("  │");
 
-    let complete_dir = zero_core::paths::intents_dir().join("complete");
-    let future_dir = zero_core::paths::intents_dir().join("future");
-    let complete_count = std::fs::read_dir(&complete_dir)
-        .map(|d| d.count())
-        .unwrap_or(0);
-    let future_count = std::fs::read_dir(&future_dir)
-        .map(|d| d.count())
-        .unwrap_or(0);
+    let complete_count = zero_core::ledger::completed_ids().len();
+    let future_count = zero_core::ledger::with_status("planned").len();
 
     println!(
         "  │  {} intents have been completed.",
@@ -240,36 +234,22 @@ fn intent_narrative(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
     println!("  │");
 
     // Find the intent file
-    let complete_dir = zero_core::paths::intents_dir().join("complete");
-    let future_dir = zero_core::paths::intents_dir().join("future");
-
-    let intent_file = std::fs::read_dir(&complete_dir)
-        .ok()
-        .and_then(|d| {
-            d.flatten().find(|e| {
-                e.file_name()
-                    .to_string_lossy()
-                    .contains(&format!("-{}-", intent_id))
-                    || e.file_name()
-                        .to_string_lossy()
-                        .starts_with(&format!("{}-", intent_id))
-            })
-        })
-        .or_else(|| {
-            std::fs::read_dir(&future_dir).ok().and_then(|d| {
-                d.flatten().find(|e| {
-                    e.file_name()
-                        .to_string_lossy()
-                        .contains(&format!("-{}-", intent_id))
-                        || e.file_name()
-                            .to_string_lossy()
-                            .starts_with(&format!("{}-", intent_id))
+    // Live shelf only. A finished intent that left the tree is in git, not opened here.
+    let intent_file = zero_core::ledger::live().into_iter().find(|file| {
+        file.id == intent_id
+            || file
+                .path
+                .file_name()
+                .map(|n| {
+                    let name = n.to_string_lossy();
+                    name.starts_with(&format!("{}-", intent_id))
+                        || name.contains(&format!("-{}-", intent_id))
                 })
-            })
-        });
+                .unwrap_or(false)
+    });
 
     if let Some(file) = intent_file {
-        let content = std::fs::read_to_string(file.path()).unwrap_or_default();
+        let content = file.content;
         let title = content
             .lines()
             .find(|l| l.starts_with("title:"))

@@ -601,86 +601,81 @@ pub fn deferral_list(ctx: &AppContext, _flag_old: bool) -> CoreResult<()> {
         .as_secs() as i64;
     let thirty_days_ago = now - (30 * 24 * 3600);
 
-    let dirs = ["complete", "in-progress", "future"];
+    let _ = core_root;
     let mut all_deferrals: Vec<(String, String, String, String, String, i64)> = Vec::new();
     // (intent_id, intent_title, gate, reason, date, date_ts)
+    // Live shelf only. Deferrals on archived intents are not scanned.
 
-    for dir in &dirs {
-        let path = format!("{}/intents/{}", core_root, dir);
-        let entries = match fs::read_dir(&path) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-        for entry in entries.flatten() {
-            let fname = entry.file_name().to_string_lossy().to_string();
-            if !fname.ends_with(".md") {
-                continue;
-            }
-            let intent_id = fname.split('-').next().unwrap_or("???").to_string();
-            let content = match fs::read_to_string(entry.path()) {
-                Ok(c) => c,
-                Err(_) => continue,
-            };
-            // Get intent title from frontmatter
-            let title = content
-                .lines()
-                .find(|l| l.starts_with("title:"))
-                .map(|l| {
-                    l.trim_start_matches("title:")
-                        .trim()
-                        .trim_matches('"')
-                        .to_string()
-                })
-                .unwrap_or_else(|| fname.clone());
-            // Find ⏸ lines
-            for line in content.lines() {
-                let trimmed = line.trim();
-                if trimmed.starts_with("⏸")
-                    || trimmed.starts_with("- [x] ⏸")
-                    || trimmed.starts_with("[x] ⏸")
-                {
-                    // Parse: ⏸ gate -- deferred: reason -- approved by: christian date
-                    let clean = trimmed
-                        .trim_start_matches("- [x] ")
-                        .trim_start_matches("[x] ")
-                        .trim_start_matches("⏸ ");
-                    let parts: Vec<&str> = clean.splitn(3, " -- ").collect();
-                    let gate = parts.first().copied().unwrap_or(clean).trim().to_string();
-                    let reason = parts
-                        .get(1)
-                        .copied()
-                        .unwrap_or("deferred")
-                        .trim_start_matches("deferred: ")
-                        .to_string();
-                    let approved_part = parts.get(2).copied().unwrap_or("");
-                    let date = approved_part
-                        .split_whitespace()
-                        .last()
-                        .unwrap_or("unknown")
-                        .to_string();
-                    // Parse date to timestamp
-                    let date_ts: i64 = if date.contains('-') {
-                        let p: Vec<&str> = date.split('-').collect();
-                        if p.len() == 3 {
-                            let y: i64 = p[0].parse().unwrap_or(2026);
-                            let m: i64 = p[1].parse().unwrap_or(5);
-                            let d: i64 = p[2].parse().unwrap_or(1);
-                            (y - 1970) * 365 * 86400 + m * 30 * 86400 + d * 86400
-                        } else {
-                            0
-                        }
+    for file in zero_core::ledger::live() {
+        let fname = file
+            .path
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
+        if !fname.ends_with(".md") {
+            continue;
+        }
+        let intent_id = file.id;
+        let content = file.content;
+        // Get intent title from frontmatter
+        let title = content
+            .lines()
+            .find(|l| l.starts_with("title:"))
+            .map(|l| {
+                l.trim_start_matches("title:")
+                    .trim()
+                    .trim_matches('"')
+                    .to_string()
+            })
+            .unwrap_or_else(|| fname.clone());
+        // Find ⏸ lines
+        for line in content.lines() {
+            let trimmed = line.trim();
+            if trimmed.starts_with("⏸")
+                || trimmed.starts_with("- [x] ⏸")
+                || trimmed.starts_with("[x] ⏸")
+            {
+                // Parse: ⏸ gate -- deferred: reason -- approved by: christian date
+                let clean = trimmed
+                    .trim_start_matches("- [x] ")
+                    .trim_start_matches("[x] ")
+                    .trim_start_matches("⏸ ");
+                let parts: Vec<&str> = clean.splitn(3, " -- ").collect();
+                let gate = parts.first().copied().unwrap_or(clean).trim().to_string();
+                let reason = parts
+                    .get(1)
+                    .copied()
+                    .unwrap_or("deferred")
+                    .trim_start_matches("deferred: ")
+                    .to_string();
+                let approved_part = parts.get(2).copied().unwrap_or("");
+                let date = approved_part
+                    .split_whitespace()
+                    .last()
+                    .unwrap_or("unknown")
+                    .to_string();
+                // Parse date to timestamp
+                let date_ts: i64 = if date.contains('-') {
+                    let p: Vec<&str> = date.split('-').collect();
+                    if p.len() == 3 {
+                        let y: i64 = p[0].parse().unwrap_or(2026);
+                        let m: i64 = p[1].parse().unwrap_or(5);
+                        let d: i64 = p[2].parse().unwrap_or(1);
+                        (y - 1970) * 365 * 86400 + m * 30 * 86400 + d * 86400
                     } else {
                         0
-                    };
-                    all_deferrals.push((
-                        intent_id.clone(),
-                        title.clone(),
-                        gate,
-                        reason,
-                        date,
-                        date_ts,
-                    ));
-                }
+                    }
+                } else {
+                    0
+                };
+                all_deferrals.push((
+                    intent_id.clone(),
+                    title.clone(),
+                    gate,
+                    reason,
+                    date,
+                    date_ts,
+                ));
             }
         }
     }

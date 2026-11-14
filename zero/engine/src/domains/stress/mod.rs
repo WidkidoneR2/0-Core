@@ -334,24 +334,8 @@ pub fn intents(_ctx: &AppContext) -> CoreResult<()> {
     separator();
     println!();
 
-    let complete_dir = zero_core::paths::intents_dir().join("complete");
-    let future_dir = zero_core::paths::intents_dir().join("future");
-
-    let complete_count = std::fs::read_dir(&complete_dir)
-        .map(|e| {
-            e.flatten()
-                .filter(|f| f.path().extension().map(|x| x == "md").unwrap_or(false))
-                .count()
-        })
-        .unwrap_or(0);
-
-    let planned_count = std::fs::read_dir(&future_dir)
-        .map(|e| {
-            e.flatten()
-                .filter(|f| f.path().extension().map(|x| x == "md").unwrap_or(false))
-                .count()
-        })
-        .unwrap_or(0);
+    let complete_count = zero_core::ledger::completed_ids().len();
+    let planned_count = zero_core::ledger::with_status("planned").len();
 
     println!("  {} Intent ledger state", "→".bright_cyan());
     println!(
@@ -370,25 +354,13 @@ pub fn intents(_ctx: &AppContext) -> CoreResult<()> {
     let mut ids: Vec<u32> = Vec::new();
     let mut duplicates = 0;
 
-    for dir in &[&complete_dir, &future_dir] {
-        if let Ok(entries) = std::fs::read_dir(dir) {
-            for e in entries.flatten() {
-                if e.path().extension().map(|x| x == "md").unwrap_or(false) {
-                    if let Some(num) = e
-                        .file_name()
-                        .to_string_lossy()
-                        .split('-')
-                        .next()
-                        .and_then(|s| s.parse::<u32>().ok())
-                    {
-                        if ids.contains(&num) {
-                            duplicates += 1;
-                            println!("  {} Duplicate intent ID: {}", "⚠️ ".normal(), num);
-                        }
-                        ids.push(num);
-                    }
-                }
+    for file in zero_core::ledger::live() {
+        if let Ok(num) = file.id.parse::<u32>() {
+            if ids.contains(&num) {
+                duplicates += 1;
+                println!("  {} Duplicate intent ID: {}", "⚠️ ".normal(), num);
             }
+            ids.push(num);
         }
     }
 

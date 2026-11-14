@@ -775,27 +775,24 @@ pub fn challenge(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
     );
     println!();
     // Look for the intent
-    let core_root = std::path::PathBuf::from(&ctx.core_root);
-    let mut found_path: Option<std::path::PathBuf> = None;
-    for dir in &["intents/future", "intents/complete"] {
-        let dir_path = core_root.join(dir);
-        if let Ok(entries) = std::fs::read_dir(&dir_path) {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                let search_id = intent_id.trim_start_matches("INT-");
-                if name.starts_with(search_id)
-                    || name.starts_with(&format!("INT-{}", search_id))
-                    || name.contains(intent_id)
-                {
-                    found_path = Some(entry.path());
-                    break;
-                }
-            }
-        }
-        if found_path.is_some() {
-            break;
-        }
-    }
+    // Live shelf only. A finished intent that left the tree is not opened here.
+    let search_id = intent_id.trim_start_matches("INT-");
+    let found_path = zero_core::ledger::live()
+        .into_iter()
+        .find(|file| {
+            file.id == search_id
+                || file
+                    .path
+                    .file_name()
+                    .map(|n| {
+                        let name = n.to_string_lossy();
+                        name.starts_with(search_id)
+                            || name.starts_with(&format!("INT-{search_id}"))
+                            || name.contains(intent_id)
+                    })
+                    .unwrap_or(false)
+        })
+        .map(|file| file.path);
     match found_path {
         Some(path) => {
             let content = std::fs::read_to_string(&path).unwrap_or_default();

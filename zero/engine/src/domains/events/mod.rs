@@ -1796,19 +1796,14 @@ pub fn why_suggest(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // ── 5. In-progress intents ───────────────────────────────────────────────
-    let intents_dir = zero_core::paths::intents_dir().join("future");
-    let in_progress: Vec<String> = std::fs::read_dir(&intents_dir)
-        .ok()
-        .map(|d| {
-            d.filter_map(|e| e.ok())
-                .filter(|e| {
-                    let content = std::fs::read_to_string(e.path()).unwrap_or_default();
-                    content.contains("status: in-progress")
-                })
-                .map(|e| e.file_name().to_string_lossy().to_string())
-                .collect()
+    let in_progress: Vec<String> = zero_core::ledger::with_status("in-progress")
+        .into_iter()
+        .filter_map(|file| {
+            file.path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
         })
-        .unwrap_or_default();
+        .collect();
 
     if in_progress.len() > 2 {
         suggestions.push((

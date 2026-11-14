@@ -24,81 +24,73 @@ struct IntentNode {
 fn load_all_intents(core_root: &str) -> Vec<IntentNode> {
     let _root = PathBuf::from(core_root);
     let mut nodes = Vec::new();
-    for dir in &["complete", "future", "decisions", "incidents"] {
-        if let Ok(entries) = std::fs::read_dir(zero_core::paths::intents_dir().join(dir)) {
-            for entry in entries.flatten() {
-                if !entry.path().extension().map(|e| e == "md").unwrap_or(false) {
-                    continue;
-                }
-                let Ok(content) = std::fs::read_to_string(entry.path()) else {
-                    continue;
-                };
-                let id = content
-                    .lines()
-                    .find(|l| l.starts_with("id:"))
-                    .map(|l| l.trim_start_matches("id:").trim().to_string())
-                    .unwrap_or_default();
-                if id.is_empty() {
-                    continue;
-                }
-                let title = content
-                    .lines()
-                    .find(|l| l.starts_with("title:"))
-                    .map(|l| {
-                        l.trim_start_matches("title:")
-                            .trim()
-                            .trim_matches('"')
-                            .to_string()
-                    })
-                    .unwrap_or_default();
-                let status = content
-                    .lines()
-                    .find(|l| l.starts_with("status:"))
-                    .map(|l| l.trim_start_matches("status:").trim().to_string())
-                    .unwrap_or_default();
-                let spawned_by = content
-                    .lines()
-                    .find(|l| l.starts_with("spawned_by:"))
-                    .map(|l| l.trim_start_matches("spawned_by:").trim().to_string())
-                    .filter(|s| s != "null" && !s.is_empty());
-                let spawns = content
-                    .lines()
-                    .find(|l| l.starts_with("spawns:"))
-                    .map(|l| {
-                        l.trim_start_matches("spawns:")
-                            .trim()
-                            .trim_start_matches('[')
-                            .trim_end_matches(']')
-                            .split(',')
-                            .map(|s| s.trim().to_string())
-                            .filter(|s| !s.is_empty())
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                let depends_on = content
-                    .lines()
-                    .find(|l| l.starts_with("depends_on:"))
-                    .map(|l| {
-                        l.trim_start_matches("depends_on:")
-                            .trim()
-                            .trim_start_matches('[')
-                            .trim_end_matches(']')
-                            .split(',')
-                            .map(|s| s.trim().to_string())
-                            .filter(|s| !s.is_empty())
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                nodes.push(IntentNode {
-                    id,
-                    title,
-                    status,
-                    spawned_by,
-                    spawns,
-                    depends_on,
-                });
-            }
+    // Live shelf and record shelves. Finished intents that left the tree are not nodes.
+    for file in zero_core::ledger::load() {
+        let content = file.content;
+        let id = content
+            .lines()
+            .find(|l| l.starts_with("id:"))
+            .map(|l| l.trim_start_matches("id:").trim().to_string())
+            .unwrap_or_default();
+        if id.is_empty() {
+            continue;
         }
+        let title = content
+            .lines()
+            .find(|l| l.starts_with("title:"))
+            .map(|l| {
+                l.trim_start_matches("title:")
+                    .trim()
+                    .trim_matches('"')
+                    .to_string()
+            })
+            .unwrap_or_default();
+        let status = content
+            .lines()
+            .find(|l| l.starts_with("status:"))
+            .map(|l| l.trim_start_matches("status:").trim().to_string())
+            .unwrap_or_default();
+        let spawned_by = content
+            .lines()
+            .find(|l| l.starts_with("spawned_by:"))
+            .map(|l| l.trim_start_matches("spawned_by:").trim().to_string())
+            .filter(|s| s != "null" && !s.is_empty());
+        let spawns = content
+            .lines()
+            .find(|l| l.starts_with("spawns:"))
+            .map(|l| {
+                l.trim_start_matches("spawns:")
+                    .trim()
+                    .trim_start_matches('[')
+                    .trim_end_matches(']')
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let depends_on = content
+            .lines()
+            .find(|l| l.starts_with("depends_on:"))
+            .map(|l| {
+                l.trim_start_matches("depends_on:")
+                    .trim()
+                    .trim_start_matches('[')
+                    .trim_end_matches(']')
+                    .split(',')
+                    .map(|s| s.trim().to_string())
+                    .filter(|s| !s.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+        nodes.push(IntentNode {
+            id,
+            title,
+            status,
+            spawned_by,
+            spawns,
+            depends_on,
+        });
     }
     nodes
 }

@@ -1132,21 +1132,20 @@ pub fn future_impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
     }
 
     // Intents at risk
-    let intents_path = zero_core::paths::intents_dir().join("future");
     let mut at_risk_intents: Vec<String> = vec![];
-    if let Ok(entries) = std::fs::read_dir(&intents_path) {
-        for entry in entries.flatten() {
-            if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                let content_lower = content.to_lowercase();
-                let hits = keywords
-                    .iter()
-                    .filter(|k| content_lower.contains(*k))
-                    .count();
-                if hits >= 2 {
-                    let name = entry.file_name().to_string_lossy().to_string();
-                    at_risk_intents.push(name.replace(".md", ""));
-                }
-            }
+    for file in zero_core::ledger::live() {
+        let content_lower = file.content.to_lowercase();
+        let hits = keywords
+            .iter()
+            .filter(|k| content_lower.contains(*k))
+            .count();
+        if hits >= 2 {
+            let name = file
+                .path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
+                .unwrap_or_default();
+            at_risk_intents.push(name.replace(".md", ""));
         }
     }
 

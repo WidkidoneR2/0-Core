@@ -1085,34 +1085,26 @@ pub fn cross_intent_patterns(ctx: &AppContext) -> CoreResult<()> {
     println!("  Friday Phase 2 -- Cross-Intent Pattern Detection",);
     println!("  {}", "━".repeat(55).dimmed());
     println!();
-    // Scan complete intents and extract domain patterns
-    let complete_dir = zero_core::paths::intents_dir().join("complete");
+    // Live intents whose status is complete. Archived bodies stay in git and are not read.
     let mut domain_counts: std::collections::HashMap<String, i64> =
         std::collections::HashMap::new();
     let mut total_complete = 0i64;
-    if let Ok(entries) = std::fs::read_dir(&complete_dir) {
-        for entry in entries.flatten() {
-            let p = entry.path();
-            if p.extension().map(|e| e == "md").unwrap_or(false) {
-                if let Ok(c) = std::fs::read_to_string(&p) {
-                    total_complete += 1;
-                    // Extract tags
-                    for line in c.lines() {
-                        if line.starts_with("tags:") || line.starts_with("  tags:") {
-                            for tag in &[
-                                "friday",
-                                "core",
-                                "shell",
-                                "intelligence",
-                                "rust",
-                                "wayland",
-                                "deploy",
-                            ] {
-                                if line.contains(tag) {
-                                    *domain_counts.entry(tag.to_string()).or_insert(0) += 1;
-                                }
-                            }
-                        }
+    for file in zero_core::ledger::with_status("complete") {
+        total_complete += 1;
+        let c = file.content;
+        for line in c.lines() {
+            if line.starts_with("tags:") || line.starts_with("  tags:") {
+                for tag in &[
+                    "friday",
+                    "core",
+                    "shell",
+                    "intelligence",
+                    "rust",
+                    "wayland",
+                    "deploy",
+                ] {
+                    if line.contains(tag) {
+                        *domain_counts.entry(tag.to_string()).or_insert(0) += 1;
                     }
                 }
             }

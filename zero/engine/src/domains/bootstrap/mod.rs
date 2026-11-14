@@ -272,10 +272,7 @@ pub fn diff(ctx: &AppContext) -> CoreResult<()> {
     }
 
     // Check for intent drift — intents in future/ that are stale
-    let future_dir = zero_core::paths::intents_dir().join("future");
-    let future_count = std::fs::read_dir(&future_dir)
-        .map(|d| d.count())
-        .unwrap_or(0);
+    let future_count = zero_core::ledger::live().len();
 
     println!("  │");
     println!(
@@ -356,15 +353,15 @@ fn read_registry_tools(_core_root: &str) -> Vec<String> {
 }
 
 fn read_active_intents(_core_root: &str) -> Vec<String> {
-    let future_dir = zero_core::paths::intents_dir().join("future");
-    std::fs::read_dir(&future_dir)
-        .map(|d| {
-            d.flatten()
-                .map(|e| e.file_name().to_string_lossy().to_string())
-                .filter(|s| s.ends_with(".md"))
-                .collect()
+    zero_core::ledger::live()
+        .into_iter()
+        .filter_map(|file| {
+            file.path
+                .file_name()
+                .map(|n| n.to_string_lossy().to_string())
         })
-        .unwrap_or_default()
+        .filter(|s| s.ends_with(".md"))
+        .collect()
 }
 
 fn read_decisions(ctx: &AppContext) -> Vec<String> {
