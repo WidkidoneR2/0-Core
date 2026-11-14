@@ -1,0 +1,10 @@
+INT-308 commit 2 -- plan
+  E1 red tests for add_with and note. They fail because both return "not implemented".
+
+running 4 tests
+test domains::intent::add_and_note_tests::four_flags_and_no_terminal_write_status_and_tags ... FAILED
+test domains::intent::add_and_note_tests::a_bad_status_writes_nothing ... FAILED
+test domains::intent::add_and_note_tests::the_stored_note_hashes_to_the_printed_seal ... FAILED
+test domains::intent::add_and_note_tests::a_missing_plan_or_commit_is_refused ... FAILED
+
+test result: FAILED. 0 passed; 4 failed; 0 ignored; 0 measured; 285 filtered out; finished in 0.04s
