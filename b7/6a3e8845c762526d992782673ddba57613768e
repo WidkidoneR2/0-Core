@@ -1,0 +1,3 @@
+INT-309 G7 -- plan
+  E1 G7 ticked from the laptop doors. Red hash is b194f55a, green is 912a97aa, rulings is 866131a7.
+     doors 4/4: core 0.2s, shell 5.1s, nsh-test 133.6s, validate 0.0s. core 4.8.0. nsh unchanged.
