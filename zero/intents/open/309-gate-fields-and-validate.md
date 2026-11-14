@@ -3,7 +3,7 @@ id: 309
 date: 2026-11-10
 type: future
 title: "Gate fields and validate"
-status: planned
+status: in-progress
 tags: [intent, ledger, gates]
 ---
 
@@ -42,32 +42,43 @@ line in this file, dated, in his words. Declining a gate, with the reason,
 closes it. No code is written before G2 and G3 have those lines.
 
 ## Success Criteria
-- [ ] G0 The recon in The Problem is read against the tree and either stands or
+- [x] G0 The recon in The Problem is read against the tree and either stands or
       is corrected here before any other gate. Re-read: evidence_follows is
       gates.rs:131, live_lines is 106, check_completion is 228, and
       validate_issues does not require a section. Proof: a dated line in this
       file saying the recon stands, or the correction.
+      ruling: RULED 2026-11-14 (Christian): re-read against 2caf56ec. evidence_follows is still gates.rs:131, live_lines is still 106, and check_completion is still 228. validate_issues is 489, not 446. It does not compare the folder with the status. It still does not require a section.
+      evidence: the ruling line above.
 - [ ] G1 The format. The shape is ruled. The code that reads it is not. Proof:
       the RULED line, and, when the reader exists, a v2 file whose evidence
       wraps and whose ruling is not hidden from the reader.
-RULED 2026-11-10 (Christian): format 2 keeps the checkbox. Under each `- [ ] G<n>` box sit indented keys `ask:`, `ruling:`, and `evidence:`, which may wrap by indentation. A file opts in with `format: 2` in the frontmatter. There is no batch rewrite of the 344 v1 files.
+      ruling: RULED 2026-11-10 (Christian): format 2 keeps the checkbox. Under each `- [ ] G<n>` box sit indented keys `ask:`, `ruling:`, and `evidence:`, which may wrap by indentation. A file opts in with `format: 2` in the frontmatter. There is no batch rewrite of the 344 v1 files.
+      evidence: the ruling line above. The reader is G6.
 - [ ] G2 The reader. Christian rules the split. One shape to accept, change,
       or reject: the gate reader keeps a wrapped receipt, and a RULED line no
       longer hides the evidence that follows it. A v1 file that completes
       today still completes. Turning the new check on for every old file is
       not this gate. Proof: the RULED line, and a v1 fixture that still
       completes.
+      ruling: RULED 2026-11-14 (Christian): the reader attaches indented ask/ruling/evidence lines and their wrap lines to their gate. A RULED line never hides a receipt. v1 completion is unchanged.
+      evidence: the ruling line above.
 - [ ] G3 validate. Christian rules what it prints. One shape to accept, change,
       or reject: validate lists old-shape issues -- placeholder bodies, the
       INT-158 boilerplate, `[~]` gates, and a missing section on a new file --
       and exits 0 for a v1 file. A format 2 file is judged by the v2 rules.
       Proof: the RULED line.
+      ruling: RULED 2026-11-14 (Christian): validate lists placeholder bodies, the INT-158 boilerplate, [~] gates, and missing sections. It exits 0 on v1 and fails on format: 2. A missing section is an error only on format: 2. The old-shape notes stay out of the issues vector that d reads.
+      evidence: the ruling line above.
 - [ ] G4 Whether create_in writes format 2 by default, and from when. Christian
       rules it. Until that line exists, create_in keeps writing v1. Proof: the
       RULED line.
+      ruling: RULED 2026-11-14 (Christian): create_in writes format: 2 with the three indented keys from the green commit on. Existing files stay v1.
+      evidence: the ruling line above.
 - [ ] G5 Whether cicomplete requires evidence on a v2 gate that is done.
       Christian rules it. A decline, with the reason, closes the gate. Proof:
       the RULED line.
+      ruling: RULED 2026-11-14 (Christian): a ticked v2 gate with an empty evidence: refuses cicomplete. A signed deferral still counts. v1 is unchanged.
+      evidence: the ruling line above.
 - [ ] G6 Red, then the reader and validate, only after G2, G3, G4, and G5 are
       ruled. Shown failing first, under its own plan Seal: a wrapped evidence
       block that the reader drops, a RULED line that hides a receipt, and a v1
