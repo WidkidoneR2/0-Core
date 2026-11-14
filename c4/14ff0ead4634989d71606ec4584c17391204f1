@@ -1,0 +1,62 @@
+INT-313: G0 and G4-G8 ruled -- plan
+  E1 zero/intents/in-progress/313-the-intents-state-is-its-status-line.md: shelves, archive, loader, and the five stages
+     - philosophy, findings. The study said 12 bodies quote `status: in-progress`. This
+     + philosophy, findings. The study said 12 bodies quote `status: planned`. This
+     - times. A whole-file replace can edit those sentences.
+     + times. A whole-file replace can edit those sentences. cistart did that to
+     + this file when it was started.
+     +
+     + `core intent seals check` on 1b2d56c1 printed that no commit in the range
+     + carries Intent:. That message has a blank line between `Intent:` and `Seal:`.
+     + Git keeps only the last trailer block, so only `Seal:` is a trailer and
+     + `Intent:` is body text.
+     - frontmatter status line. What is still open is the shape of the shelves, the
+     - fate of the 232 and the 31, and the order of the move. Each open gate is one
+     - question. A ruling is a line in its ruling field, dated, in his words. No
+     - code before G4, G5, G6, and G7 have those lines.
+     + frontmatter status line. G4 through G8 are ruled. G9 and G10 remain. A
+     + ruling is a line in its ruling field, dated, in his words. No code before
+     + this commit is on main and he says to start stage 1.
+     - - [ ] G0 Re-read The Problem against the tree. The citations and the counts
+     + - [x] G0 Re-read The Problem against the tree. The citations and the counts
+     -       ruling:
+     -       evidence:
+     +       ruling: RULED 2026-11-13 (Christian): accepted, with the correction that INT-308/310 bodies quote `status: planned` 4 times, not 12.
+     +       evidence: the ruling line above. The Problem states that correction.
+     - - [ ] G4 The shelves that remain.
+     + - [x] G4 The shelves that remain.
+     -       ruling:
+     -       evidence:
+     - - [ ] G5 The 232 complete files and the 31 cancelled files.
+     +       ruling: RULED 2026-11-13 (Christian): one open/ folder for every live intent, keep the record folders.
+     +       evidence: the ruling line above.
+     + - [x] G5 The 232 complete files and the 31 cancelled files.
+     -       ruling:
+     -       evidence:
+     - - [ ] G6 validate, and the status edit.
+     +       ruling: RULED 2026-11-13 (Christian): git rm the 232 complete and 31 cancelled files, git is the archive.
+     +       evidence: the ruling line above.
+     + - [x] G6 validate, and the status edit.
+     -       ruling:
+     -       evidence:
+     - - [ ] G7 One loader.
+     +       ruling: RULED 2026-11-13 (Christian): validate trusts the status line only and stops comparing folder with status; status edits stay header-only.
+     +       evidence: the ruling line above.
+     + - [x] G7 One loader.
+     -       ruling:
+     -       evidence:
+     - - [ ] G8 The order. Each stage is green on d, nsh-test, doors, and core intent
+     +       ruling: RULED 2026-11-13 (Christian): one loader for every reader; INT-310's Friday and it work become its first callers.
+     +       evidence: the ruling line above.
+     + - [x] G8 The order. Each stage is green on d, nsh-test, doors, and core intent
+     -       ask: this order. 1, frontmatter-only status edit, files stay put. 2, the loader, and the readers call it. 3, validate no longer matches folder to status. 4, live files move into the shelf G4 named. 5, the migration in G9. Reject a step, or reorder.
+     -       ruling:
+     -       evidence:
+     +       ask: five stages, in this order.
+     +       ruling: RULED 2026-11-13 (Christian): five stages, each green on d, nsh-test, doors and validate before the next.
+     +       evidence: the ruling line above. The stages:
+     +       1. Loader and validate, files stay put. load_all remains the loader and still skips a directory that is absent. validate (intent/mod.rs:553-561) stops comparing folder with status. Check: cargo test -p core, then d, nsh-test, doors, and core intent validate.
+     +       2. Readers call that loader and drop their own folder lists: intent_tui.rs (`it`), friday/planning.rs, strategy, partner, journal, integrity, doctor, zero-git, novashell completion, nsh-test, zero-daemon. The directories are still there, so what they show does not change. Same four checks.
+     +       3. cistart, cicomplete, and cancel edit only the status line inside the frontmatter. intent/mod.rs start (1005-1020), complete_intent (2586-2600), and cancel (4696-4711) lose the rename and the create_dir_all. A test shows the path does not change. Same four checks.
+     +       4. The migration Christian runs (G9), one commit: mkdir open/, move the live files into it, git rm complete/ and cancelled/, and update folders.rs in that same commit so a name in the set is a directory on disk. Then the same four checks.
+     +       5. Cleanup: delete the comments and path strings that still say a file moves. No folder change. Same four checks.
