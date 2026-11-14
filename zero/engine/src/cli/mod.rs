@@ -216,7 +216,20 @@ pub fn parse() -> Command {
                 bump,
                 skip_bumps,
             },
-            IntentCommands::Add { smart } => IntentCommand::Add { smart },
+            IntentCommands::Add {
+                smart,
+                category,
+                title,
+                status,
+                tags,
+            } => IntentCommand::Add {
+                smart,
+                category,
+                title,
+                status,
+                tags,
+            },
+            IntentCommands::Note { plan, commit } => IntentCommand::Note { plan, commit },
             IntentCommands::New {
                 category,
                 template,

@@ -488,15 +488,7 @@ fn archived_intent_ids() -> Option<std::collections::HashSet<String>> {
 /// Each record dir owns its own sequence.
 pub fn validate_issues() -> (usize, Vec<String>) {
     use folders::LIFECYCLE;
-    const VALID_STATUS: &[&str] = &[
-        "planned",
-        "in-progress",
-        "complete",
-        "cancelled",
-        "deferred",
-        "resolved",
-        "decided",
-    ];
+    const VALID_STATUS: &[&str] = KNOWN_STATUS;
     let all_folders: Vec<&str> = LIFECYCLE.iter().chain(folders::RECORDS).copied().collect();
 
     let base = zero_core::paths::intents_dir();
@@ -2742,6 +2734,17 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
 // Order matters: this IS the wizard menu. Matches rust-tools/intent's numbering so
 // muscle memory survives the retirement. 1=decisions, 2=experiments, 3=philosophy,
 // 4=future, 5=incidents.
+/// Status words validate accepts. `add_with` refuses any other word before it writes.
+pub const KNOWN_STATUS: &[&str] = &[
+    "planned",
+    "in-progress",
+    "complete",
+    "cancelled",
+    "deferred",
+    "resolved",
+    "decided",
+];
+
 pub const CATEGORIES: &[&str] = &[
     "decisions",
     "experiments",
@@ -2803,7 +2806,15 @@ pub fn timeline(ctx: &AppContext) -> CoreResult<()> {
 
 /// `core intent add` -- the interactive wizard. Ported from rust-tools/intent's cmd_add,
 /// which wrote `type: {plural folder name}`. This writes the SINGULAR type from TEMPLATES.
-pub fn add(ctx: &AppContext, smart: bool) -> CoreResult<()> {
+pub struct AddFlags {
+    pub smart: bool,
+    pub category: Option<String>,
+    pub title: Option<String>,
+    pub status: Option<String>,
+    pub tags: Option<String>,
+}
+
+pub fn add(ctx: &AppContext, flags: &AddFlags) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
         &[
@@ -2811,6 +2822,35 @@ pub fn add(ctx: &AppContext, smart: bool) -> CoreResult<()> {
             Capability::FilesystemWriteHome,
         ],
     )?;
+    let flagged = flags.category.is_some()
+        || flags.title.is_some()
+        || flags.status.is_some()
+        || flags.tags.is_some();
+    if flagged {
+        let (category, title, status, tags) =
+            match (&flags.category, &flags.title, &flags.status, &flags.tags) {
+                (Some(c), Some(t), Some(s), Some(g)) => {
+                    (c.as_str(), t.as_str(), s.as_str(), g.as_str())
+                }
+                _ => {
+                    return Err(crate::errors::CoreError::Runtime(
+                        "core intent add needs --category, --title, --status and --tags together"
+                            .into(),
+                    ));
+                }
+            };
+        let path = add_with(
+            &zero_core::paths::intents_dir(),
+            category,
+            title,
+            status,
+            tags,
+        )?;
+        println!();
+        println!("  {} {}", "✅".normal(), path.display());
+        return Ok(());
+    }
+    let smart = flags.smart;
 
     println!("{}", "📝 Adding New Intent".bright_cyan().bold());
     println!();
@@ -2821,7 +2861,7 @@ pub fn add(ctx: &AppContext, smart: bool) -> CoreResult<()> {
 
     let Some(choice) = prompt("Choice (1-5): ") else {
         return Err(crate::errors::CoreError::Runtime(
-            "core intent add requires a terminal -- use `core intent new <category> <template> <title>`".into(),
+            "core intent add requires a terminal, or --category --title --status --tags".into(),
         ));
     };
     let idx: usize = choice.parse().unwrap_or(0);
@@ -3023,22 +3063,85 @@ pub fn create_in(
 /// Non-interactive `core intent add`. The four flags, then `create_in`.
 /// A bad flag returns before anything is written.
 pub fn add_with(
-    _base: &std::path::Path,
-    _category: &str,
-    _title: &str,
-    _status: &str,
-    _tags: &str,
+    base: &std::path::Path,
+    category: &str,
+    title: &str,
+    status: &str,
+    tags: &str,
 ) -> CoreResult<PathBuf> {
-    Err(crate::errors::CoreError::Runtime("not implemented".into()))
+    if !CATEGORIES.contains(&category) {
+        return Err(crate::errors::CoreError::Runtime(format!(
+            "unknown category '{category}'"
+        )));
+    }
+    if !KNOWN_STATUS.contains(&status) {
+        return Err(crate::errors::CoreError::Runtime(format!(
+            "unknown status '{status}'"
+        )));
+    }
+    let type_tag = match category {
+        "decisions" => "decision",
+        "experiments" => "experiment",
+        "philosophy" => "philosophy",
+        "incidents" => "incident",
+        _ => "future",
+    };
+    let tags: Vec<String> = tags
+        .split(',')
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+        .collect();
+    create_in(base, category, type_tag, title, status, &tags, None)
 }
 
-/// `core intent note`. Stores the plan under refs/notes/seals and returns the seal.
+/// `core intent note`. Stores the plan under refs/notes/seals and prints the seal.
+/// Does not push. `commit` defaults to HEAD.
 pub fn note(
-    _repo: &std::path::Path,
-    _plan: &std::path::Path,
-    _commit: Option<&str>,
+    repo: &std::path::Path,
+    plan: &std::path::Path,
+    commit: Option<&str>,
 ) -> CoreResult<String> {
-    Err(crate::errors::CoreError::Runtime("not implemented".into()))
+    if !plan.is_file() {
+        return Err(crate::errors::CoreError::Runtime(format!(
+            "plan not found: {}",
+            plan.display()
+        )));
+    }
+    let bytes = fs::read(plan).map_err(crate::errors::CoreError::Io)?;
+    let commit = commit.unwrap_or("HEAD");
+    let verify = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args([
+            "rev-parse",
+            "--verify",
+            "--quiet",
+            &format!("{commit}^{{commit}}"),
+        ])
+        .output()
+        .map_err(crate::errors::CoreError::Io)?;
+    if !verify.status.success() {
+        return Err(crate::errors::CoreError::Runtime(format!(
+            "commit not found: {commit}"
+        )));
+    }
+    let added = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["notes", "--ref=seals", "add", "--no-stripspace", "-F"])
+        .arg(plan)
+        .arg(commit)
+        .output()
+        .map_err(crate::errors::CoreError::Io)?;
+    if !added.status.success() {
+        return Err(crate::errors::CoreError::Runtime(format!(
+            "could not store the note: {}",
+            String::from_utf8_lossy(&added.stderr).trim()
+        )));
+    }
+    let seal = trace::seal_digest(&bytes);
+    println!("{seal}");
+    Ok(seal)
 }
 
 /// Prompt on a TTY. Returns None when stdin is not a terminal -- never block a script.

@@ -129,6 +129,8 @@ impl<'a> ShellHelper<'a> {
                 "core intent complete",
                 "core intent new",
                 "core intent new --smart",
+                "core intent add",
+                "core intent note",
                 "core intent deps",
                 "core intent deps --critical-path",
                 "core intent burndown",

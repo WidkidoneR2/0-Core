@@ -75,12 +75,14 @@ reason, closes it. No code is written before G1, G2, and G3 have those lines.
       push. Proof: the RULED line.
       ruling: RULED 2026-11-14 (Christian): accepted. The --no-stripspace -F form. Commit defaults to HEAD. The command prints the seal (seal_digest), refuses a missing plan or a missing commit, and never pushes. `core intent note <plan> [commit]`.
       evidence: the ruling line above.
-- [ ] G4 Red, then the commands, only after G1, G2, and G3 are ruled. Shown
+- [x] G4 Red, then the commands, only after G1, G2, and G3 are ruled. Shown
       failing first, under its own plan Seal: a missing in-progress directory,
       a body that quotes "status: planned", add with the four flags and no
       terminal, and a note whose bytes hash to the printed seal. Then the same
       tests pass. The suite is cargo test -p core. Proof: the red output, then
       the green output, each under its plan Seal.
+      ruling: RULED 2026-11-14 (Christian): G1 is already kept by the frontmatter test, so this gate is the add and note commands.
+      evidence: red, commit baa5942f, cargo test -p core -- add_and_note_tests: 0 passed, 4 failed, each "not implemented". green: the same 4 tests pass. cargo test -p core 289 passed. cargo test -p novashell 262 passed.
 - [ ] G5 Doors, after any ship. cargo test -p core passes. cargo test -p
       novashell passes. nsh-test passes after cargo build -p novashell -p
       nsh-test. core intent validate reports every intent valid. d reports 0

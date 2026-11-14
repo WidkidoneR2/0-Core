@@ -302,6 +302,14 @@ pub enum IntentCommand {
     },
     Add {
         smart: bool,
+        category: Option<String>,
+        title: Option<String>,
+        status: Option<String>,
+        tags: Option<String>,
+    },
+    Note {
+        plan: String,
+        commit: Option<String>,
     },
     New {
         category: String,

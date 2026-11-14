@@ -139,7 +139,28 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                         skip_rest: skip_bumps,
                     },
                 ),
-                IntentCommand::Add { smart } => crate::domains::intent::add(ctx, smart),
+                IntentCommand::Add {
+                    smart,
+                    category,
+                    title,
+                    status,
+                    tags,
+                } => crate::domains::intent::add(
+                    ctx,
+                    &crate::domains::intent::AddFlags {
+                        smart,
+                        category,
+                        title,
+                        status,
+                        tags,
+                    },
+                ),
+                IntentCommand::Note { plan, commit } => crate::domains::intent::note(
+                    std::path::Path::new(&ctx.core_root),
+                    std::path::Path::new(&plan),
+                    commit.as_deref(),
+                )
+                .map(|_| ()),
                 IntentCommand::New {
                     category,
                     template,

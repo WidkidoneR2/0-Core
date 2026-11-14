@@ -665,11 +665,31 @@ pub enum IntentCommands {
         #[arg(long)]
         skip_bumps: bool,
     },
-    /// Interactive wizard -- prompts for category, title, status, tags
+    /// Interactive wizard -- prompts for category, title, status, tags.
+    /// The four flags file an intent without a terminal.
     Add {
         /// Suggest tags from active intents and recent commits
         #[arg(long)]
         smart: bool,
+        /// Shelf: open, decisions, experiments, philosophy, incidents
+        #[arg(long)]
+        category: Option<String>,
+        /// Intent title
+        #[arg(long)]
+        title: Option<String>,
+        /// A known status word
+        #[arg(long)]
+        status: Option<String>,
+        /// Comma-separated tags
+        #[arg(long)]
+        tags: Option<String>,
+    },
+    /// Store a plan under refs/notes/seals and print its seal. Does not push.
+    Note {
+        /// Path to the plan file
+        plan: String,
+        /// Commit the note attaches to. Defaults to HEAD.
+        commit: Option<String>,
     },
     New {
         /// Category (directory): future, decisions, experiments, philosophy, incidents
