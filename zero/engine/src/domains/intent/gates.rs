@@ -673,6 +673,38 @@ mod tests {
             vec![GateState::Open, GateState::Done, GateState::Done]
         );
     }
+
+    #[test]
+    fn a_wrapped_evidence_field_is_the_receipt() {
+        let c =
+            "## Success Criteria\n- [x] G1 done\n      evidence: the receipt\n      continued\n";
+        let g = &read_gates(c).gates[0];
+        assert!(g.evidence, "a wrapped evidence field is the receipt");
+    }
+
+    #[test]
+    fn a_ruled_line_does_not_hide_the_receipt() {
+        let c = "## Success Criteria\n- [x] G1 done\nRULED 2026-11-14 (Christian): yes\n<!-- evidence: shown -->\n";
+        assert!(
+            read_gates(c).gates[0].evidence,
+            "RULED must not hide the receipt"
+        );
+    }
+
+    #[test]
+    fn an_empty_v2_evidence_refuses_completion() {
+        let c = "---\nformat: 2\n---\n## Success Criteria\n- [x] G1 done\n      evidence:\n";
+        assert!(
+            check_completion(c).is_err(),
+            "a ticked v2 gate with an empty evidence field refuses"
+        );
+    }
+
+    #[test]
+    fn a_v1_ticked_gate_without_a_receipt_still_completes() {
+        let c = "---\n---\n## Success Criteria\n- [x] G1 done\n";
+        assert_eq!(check_completion(c), Ok(()));
+    }
 }
 
 #[cfg(test)]

@@ -676,6 +676,11 @@ pub fn validate_issues() -> (usize, Vec<String>) {
     (count, issues)
 }
 
+/// Old-shape notes. Empty until the reader exists. Not the issues vector d reads.
+pub fn old_shape_notes(_content: &str) -> Vec<String> {
+    Vec::new()
+}
+
 pub fn validate(_ctx: &AppContext) -> CoreResult<()> {
     let (count, issues) = validate_issues();
 
@@ -5278,6 +5283,19 @@ mod g5_release_tests {
         assert_eq!(
             msg,
             "INT-295: complete; nsh 5.3.12, nsh-test 2.0.15, zero-doctor 0.1.4\n\nIntent: INT-295\nRelease: nsh 5.3.12, nsh-test 2.0.15, zero-doctor 0.1.4\n"
+        );
+    }
+}
+
+#[cfg(test)]
+mod format2_note_tests {
+    #[test]
+    fn a_v1_placeholder_is_listed_and_not_a_hard_error() {
+        let content = "---\nid: 001\ntitle: \"T\"\nstatus: planned\ndate: 2026-11-14\n---\n\n## The Problem\n[What problem does this solve?]\n";
+        let notes = super::old_shape_notes(content);
+        assert!(
+            notes.iter().any(|n| n.contains("placeholder")),
+            "the placeholder is listed: {notes:?}"
         );
     }
 }
