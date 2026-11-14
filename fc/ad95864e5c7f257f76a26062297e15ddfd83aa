@@ -1,0 +1,4 @@
+INT-308 G5 -- plan
+  E1 G5 is ticked. Laptop doors 4 passed 0 failed after ship core, ship nsh, and reload.
+     nsh-test pass 131.6s. validate pass. Banner 1 active 43 planned 233 done, health 100%.
+     core intent note on HEAD refused "Found existing notes" and wrote nothing.
