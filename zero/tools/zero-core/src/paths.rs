@@ -975,7 +975,7 @@ pub fn fingerprint_file() -> PathBuf {
 ///     focus.toml                        id = "250"        CORRECT
 ///     shell_state key 'focus_intent'    ABSENT from the db entirely -- 4 readers get None
 ///     old /etc INTENT file              directory gone since Omarchy -- 2 readers get ""
-///     scan of intents/future/           cistart MOVES started intents to in-progress/
+///     scan of a status line             cistart rewrites status in place (INT-313)
 /// ```
 ///
 /// Four ways to ask one question, one of which works. attention.rs already knew -- its comment

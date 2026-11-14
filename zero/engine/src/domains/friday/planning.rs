@@ -996,7 +996,7 @@ pub fn anticipate(ctx: &AppContext) -> CoreResult<()> {
 // core friday plan: session-aware briefing combining intent state, inference,
 // anticipation. Cites prior exchanges via references_id. Writes a new
 // exchange_kind='plan' row.
-/// Find intent IDs with status: in-progress in intents/future/*.md
+/// Find intent IDs whose frontmatter status is in-progress.
 /// Returns vector of "INT-XXX" style identifiers.
 pub fn active_intents() -> Vec<String> {
     let mut ids: Vec<String> = zero_core::ledger::load()

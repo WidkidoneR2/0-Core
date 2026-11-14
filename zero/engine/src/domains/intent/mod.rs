@@ -97,8 +97,7 @@ pub fn dep_state(intents: &[Intent], dep_id: &str) -> DepState {
 }
 
 /// INT-279 G10: the intents in progress, as INT-NNN, asked of the one loader that core intent
-/// list reads. The doctor used to scan intents/future/ for the status line itself, and cistart
-/// moves an intent to intents/in-progress/, so that scan never found one.
+/// list reads. Status is the frontmatter line. The file stays in open/.
 pub(crate) fn in_progress_ids(ctx: &AppContext) -> Vec<String> {
     load_all(ctx)
         .into_iter()
@@ -2681,7 +2680,10 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
     println!("  {} {}", "ID:    ".dimmed(), intent.id.bright_white());
     println!("  {} {}", "Title: ".dimmed(), intent.title.bright_white());
     println!("  {} → {}", "State: ".dimmed(), "complete".bright_green());
-    println!("  {} Moved to intents/complete/", "📁".dimmed());
+    println!(
+        "  {} Status is complete. The file stays in open/. Older finished intents: git log --diff-filter=D -- zero/intents",
+        "📁".dimmed()
+    );
     println!("{}", "━".repeat(50).dimmed());
 
     // INT-247 Phase 4: show newly unblocked intents + simple retrospective
@@ -4769,7 +4771,8 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
     println!("  Intent:  INT-{}", id);
     println!("  Reason:  {}", reason);
     println!("  Date:    {}", today);
-    println!("  Moved:   intents/cancelled/");
+    println!("  Status:  cancelled. The file stays in open/.");
+    println!("  Older cancelled intents: git log --diff-filter=D -- zero/intents");
     // INT-066 criterion 8: warn about active intents that still depend on this one.
     let dependents: Vec<String> = load_all(ctx)
         .iter()

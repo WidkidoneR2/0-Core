@@ -447,7 +447,7 @@ pub fn lex(source: &str) -> LexResult {
             // prose. An escaped dollar was no better: the backslash printed and the
             // variable expanded anyway. Neither half right.
             //
-            // intents/complete/097 claimed a correct tokenizer for nested quotes and
+            // INT-097, now only in git history, claimed a correct tokenizer for nested quotes and
             // escapes. spine/proptests.rs says the opposite in writing -- quoting
             // (empty, nested, escaped) is NOT YET INTERPRETED. Nothing regressed; it
             // was declared done and never was.

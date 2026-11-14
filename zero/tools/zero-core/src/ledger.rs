@@ -31,6 +31,77 @@ impl IntentFile {
     }
 }
 
+/// Intent files. Record shelves are not included.
+pub fn live() -> Vec<IntentFile> {
+    load()
+        .into_iter()
+        .filter(|file| !file.is_record())
+        .collect()
+}
+
+/// Completed intent ids. The live shelf contributes files whose status is complete.
+/// Git contributes every id that ever lived in `zero/intents/complete/`. If git
+/// cannot answer, only the live shelf is returned.
+pub fn completed_ids() -> std::collections::HashSet<String> {
+    let mut ids: std::collections::HashSet<String> = with_status("complete")
+        .into_iter()
+        .map(|file| file.id)
+        .collect();
+    if let Some(archived) = git_ids_in(&["complete"]) {
+        ids.extend(archived);
+    }
+    ids
+}
+
+/// Ids git has stored under `zero/intents/<folder>/` for one of `folders`.
+/// None when git cannot answer, so the caller does not invent an empty archive.
+pub fn git_ids_in(folders: &[&str]) -> Option<std::collections::HashSet<String>> {
+    let repo = crate::paths::core_dir();
+    let out = std::process::Command::new("git")
+        .args([
+            "-C",
+            repo.to_string_lossy().as_ref(),
+            "log",
+            "--all",
+            "--name-only",
+            "--format=",
+            "--",
+            "zero/intents",
+        ])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let text = String::from_utf8(out.stdout).ok()?;
+    let mut ids = std::collections::HashSet::new();
+    for line in text.lines() {
+        if let Some(id) = id_under(line, folders) {
+            ids.insert(id);
+        }
+    }
+    Some(ids)
+}
+
+fn id_under(path: &str, folders: &[&str]) -> Option<String> {
+    let path = path.trim().trim_matches('"');
+    let mut parts = path.split('/');
+    if parts.next() != Some("zero") || parts.next() != Some("intents") {
+        return None;
+    }
+    let folder = parts.next()?;
+    let file = parts.next()?;
+    if parts.next().is_some() || !folders.contains(&folder) || !file.ends_with(".md") {
+        return None;
+    }
+    let stem = &file[..file.len() - 3];
+    let (num, rest) = stem.split_once('-')?;
+    if rest.is_empty() || num.is_empty() || !num.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    Some(num.to_string())
+}
+
 /// Lifecycle files whose frontmatter status is `status`. Records are not included.
 pub fn with_status(status: &str) -> Vec<IntentFile> {
     load()
@@ -158,5 +229,17 @@ mod tests {
             .count();
         let _ = fs::remove_dir_all(&dir);
         assert_eq!(n, 1);
+    }
+
+    #[test]
+    fn a_complete_history_path_is_an_id_and_a_record_shelf_is_not() {
+        assert_eq!(
+            id_under("zero/intents/complete/277-done.md", &["complete"]).as_deref(),
+            Some("277")
+        );
+        assert_eq!(
+            id_under("zero/intents/decisions/137-x.md", &["complete"]),
+            None
+        );
     }
 }

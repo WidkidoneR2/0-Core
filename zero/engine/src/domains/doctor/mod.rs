@@ -139,18 +139,15 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     println!(
         "  │  {} {} → why decisions were made",
         "②".bright_white().bold(),
-        "intents/complete/".bright_cyan()
+        "git history".bright_cyan()
     );
 
-    let complete_dir = zero_core::paths::intents_dir().join("complete");
-    let intent_count = std::fs::read_dir(&complete_dir)
-        .map(|d| d.count())
-        .unwrap_or(0);
+    let intent_count = zero_core::ledger::completed_ids().len();
     println!(
-        "  │    {} completed intents document every architectural decision",
+        "  │    {} completed intents are in git (and any still open with status complete)",
         intent_count.to_string().bright_white()
     );
-    println!("  │    → read intents/complete/ to understand WHY each tool exists");
+    println!("  │    → git log --diff-filter=D -- zero/intents");
     println!("  │    → cross-reference with CHANGELOG.md for version context");
 
     // ⚠️ "Source 3: Interfaces" IS GONE, 2026-09-20, AND IT WAS WRONG THREE TIMES OVER.
@@ -249,7 +246,7 @@ pub fn rebuild(ctx: &AppContext) -> CoreResult<()> {
     println!("  │  {}  Review history", "⑤".bright_white());
     println!("  │     core narrative → understand the full story");
     println!("  │     core snapshot  → see the last known good state");
-    println!("  │     intents/complete/ → understand every decision");
+    println!("  │     git log --diff-filter=D -- zero/intents → finished intents");
     println!("  │");
     println!(
         "{}",
@@ -494,9 +491,8 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                 println!("{}", note);
             }
 
-            // INT-279 G10: the intents in progress come from the intent domain's own loader, the same
-            // one core intent list reads. The folder scan this replaces looked only in intents/future/,
-            // and cistart moves an intent to intents/in-progress/, so it always counted none.
+            // INT-279 G10: the intents in progress come from the intent domain's own loader.
+            // Status is the frontmatter line on the open shelf.
             let active_intents: Vec<String> = crate::domains::intent::in_progress_ids(ctx);
             // INT-279 G3: the checks not passing in this run, so a warning can name them.
             let problems: Vec<Problem> = checks
