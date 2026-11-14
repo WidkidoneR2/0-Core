@@ -1372,7 +1372,7 @@ fn all_tests() -> Vec<TestResult> {
         let home = fixture_home()?;
         expect_contains(
             &run_fsh_env("ls ~/0-core/zero/intents", &[("HOME", home.as_str())])?,
-            "future",
+            "open",
         )
     }));
     results.push(test("tilde_deep_nested", Category::Tilde, || {
@@ -1766,54 +1766,64 @@ print('CLASS-DONE')"##;
             Ok(())
         },
     ));
-    // INT-259: the live filter, proven by the CONTRAST rather than by a count.
-    //
-    // A row count would drift with every commit; "the archive appears without the flag and does
-    // not appear with it" stays true as the tree grows. Measured 2026-09-23: `fsearch paths.rs`
-    // returned 68 rows and 61 of them were the intent archive.
-    //
-    // ⚠️ AN EXPLICIT ROOT, not the harness's working directory. The harness sets NSH_KEEP_CWD, so
-    // the shell stays wherever it was launched -- a case that relied on the cwd would be asserting
-    // about whatever directory the runner happened to be in.
-    results.push(repo_test(
+    // INT-259: --live skips zero/intents (and the changelog and generated docs).
+    // Stage 4 removed the complete/ and cancelled files this case used to find, so the
+    // contrast is a fixture: one hit under zero/intents, one hit in code. The filter
+    // is still the path, not the shelf name. "zero/inten" is what survives the
+    // truncated path column.
+    results.push(test(
         "repl_259_live_excludes_the_archive",
         Category::Repl,
-        "the live filter is about this repository's own archive, so it needs the checkout",
         || {
-            let root = format!("{}/0-core/zero", std::env::var("HOME").unwrap_or_default());
-            let (all, _) = repl::run_repl_lines_status(
-                &[&format!("fsearch restore_sigpipe {}", root)],
-                &[],
-            )?;
-            let all = all.join("\n");
-            // RED FIRST, INSIDE THE CASE: if the unfiltered search does not reach the archive,
-            // the filtered one proving empty would mean nothing.
-            // "zero/inten", not "intents/": the table TRUNCATES the path column --
-            // rows read "/home/.../zero/inten...", so the string I first asserted on
-            // could never appear. The case failed and the shell was right.
-            if !all.contains("zero/inten") {
-                return Err(format!(
-                    "the unfiltered search found no archive rows, so this case cannot test the filter: {}",
-                    all.chars().take(200).collect::<String>()
-                ));
-            }
-            let (live, _) = repl::run_repl_lines_status(
-                &[&format!("fsearch restore_sigpipe {} --live", root)],
-                &[],
-            )?;
-            let live = live.join("\n");
-            if live.contains("zero/inten") {
-                return Err(format!(
-                    "--live still returned archive rows: {}",
-                    live.lines().filter(|l| l.contains("zero/inten")).take(2).collect::<Vec<_>>().join(" | ")
-                ));
-            }
-            // AND IT MUST STILL FIND THE LIVE CODE. A filter that returns nothing at all would
-            // pass the assertion above while being useless -- the empty-is-an-answer trap.
-            if !live.contains("restore_sigpipe") {
-                return Err(format!("--live returned no live code either: {}", live.chars().take(200).collect::<String>()));
-            }
-            Ok(())
+            let dir = std::env::temp_dir().join(format!("i259-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            let zero = dir.join("0-core/zero");
+            let note = zero.join("intents/open/note.md");
+            let code = zero.join("tools/live.rs");
+            std::fs::create_dir_all(note.parent().unwrap()).map_err(|e| e.to_string())?;
+            std::fs::create_dir_all(code.parent().unwrap()).map_err(|e| e.to_string())?;
+            std::fs::write(&note, "SIGPIPE_MARK under the intents shelf\n")
+                .map_err(|e| e.to_string())?;
+            std::fs::write(&code, "fn live() { SIGPIPE_MARK in the code }\n")
+                .map_err(|e| e.to_string())?;
+            let root = zero.display().to_string();
+            let outcome = (|| {
+                let (all, _) = repl::run_repl_lines_status(
+                    &[&format!("fsearch SIGPIPE_MARK {}", root)],
+                    &[],
+                )?;
+                let all = all.join("\n");
+                if !all.contains("zero/inten") {
+                    return Err(format!(
+                        "the unfiltered search found no intents rows, so this case cannot test the filter: {}",
+                        all.chars().take(200).collect::<String>()
+                    ));
+                }
+                let (live, _) = repl::run_repl_lines_status(
+                    &[&format!("fsearch SIGPIPE_MARK {} --live", root)],
+                    &[],
+                )?;
+                let live = live.join("\n");
+                if live.contains("zero/inten") {
+                    return Err(format!(
+                        "--live still returned intents rows: {}",
+                        live.lines()
+                            .filter(|l| l.contains("zero/inten"))
+                            .take(2)
+                            .collect::<Vec<_>>()
+                            .join(" | ")
+                    ));
+                }
+                if !live.contains("SIGPIPE_MARK") {
+                    return Err(format!(
+                        "--live returned no live code either: {}",
+                        live.chars().take(200).collect::<String>()
+                    ));
+                }
+                Ok(())
+            })();
+            let _ = std::fs::remove_dir_all(&dir);
+            outcome
         },
     ));
     results.push(test("core_binary_exists", Category::Regression, || {
