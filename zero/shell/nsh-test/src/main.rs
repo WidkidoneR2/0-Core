@@ -289,10 +289,10 @@ fn fixture_home() -> Result<String, String> {
         "fixture",
     )?;
 
-    // `ls ~/0-core/zero/intents` contains future, and future contains a .md
-    mkdir(&format!("{}/zero/intents/future", core))?;
+    // `ls ~/0-core/zero/intents` contains open, and open contains a .md
+    mkdir(&format!("{}/zero/intents/open", core))?;
     write(
-        &format!("{}/zero/intents/future/placeholder.md", core),
+        &format!("{}/zero/intents/open/placeholder.md", core),
         "fixture",
     )?;
 
@@ -668,7 +668,7 @@ fn all_tests() -> Vec<TestResult> {
             let needed = [
                 format!("{}/docs/PHILOSOPHY.md", core),
                 format!("{}/zero/packages/zero/scripts/deploy.sh", core),
-                format!("{}/zero/intents/future/placeholder.md", core),
+                format!("{}/zero/intents/open/placeholder.md", core),
                 format!("{}/zero/tools/zero-core", core),
                 format!("{}/zero/shell/novashell/Cargo.toml", core),
                 format!("{}/zero/shell/novashell/src/main.rs", core),
@@ -3533,13 +3533,10 @@ print('CLASS-DONE')"##;
     results.push(test("nsh_binary_exists", Category::Regression, || {
         expect_contains(&run_fsh("which nsh")?, "nsh")
     }));
-    results.push(test("intents_future_exists", Category::Regression, || {
+    results.push(test("intents_open_exists", Category::Regression, || {
         let home = fixture_home()?;
         expect_contains(
-            &run_fsh_env(
-                "ls ~/0-core/zero/intents/future",
-                &[("HOME", home.as_str())],
-            )?,
+            &run_fsh_env("ls ~/0-core/zero/intents/open", &[("HOME", home.as_str())])?,
             ".md",
         )
     }));

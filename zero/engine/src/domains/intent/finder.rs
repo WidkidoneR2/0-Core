@@ -148,15 +148,15 @@ mod files_tests {
     #[test]
     fn a_started_intent_is_found_in_every_active_folder() {
         let b = ledger(&[
-            ("planned", "3-c.md", STARTED),
-            ("future", "2-b.md", STARTED),
-            ("in-progress", "1-a.md", STARTED),
+            ("open", "3-c.md", STARTED),
+            ("open", "2-b.md", STARTED),
+            ("open", "1-a.md", STARTED),
         ]);
         assert_eq!(
             names(in_progress_files(&b)),
-            vec!["in-progress/1-a.md", "future/2-b.md", "planned/3-c.md"]
+            vec!["open/1-a.md", "open/2-b.md", "open/3-c.md"]
         );
-        assert_eq!(folders::ACTIVE, &["in-progress", "future", "planned"]);
+        assert_eq!(folders::ACTIVE, &["open"]);
     }
 
     #[test]
@@ -331,7 +331,7 @@ mod tests {
             }
         }
         assert!(
-            checked > 100,
+            checked > 40,
             "only {checked} files checked: the tree is not the ledger"
         );
     }

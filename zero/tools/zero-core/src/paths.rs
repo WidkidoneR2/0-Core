@@ -1093,19 +1093,9 @@ pub fn changelog_draft(version: &str) -> PathBuf {
 // INTENT SYSTEM PATHS
 // ═══════════════════════════════════════════════════════════
 
-/// Intent future directory
-pub fn intents_future() -> PathBuf {
-    intents_dir().join("future")
-}
-
-/// Intent complete directory
-pub fn intents_complete() -> PathBuf {
-    intents_dir().join("complete")
-}
-
-/// Intent cancelled directory
-pub fn intents_cancelled() -> PathBuf {
-    intents_dir().join("cancelled")
+/// The live intent shelf. INT-313 stage 4: one directory, status on the line.
+pub fn intents_open() -> PathBuf {
+    intents_dir().join("open")
 }
 
 /// Intent deferred directory

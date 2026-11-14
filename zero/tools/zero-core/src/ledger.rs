@@ -2,13 +2,13 @@
 //!
 //! The status line in the frontmatter is the state. A directory that is not
 //! there is skipped. Findings are a different id scheme and are not loaded here.
-//! The names match `folders::LIFECYCLE` and `folders::RECORDS` until stage 4.
+//! The names match `folders::LIFECYCLE` and `folders::RECORDS`.
 
 use std::fs;
 use std::path::{Path, PathBuf};
 
 /// Lifecycle shelves. None of these names is the status.
-pub const LIFECYCLE: &[&str] = &["future", "planned", "in-progress", "complete", "cancelled"];
+pub const LIFECYCLE: &[&str] = &["open"];
 
 /// Record shelves. Not intents.
 pub const RECORDS: &[&str] = &["decisions", "experiments", "incidents", "philosophy"];
@@ -115,7 +115,7 @@ mod tests {
     fn status_comes_from_the_frontmatter_and_a_missing_shelf_is_skipped() {
         let dir = std::env::temp_dir().join(format!("ledger-load-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
-        let future = dir.join("future");
+        let future = dir.join("open");
         fs::create_dir_all(&future).unwrap();
         fs::write(
             future.join("308-quote.md"),
@@ -133,7 +133,7 @@ mod tests {
         assert_eq!(live.status, "in-progress");
         let quote = got.iter().find(|r| r.id == "308").expect("quote");
         assert_eq!(quote.status, "planned");
-        assert!(got.iter().all(|r| r.folder == "future"));
+        assert!(got.iter().all(|r| r.folder == "open"));
         assert_eq!(got.len(), 2);
     }
 
@@ -141,15 +141,14 @@ mod tests {
     fn in_progress_is_one_status_line_not_every_quote() {
         let dir = std::env::temp_dir().join(format!("ledger-count-{}", std::process::id()));
         let _ = fs::remove_dir_all(&dir);
-        fs::create_dir_all(dir.join("future")).unwrap();
-        fs::create_dir_all(dir.join("in-progress")).unwrap();
+        fs::create_dir_all(dir.join("open")).unwrap();
         fs::write(
-            dir.join("future/308-quote.md"),
+            dir.join("open/308-quote.md"),
             "---\nid: 308\nstatus: planned\n---\n\nstatus: in-progress\n",
         )
         .unwrap();
         fs::write(
-            dir.join("in-progress/313-live.md"),
+            dir.join("open/313-live.md"),
             "---\nid: 313\nstatus: in-progress\n---\n\n",
         )
         .unwrap();

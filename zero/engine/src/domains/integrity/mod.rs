@@ -848,10 +848,7 @@ pub mod checks {
         }
         fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
-            let dirs = [
-                ("complete", ctx.ctx.fpath("intents/complete")),
-                ("future", ctx.ctx.fpath("intents/future")),
-            ];
+            let dirs = [("open", ctx.ctx.fpath("intents/open"))];
             for (dir_type, dir_path) in &dirs {
                 let expected_status = match *dir_type {
                     "complete" => "complete",
@@ -919,7 +916,7 @@ pub mod checks {
                 std::collections::HashMap::new();
             let intent_root = ctx.ctx.fpath("intents");
             // Only check main intent spaces -- decisions/incidents/philosophy/experiments have own numbering
-            let subdirs = ["complete", "future", "in-progress"];
+            let subdirs = ["open"];
             for sub in &subdirs {
                 let dir = intent_root.join(sub);
                 if let Ok(entries) = std::fs::read_dir(&dir) {
@@ -966,7 +963,7 @@ pub mod checks {
         }
         fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
             let mut issues = vec![];
-            let future_dir = ctx.ctx.fpath("intents/future");
+            let future_dir = ctx.ctx.fpath("intents/open");
             let mut in_progress = vec![];
             if let Ok(entries) = std::fs::read_dir(&future_dir) {
                 for entry in entries.flatten() {

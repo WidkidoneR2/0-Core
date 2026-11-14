@@ -15,7 +15,7 @@ This map describes the tree as it is. A move changes the tree and this map in th
 | `zero/engine/` | core, the engine binary |
 | `zero/tools/` | every crate that is neither the engine nor the shell: ship, zero-core and the zero-* tools |
 | `zero/shell/` | the shell and what proves it: NovaShell (nsh), nsh-test, and devbox/ -- the DevBox cases and census zero-sandbox verify reads. The rule (L1): the engine is core; the shell is nsh and what exists only to prove or run it; every other binary is a tool, and a new crate goes in zero/tools/ unless it exists only to serve the shell |
-| `zero/intents/` | the intent ledger: future, in-progress, complete and the other states |
+| `zero/intents/` | the intent ledger: open, and the record shelves |
 | `zero/orchestration/` | the v1 playbook: roles, house rules, and how a handoff is written |
 | `zero/handoffs/` | dated handoff files, one writer each |
 | `zero/meta/` | CHANGELOG, INCIDENTS, VERSION, plugins.toml and the release records |

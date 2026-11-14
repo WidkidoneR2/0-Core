@@ -8,14 +8,14 @@ use std::fs;
 use std::path::Path;
 
 // -- the sets --
-/// Directories an intent moves between. One id namespace.
-pub const LIFECYCLE: &[&str] = &["future", "planned", "in-progress", "complete", "cancelled"];
+/// The one shelf. Status is the frontmatter line, not a directory. One id namespace.
+pub const LIFECYCLE: &[&str] = &["open"];
 
 /// Where work in flight lives: what complete and cancel search.
-pub const ACTIVE: &[&str] = &["in-progress", "future", "planned"];
+pub const ACTIVE: &[&str] = &["open"];
 
-/// Work not yet started: what start searches.
-pub const PENDING: &[&str] = &["future", "planned"];
+/// Work not yet started: what start searches. The status line still has to be planned.
+pub const PENDING: &[&str] = &["open"];
 
 /// Record directories. Each owns its own id sequence.
 pub const RECORDS: &[&str] = &["decisions", "experiments", "incidents", "philosophy"];
@@ -89,23 +89,16 @@ mod tests {
     }
 
     #[test]
-    fn the_lifecycle_is_the_five_directories_an_intent_moves_between() {
-        let got: BTreeSet<&str> = LIFECYCLE.iter().copied().collect();
-        let want: BTreeSet<&str> = ["future", "planned", "in-progress", "complete", "cancelled"]
-            .into_iter()
-            .collect();
-        assert_eq!(got, want);
+    fn the_lifecycle_is_the_open_shelf() {
+        assert_eq!(LIFECYCLE, &["open"]);
     }
 
     #[test]
-    fn active_work_is_the_three_directories_work_in_flight_lives_in() {
-        let got: BTreeSet<&str> = ACTIVE.iter().copied().collect();
-        let want: BTreeSet<&str> = ["in-progress", "future", "planned"].into_iter().collect();
-        assert_eq!(got, want);
-        assert!(
-            ACTIVE.iter().all(|d| LIFECYCLE.contains(d)),
-            "active work is a subset of the lifecycle"
-        );
+    fn active_and_pending_work_are_the_open_shelf() {
+        assert_eq!(ACTIVE, &["open"]);
+        assert_eq!(PENDING, &["open"]);
+        assert!(ACTIVE.iter().all(|d| LIFECYCLE.contains(d)));
+        assert!(PENDING.iter().all(|d| ACTIVE.contains(d)));
     }
 
     #[test]
@@ -154,24 +147,16 @@ mod tests {
     }
 
     #[test]
-    fn the_numberer_counts_planned() {
-        let base = fixture(
-            "planned",
-            &["future/010-a.md", "planned/300-b.md", "complete/005-c.md"],
-        );
-        assert_eq!(next_number(&base, "future"), 301);
+    fn the_numberer_counts_the_open_shelf() {
+        let base = fixture("planned", &["open/010-a.md", "open/300-b.md"]);
+        assert_eq!(next_number(&base, "open"), 301);
         let _ = fs::remove_dir_all(&base);
     }
 
     #[test]
     fn the_lifecycle_shares_one_counter() {
-        let base = fixture(
-            "shared",
-            &["future/010-a.md", "complete/042-b.md", "cancelled/007-c.md"],
-        );
-        for d in ["future", "planned", "in-progress", "complete", "cancelled"] {
-            assert_eq!(next_number(&base, d), 43, "{}", d);
-        }
+        let base = fixture("shared", &["open/010-a.md", "open/042-b.md"]);
+        assert_eq!(next_number(&base, "open"), 43);
         let _ = fs::remove_dir_all(&base);
     }
 
@@ -179,11 +164,7 @@ mod tests {
     fn a_record_directory_owns_its_own_sequence() {
         let base = fixture(
             "records",
-            &[
-                "decisions/137-a.md",
-                "future/200-b.md",
-                "incidents/003-c.md",
-            ],
+            &["decisions/137-a.md", "open/200-b.md", "incidents/003-c.md"],
         );
         assert_eq!(next_number(&base, "decisions"), 138);
         assert_eq!(next_number(&base, "incidents"), 4);
@@ -192,10 +173,8 @@ mod tests {
     }
 
     #[test]
-    fn pending_work_is_future_and_planned_and_is_active() {
-        let got: BTreeSet<&str> = PENDING.iter().copied().collect();
-        let want: BTreeSet<&str> = ["future", "planned"].into_iter().collect();
-        assert_eq!(got, want);
+    fn pending_work_is_the_open_shelf() {
+        assert_eq!(PENDING, &["open"]);
         assert!(PENDING.iter().all(|d| ACTIVE.contains(d)));
     }
 
@@ -204,13 +183,13 @@ mod tests {
         let base = fixture(
             "prefix",
             &[
-                "future/012-a.md",
-                "future/0123-b.md",
-                "future/F-0052.md",
-                "future/README.md",
+                "open/012-a.md",
+                "open/0123-b.md",
+                "open/F-0052.md",
+                "open/README.md",
             ],
         );
-        assert_eq!(next_number(&base, "future"), 13);
+        assert_eq!(next_number(&base, "open"), 13);
         let _ = fs::remove_dir_all(&base);
     }
 }

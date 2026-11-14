@@ -421,6 +421,67 @@ pub fn search(ctx: &AppContext, term: &str) -> CoreResult<()> {
     Ok(())
 }
 
+/// Lifecycle shelves an intent file may have lived in. Record shelves are not here:
+/// decision 137 and intent 137 are different ids.
+const HISTORIC_LIFECYCLE: &[&str] = &[
+    "future",
+    "planned",
+    "in-progress",
+    "complete",
+    "cancelled",
+    "open",
+];
+
+/// The numeric id in `zero/intents/<lifecycle>/<id>-*.md`. A record shelf is not an intent id.
+fn intent_id_from_history_path(path: &str) -> Option<String> {
+    let path = path.trim().trim_matches('"');
+    let mut parts = path.split('/');
+    if parts.next() != Some("zero") || parts.next() != Some("intents") {
+        return None;
+    }
+    let folder = parts.next()?;
+    let file = parts.next()?;
+    if parts.next().is_some() || !HISTORIC_LIFECYCLE.contains(&folder) || !file.ends_with(".md") {
+        return None;
+    }
+    let stem = &file[..file.len() - 3];
+    let (num, rest) = stem.split_once('-')?;
+    if rest.is_empty() || num.is_empty() || !num.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    Some(num.to_string())
+}
+
+/// Intent ids git has ever stored under a lifecycle shelf. None when git cannot answer,
+/// so the caller skips the archive and does not invent ids.
+fn archived_intent_ids() -> Option<std::collections::HashSet<String>> {
+    let repo = zero_core::paths::core_dir();
+    let out = std::process::Command::new("git")
+        .args([
+            "-C",
+            repo.to_string_lossy().as_ref(),
+            "log",
+            "--all",
+            "--name-only",
+            "--format=",
+            "--",
+            "zero/intents",
+        ])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let text = String::from_utf8(out.stdout).ok()?;
+    let mut ids = std::collections::HashSet::new();
+    for line in text.lines() {
+        if let Some(id) = intent_id_from_history_path(line) {
+            ids.insert(id);
+        }
+    }
+    Some(ids)
+}
+
 /// The ONE validator. Context-free: reads `zero_core::paths::intents_dir()`, the same
 /// source doctor uses. Returns (intents_seen, issues). Callers decide how to present it.
 ///
@@ -574,15 +635,20 @@ pub fn validate_issues() -> (usize, Vec<String>) {
     }
 
     // INT-213 G2: a depends_on naming an id that does not exist blocks its dependent
-    // forever and renders as "not found". Nothing validated it until now.
-    let known: std::collections::HashSet<&str> = seen
+    // forever and renders as "not found". INT-313 stage 4: complete and cancelled
+    // intents are no longer files. An id is known if a lifecycle file on disk has
+    // it, or if git history has ever had zero/intents/<folder>/<id>-*.md. If git
+    // cannot be asked, that archive lookup is skipped and only the disk counts.
+    let on_disk: std::collections::HashSet<&str> = seen
         .keys()
         .filter(|(ns, _)| ns == "lifecycle")
         .map(|(_, id)| id.as_str())
         .collect();
+    let archived = archived_intent_ids();
     for (id, deps, where_) in &edges {
         for dep in deps {
-            if !known.contains(dep.as_str()) {
+            let in_archive = archived.as_ref().is_some_and(|ids| ids.contains(dep));
+            if !on_disk.contains(dep.as_str()) && !in_archive {
                 issues.push(format!(
                     "INT-{} depends_on INT-{}, which does not exist: {}",
                     id, dep, where_
@@ -2678,7 +2744,7 @@ pub const CATEGORIES: &[&str] = &[
     "decisions",
     "experiments",
     "philosophy",
-    "future",
+    "open",
     "incidents",
 ];
 
@@ -3363,7 +3429,7 @@ fn recent_done_counts(ledger: &Path, limit: usize) -> Vec<usize> {
             .and_then(|d| d.parse().ok())
             .unwrap_or(0)
     };
-    let mut files = finder::files_in(ledger, &["complete"]);
+    let mut files = finder::files_in(ledger, folders::LIFECYCLE);
     files.sort_by_key(|p| std::cmp::Reverse(number(p)));
     files
         .iter()
@@ -3385,12 +3451,12 @@ mod recent_tests {
             std::process::id(),
             N.fetch_add(1, Ordering::SeqCst)
         ));
-        fs::create_dir_all(base.join("complete")).unwrap();
+        fs::create_dir_all(base.join("open")).unwrap();
         for (id, done) in done_by_id {
             let gates: String = (1..=*done).map(|g| format!("- [x] G{} g\n", g)).collect();
             let body = format!("---\ntitle: T\n---\n\n## Success Criteria\n\n{}", gates);
             let name = format!("{:03}-t.md", id);
-            fs::write(base.join("complete").join(name), body).unwrap();
+            fs::write(base.join("open").join(name), body).unwrap();
         }
         base
     }
@@ -3571,23 +3637,23 @@ mod gates_query_tests {
         let section = "---\ntitle: T\n---\n\n## Success Criteria\n\n";
         let files = [
             (
-                "in-progress",
+                "open",
                 "212-alpha.md",
                 format!("{}- [x] G1 first\n- [ ] G2 second\n", section),
             ),
             (
-                "complete",
+                "open",
                 "196-beta.md",
                 format!("{}- [ ] G1 left open\n", section),
             ),
             (
-                "complete",
+                "open",
                 "10-gamma.md",
                 "---\ntitle: T\n---\nno gates here\n".to_string(),
             ),
-            ("future", "5-delta.md", format!("{}- [x] G1 ok\n", section)),
+            ("open", "5-delta.md", format!("{}- [x] G1 ok\n", section)),
             (
-                "complete",
+                "open",
                 "20-zeta.md",
                 format!("{}- [x] G1 ok\n\n## Other\n\n- [ ] M8 left over\n", section),
             ),
@@ -3597,7 +3663,7 @@ mod gates_query_tests {
                 format!("{}- [ ] G1 never\n", section),
             ),
             (
-                "complete",
+                "open",
                 "7-legacy.md",
                 format!("---\ntitle: T\n---\n{} a\n{} b\n", open, done),
             ),
@@ -3614,18 +3680,10 @@ mod gates_query_tests {
         let l = ledger();
         let out = gates_text(&l, None, true, false);
         let _ = fs::remove_dir_all(&l);
-        for want in [
-            "in-progress/212-alpha.md",
-            "complete/196-beta.md",
-            "complete/7-legacy.md",
-        ] {
+        for want in ["open/212-alpha.md", "open/196-beta.md", "open/7-legacy.md"] {
             assert!(out.contains(want), "{} missing: {}", want, out);
         }
-        for not in [
-            "future/5-delta.md",
-            "complete/10-gamma.md",
-            "cancelled/9-eps.md",
-        ] {
+        for not in ["open/5-delta.md", "open/10-gamma.md", "cancelled/9-eps.md"] {
             assert!(!out.contains(not), "{} listed: {}", not, out);
         }
     }
@@ -3635,10 +3693,10 @@ mod gates_query_tests {
         let l = ledger();
         let out = gates_text(&l, None, false, true);
         let _ = fs::remove_dir_all(&l);
-        assert!(out.contains("complete/10-gamma.md"), "{}", out);
+        assert!(out.contains("open/10-gamma.md"), "{}", out);
         for not in [
-            "in-progress/212-alpha.md",
-            "complete/196-beta.md",
+            "open/212-alpha.md",
+            "open/196-beta.md",
             "cancelled/9-eps.md",
         ] {
             assert!(!out.contains(not), "{} listed: {}", not, out);
@@ -3651,7 +3709,7 @@ mod gates_query_tests {
         let out = gates_text(&l, Some("212"), false, false);
         let _ = fs::remove_dir_all(&l);
         for want in [
-            "in-progress/212-alpha.md",
+            "open/212-alpha.md",
             "1/2 done",
             "1 open",
             "[x] G1 first",
@@ -3683,7 +3741,7 @@ mod gates_query_tests {
         let l = ledger();
         let out = gates_text(&l, None, true, false);
         let _ = fs::remove_dir_all(&l);
-        assert!(out.contains("complete/20-zeta.md"), "{}", out);
+        assert!(out.contains("open/20-zeta.md"), "{}", out);
         assert!(out.contains("outside the section"), "{}", out);
     }
 
@@ -3913,7 +3971,7 @@ pub fn auto_link(ctx: &AppContext, id: &str) -> CoreResult<()> {
     // Find source intent
     let mut source_content = String::new();
     let mut source_title = String::new();
-    for dir in &["intents/future", "intents/complete"] {
+    for dir in &["intents/open"] {
         if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
@@ -3956,7 +4014,7 @@ pub fn auto_link(ctx: &AppContext, id: &str) -> CoreResult<()> {
         .collect();
     // Find related intents by tag overlap
     let mut related: Vec<(String, String, usize)> = Vec::new(); // (id, title, overlap)
-    for dir in &["intents/future", "intents/complete"] {
+    for dir in &["intents/open"] {
         if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
@@ -4094,7 +4152,7 @@ pub fn story(ctx: &AppContext, id: &str) -> CoreResult<()> {
     let commit_count = commit_log.lines().count();
     // Find related intents
     let mut related_ids: Vec<String> = Vec::new();
-    for dir in &["intents/complete", "intents/future"] {
+    for dir in &["intents/open"] {
         if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
             for entry in entries.flatten() {
                 let name = entry.file_name().to_string_lossy().to_string();
@@ -4889,7 +4947,7 @@ mod status_line_edit_tests {
 
 #[cfg(test)]
 mod status_is_not_the_folder_tests {
-    fn with_home<T>(home: &std::path::Path, f: impl FnOnce() -> T) -> T {
+    pub(super) fn with_home<T>(home: &std::path::Path, f: impl FnOnce() -> T) -> T {
         let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let prev = std::env::var("HOME").ok();
         unsafe { std::env::set_var("HOME", home) };
@@ -4908,7 +4966,7 @@ mod status_is_not_the_folder_tests {
         let dir =
             std::env::temp_dir().join(format!("core_status_folder_test-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&dir);
-        let future = dir.join("0-core/zero/intents/future");
+        let future = dir.join("0-core/zero/intents/open");
         std::fs::create_dir_all(&future).expect("ledger");
         std::fs::write(
             future.join("313-live.md"),
@@ -4936,6 +4994,111 @@ mod status_is_not_the_folder_tests {
         assert!(
             issues.iter().any(|i| i.contains("Invalid status 'nope'")),
             "an unknown status is still refused: {:?}",
+            issues
+        );
+    }
+}
+
+#[cfg(test)]
+mod depends_on_archive_tests {
+    use super::intent_id_from_history_path;
+    use std::process::Command;
+
+    fn git(repo: &std::path::Path, args: &[&str]) {
+        let out = Command::new("git")
+            .current_dir(repo)
+            .args(["-c", "user.email=test@example.com", "-c", "user.name=test"])
+            .args(args)
+            .output()
+            .expect("git");
+        assert!(
+            out.status.success(),
+            "{:?}\n{}",
+            args,
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+
+    #[test]
+    fn a_history_path_is_an_intent_id_and_anything_else_is_not() {
+        assert_eq!(
+            intent_id_from_history_path("zero/intents/complete/277-done.md").as_deref(),
+            Some("277")
+        );
+        assert_eq!(
+            intent_id_from_history_path("zero/intents/open/313-live.md").as_deref(),
+            Some("313")
+        );
+        assert_eq!(
+            intent_id_from_history_path("zero/intents/findings/F-0001.md"),
+            None
+        );
+        assert_eq!(
+            intent_id_from_history_path("zero/intents/decisions/137-x.md"),
+            None
+        );
+        assert_eq!(
+            intent_id_from_history_path(
+                "zero/intents/findings/303-ai-help-preflight-review-and-hermes-evaluation.md"
+            ),
+            None
+        );
+        assert_eq!(intent_id_from_history_path("zero/intents/README.md"), None);
+        assert_eq!(intent_id_from_history_path("docs/TREE.md"), None);
+    }
+
+    /// INT-213 G2, kept at stage 4. An id git has stored and then dropped is known.
+    /// An id neither on disk nor in history is still "does not exist".
+    #[test]
+    fn an_archived_id_passes_and_a_typo_still_fails() {
+        let dir = std::env::temp_dir().join(format!(
+            "core-dep-archive-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let repo = dir.join("0-core");
+        let archived = repo.join("zero/intents/complete");
+        let open = repo.join("zero/intents/open");
+        std::fs::create_dir_all(&archived).unwrap();
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::write(
+            archived.join("277-done.md"),
+            "---\nid: 277\ntitle: \"done\"\nstatus: complete\ndate: 2026-11-01\n---\n\n",
+        )
+        .unwrap();
+        git(&repo, &["init"]);
+        git(&repo, &["add", "zero/intents/complete/277-done.md"]);
+        git(&repo, &["commit", "-m", "archive 277"]);
+        std::fs::remove_file(archived.join("277-done.md")).unwrap();
+        git(&repo, &["add", "-u"]);
+        git(&repo, &["commit", "-m", "drop 277"]);
+        std::fs::write(
+            open.join("288-live.md"),
+            "---\nid: 288\ntitle: \"live\"\nstatus: planned\ndate: 2026-11-14\ndepends_on: [277]\n---\n\n",
+        )
+        .unwrap();
+        std::fs::write(
+            open.join("289-typo.md"),
+            "---\nid: 289\ntitle: \"typo\"\nstatus: planned\ndate: 2026-11-14\ndepends_on: [999]\n---\n\n",
+        )
+        .unwrap();
+        let (_count, issues) =
+            super::status_is_not_the_folder_tests::with_home(&dir, || super::validate_issues());
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(
+            !issues.iter().any(|i| i.contains("INT-277")),
+            "an archived id is known: {:?}",
+            issues
+        );
+        assert!(
+            issues
+                .iter()
+                .any(|i| i.contains("INT-289 depends_on INT-999, which does not exist")),
+            "a typo is still missing: {:?}",
             issues
         );
     }

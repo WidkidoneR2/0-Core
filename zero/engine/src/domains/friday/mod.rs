@@ -1292,7 +1292,7 @@ Friday's confidence: 80%
     }
     println!();
     println!(
-        "  {} File: intents/future/{}",
+        "  {} File: intents/open/{}",
         "📄".normal(),
         filename.bright_white()
     );
@@ -1308,7 +1308,7 @@ Friday's confidence: 80%
         .and_then(|l| l.ok())
         .unwrap_or_default();
     if line.trim().to_lowercase() == "y" {
-        let path = format!("intents/future/{}", filename);
+        let path = format!("intents/open/{}", filename);
         std::fs::write(&path, &intent_content)?;
         // Record in observations
         let _ = db.execute(

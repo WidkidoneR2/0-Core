@@ -855,14 +855,14 @@ pub fn promote_plan(
     }
     let (type_tag, status, tags) = fix_template()?;
     let (id, path, title) =
-        target_in(base, "future", &promote_title(record)).map_err(|e| e.to_string())?;
+        target_in(base, "open", &promote_title(record)).map_err(|e| e.to_string())?;
     let name = format!("INT-{:03}", id);
     let (new_record, _) = with_field(old_body, "promoted_to", &name)?;
     let seed = promote_seed(record);
     let text = format!(
         "promote {}: a new intent, {}\n\
          title    {}\n\
-         folder   future (template fix: type {}, status {}, tags {})\n\
+         folder   open (template fix: type {}, status {}, tags {})\n\
          file     {}\n\
          problem  {}\n\
          gate     {}\n\
@@ -950,7 +950,7 @@ fn file_promotion(
     let seed = promote_seed(record);
     let made = create_in(
         base,
-        "future",
+        "open",
         type_tag,
         &promote_title(record),
         status,
@@ -2256,7 +2256,7 @@ mod bug_tests {
     }
 
     fn filed_in(base: &std::path::Path) -> Vec<String> {
-        let mut names: Vec<String> = std::fs::read_dir(base.join("future"))
+        let mut names: Vec<String> = std::fs::read_dir(base.join("open"))
             .map(|d| {
                 d.flatten()
                     .map(|e| e.file_name().to_string_lossy().to_string())
@@ -2329,13 +2329,12 @@ mod bug_tests {
         let base = ledger("plan", FRESH);
         let (text, seal) = plan_of(&base);
         let file = base
-            .join("future")
+            .join("open")
             .join("001-fix-f-0001-the-parser-drops-a-line.md");
         for want in [
             "promote F-0001: a new intent, INT-001".to_string(),
             "title    Fix F-0001: the 'parser' drops a line".to_string(),
-            "folder   future (template fix: type fix, status planned, tags fix, bugfix)"
-                .to_string(),
+            "folder   open (template fix: type fix, status planned, tags fix, bugfix)".to_string(),
             format!("file     {}", file.display()),
             "problem  the \"parser\" drops a line".to_string(),
             "gate     - [ ] A sealed commit carries `Fixes: F-0001`".to_string(),
@@ -2374,7 +2373,7 @@ mod bug_tests {
             vec!["001-fix-f-0001-the-parser-drops-a-line.md".to_string()]
         );
         let intent = std::fs::read_to_string(
-            base.join("future")
+            base.join("open")
                 .join("001-fix-f-0001-the-parser-drops-a-line.md"),
         )
         .unwrap();
@@ -2473,8 +2472,8 @@ mod bug_tests {
     #[test]
     fn the_new_intent_takes_the_next_number() {
         let base = ledger("numbering", FRESH);
-        std::fs::create_dir_all(base.join("future")).unwrap();
-        std::fs::write(base.join("future").join("041-old.md"), "x").unwrap();
+        std::fs::create_dir_all(base.join("open")).unwrap();
+        std::fs::write(base.join("open").join("041-old.md"), "x").unwrap();
         let (text, _) = plan_of(&base);
         assert!(text.contains("a new intent, INT-042"), "{}", text);
         assert!(text.contains("042-fix-f-0001-"), "{}", text);
@@ -2520,7 +2519,7 @@ mod bug_tests {
         let base = std::env::temp_dir().join(format!("core-create-{}", std::process::id()));
         let _ = std::fs::remove_dir_all(&base);
         let tags = vec!["fix".to_string(), "bugfix".to_string()];
-        let plain = create_in(&base, "future", "fix", "A title", "planned", &tags, None).unwrap();
+        let plain = create_in(&base, "open", "fix", "A title", "planned", &tags, None).unwrap();
         let plain = std::fs::read_to_string(plain).unwrap();
         assert!(
             plain.contains("## The Problem\n[What problem does this solve?]\n\n## The Solution")
@@ -2532,7 +2531,7 @@ mod bug_tests {
         };
         let seeded = create_in(
             &base,
-            "future",
+            "open",
             "fix",
             "A title",
             "planned",
