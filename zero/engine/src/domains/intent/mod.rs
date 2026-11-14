@@ -962,7 +962,7 @@ fn set_frontmatter_status(content: &str, from: &[&str], to: &str) -> String {
             let trimmed = bare.trim_start();
             if let Some(rest) = trimmed.strip_prefix("status:") {
                 let value = rest.trim().trim_matches('"');
-                if from.iter().any(|s| *s == value) {
+                if from.contains(&value) {
                     let indent = &bare[..bare.len() - trimmed.len()];
                     let nl = &line[bare.len()..];
                     out.push_str(indent);
@@ -5090,7 +5090,7 @@ mod depends_on_archive_tests {
         )
         .unwrap();
         let (_count, issues) =
-            super::status_is_not_the_folder_tests::with_home(&dir, || super::validate_issues());
+            super::status_is_not_the_folder_tests::with_home(&dir, super::validate_issues);
         let _ = std::fs::remove_dir_all(&dir);
         assert!(
             !issues.iter().any(|i| i.contains("INT-277")),
