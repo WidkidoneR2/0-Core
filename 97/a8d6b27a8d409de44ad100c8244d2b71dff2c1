@@ -1,0 +1,73 @@
+INT-313 stage 1 -- plan
+  E1 zero/engine/src/domains/intent/mod.rs: validate trusts the status line
+     -                 // Record dirs legitimately carry several statuses (decisions/121 is
+     -                 // 'complete', decisions/136 is 'decided'). Only lifecycle dirs map 1:1.
+     -                 if LIFECYCLE.contains(folder) {
+     -                     let want = if *folder == "future" {
+     -                         "planned"
+     -                     } else {
+     -                         folder
+     -                     };
+     -                     if st != want {
+     -                         issues.push(format!("status '{}' != directory: {}/{}", st, folder, name));
+     -                     }
+     -                 }
+     +                 // INT-313 stage 1. The status line is the state. The folder is not
+     +                 // compared with it. A missing lifecycle directory is skipped above,
+     +                 // the same way load_all skips one: read_dir failing continues.
+     + #[cfg(test)]
+     + mod status_is_not_the_folder_tests {
+     +     fn with_home<T>(home: &std::path::Path, f: impl FnOnce() -> T) -> T {
+     +         let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+     +         let prev = std::env::var("HOME").ok();
+     +         unsafe { std::env::set_var("HOME", home) };
+     +         let out = f();
+     +         match prev {
+     +             Some(h) => unsafe { std::env::set_var("HOME", h) },
+     +             None => unsafe { std::env::remove_var("HOME") },
+     +         }
+     +         out
+     +     }
+     +
+     +     /// INT-313 stage 1. A known status in another folder is valid. An unknown
+     +     /// status is not. A lifecycle directory that is not on disk is not an issue.
+     +     #[test]
+     +     fn a_known_status_need_not_match_its_folder_and_a_missing_dir_is_skipped() {
+     +         let dir = std::env::temp_dir().join(format!(
+     +             "core_status_folder_test-{}",
+     +             std::process::id()
+     +         ));
+     +         let _ = std::fs::remove_dir_all(&dir);
+     +         let future = dir.join("0-core/zero/intents/future");
+     +         std::fs::create_dir_all(&future).expect("ledger");
+     +         std::fs::write(
+     +             future.join("313-live.md"),
+     +             "---\nid: 313\ntitle: \"live\"\nstatus: in-progress\ndate: 2026-11-13\n---\n\n",
+     +         )
+     +         .unwrap();
+     +         std::fs::write(
+     +             future.join("314-bad.md"),
+     +             "---\nid: 314\ntitle: \"bad\"\nstatus: nope\ndate: 2026-11-13\n---\n\n",
+     +         )
+     +         .unwrap();
+     +         let (count, issues) = with_home(&dir, super::validate_issues);
+     +         let _ = std::fs::remove_dir_all(&dir);
+     +         assert_eq!(count, 2);
+     +         assert!(
+     +             !issues.iter().any(|i| i.contains("!= directory")),
+     +             "folder is not status: {:?}",
+     +             issues
+     +         );
+     +         assert!(
+     +             !issues.iter().any(|i| i.contains("in-progress")),
+     +             "a missing in-progress directory is skipped: {:?}",
+     +             issues
+     +         );
+     +         assert!(
+     +             issues.iter().any(|i| i.contains("Invalid status 'nope'")),
+     +             "an unknown status is still refused: {:?}",
+     +             issues
+     +         );
+     +     }
+     + }
+     +
