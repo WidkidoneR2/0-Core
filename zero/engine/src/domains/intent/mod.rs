@@ -876,6 +876,45 @@ pub fn drift(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
+/// Replace one frontmatter status line. A quote of the same words in the body is left alone.
+/// `from` is the values this transition rewrites; any other status line stays.
+fn set_frontmatter_status(content: &str, from: &[&str], to: &str) -> String {
+    let Some(open) = content.find("---") else {
+        return content.to_string();
+    };
+    let after = open + 3;
+    let Some(close_rel) = content[after..].find("---") else {
+        return content.to_string();
+    };
+    let fm_end = after + close_rel;
+    let fm = &content[after..fm_end];
+    let mut out = String::with_capacity(content.len() + to.len());
+    out.push_str(&content[..after]);
+    let mut replaced = false;
+    for line in fm.split_inclusive('\n') {
+        if !replaced {
+            let bare = line.trim_end_matches(['\n', '\r']);
+            let trimmed = bare.trim_start();
+            if let Some(rest) = trimmed.strip_prefix("status:") {
+                let value = rest.trim().trim_matches('"');
+                if from.iter().any(|s| *s == value) {
+                    let indent = &bare[..bare.len() - trimmed.len()];
+                    let nl = &line[bare.len()..];
+                    out.push_str(indent);
+                    out.push_str("status: ");
+                    out.push_str(to);
+                    out.push_str(nl);
+                    replaced = true;
+                    continue;
+                }
+            }
+        }
+        out.push_str(line);
+    }
+    out.push_str(&content[fm_end..]);
+    out
+}
+
 pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
@@ -974,20 +1013,9 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
 
     if let Some(path) = found_path {
         let content = fs::read_to_string(&path).map_err(crate::errors::CoreError::Io)?;
-        let updated = content
-            .replace("status: planned", "status: in-progress")
-            .replace("status: future", "status: in-progress")
-            .replace("status: deferred", "status: in-progress");
+        let updated =
+            set_frontmatter_status(&content, &["planned", "future", "deferred"], "in-progress");
         fs::write(&path, updated).map_err(crate::errors::CoreError::Io)?;
-        // cistart fix: move file from future/ to in-progress/ if needed
-        if path.to_string_lossy().contains("/intents/future/") {
-            if let (Some(filename), Some(parent)) =
-                (path.file_name(), path.parent().and_then(|p| p.parent()))
-            {
-                let new_path = parent.join("in-progress").join(filename);
-                let _ = fs::rename(&path, &new_path);
-            }
-        }
     }
 
     // Set as focused intent
@@ -2553,21 +2581,15 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
     if let Some(src_path) = found_path {
         // Update status in frontmatter
         let content = fs::read_to_string(&src_path).map_err(crate::errors::CoreError::Io)?;
-        let updated = content
-            .replace("status: planned", "status: complete")
-            .replace("status: future", "status: complete")
-            .replace("status: in-progress", "status: complete")
-            .replace("status: deferred", "status: complete");
-        // INT-271: the Versions receipt rides in the same write as the move.
+        let updated = set_frontmatter_status(
+            &content,
+            &["planned", "future", "in-progress", "deferred"],
+            "complete",
+        );
+        // INT-271: the Versions receipt rides in the same write as the status.
+        // INT-313 stage 3: the file stays where it is.
         let updated = updated + &receipt;
-
-        // Move to complete/
-        let complete_dir = base.join("complete");
-        fs::create_dir_all(&complete_dir).map_err(crate::errors::CoreError::Io)?;
-        let filename = src_path.file_name().unwrap();
-        let dest_path = complete_dir.join(filename);
-        fs::write(&dest_path, updated).map_err(crate::errors::CoreError::Io)?;
-        fs::remove_file(&src_path).map_err(crate::errors::CoreError::Io)?;
+        fs::write(&src_path, updated).map_err(crate::errors::CoreError::Io)?;
     }
 
     // INT-251 v23: emit to unified event bus. INT-271: after the move, so a close that stopped
@@ -4663,11 +4685,11 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
     })?;
     let content = std::fs::read_to_string(&path)?;
     let today = chrono::Local::now().format("%Y-%m-%d").to_string();
-    let updated = content
-        .replace("status: in-progress", "status: cancelled")
-        .replace("status: planned", "status: cancelled")
-        .replace("status: future", "status: cancelled")
-        .replace("status: deferred", "status: cancelled");
+    let updated = set_frontmatter_status(
+        &content,
+        &["in-progress", "planned", "future", "deferred"],
+        "cancelled",
+    );
     let stamp = format!(
         "🚫 {} -- cancelled: {} -- approved by: christian {}",
         id, reason, today
@@ -4677,19 +4699,8 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
     } else {
         format!("{}\n\n## Gate Check\n{}\n", updated.trim_end(), stamp)
     };
-    let cancelled_dir = base.join("cancelled");
-    std::fs::create_dir_all(&cancelled_dir)?;
-    let filename = path
-        .file_name()
-        .ok_or_else(|| crate::errors::CoreError::Domain {
-            domain: "intent".to_string(),
-            message: "intent file has no name".to_string(),
-        })?;
-    let dest = cancelled_dir.join(filename);
-    std::fs::write(&dest, stamped)?;
-    if dest != path {
-        let _ = std::fs::remove_file(&path);
-    }
+    // INT-313 stage 3: the file stays where it is. No cancelled/ directory is created.
+    std::fs::write(&path, stamped)?;
     // Clear focus if the cancelled intent was the focused one.
     if let Some(state) = read_focus() {
         if state.id == id {
@@ -4846,6 +4857,33 @@ mod absent_ledger_tests {
             "and it must name the real problem: {}",
             issues[0]
         );
+    }
+}
+
+#[cfg(test)]
+mod status_line_edit_tests {
+    use super::set_frontmatter_status;
+
+    #[test]
+    fn the_status_line_changes_and_a_body_quote_does_not() {
+        let src = "---\nid: 308\ntitle: \"q\"\nstatus: planned\ndate: 2026-11-13\n---\n\nbecomes \"status: in-progress\".\n";
+        let got = set_frontmatter_status(src, &["planned", "future", "deferred"], "in-progress");
+        assert!(got.contains("\nstatus: in-progress\n"), "{got}");
+        assert!(!got.contains("status: planned"), "{got}");
+        assert!(
+            got.contains("becomes \"status: in-progress\"."),
+            "the body quote stays: {got}"
+        );
+        let again = set_frontmatter_status(&got, &["planned", "future", "deferred"], "in-progress");
+        assert_eq!(again, got, "a second start does not rewrite a quote");
+    }
+
+    #[test]
+    fn a_status_this_transition_does_not_own_stays() {
+        let src = "---\nstatus: complete\n---\nstatus: planned\n";
+        let got = set_frontmatter_status(src, &["planned"], "in-progress");
+        assert!(got.starts_with("---\nstatus: complete\n---\n"));
+        assert!(got.ends_with("status: planned\n"));
     }
 }
 

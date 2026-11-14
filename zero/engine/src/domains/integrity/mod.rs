@@ -872,48 +872,15 @@ pub mod checks {
                             // Check for status mismatch
                             // Only check frontmatter status field — exact line match
                             let status_line = frontmatter_status(&content);
-                            let has_complete = status_line == "status: complete";
+                            let _has_complete = status_line == "status: complete";
                             let has_planned = status_line == "status: planned";
                             let has_deferred = status_line == "status: deferred";
                             let has_inprog = status_line == "status: in-progress";
 
-                            if *dir_type == "future" && has_complete {
-                                let fname = path
-                                    .file_name()
-                                    .unwrap_or_default()
-                                    .to_string_lossy()
-                                    .to_string();
-                                let dest = ctx.ctx.fpath("intents/complete").join(&fname);
-                                issues.push(IntegrityIssue::propose(
-                                    Category::Intent,
-                                    "intent_status_directory",
-                                    &format!("{} has status: complete but lives in future/", fname),
-                                    FixAction::MoveFile {
-                                        from: path.clone(),
-                                        to: dest,
-                                    },
-                                    3,
-                                ));
-                            }
-                            // INT-332: detect in-progress intent in future/ directory
-                            if *dir_type == "future" && has_inprog {
-                                let fname = path
-                                    .file_name()
-                                    .unwrap_or_default()
-                                    .to_string_lossy()
-                                    .to_string();
-                                let dest = ctx.ctx.fpath("intents/in-progress").join(&fname);
-                                issues.push(IntegrityIssue::propose(
-                                    Category::Intent,
-                                    "intent_status_directory",
-                                    &format!("{} has status: in-progress but lives in future/ -- move to in-progress/", fname),
-                                    FixAction::MoveFile {
-                                        from: path.clone(),
-                                        to: dest,
-                                    },
-                                    4,
-                                ));
-                            }
+                            // INT-313 stage 3. cistart, cicomplete and cancel leave the file
+                            // where it is and change the status line. A folder that does not
+                            // match the status is not a move. The alert below stays: a file
+                            // already in complete/ whose status is not complete is still wrong.
                             if *dir_type == "complete"
                                 && (has_planned || has_deferred || has_inprog)
                             {
@@ -2093,11 +2060,11 @@ mod tests {
         assert_eq!(reason.as_deref(), Some("check removed"));
     }
 
-    /// INT-275 G7: a move carries out the from and to stored on its row; only that file moves,
-    /// even when another intent mentions the phrase. Red on the deployed build 2026-10-05: the
-    /// old apply arm moved a planned stand-in intent whose body said status: complete.
+    /// INT-275 G7 proved apply moves only the file its row names. INT-313 stage 3: the check
+    /// no longer files that row. A future/ file whose status is complete stays put, and so does
+    /// a neighbour whose body only mentions the phrase.
     #[test]
-    fn a_move_moves_only_the_file_its_row_names() {
+    fn a_status_that_does_not_match_its_folder_is_not_a_move() {
         let (ctx, root) = stand_in("move");
         let future = ctx.fpath("intents/future");
         let complete = ctx.fpath("intents/complete");
@@ -2114,22 +2081,15 @@ mod tests {
         let suite: Vec<Box<dyn IntegrityCheck>> =
             vec![Box::new(checks::IntentStatusDirectoryCheck)];
         run_pipeline(&IntegrityContext::new(&ctx), &suite, true);
-        let rows = pending_data(&ctx, "902-done.md%");
-        let applied = rows
-            .first()
-            .map(|r| cmd_apply(&ctx, &r.0.to_string()).is_ok());
-        let moved = complete.join("902-done.md").exists() && !done.exists();
-        let stayed = bystander.exists();
+        let proposed = pending_data(&ctx, "902-done.md%");
+        let stayed = done.exists() && bystander.exists() && !complete.join("902-done.md").exists();
         let _ = std::fs::remove_dir_all(&root);
-        assert_eq!(
-            rows.len(),
-            1,
-            "expected one pending move for 902-done.md: {:?}",
-            rows
+        assert!(
+            proposed.is_empty(),
+            "a status that does not match the folder is not a move: {:?}",
+            proposed
         );
-        assert_eq!(applied, Some(true), "the move was not applied");
-        assert!(moved, "the named file was not moved to complete/");
-        assert!(stayed, "a file the row does not name was moved");
+        assert!(stayed, "a file was moved");
     }
 
     /// INT-275: an intent's status is its frontmatter line; a body that mentions one is not one.
