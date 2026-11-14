@@ -83,11 +83,13 @@ reason, closes it. No code is written before G1, G2, and G3 have those lines.
       the green output, each under its plan Seal.
       ruling: RULED 2026-11-14 (Christian): G1 is already kept by the frontmatter test, so this gate is the add and note commands.
       evidence: red, commit baa5942f, cargo test -p core -- add_and_note_tests: 0 passed, 4 failed, each "not implemented". green: the same 4 tests pass. cargo test -p core 289 passed. cargo test -p novashell 262 passed.
-- [ ] G5 Doors, after any ship. cargo test -p core passes. cargo test -p
+- [x] G5 Doors, after any ship. cargo test -p core passes. cargo test -p
       novashell passes. nsh-test passes after cargo build -p novashell -p
       nsh-test. core intent validate reports every intent valid. d reports 0
       failed. ship, then reload, and the deployed artifact is what was watched.
       Proof: the door output.
+      ruling: RULED 2026-11-14 (Christian): doors passed after ship core, ship nsh, and reload.
+      evidence: laptop 2026-11-14. doors 4 passed 0 failed — core pass 0.2s, shell pass 5.2s, nsh-test pass 131.6s, validate pass. Pre-push gate passed. Banner "1 active 43 planned 233 done", health 100%. `core intent note ~/Downloads/int-308-3.plan.txt` on HEAD refused with git's "Found existing notes" error and wrote nothing; the note was already added. Series pushed as c191d127, 59361dbe, 5e5e1953; notes 9289986c.
 
 ## Out of scope
 - Rewriting intents that were already moved by the old cistart.
