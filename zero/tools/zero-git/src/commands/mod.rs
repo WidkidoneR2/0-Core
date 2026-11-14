@@ -35,6 +35,20 @@ pub(crate) fn get_active_intent() -> Option<(String, String)> {
     Some((file.id, short))
 }
 
+/// The first unchecked gate in the live file for this intent id.
+pub(crate) fn next_open_gate(intent_id: i64) -> Option<String> {
+    let want = intent_id.to_string();
+    let file = zero_core::ledger::live()
+        .into_iter()
+        .find(|f| !f.is_record() && f.id == want)?;
+    for line in file.content.lines() {
+        if let Some(rest) = line.strip_prefix("- [ ] ") {
+            return Some(rest.trim().chars().take(80).collect());
+        }
+    }
+    None
+}
+
 /// Record a commit into the intent_commits genealogy table (INT-312 recorder, INT-071 shared).
 /// Single recorder; called by BOTH `fg done` and `fg sync` so the table never goes stale again.
 /// gate_hint deferred to Phase 3; intent_status honest (in-progress when an intent is active, else none).
@@ -62,37 +76,9 @@ pub(crate) fn record_commit(hash: &str, message: &str) {
     } else {
         "none"
     };
-    // INT-071 gate_hint: record the next open gate (first unchecked - [ ] in the charter)
-    // for the RESOLVED intent_id -- the same intent attribution chose (message or active),
-    // not a second independent get_active_intent() call. Scans in-progress/ and future/.
-    let gate_hint: Option<String> = intent_id.and_then(|iid| {
-        let _home = std::env::var("HOME").unwrap_or_default();
-        let prefix = format!("{:03}-", iid);
-        for sub in ["in-progress", "future"] {
-            let dir = zero_core::paths::intents_dir()
-                .join(sub)
-                .to_string_lossy()
-                .to_string();
-            let entries = match std::fs::read_dir(&dir) {
-                Ok(e) => e,
-                Err(_) => continue,
-            };
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if !name.starts_with(&prefix) {
-                    continue;
-                }
-                if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                    for line in content.lines() {
-                        if let Some(rest) = line.strip_prefix("- [ ] ") {
-                            return Some(rest.trim().chars().take(80).collect::<String>());
-                        }
-                    }
-                }
-            }
-        }
-        None
-    });
+    // INT-071 gate_hint: the first unchecked box in the live file for the
+    // resolved intent id. The file comes from the ledger, not from in-progress/ or future/.
+    let gate_hint: Option<String> = intent_id.and_then(next_open_gate);
     let author: Option<String> = std::process::Command::new("git")
         .args(["config", "user.name"])
         .output()
@@ -158,4 +144,78 @@ pub(crate) fn record_commit(hash: &str, message: &str) {
             message
         ],
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::commit::in_progress_refs;
+    use super::next_open_gate;
+
+    static HOME_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    fn shelf() -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "zero-git-ledger-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let open = dir.join("0-core/zero/intents/open");
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::write(
+            open.join("010-planned.md"),
+            "---\nid: 10\nstatus: planned\ntitle: \"Stay\"\n---\n\nstatus: in-progress\n- [ ] not this one\n",
+        )
+        .unwrap();
+        std::fs::write(
+            open.join("020-active.md"),
+            "---\nid: 20\nstatus: in-progress\ntitle: \"Working\"\n---\n\n- [ ] write the gate\n- [ ] later\n",
+        )
+        .unwrap();
+        let future = dir.join("0-core/zero/intents/future");
+        std::fs::create_dir_all(&future).unwrap();
+        std::fs::write(
+            future.join("040-old.md"),
+            "---\nid: 40\nstatus: in-progress\ntitle: \"Old\"\n---\n\n- [ ] old gate\n",
+        )
+        .unwrap();
+        dir
+    }
+
+    #[test]
+    fn active_refs_come_from_the_live_shelf() {
+        let dir = shelf();
+        let _guard = HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prev = std::env::var("HOME").ok();
+        // SAFETY: restored before the test returns.
+        unsafe { std::env::set_var("HOME", &dir) };
+        let refs = in_progress_refs();
+        match prev {
+            Some(h) => unsafe { std::env::set_var("HOME", h) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(refs, vec![("INT-20".to_string(), "Working".to_string())]);
+    }
+
+    #[test]
+    fn the_open_gate_is_read_from_the_live_file() {
+        let dir = shelf();
+        let _guard = HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prev = std::env::var("HOME").ok();
+        // SAFETY: restored before the test returns.
+        unsafe { std::env::set_var("HOME", &dir) };
+        let gate = next_open_gate(20);
+        let missing = next_open_gate(40);
+        match prev {
+            Some(h) => unsafe { std::env::set_var("HOME", h) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(gate.as_deref(), Some("write the gate"));
+        assert_eq!(missing, None);
+    }
 }

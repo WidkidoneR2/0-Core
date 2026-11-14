@@ -4802,9 +4802,8 @@ pub fn defer_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()> 
     ctx.capabilities
         .require("intent", &[Capability::FilesystemWriteHome])?;
     let base = intents_dir(ctx);
-    let mut folders = folders::ACTIVE.to_vec();
-    folders.push("complete"); // gates are deferred on finished work too, as before
-    let found_path = finder::find_intent_file(&base, id, &folders);
+    // Finished work stays on the live shelf. complete/ is not a directory.
+    let found_path = finder::find_intent_file(&base, id, folders::LIFECYCLE);
     let path = found_path.ok_or_else(|| crate::errors::CoreError::Domain {
         domain: "intent".to_string(),
         message: format!("Intent {} not found", id),
@@ -4835,9 +4834,8 @@ pub fn override_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<(
     ctx.capabilities
         .require("intent", &[Capability::FilesystemWriteHome])?;
     let base = intents_dir(ctx);
-    let mut folders = folders::ACTIVE.to_vec();
-    folders.push("complete"); // gates are deferred on finished work too, as before
-    let found_path = finder::find_intent_file(&base, id, &folders);
+    // Finished work stays on the live shelf. complete/ is not a directory.
+    let found_path = finder::find_intent_file(&base, id, folders::LIFECYCLE);
     let path = found_path.ok_or_else(|| crate::errors::CoreError::Domain {
         domain: "intent".to_string(),
         message: format!("Intent {} not found", id),

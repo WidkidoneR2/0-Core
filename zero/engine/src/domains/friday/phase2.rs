@@ -197,6 +197,19 @@ pub fn show_temporal_models(ctx: &AppContext) -> CoreResult<()> {
     println!();
     Ok(())
 }
+/// Planned and in-progress intents. Frontmatter status, so a body that quotes
+/// `status: in-progress` does not open a planned intent, and `future/` or
+/// `active/` are not read.
+pub(crate) fn open_intent_rows() -> Vec<(String, String, String)> {
+    let mut rows: Vec<(String, String, String)> = zero_core::ledger::live()
+        .into_iter()
+        .filter(|f| f.status == "planned" || f.status == "in-progress")
+        .map(|f| (f.id, f.title, f.status))
+        .collect();
+    rows.sort_by(|a, b| a.0.cmp(&b.0));
+    rows
+}
+
 pub fn plan(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     seed_temporal_models(ctx)?;
@@ -207,42 +220,7 @@ pub fn plan(ctx: &AppContext) -> CoreResult<()> {
     println!("  Friday Phase 2 -- Strategic Plan");
     println!("  {}", "━".repeat(55).dimmed());
     println!();
-    // Read planned + in-progress intents from filesystem
-    let mut open_intents: Vec<(String, String, String)> = Vec::new(); // (id, title, status)
-    for dir in &["future", "active"] {
-        let path = zero_core::paths::intents_dir().join(dir);
-        if let Ok(entries) = std::fs::read_dir(&path) {
-            for entry in entries.flatten() {
-                let p = entry.path();
-                if p.extension().map(|e| e == "md").unwrap_or(false) {
-                    if let Ok(c) = std::fs::read_to_string(&p) {
-                        let is_open =
-                            c.contains("status: planned") || c.contains("status: in-progress");
-                        if is_open {
-                            let fname = p
-                                .file_stem()
-                                .unwrap_or_default()
-                                .to_string_lossy()
-                                .to_string();
-                            let id = fname.split('-').next().unwrap_or("").to_string();
-                            let title = c
-                                .lines()
-                                .find(|l| l.starts_with("title:"))
-                                .map(|l| l[6..].trim().trim_matches('"').to_string())
-                                .unwrap_or_else(|| fname.clone());
-                            let status = if c.contains("status: in-progress") {
-                                "in-progress".to_string()
-                            } else {
-                                "planned".to_string()
-                            };
-                            open_intents.push((id, title, status));
-                        }
-                    }
-                }
-            }
-        }
-    }
-    open_intents.sort_by(|a, b| a.0.cmp(&b.0));
+    let open_intents = open_intent_rows();
     // Current health
     // INT-265: an absent last_health row is unknown; this COALESCEd it to 100.
     let health: Option<i64> = db
@@ -1332,4 +1310,62 @@ pub fn phase2_status_full(ctx: &AppContext) -> CoreResult<()> {
     );
     println!();
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::open_intent_rows;
+
+    #[test]
+    fn open_rows_are_planned_and_in_progress_on_the_live_shelf() {
+        let dir = std::env::temp_dir().join(format!(
+            "phase2-open-rows-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let open = dir.join("0-core/zero/intents/open");
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::write(
+            open.join("010-planned.md"),
+            "---\nid: 10\nstatus: planned\ntitle: \"Stay\"\n---\n\nstatus: in-progress\n",
+        )
+        .unwrap();
+        std::fs::write(
+            open.join("020-active.md"),
+            "---\nid: 20\nstatus: in-progress\ntitle: \"Working\"\n---\n\n",
+        )
+        .unwrap();
+        let active = dir.join("0-core/zero/intents/active");
+        std::fs::create_dir_all(&active).unwrap();
+        std::fs::write(
+            active.join("040-old.md"),
+            "---\nid: 40\nstatus: in-progress\ntitle: \"Old shelf\"\n---\n",
+        )
+        .unwrap();
+        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prev = std::env::var("HOME").ok();
+        // SAFETY: restored before the test returns.
+        unsafe { std::env::set_var("HOME", &dir) };
+        let rows = open_intent_rows();
+        match prev {
+            Some(h) => unsafe { std::env::set_var("HOME", h) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(
+            rows,
+            vec![
+                ("10".to_string(), "Stay".to_string(), "planned".to_string()),
+                (
+                    "20".to_string(),
+                    "Working".to_string(),
+                    "in-progress".to_string()
+                ),
+            ]
+        );
+    }
 }

@@ -453,6 +453,17 @@ impl Ledger {
         self.intents.iter().filter(|i| i.is_active()).count()
     }
 
+    /// Intents whose frontmatter status is `planned`. Records are not loaded.
+    pub fn planned_count(&self) -> usize {
+        self.intents.iter().filter(|i| i.is_planned()).count()
+    }
+
+    /// Completed intent ids: live status complete, plus every id git recorded
+    /// under `zero/intents/complete/`. Same set the doctor prints.
+    pub fn done_count(&self) -> usize {
+        self.complete_ids.len()
+    }
+
     /// (blocked, ready) among planned intents.
     ///
     /// A dependency is satisfied when its id is in `complete/`. ⚠️ This is the
@@ -512,5 +523,85 @@ mod tests {
         let content = "---\nid: 230\nstatus: planned\ndepends_on: []\n---\n";
         let intent = parse("230", content);
         assert!(intent.depends_on.is_empty());
+    }
+
+    /// Welcome planned/done. A body that quotes a status does not count, a file
+    /// on an old shelf does not count, and a missing shelf is None rather than
+    /// a zero.
+    #[test]
+    fn welcome_counts_follow_the_ledger_and_absence_is_unknown() {
+        // HOME is process-global. The count runs in a child so a parallel test
+        // that reads the real checkout does not see this shelf.
+        if std::env::var_os("NSH_WELCOME_LEDGER_CHILD").is_none() {
+            let status = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "core_integration::tests::welcome_counts_follow_the_ledger_and_absence_is_unknown",
+                    "--exact",
+                    "--test-threads=1",
+                ])
+                .env("NSH_WELCOME_LEDGER_CHILD", "1")
+                .status()
+                .unwrap();
+            assert!(status.success());
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!(
+            "nsh-welcome-ledger-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let prev = std::env::var("HOME").ok();
+        // SAFETY: restored before the test returns.
+        unsafe { std::env::set_var("HOME", &dir) };
+        assert!(super::ledger().is_none(), "no shelf is not an empty count");
+        assert!(!super::present());
+
+        let open = dir.join("0-core/zero/intents/open");
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::write(
+            open.join("010-planned.md"),
+            "---\nid: 10\nstatus: planned\ntitle: \"Stay\"\n---\n\nstatus: in-progress\nstatus: complete\n",
+        )
+        .unwrap();
+        std::fs::write(
+            open.join("020-active.md"),
+            "---\nid: 20\nstatus: in-progress\ntitle: \"Working\"\n---\n\n",
+        )
+        .unwrap();
+        std::fs::write(
+            open.join("030-done.md"),
+            "---\nid: 30\nstatus: complete\ntitle: \"Done\"\n---\n\n",
+        )
+        .unwrap();
+        let future = dir.join("0-core/zero/intents/future");
+        std::fs::create_dir_all(&future).unwrap();
+        std::fs::write(
+            future.join("040-old.md"),
+            "---\nid: 40\nstatus: planned\ntitle: \"Old shelf\"\n---\n",
+        )
+        .unwrap();
+        let decisions = dir.join("0-core/zero/intents/decisions");
+        std::fs::create_dir_all(&decisions).unwrap();
+        std::fs::write(
+            decisions.join("137-x.md"),
+            "---\nid: 137\nstatus: planned\n---\n",
+        )
+        .unwrap();
+
+        let ledger = super::ledger().expect("the open shelf is present");
+        assert_eq!(ledger.planned_count(), 1);
+        assert_eq!(ledger.active_count(), 1);
+        assert_eq!(ledger.done_count(), 1);
+
+        match prev {
+            Some(h) => unsafe { std::env::set_var("HOME", h) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

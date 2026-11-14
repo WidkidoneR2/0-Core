@@ -20,15 +20,13 @@ enum StatusFilter {
     All,
     InProgress,
     Planned,
-    Complete,
 }
 impl StatusFilter {
     fn next(&self) -> Self {
         match self {
             StatusFilter::All => StatusFilter::InProgress,
             StatusFilter::InProgress => StatusFilter::Planned,
-            StatusFilter::Planned => StatusFilter::Complete,
-            StatusFilter::Complete => StatusFilter::All,
+            StatusFilter::Planned => StatusFilter::All,
         }
     }
     fn label(&self) -> &str {
@@ -36,7 +34,6 @@ impl StatusFilter {
             StatusFilter::All => "all",
             StatusFilter::InProgress => "in-progress",
             StatusFilter::Planned => "planned",
-            StatusFilter::Complete => "complete",
         }
     }
 }
@@ -198,7 +195,6 @@ fn draw_ui(
         .filter(|i| i.status == "in-progress")
         .count();
     let planned = filtered.iter().filter(|i| i.status == "planned").count();
-    let complete = filtered.iter().filter(|i| i.status == "complete").count();
     let search_display = if searching {
         format!("  🔍 /{}", search_query)
     } else if !search_query.is_empty() {
@@ -236,13 +232,6 @@ fn draw_ui(
                 .fg(Color::Rgb(245, 193, 119))
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled("complete ", Style::default().fg(Color::Rgb(107, 227, 163))),
-        Span::styled(
-            format!("{}  ", complete),
-            Style::default()
-                .fg(Color::Rgb(107, 227, 163))
-                .add_modifier(Modifier::BOLD),
-        ),
         Span::styled(
             search_display,
             Style::default().fg(Color::Rgb(180, 190, 183)),
@@ -267,7 +256,6 @@ fn draw_ui(
             let status_icon = match intent.status.as_str() {
                 "in-progress" => Span::styled("▶ ", Style::default().fg(Color::Rgb(92, 200, 255))),
                 "planned" => Span::styled("○ ", Style::default().fg(Color::Rgb(245, 193, 119))),
-                "complete" => Span::styled("✓ ", Style::default().fg(Color::Rgb(107, 227, 163))),
                 _ => Span::styled("· ", Style::default().fg(Color::Rgb(119, 143, 127))),
             };
             let id_span = Span::styled(
@@ -379,7 +367,6 @@ fn render_intent_detail(intent: &Intent) -> Vec<Line<'static>> {
             Style::default().fg(match intent.status.as_str() {
                 "in-progress" => Color::Rgb(92, 200, 255),
                 "planned" => Color::Rgb(245, 193, 119),
-                "complete" => Color::Rgb(107, 227, 163),
                 _ => Color::Rgb(180, 190, 183),
             }),
         ),
@@ -459,9 +446,8 @@ fn render_intent_detail(intent: &Intent) -> Vec<Line<'static>> {
 }
 fn load_intents(_core_root: &str) -> Vec<Intent> {
     let mut intents: Vec<Intent> = Vec::new();
-    // INT-313 stage 2. The shelf walk is zero_core::ledger. `it` still shows
-    // planned, in-progress, and complete intents, which is what future/,
-    // in-progress/, and complete/ held. Records stay out of this screen.
+    // Finished intents are git history. This screen shows the live shelf:
+    // in-progress and planned. Records stay out.
     if crate::core_integration::intents_root().is_none() {
         return intents;
     }
@@ -469,20 +455,19 @@ fn load_intents(_core_root: &str) -> Vec<Intent> {
         if file.is_record() {
             continue;
         }
-        if !matches!(file.status.as_str(), "planned" | "in-progress" | "complete") {
+        if !matches!(file.status.as_str(), "planned" | "in-progress") {
             continue;
         }
         if let Some(intent) = parse_intent(&file.path, &file.content) {
             intents.push(intent);
         }
     }
-    // Sort: in-progress first, then planned, then complete, then by ID
+    // Sort: in-progress first, then planned, then by ID
     intents.sort_by(|a, b| {
         let order = |s: &str| match s {
             "in-progress" => 0,
             "planned" => 1,
-            "complete" => 2,
-            _ => 3,
+            _ => 2,
         };
         order(&a.status).cmp(&order(&b.status)).then(
             a.id.parse::<u32>()
@@ -561,7 +546,6 @@ fn filter_intents(intents: &[Intent], filter: &StatusFilter, query: &str) -> Vec
                 StatusFilter::All => true,
                 StatusFilter::InProgress => i.status == "in-progress",
                 StatusFilter::Planned => i.status == "planned",
-                StatusFilter::Complete => i.status == "complete",
             };
             let query_match = if query.is_empty() {
                 true
@@ -576,4 +560,90 @@ fn filter_intents(intents: &[Intent], filter: &StatusFilter, query: &str) -> Vec
         })
         .cloned()
         .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{load_intents, StatusFilter};
+
+    #[test]
+    fn tab_cycles_all_in_progress_and_planned() {
+        let mut filter = StatusFilter::All;
+        let mut labels = vec![filter.label().to_string()];
+        for _ in 0..3 {
+            filter = filter.next();
+            labels.push(filter.label().to_string());
+        }
+        assert_eq!(
+            labels,
+            vec![
+                "all".to_string(),
+                "in-progress".to_string(),
+                "planned".to_string(),
+                "all".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn a_finished_intent_is_not_on_the_screen() {
+        if std::env::var_os("NSH_IT_LEDGER_CHILD").is_none() {
+            let status = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "intent_tui::tests::a_finished_intent_is_not_on_the_screen",
+                    "--exact",
+                    "--test-threads=1",
+                ])
+                .env("NSH_IT_LEDGER_CHILD", "1")
+                .status()
+                .unwrap();
+            assert!(status.success());
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!(
+            "nsh-it-ledger-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let open = dir.join("0-core/zero/intents/open");
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::write(
+            open.join("010-planned.md"),
+            "---\nid: 10\nstatus: planned\ntitle: \"Stay\"\n---\n\n",
+        )
+        .unwrap();
+        std::fs::write(
+            open.join("020-active.md"),
+            "---\nid: 20\nstatus: in-progress\ntitle: \"Working\"\n---\n\n",
+        )
+        .unwrap();
+        std::fs::write(
+            open.join("030-done.md"),
+            "---\nid: 30\nstatus: complete\ntitle: \"Done\"\n---\n\n",
+        )
+        .unwrap();
+        let prev = std::env::var("HOME").ok();
+        // SAFETY: restored before the test returns. This process is the child.
+        unsafe { std::env::set_var("HOME", &dir) };
+        let shown: Vec<(String, String)> = load_intents("")
+            .into_iter()
+            .map(|i| (i.id, i.status))
+            .collect();
+        match prev {
+            Some(h) => unsafe { std::env::set_var("HOME", h) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(
+            shown,
+            vec![
+                ("20".to_string(), "in-progress".to_string()),
+                ("10".to_string(), "planned".to_string()),
+            ]
+        );
+    }
 }

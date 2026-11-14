@@ -11991,62 +11991,47 @@ fn friday_patterns(db: &StateDb) -> CommandResult {
 fn intents(_core_root: &str) -> CommandResult {
     use std::collections::HashMap;
     let mut rows: Vec<HashMap<String, crate::value::Value>> = Vec::new();
-    // INT-030: read all three dirs with correct status
-    let dirs = [
-        ("in-progress", "in-progress"),
-        ("complete", "complete"),
-        ("future", "planned"),
-    ];
-    // INT-230: a SEVENTH intent reader, kept deliberately. It maps each FOLDER
-    // to a status label and needs complete/ in full, while ledger() reads the
-    // frontmatter status field and carries only complete ids. Only the root
-    // moves; the folder-to-status logic stays where its caller needs it.
-    let intents_root = crate::core_integration::intents_root();
-    for (dir, dir_status) in &dirs {
-        let path = match &intents_root {
-            Some(r) => r.join(dir),
-            None => continue,
-        };
-        if let Ok(entries) = std::fs::read_dir(&path) {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if !name.ends_with(".md") {
-                    continue;
-                }
-                let file_content = std::fs::read_to_string(entry.path()).unwrap_or_default();
-                let id = name.split('-').next().unwrap_or("0").to_string();
-                let title = file_content
-                    .lines()
-                    .find(|l| l.starts_with("title:"))
-                    .map(|l| {
-                        l.trim_start_matches("title:")
-                            .trim()
-                            .trim_matches('"')
-                            .to_string()
-                    })
-                    .or_else(|| {
-                        file_content
-                            .lines()
-                            .find(|l| l.trim_start().starts_with("# "))
-                            .map(|l| l.trim_start_matches('#').trim().to_string())
-                    })
-                    .unwrap_or_else(|| name.replace(".md", ""));
-                // Prefer status from frontmatter, fall back to dir_status
-                let status = file_content
-                    .lines()
-                    .find(|l| l.starts_with("status:"))
-                    .map(|l| l.trim_start_matches("status:").trim().to_string())
-                    .unwrap_or_else(|| dir_status.to_string());
-                let mut row = HashMap::new();
-                row.insert(
-                    "id".to_string(),
-                    crate::value::Value::Int(id.parse().unwrap_or(0)),
-                );
-                row.insert("title".to_string(), crate::value::Value::Text(title));
-                row.insert("status".to_string(), crate::value::Value::Text(status));
-                rows.push(row);
-            }
+    // Planned, in-progress, and complete, from the ledger. Complete ids that
+    // exist only in git history have no title on disk. An old shelf is not read.
+    if crate::core_integration::intents_root().is_none() {
+        return CommandResult::Output("  ○ No intents found".to_string());
+    }
+    let mut seen = std::collections::HashSet::new();
+    for file in zero_core::ledger::live() {
+        if !matches!(file.status.as_str(), "planned" | "in-progress" | "complete") {
+            continue;
         }
+        if file.id.is_empty() || !file.id.chars().all(|c| c.is_ascii_digit()) {
+            continue;
+        }
+        seen.insert(file.id.clone());
+        let mut row = HashMap::new();
+        row.insert(
+            "id".to_string(),
+            crate::value::Value::Int(file.id.parse().unwrap_or(0)),
+        );
+        row.insert("title".to_string(), crate::value::Value::Text(file.title));
+        row.insert("status".to_string(), crate::value::Value::Text(file.status));
+        rows.push(row);
+    }
+    for id in zero_core::ledger::completed_ids() {
+        if seen.contains(&id) || id.is_empty() || !id.chars().all(|c| c.is_ascii_digit()) {
+            continue;
+        }
+        let mut row = HashMap::new();
+        row.insert(
+            "id".to_string(),
+            crate::value::Value::Int(id.parse().unwrap_or(0)),
+        );
+        row.insert(
+            "title".to_string(),
+            crate::value::Value::Text(String::new()),
+        );
+        row.insert(
+            "status".to_string(),
+            crate::value::Value::Text("complete".to_string()),
+        );
+        rows.push(row);
     }
     rows.sort_by_key(|r| {
         if let Some(crate::value::Value::Int(i)) = r.get("id") {
@@ -12081,26 +12066,18 @@ fn project_list(core_root: &str) -> CommandResult {
     let version =
         crate::core_integration::project_version().unwrap_or_else(|| "unknown".to_string());
 
-    // Count intents
-    // INT-230: the ONE place a zero is allowed on absence -- this renders in a
-    // version panel where "0 intents" prints beside "unknown version", so the
-    // zero reads as absence rather than as a count that was taken.
-    let count_md = |sub: &str| -> usize {
-        let root = match crate::core_integration::intents_root() {
-            Some(r) => r,
-            None => return 0,
-        };
-        std::fs::read_dir(root.join(sub))
-            .map(|d| {
-                d.flatten()
-                    .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
-                    .count()
-            })
-            .unwrap_or(0)
+    // Count intents from the ledger. A zero here is the one place absence and
+    // an empty shelf print the same way: this panel already prints "unknown
+    // version" beside the count when 0-Core is not present.
+    let (complete, in_progress, planned) = if crate::core_integration::present() {
+        (
+            zero_core::ledger::completed_ids().len(),
+            zero_core::ledger::with_status("in-progress").len(),
+            zero_core::ledger::with_status("planned").len(),
+        )
+    } else {
+        (0, 0, 0)
     };
-    let complete = count_md("complete");
-    let in_progress = count_md("in-progress");
-    let planned = count_md("future");
 
     // Git info
     let branch = std::process::Command::new("git")
@@ -17144,4 +17121,86 @@ fn fsearch_alternatives(typed: &str) -> Result<Vec<String>, String> {
         out.push(alt);
     }
     Ok(out)
+}
+
+#[cfg(test)]
+mod ledger_reader_tests {
+    use super::{intents, CommandResult};
+
+    #[test]
+    fn the_intents_table_reads_the_open_shelf() {
+        if std::env::var_os("NSH_INTENTS_TABLE_CHILD").is_none() {
+            let status = std::process::Command::new(std::env::current_exe().unwrap())
+                .args([
+                    "commands::ledger_reader_tests::the_intents_table_reads_the_open_shelf",
+                    "--exact",
+                    "--test-threads=1",
+                ])
+                .env("NSH_INTENTS_TABLE_CHILD", "1")
+                .status()
+                .unwrap();
+            assert!(status.success());
+            return;
+        }
+        let dir = std::env::temp_dir().join(format!(
+            "nsh-intents-table-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let open = dir.join("0-core/zero/intents/open");
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::write(
+            open.join("010-planned.md"),
+            "---\nid: 10\nstatus: planned\ntitle: \"Stay\"\n---\n\nstatus: in-progress\n",
+        )
+        .unwrap();
+        std::fs::write(
+            open.join("020-active.md"),
+            "---\nid: 20\nstatus: in-progress\ntitle: \"Working\"\n---\n\n",
+        )
+        .unwrap();
+        let future = dir.join("0-core/zero/intents/future");
+        std::fs::create_dir_all(&future).unwrap();
+        std::fs::write(
+            future.join("040-old.md"),
+            "---\nid: 40\nstatus: planned\ntitle: \"Old\"\n---\n",
+        )
+        .unwrap();
+        let prev = std::env::var("HOME").ok();
+        // SAFETY: restored before the test returns.
+        unsafe { std::env::set_var("HOME", &dir) };
+        let result = intents("");
+        match prev {
+            Some(h) => unsafe { std::env::set_var("HOME", h) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        let CommandResult::Value(crate::value::Value::Table(rows)) = result else {
+            panic!("the shelf holds two intents");
+        };
+        assert_eq!(rows.len(), 2);
+        let mut got: Vec<(i64, String)> = rows
+            .iter()
+            .map(|row| {
+                let id = match row.get("id") {
+                    Some(crate::value::Value::Int(n)) => *n,
+                    _ => panic!("id"),
+                };
+                let status = match row.get("status") {
+                    Some(crate::value::Value::Text(s)) => s.clone(),
+                    _ => panic!("status"),
+                };
+                (id, status)
+            })
+            .collect();
+        got.sort();
+        assert_eq!(
+            got,
+            vec![(10, "planned".to_string()), (20, "in-progress".to_string())]
+        );
+    }
 }

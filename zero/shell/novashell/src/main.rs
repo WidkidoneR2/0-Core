@@ -3618,60 +3618,17 @@ fn print_welcome(core_root: &str, db: &crate::db::StateDb) {
         fc_dim(120, 140, 130, "❔ health unknown -- run d")
     };
 
-    // Count intents by scanning all categories — mirrors doctor check_intents logic exactly
-    // ⚠️ ABSENT IS NOT EMPTY, and the rule was already written eight lines above for health:
-    // "the banner says so rather than inventing a number." These two did invent one. The loop
-    // below reads nine directories with `if let Ok(entries)`, so on a machine without a ledger all
-    // nine miss, nothing increments, and the banner printed `0 done · 0 planned` about a directory
-    // that is not there. Seen on Void and on Omarchy, beside an honest `? commits`.
-    // INT-230: main.rs had its own existence check. The adapter owns that
-    // question now -- one place asks whether 0-Core is here.
+    // Planned and done come from the ledger, the same counts intl and the doctor use.
+    // planned: live frontmatter status planned. done: completed_ids (live status
+    // complete, plus every id git recorded under zero/intents/complete/).
+    // ABSENT IS NOT EMPTY. present() is false when the shelf is not there, and the
+    // banner prints ? rather than 0. ledger() is None in that case, so the zeros
+    // below are never shown.
     let ledger_exists = crate::core_integration::present();
     mark("welcome: intent scan starting");
-    let (complete_count, planned_count) = {
-        let intent_dir = zero_core::paths::intents_dir();
-        let categories = [
-            "complete",
-            "decisions",
-            "experiments",
-            "philosophy",
-            "future",
-            "cancelled",
-            "deferred",
-            "incidents",
-            "active",
-        ];
-        let mut complete = 0usize;
-        let mut planned = 0usize;
-        for cat in &categories {
-            if let Ok(entries) = std::fs::read_dir(intent_dir.join(cat)) {
-                for entry in entries.flatten() {
-                    if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
-                        if let Ok(content) = std::fs::read_to_string(entry.path()) {
-                            if content.contains("status: complete") {
-                                complete += 1;
-                            } else if content.contains("status: planned") && *cat == "future" {
-                                // PLANNED IS A future/ FACT. Counting it across all nine
-                                // directories reported 43 where intl reported 40, because
-                                // four decisions and philosophy documents carry
-                                // status: planned -- a status those categories have no use
-                                // for. That disagreement is the INT-211 finding and belongs
-                                // there, visible, rather than absorbed into a banner count.
-                                // The banner should agree with the tool used to read the
-                                // ledger.
-                                //
-                                // complete still scans everything: a completed intent
-                                // legitimately lives in complete/, and that count is a
-                                // total rather than a directory fact.
-                                planned += 1;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        (complete, planned)
-    };
+    let (complete_count, planned_count) = crate::core_integration::ledger()
+        .map(|l| (l.done_count(), l.planned_count()))
+        .unwrap_or((0, 0));
     mark("welcome: intent scan done");
     let quotes = [
         "Nothing runs without explicit human authorization.",

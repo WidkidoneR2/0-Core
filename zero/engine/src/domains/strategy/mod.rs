@@ -83,6 +83,12 @@ fn get_recent_commits(ctx: &AppContext) -> u64 {
         .unwrap_or(0)
 }
 
+/// Completed intent ids. Live status complete, plus every id git recorded under
+/// `zero/intents/complete/`. Same set the doctor prints.
+fn completed_intent_count() -> usize {
+    zero_core::ledger::completed_ids().len()
+}
+
 fn get_planned_intents(_ctx: &AppContext) -> Vec<String> {
     zero_core::ledger::load()
         .into_iter()
@@ -310,36 +316,9 @@ pub fn quarter(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
     let _root = std::path::PathBuf::from(&ctx.core_root);
 
-    // Count complete intents — scan all categories by status: complete (mirrors doctor)
-    let complete_count = {
-        let intent_dir = zero_core::paths::intents_dir();
-        let categories = [
-            "complete",
-            "decisions",
-            "experiments",
-            "philosophy",
-            "future",
-            "cancelled",
-            "deferred",
-            "incidents",
-            "active",
-        ];
-        let mut count = 0usize;
-        for cat in &categories {
-            if let Ok(entries) = std::fs::read_dir(intent_dir.join(cat)) {
-                for entry in entries.flatten() {
-                    if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
-                        if let Ok(c) = std::fs::read_to_string(entry.path()) {
-                            if c.contains("status: complete") {
-                                count += 1;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        count
-    };
+    // Completed ids, the same set the doctor prints. A body that quotes
+    // `status: complete` and a record shelf do not count.
+    let complete_count = completed_intent_count();
 
     let planned = get_planned_intents(ctx);
     let commits = get_recent_commits(ctx);
@@ -1398,37 +1377,8 @@ fn compute_friday_score(ctx: &AppContext) -> (i32, Vec<(String, i32, String)>) {
     ));
     total += health_score;
 
-    // Factor 3: Intent velocity (max 10)
-    let _root = std::path::PathBuf::from(&ctx.core_root);
-    let complete_count = {
-        let intent_dir = zero_core::paths::intents_dir();
-        let categories = [
-            "complete",
-            "decisions",
-            "experiments",
-            "philosophy",
-            "future",
-            "cancelled",
-            "deferred",
-            "incidents",
-            "active",
-        ];
-        let mut count = 0usize;
-        for cat in &categories {
-            if let Ok(entries) = std::fs::read_dir(intent_dir.join(cat)) {
-                for entry in entries.flatten() {
-                    if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
-                        if let Ok(c) = std::fs::read_to_string(entry.path()) {
-                            if c.contains("status: complete") {
-                                count += 1;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        count
-    };
+    // Factor 3: Intent velocity (max 10). Same completed-id set as quarter.
+    let complete_count = completed_intent_count();
     let velocity_score = if complete_count >= 100 {
         10
     } else if complete_count >= 50 {
@@ -2634,4 +2584,59 @@ pub fn blockers(ctx: &AppContext) -> CoreResult<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::completed_intent_count;
+
+    #[test]
+    fn the_complete_count_is_the_ledger_not_a_body_scan() {
+        let dir = std::env::temp_dir().join(format!(
+            "strategy-complete-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let open = dir.join("0-core/zero/intents/open");
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::write(
+            open.join("010-planned.md"),
+            "---\nid: 10\nstatus: planned\ntitle: \"Stay\"\n---\n\nstatus: complete\n",
+        )
+        .unwrap();
+        std::fs::write(
+            open.join("030-done.md"),
+            "---\nid: 30\nstatus: complete\ntitle: \"Done\"\n---\n\n",
+        )
+        .unwrap();
+        let decisions = dir.join("0-core/zero/intents/decisions");
+        std::fs::create_dir_all(&decisions).unwrap();
+        std::fs::write(
+            decisions.join("137-x.md"),
+            "---\nid: 137\nstatus: complete\n---\n",
+        )
+        .unwrap();
+        let complete = dir.join("0-core/zero/intents/complete");
+        std::fs::create_dir_all(&complete).unwrap();
+        std::fs::write(
+            complete.join("040-old.md"),
+            "---\nid: 40\nstatus: complete\ntitle: \"Old shelf\"\n---\n",
+        )
+        .unwrap();
+        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prev = std::env::var("HOME").ok();
+        // SAFETY: restored before the test returns.
+        unsafe { std::env::set_var("HOME", &dir) };
+        let n = completed_intent_count();
+        match prev {
+            Some(h) => unsafe { std::env::set_var("HOME", h) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(n, 1);
+    }
 }

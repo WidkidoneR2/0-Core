@@ -6,6 +6,19 @@ use anyhow::{bail, Result};
 use colored::*;
 use std::io::{self, Write};
 
+/// In-progress intents as `(INT-N, title)`. Frontmatter status and a numeric
+/// id. A file on `future/` or `in-progress/` is not read.
+pub(crate) fn in_progress_refs() -> Vec<(String, String)> {
+    let mut active: Vec<(String, String)> = zero_core::ledger::with_status("in-progress")
+        .into_iter()
+        .filter(|f| !f.id.is_empty() && f.id.chars().all(|c| c.is_ascii_digit()))
+        .map(|f| (format!("INT-{}", f.id), f.title))
+        .collect();
+    active.sort();
+    active.dedup();
+    active
+}
+
 fn log_commit_pattern(hash: &str, message: &str, intent_ref: &Option<String>, pushed: bool) {
     let db_path = zero_core::paths::state_db();
     if !db_path.exists() {
@@ -110,28 +123,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
     println!("{}", "━".repeat(52).dimmed());
     // INT-207 L1 — Show active intents context
     {
-        let _home = std::env::var("HOME").unwrap_or_default();
-        // INT-333 v5: scan both future/ and in-progress/ for active intents
-        let base = zero_core::paths::intents_dir();
-        let mut active: Vec<String> = Vec::new();
-        for dir_name in &["future", "in-progress"] {
-            let dir = base.join(dir_name);
-            if let Ok(entries) = std::fs::read_dir(&dir) {
-                for entry in entries.flatten() {
-                    if let Ok(c) = std::fs::read_to_string(entry.path()) {
-                        if c.contains("status: in-progress") {
-                            let name = entry.file_name().to_string_lossy().to_string();
-                            let num = name.split('-').next().unwrap_or("").to_string();
-                            if !num.is_empty() && num.parse::<u32>().is_ok() {
-                                active.push(format!("INT-{}", num));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        active.sort();
-        active.dedup();
+        let active: Vec<String> = in_progress_refs().into_iter().map(|(id, _)| id).collect();
         if !active.is_empty() {
             println!(
                 "  {} {}",
@@ -282,28 +274,7 @@ pub fn run(intent: Option<String>, no_intent: bool) -> Result<()> {
         println!("  {} linked to intent {}", "✅".green(), i.cyan());
         Some(i.clone())
     } else {
-        let _home = std::env::var("HOME").unwrap_or_default();
-        // INT-333 v5: scan both future/ and in-progress/ directories
-        let base = zero_core::paths::intents_dir();
-        let mut active: Vec<(String, String)> = Vec::new();
-        for dir_name in &["future", "in-progress"] {
-            let dir = base.join(dir_name);
-            if let Ok(entries) = std::fs::read_dir(&dir) {
-                for entry in entries.flatten() {
-                    if let Ok(c) = std::fs::read_to_string(entry.path()) {
-                        if c.contains("status: in-progress") {
-                            let fname = entry.file_name().to_string_lossy().to_string();
-                            let num = fname.split('-').next().unwrap_or("").to_string();
-                            if !num.is_empty() && num.parse::<u32>().is_ok() {
-                                active.push((format!("INT-{}", num), String::new()));
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        active.sort();
-        active.dedup();
+        let active = in_progress_refs();
         if active.len() == 1 {
             // Single active intent -- auto-attach
             let (id, title) = &active[0];
