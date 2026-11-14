@@ -1,0 +1,202 @@
+INT-313 stage 3 -- plan
+  E1 cistart, cicomplete and cancel rewrite the status line and move no file
+     -                             let has_complete = status_line == "status: complete";
+     +                             let _has_complete = status_line == "status: complete";
+     -                             if *dir_type == "future" && has_complete {
+     -                                 let fname = path
+     -                                     .file_name()
+     -                                     .unwrap_or_default()
+     -                                     .to_string_lossy()
+     -                                     .to_string();
+     -                                 let dest = ctx.ctx.fpath("intents/complete").join(&fname);
+     -                                 issues.push(IntegrityIssue::propose(
+     -                                     Category::Intent,
+     -                                     "intent_status_directory",
+     -                                     &format!("{} has status: complete but lives in future/", fname),
+     -                                     FixAction::MoveFile {
+     -                                         from: path.clone(),
+     -                                         to: dest,
+     -                                     },
+     -                                     3,
+     -                                 ));
+     -                             }
+     -                             // INT-332: detect in-progress intent in future/ directory
+     -                             if *dir_type == "future" && has_inprog {
+     -                                 let fname = path
+     -                                     .file_name()
+     -                                     .unwrap_or_default()
+     -                                     .to_string_lossy()
+     -                                     .to_string();
+     -                                 let dest = ctx.ctx.fpath("intents/in-progress").join(&fname);
+     -                                 issues.push(IntegrityIssue::propose(
+     -                                     Category::Intent,
+     -                                     "intent_status_directory",
+     -                                     &format!("{} has status: in-progress but lives in future/ -- move to in-progress/", fname),
+     -                                     FixAction::MoveFile {
+     -                                         from: path.clone(),
+     -                                         to: dest,
+     -                                     },
+     -                                     4,
+     -                                 ));
+     -                             }
+     +                             // INT-313 stage 3. cistart, cicomplete and cancel leave the file
+     +                             // where it is and change the status line. A folder that does not
+     +                             // match the status is not a move. The alert below stays: a file
+     +                             // already in complete/ whose status is not complete is still wrong.
+     -     /// INT-275 G7: a move carries out the from and to stored on its row; only that file moves,
+     -     /// even when another intent mentions the phrase. Red on the deployed build 2026-10-05: the
+     -     /// old apply arm moved a planned stand-in intent whose body said status: complete.
+     +     /// INT-275 G7 proved apply moves only the file its row names. INT-313 stage 3: the check
+     +     /// no longer files that row. A future/ file whose status is complete stays put, and so does
+     +     /// a neighbour whose body only mentions the phrase.
+     -     fn a_move_moves_only_the_file_its_row_names() {
+     +     fn a_status_that_does_not_match_its_folder_is_not_a_move() {
+     -         let rows = pending_data(&ctx, "902-done.md%");
+     -         let applied = rows
+     -             .first()
+     -             .map(|r| cmd_apply(&ctx, &r.0.to_string()).is_ok());
+     -         let moved = complete.join("902-done.md").exists() && !done.exists();
+     -         let stayed = bystander.exists();
+     +         let proposed = pending_data(&ctx, "902-done.md%");
+     +         let stayed = done.exists() && bystander.exists() && !complete.join("902-done.md").exists();
+     -         assert_eq!(
+     -             rows.len(),
+     -             1,
+     -             "expected one pending move for 902-done.md: {:?}",
+     -             rows
+     +         assert!(
+     +             proposed.is_empty(),
+     +             "a status that does not match the folder is not a move: {:?}",
+     +             proposed
+     -         assert_eq!(applied, Some(true), "the move was not applied");
+     -         assert!(moved, "the named file was not moved to complete/");
+     -         assert!(stayed, "a file the row does not name was moved");
+     +         assert!(stayed, "a file was moved");
+     + /// Replace one frontmatter status line. A quote of the same words in the body is left alone.
+     + /// `from` is the values this transition rewrites; any other status line stays.
+     + fn set_frontmatter_status(content: &str, from: &[&str], to: &str) -> String {
+     +     let Some(open) = content.find("---") else {
+     +         return content.to_string();
+     +     };
+     +     let after = open + 3;
+     +     let Some(close_rel) = content[after..].find("---") else {
+     +         return content.to_string();
+     +     };
+     +     let fm_end = after + close_rel;
+     +     let fm = &content[after..fm_end];
+     +     let mut out = String::with_capacity(content.len() + to.len());
+     +     out.push_str(&content[..after]);
+     +     let mut replaced = false;
+     +     for line in fm.split_inclusive('\n') {
+     +         if !replaced {
+     +             let bare = line.trim_end_matches(['\n', '\r']);
+     +             let trimmed = bare.trim_start();
+     +             if let Some(rest) = trimmed.strip_prefix("status:") {
+     +                 let value = rest.trim().trim_matches('"');
+     +                 if from.iter().any(|s| *s == value) {
+     +                     let indent = &bare[..bare.len() - trimmed.len()];
+     +                     let nl = &line[bare.len()..];
+     +                     out.push_str(indent);
+     +                     out.push_str("status: ");
+     +                     out.push_str(to);
+     +                     out.push_str(nl);
+     +                     replaced = true;
+     +                     continue;
+     +                 }
+     +             }
+     +         }
+     +         out.push_str(line);
+     +     }
+     +     out.push_str(&content[fm_end..]);
+     +     out
+     + }
+     +
+     -         let updated = content
+     -             .replace("status: planned", "status: in-progress")
+     -             .replace("status: future", "status: in-progress")
+     -             .replace("status: deferred", "status: in-progress");
+     +         let updated =
+     +             set_frontmatter_status(&content, &["planned", "future", "deferred"], "in-progress");
+     -         // cistart fix: move file from future/ to in-progress/ if needed
+     -         if path.to_string_lossy().contains("/intents/future/") {
+     -             if let (Some(filename), Some(parent)) =
+     -                 (path.file_name(), path.parent().and_then(|p| p.parent()))
+     -             {
+     -                 let new_path = parent.join("in-progress").join(filename);
+     -                 let _ = fs::rename(&path, &new_path);
+     -             }
+     -         }
+     -         let updated = content
+     -             .replace("status: planned", "status: complete")
+     -             .replace("status: future", "status: complete")
+     -             .replace("status: in-progress", "status: complete")
+     -             .replace("status: deferred", "status: complete");
+     -         // INT-271: the Versions receipt rides in the same write as the move.
+     +         let updated = set_frontmatter_status(
+     +             &content,
+     +             &["planned", "future", "in-progress", "deferred"],
+     +             "complete",
+     +         );
+     +         // INT-271: the Versions receipt rides in the same write as the status.
+     +         // INT-313 stage 3: the file stays where it is.
+     -
+     -         // Move to complete/
+     -         let complete_dir = base.join("complete");
+     -         fs::create_dir_all(&complete_dir).map_err(crate::errors::CoreError::Io)?;
+     -         let filename = src_path.file_name().unwrap();
+     -         let dest_path = complete_dir.join(filename);
+     -         fs::write(&dest_path, updated).map_err(crate::errors::CoreError::Io)?;
+     -         fs::remove_file(&src_path).map_err(crate::errors::CoreError::Io)?;
+     +         fs::write(&src_path, updated).map_err(crate::errors::CoreError::Io)?;
+     -     let updated = content
+     -         .replace("status: in-progress", "status: cancelled")
+     -         .replace("status: planned", "status: cancelled")
+     -         .replace("status: future", "status: cancelled")
+     -         .replace("status: deferred", "status: cancelled");
+     +     let updated = set_frontmatter_status(
+     +         &content,
+     +         &["in-progress", "planned", "future", "deferred"],
+     +         "cancelled",
+     +     );
+     -     let cancelled_dir = base.join("cancelled");
+     -     std::fs::create_dir_all(&cancelled_dir)?;
+     -     let filename = path
+     -         .file_name()
+     -         .ok_or_else(|| crate::errors::CoreError::Domain {
+     -             domain: "intent".to_string(),
+     -             message: "intent file has no name".to_string(),
+     -         })?;
+     -     let dest = cancelled_dir.join(filename);
+     -     std::fs::write(&dest, stamped)?;
+     -     if dest != path {
+     -         let _ = std::fs::remove_file(&path);
+     -     }
+     +     // INT-313 stage 3: the file stays where it is. No cancelled/ directory is created.
+     +     std::fs::write(&path, stamped)?;
+     + #[cfg(test)]
+     + mod status_line_edit_tests {
+     +     use super::set_frontmatter_status;
+     +
+     +     #[test]
+     +     fn the_status_line_changes_and_a_body_quote_does_not() {
+     +         let src = "---\nid: 308\ntitle: \"q\"\nstatus: planned\ndate: 2026-11-13\n---\n\nbecomes \"status: in-progress\".\n";
+     +         let got = set_frontmatter_status(src, &["planned", "future", "deferred"], "in-progress");
+     +         assert!(got.contains("\nstatus: in-progress\n"), "{got}");
+     +         assert!(!got.contains("status: planned"), "{got}");
+     +         assert!(
+     +             got.contains("becomes \"status: in-progress\"."),
+     +             "the body quote stays: {got}"
+     +         );
+     +         let again = set_frontmatter_status(&got, &["planned", "future", "deferred"], "in-progress");
+     +         assert_eq!(again, got, "a second start does not rewrite a quote");
+     +     }
+     +
+     +     #[test]
+     +     fn a_status_this_transition_does_not_own_stays() {
+     +         let src = "---\nstatus: complete\n---\nstatus: planned\n";
+     +         let got = set_frontmatter_status(src, &["planned"], "in-progress");
+     +         assert!(got.starts_with("---\nstatus: complete\n---\n"));
+     +         assert!(got.ends_with("status: planned\n"));
+     +     }
+     + }
+     +
