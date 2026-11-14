@@ -286,17 +286,8 @@ fn eval_checkpoint_stale(_ctx: &AppContext) -> Option<Reaction> {
     }
 }
 
-fn eval_intent_overflow(ctx: &AppContext) -> Option<Reaction> {
-    let intents_dir = ctx.fpath("intents/future");
-    let count = std::fs::read_dir(&intents_dir)
-        .ok()?
-        .filter_map(|e| e.ok())
-        .filter(|e| {
-            std::fs::read_to_string(e.path())
-                .unwrap_or_default()
-                .contains("status: in-progress")
-        })
-        .count();
+fn eval_intent_overflow(_ctx: &AppContext) -> Option<Reaction> {
+    let count = zero_core::ledger::with_status("in-progress").len();
     if count > 2 {
         Some(Reaction {
             rule_id: "intent.overflow".into(),

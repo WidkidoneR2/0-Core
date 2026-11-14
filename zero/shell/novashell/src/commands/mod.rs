@@ -8177,45 +8177,38 @@ fn pick_cmd(db: &StateDb, core_root: &str, args: &[&str]) -> CommandResult {
                     );
                 }
             };
-            for dir in &["future", "complete", "in-progress"] {
-                let path = intents_root.join(dir).to_string_lossy().to_string();
-                if let Ok(entries) = std::fs::read_dir(&path) {
-                    for entry in entries.flatten() {
-                        let name = entry.file_name().to_string_lossy().to_string();
-                        if !name.ends_with(".md") {
-                            continue;
-                        }
-                        let num = name.split('-').next().unwrap_or("").to_string();
-                        let title = name
-                            .trim_end_matches(".md")
-                            .splitn(3, '-')
-                            .nth(2)
-                            .unwrap_or("")
-                            .replace('-', " ");
-                        // INT-221 G5: --active MEANT ITS OPPOSITE. The condition skipped
-                        // everything that was NOT future, so `pick intent --active` listed the 51
-                        // FUTURE intents and hid the two actually in progress. Found by running
-                        // every subcommand rather than only `pick file`, which is what G5 asks for.
-                        //
-                        // `status` here is the DIRECTORY NAME, and there is no `planned` directory:
-                        // planned intents live in `future/` with `status: planned` in their
-                        // frontmatter. So this picker labels a planned intent [future] while `intl`
-                        // labels the same intent [planned] -- two vocabularies for one state, which
-                        // is how the filter came to mean the wrong thing.
-                        //
-                        // ACTIVE MEANS IN-PROGRESS, matching the "ACTIVE (in-progress)" heading
-                        // `intl` already prints. One word, one meaning.
-                        let status = *dir;
-                        if extra == "--active" && status != "in-progress" {
-                            continue;
-                        }
-                        items.push_str(&format!(
-                            "INT-{}  [{}]  {}
-",
-                            num, status, title
-                        ));
-                    }
+            let _root = intents_root;
+            for file in zero_core::ledger::load() {
+                if file.is_record()
+                    || !matches!(file.status.as_str(), "planned" | "in-progress" | "complete")
+                {
+                    continue;
                 }
+                let name = match file.path.file_name() {
+                    Some(n) => n.to_string_lossy().to_string(),
+                    None => continue,
+                };
+                if !name.ends_with(".md") {
+                    continue;
+                }
+                let num = name.split('-').next().unwrap_or("").to_string();
+                let title = name
+                    .trim_end_matches(".md")
+                    .splitn(3, '-')
+                    .nth(2)
+                    .unwrap_or("")
+                    .replace('-', " ");
+                // INT-313 stage 2. The label is the status line, which is what
+                // `intl` already prints. --active still means in-progress.
+                let status = file.status.as_str();
+                if extra == "--active" && status != "in-progress" {
+                    continue;
+                }
+                items.push_str(&format!(
+                    "INT-{}  [{}]  {}
+",
+                    num, status, title
+                ));
             }
             if items.is_empty() {
                 return CommandResult::Output("  No intents found".to_string());

@@ -12,44 +12,27 @@ pub mod sync;
 
 use rusqlite;
 
-/// Active in-progress intent, scanned from intents/in-progress/ (matches fsh prompt + `fg done`).
-/// Returns (id, short_title). Single source of truth -- callers: done.rs, sync.rs.
+/// Active in-progress intent, from the status line. Callers: done.rs, sync.rs.
+/// Returns (id, short_title).
 pub(crate) fn get_active_intent() -> Option<(String, String)> {
-    let _home = std::env::var("HOME").ok()?;
-    let dir = zero_core::paths::intents_dir()
-        .join("in-progress")
-        .to_string_lossy()
+    let mut hits: Vec<_> = zero_core::ledger::load()
+        .into_iter()
+        .filter(|file| !file.is_record() && file.status == "in-progress")
+        .collect();
+    hits.sort_by(|a, b| a.path.file_name().cmp(&b.path.file_name()));
+    let file = hits.into_iter().next()?;
+    let title = if file.title.is_empty() {
+        format!("INT-{}", file.id)
+    } else {
+        file.title
+    };
+    let short = title
+        .split(" -- ")
+        .next()
+        .unwrap_or(&title)
+        .trim()
         .to_string();
-    let mut entries: Vec<_> = std::fs::read_dir(&dir).ok()?.flatten().collect();
-    entries.sort_by_key(|e| e.file_name());
-    for entry in entries {
-        let name = entry.file_name().to_string_lossy().to_string();
-        if !name.ends_with(".md") {
-            continue;
-        }
-        let content = std::fs::read_to_string(entry.path()).ok()?;
-        if content.contains("status: in-progress") {
-            let id = name.split('-').next().unwrap_or("").to_string();
-            let title = content
-                .lines()
-                .find(|l| l.starts_with("title:"))
-                .map(|l| {
-                    l.trim_start_matches("title:")
-                        .trim()
-                        .trim_matches('"')
-                        .to_string()
-                })
-                .unwrap_or_else(|| format!("INT-{}", id));
-            let short = title
-                .split(" -- ")
-                .next()
-                .unwrap_or(&title)
-                .trim()
-                .to_string();
-            return Some((id, short));
-        }
-    }
-    None
+    Some((file.id, short))
 }
 
 /// Record a commit into the intent_commits genealogy table (INT-312 recorder, INT-071 shared).

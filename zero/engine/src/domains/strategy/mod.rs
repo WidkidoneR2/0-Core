@@ -65,37 +65,12 @@ fn health_num(h: Option<u32>) -> String {
         .unwrap_or_else(|| "unknown".to_string())
 }
 
-fn get_in_progress_intents(ctx: &AppContext) -> Vec<String> {
-    let _root = std::path::PathBuf::from(&ctx.core_root);
-    std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
-        .map(|entries| {
-            entries
-                .flatten()
-                .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
-                .filter_map(|e| {
-                    let content = std::fs::read_to_string(e.path()).ok()?;
-                    if !content.contains("status: in-progress") {
-                        return None;
-                    }
-                    let title = content
-                        .lines()
-                        .find(|l| l.starts_with("title:"))?
-                        .trim_start_matches("title:")
-                        .trim()
-                        .trim_matches('"')
-                        .to_string();
-                    let id = e
-                        .file_name()
-                        .to_string_lossy()
-                        .split('-')
-                        .next()
-                        .unwrap_or("?")
-                        .to_string();
-                    Some(format!("INT-{}: {}", id, title))
-                })
-                .collect()
-        })
-        .unwrap_or_default()
+fn get_in_progress_intents(_ctx: &AppContext) -> Vec<String> {
+    zero_core::ledger::load()
+        .into_iter()
+        .filter(|file| !file.is_record() && file.status == "in-progress")
+        .map(|file| format!("INT-{}: {}", file.id, file.title))
+        .collect()
 }
 
 fn get_recent_commits(ctx: &AppContext) -> u64 {
@@ -108,37 +83,12 @@ fn get_recent_commits(ctx: &AppContext) -> u64 {
         .unwrap_or(0)
 }
 
-fn get_planned_intents(ctx: &AppContext) -> Vec<String> {
-    let _root = std::path::PathBuf::from(&ctx.core_root);
-    std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
-        .map(|entries| {
-            entries
-                .flatten()
-                .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
-                .filter_map(|e| {
-                    let content = std::fs::read_to_string(e.path()).ok()?;
-                    if !content.contains("status: planned") {
-                        return None;
-                    }
-                    let title = content
-                        .lines()
-                        .find(|l| l.starts_with("title:"))?
-                        .trim_start_matches("title:")
-                        .trim()
-                        .trim_matches('"')
-                        .to_string();
-                    let id = e
-                        .file_name()
-                        .to_string_lossy()
-                        .split('-')
-                        .next()
-                        .unwrap_or("?")
-                        .to_string();
-                    Some(format!("INT-{}: {}", id, title))
-                })
-                .collect()
-        })
-        .unwrap_or_default()
+fn get_planned_intents(_ctx: &AppContext) -> Vec<String> {
+    zero_core::ledger::load()
+        .into_iter()
+        .filter(|file| !file.is_record() && file.status == "planned")
+        .map(|file| format!("INT-{}: {}", file.id, file.title))
+        .collect()
 }
 
 // ── Phase 1: Horizon Engine ───────────────────────────────────────────────────
@@ -618,36 +568,10 @@ pub fn sequence(ctx: &AppContext, goal_id: &str) -> CoreResult<()> {
 
             // Check for related intents
             let _root = std::path::PathBuf::from(&ctx.core_root);
-            let related: Vec<String> =
-                std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
-                    .map(|entries| {
-                        entries
-                            .flatten()
-                            .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
-                            .filter_map(|e| {
-                                let c = std::fs::read_to_string(e.path()).ok()?;
-                                if !c.contains("status: in-progress") {
-                                    return None;
-                                }
-                                let t = c
-                                    .lines()
-                                    .find(|l| l.starts_with("title:"))?
-                                    .trim_start_matches("title:")
-                                    .trim()
-                                    .trim_matches('"')
-                                    .to_string();
-                                let id = e
-                                    .file_name()
-                                    .to_string_lossy()
-                                    .split('-')
-                                    .next()
-                                    .unwrap_or("?")
-                                    .to_string();
-                                Some(format!("INT-{}: {}", id, t))
-                            })
-                            .collect()
-                    })
-                    .unwrap_or_default();
+            let related: Vec<String> = zero_core::ledger::with_status("in-progress")
+                .into_iter()
+                .map(|file| format!("INT-{}: {}", file.id, file.title))
+                .collect();
 
             if !related.is_empty() {
                 println!();
@@ -931,84 +855,82 @@ struct IntentMeta {
 fn load_intent_meta(core_root: &str) -> Vec<IntentMeta> {
     let _root = std::path::PathBuf::from(core_root);
     let mut intents = Vec::new();
-    for dir in &["future", "complete"] {
-        if let Ok(entries) = std::fs::read_dir(zero_core::paths::intents_dir().join(dir)) {
-            for entry in entries.flatten() {
-                if !entry.path().extension().map(|e| e == "md").unwrap_or(false) {
-                    continue;
-                }
-                let Ok(content) = std::fs::read_to_string(entry.path()) else {
-                    continue;
-                };
-                let id = content
-                    .lines()
-                    .find(|l| l.starts_with("id:"))
-                    .map(|l| l.trim_start_matches("id:").trim().to_string())
-                    .unwrap_or_default();
-                let title = content
-                    .lines()
-                    .find(|l| l.starts_with("title:"))
-                    .map(|l| {
-                        l.trim_start_matches("title:")
-                            .trim()
-                            .trim_matches('"')
-                            .to_string()
-                    })
-                    .unwrap_or_default();
-                let status = content
-                    .lines()
-                    .find(|l| l.starts_with("status:"))
-                    .map(|l| l.trim_start_matches("status:").trim().to_string())
-                    .unwrap_or_default();
-                let priority = content
-                    .lines()
-                    .find(|l| l.starts_with("priority:"))
-                    .map(|l| l.trim_start_matches("priority:").trim().to_string())
-                    .unwrap_or_default();
-                let version = content
-                    .lines()
-                    .find(|l| l.starts_with("version:"))
-                    .map(|l| l.trim_start_matches("version:").trim().to_string())
-                    .unwrap_or_default();
-                let tags: Vec<String> = content
-                    .lines()
-                    .find(|l| l.starts_with("tags:"))
-                    .map(|l| {
-                        l.trim_start_matches("tags:")
-                            .trim()
-                            .trim_start_matches('[')
-                            .trim_end_matches(']')
-                            .split(',')
-                            .map(|t| t.trim().to_string())
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                let depends_on: Vec<String> = content
-                    .lines()
-                    .find(|l| l.starts_with("depends_on:"))
-                    .map(|l| {
-                        l.trim_start_matches("depends_on:")
-                            .trim()
-                            .trim_start_matches('[')
-                            .trim_end_matches(']')
-                            .split(',')
-                            .map(|t| t.trim().to_string())
-                            .filter(|t| !t.is_empty())
-                            .collect()
-                    })
-                    .unwrap_or_default();
-                if !id.is_empty() {
-                    intents.push(IntentMeta {
-                        id,
-                        title,
-                        status,
-                        tags,
-                        priority,
-                        version,
-                        depends_on,
-                    });
-                }
-            }
+    for file in zero_core::ledger::load()
+        .into_iter()
+        .filter(|file| !file.is_record())
+    {
+        let content = file.content;
+        let _entry_id = file.id;
+        if content.is_empty() {
+            continue;
+        }
+        let id = content
+            .lines()
+            .find(|l| l.starts_with("id:"))
+            .map(|l| l.trim_start_matches("id:").trim().to_string())
+            .unwrap_or_default();
+        let title = content
+            .lines()
+            .find(|l| l.starts_with("title:"))
+            .map(|l| {
+                l.trim_start_matches("title:")
+                    .trim()
+                    .trim_matches('"')
+                    .to_string()
+            })
+            .unwrap_or_default();
+        let status = content
+            .lines()
+            .find(|l| l.starts_with("status:"))
+            .map(|l| l.trim_start_matches("status:").trim().to_string())
+            .unwrap_or_default();
+        let priority = content
+            .lines()
+            .find(|l| l.starts_with("priority:"))
+            .map(|l| l.trim_start_matches("priority:").trim().to_string())
+            .unwrap_or_default();
+        let version = content
+            .lines()
+            .find(|l| l.starts_with("version:"))
+            .map(|l| l.trim_start_matches("version:").trim().to_string())
+            .unwrap_or_default();
+        let tags: Vec<String> = content
+            .lines()
+            .find(|l| l.starts_with("tags:"))
+            .map(|l| {
+                l.trim_start_matches("tags:")
+                    .trim()
+                    .trim_start_matches('[')
+                    .trim_end_matches(']')
+                    .split(',')
+                    .map(|t| t.trim().to_string())
+                    .collect()
+            })
+            .unwrap_or_default();
+        let depends_on: Vec<String> = content
+            .lines()
+            .find(|l| l.starts_with("depends_on:"))
+            .map(|l| {
+                l.trim_start_matches("depends_on:")
+                    .trim()
+                    .trim_start_matches('[')
+                    .trim_end_matches(']')
+                    .split(',')
+                    .map(|t| t.trim().to_string())
+                    .filter(|t| !t.is_empty())
+                    .collect()
+            })
+            .unwrap_or_default();
+        if !id.is_empty() {
+            intents.push(IntentMeta {
+                id,
+                title,
+                status,
+                tags,
+                priority,
+                version,
+                depends_on,
+            });
         }
     }
     intents

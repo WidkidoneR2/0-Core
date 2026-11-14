@@ -348,19 +348,17 @@ fn discuss(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
     let now = chrono::Utc::now().timestamp();
 
     // Find intent file
-    let root = std::path::PathBuf::from(&ctx.core_root);
-    let mut intent_content = None;
-    for dir in &["intents/future", "intents/complete"] {
-        if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
-            for entry in entries.flatten() {
-                let name = entry.file_name().to_string_lossy().to_string();
-                if name.starts_with(intent_id) {
-                    intent_content = std::fs::read_to_string(entry.path()).ok();
-                    break;
-                }
-            }
+    let intent_content = zero_core::ledger::load().into_iter().find_map(|file| {
+        if file.is_record() {
+            return None;
         }
-    }
+        let name = file.path.file_name()?.to_string_lossy().to_string();
+        if name.starts_with(intent_id) {
+            Some(file.content)
+        } else {
+            None
+        }
+    });
 
     let opinion = match &intent_content {
         None => format!(
@@ -408,20 +406,7 @@ fn disagree(ctx: &AppContext, intent_id: &str) -> CoreResult<()> {
     print_gate_warning(ctx);
     let now = chrono::Utc::now().timestamp();
 
-    let in_progress = {
-        let _root = std::path::PathBuf::from(&ctx.core_root);
-        std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
-            .map(|d| {
-                d.flatten()
-                    .filter(|e| {
-                        std::fs::read_to_string(e.path())
-                            .map(|c| c.contains("status: in-progress"))
-                            .unwrap_or(false)
-                    })
-                    .count()
-            })
-            .unwrap_or(0)
-    };
+    let in_progress = zero_core::ledger::with_status("in-progress").len();
 
     let reason = if in_progress >= 5 {
         format!(
@@ -471,20 +456,7 @@ fn consult(ctx: &AppContext, question: &str) -> CoreResult<()> {
     // Simple pattern matching for common questions
     let q = question.to_lowercase();
     let response = if q.contains("start") || q.contains("begin") || q.contains("cistart") {
-        let in_progress = {
-            let _root = std::path::PathBuf::from(&ctx.core_root);
-            std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
-                .map(|d| {
-                    d.flatten()
-                        .filter(|e| {
-                            std::fs::read_to_string(e.path())
-                                .map(|c| c.contains("status: in-progress"))
-                                .unwrap_or(false)
-                        })
-                        .count()
-                })
-                .unwrap_or(0)
-        };
+        let in_progress = zero_core::ledger::with_status("in-progress").len();
         if in_progress >= 5 {
             format!("Caution: {} intents in-progress. Starting another risks coherence. Consider closing one first.", in_progress)
         } else {
@@ -635,9 +607,7 @@ fn growth(ctx: &AppContext) -> CoreResult<()> {
     print_gate_warning(ctx);
 
     let _root = std::path::PathBuf::from(&ctx.core_root);
-    let complete_count = std::fs::read_dir(zero_core::paths::intents_dir().join("complete"))
-        .map(|d| d.flatten().count())
-        .unwrap_or(0);
+    let complete_count = zero_core::ledger::with_status("complete").len();
 
     let commits = {
         std::process::Command::new("git")

@@ -209,19 +209,13 @@ fn generate_proposals(
     let mut proposals = Vec::new();
     let month_ago = now_ts() - 2592000;
     // Check for high intent load
-    let active_intents: i64 = std::fs::read_dir(ctx.fpath("intents/future"))
-        .map(|d| {
-            d.filter_map(|e| e.ok())
-                .filter(|e| {
-                    std::fs::read_to_string(e.path())
-                        .map(|c| {
-                            c.contains("status: in-progress") || c.contains("type: in-progress")
-                        })
-                        .unwrap_or(false)
-                })
-                .count() as i64
+    let active_intents: i64 = zero_core::ledger::load()
+        .into_iter()
+        .filter(|file| {
+            !file.is_record()
+                && (file.status == "in-progress" || file.content.contains("type: in-progress"))
         })
-        .unwrap_or(0);
+        .count() as i64;
     if active_intents > 4 {
         proposals.push((
             "workflow".to_string(),

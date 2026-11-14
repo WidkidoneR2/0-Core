@@ -597,21 +597,10 @@ async fn get_context() -> crate::protocol::Response {
         .unwrap_or_else(|_| "dormant".to_string());
     // Get active intent from filesystem
     let core_root = format!("{}/0-core", std::env::var("HOME").unwrap_or_default());
-    let active_intent = std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
-        .ok()
-        .and_then(|d| {
-            d.filter_map(|e| e.ok())
-                .find(|e| {
-                    std::fs::read_to_string(e.path())
-                        .map(|c| c.contains("status: in-progress"))
-                        .unwrap_or(false)
-                })
-                .map(|e| {
-                    let name = e.file_name().to_string_lossy().to_string();
-                    let num = name.split('-').next().unwrap_or("").to_string();
-                    format!("INT-{}", num)
-                })
-        });
+    let active_intent = zero_core::ledger::load()
+        .into_iter()
+        .find(|file| !file.is_record() && file.status == "in-progress")
+        .map(|file| format!("INT-{}", file.id));
     // Commits today
     let _today = chrono::Local::now().format("%Y-%m-%d").to_string();
     let commits_today: i64 = std::process::Command::new("git")
@@ -705,17 +694,10 @@ async fn get_engine_signals(limit: u32) -> crate::protocol::Response {
 }
 async fn get_neovim_context(file_path: String) -> crate::protocol::Response {
     // Find active intent
-    let active = std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
-        .ok()
-        .and_then(|d| {
-            d.filter_map(|e| e.ok())
-                .find(|e| {
-                    std::fs::read_to_string(e.path())
-                        .map(|c| c.contains("status: in-progress"))
-                        .unwrap_or(false)
-                })
-                .map(|e| e.path())
-        });
+    let active = zero_core::ledger::load()
+        .into_iter()
+        .find(|file| !file.is_record() && file.status == "in-progress")
+        .map(|file| file.path);
     let (active_intent, intent_title) = match active {
         Some(path) => {
             let name = path

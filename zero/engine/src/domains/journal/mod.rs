@@ -242,20 +242,13 @@ pub fn session_start(ctx: &AppContext) -> CoreResult<()> {
         .map(|o| String::from_utf8_lossy(&o.stdout).lines().count() as i64)
         .unwrap_or(0);
     // Count active intents from filesystem
-    let active: i64 = std::fs::read_dir(core_root_path.join("intents/future"))
-        .map(|d| {
-            d.filter_map(|e| e.ok())
-                .filter(|e| {
-                    if let Ok(content) = std::fs::read_to_string(e.path()) {
-                        content.contains("status: in-progress")
-                            || content.contains("type: in-progress")
-                    } else {
-                        false
-                    }
-                })
-                .count() as i64
+    let active: i64 = zero_core::ledger::load()
+        .into_iter()
+        .filter(|file| {
+            !file.is_record()
+                && (file.status == "in-progress" || file.content.contains("type: in-progress"))
         })
-        .unwrap_or(0);
+        .count() as i64;
     let message = if commits_today > 0 {
         format!(
             "Session started. {} commits today. {} intents in progress. Health 100%.",

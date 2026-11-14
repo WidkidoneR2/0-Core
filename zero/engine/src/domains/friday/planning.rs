@@ -455,21 +455,10 @@ fn check_intent_drift(ctx: &AppContext) -> CoreResult<Option<String>> {
     if recent_lifecycle > 0 {
         return Ok(None);
     }
-    let intents_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-        .join("0-core/intents/future");
-    let in_progress_count = if let Ok(entries) = std::fs::read_dir(&intents_dir) {
-        entries
-            .filter_map(|e| e.ok())
-            .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
-            .filter(|e| {
-                std::fs::read_to_string(e.path())
-                    .map(|c| c.contains("status: in-progress"))
-                    .unwrap_or(false)
-            })
-            .count()
-    } else {
-        0
-    };
+    let in_progress_count = zero_core::ledger::load()
+        .into_iter()
+        .filter(|file| !file.is_record() && file.status == "in-progress")
+        .count();
     if in_progress_count > 0 {
         let msg = format!(
             "{} intents marked in-progress but no cistart/cicomplete activity in 24h. Per facts #158 and #159, intent state may be stale -- review intent ledger.",
@@ -1010,32 +999,12 @@ pub fn anticipate(ctx: &AppContext) -> CoreResult<()> {
 /// Find intent IDs with status: in-progress in intents/future/*.md
 /// Returns vector of "INT-XXX" style identifiers.
 pub fn active_intents() -> Vec<String> {
-    let intents_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
-        .join("0-core/intents/future");
-    let mut ids = Vec::new();
-    let Ok(entries) = std::fs::read_dir(&intents_dir) else {
-        return ids;
-    };
-    for entry in entries.filter_map(|e| e.ok()) {
-        let path = entry.path();
-        if path.extension().map(|x| x != "md").unwrap_or(true) {
-            continue;
-        }
-        let Ok(contents) = std::fs::read_to_string(&path) else {
-            continue;
-        };
-        if !contents.contains("status: in-progress") {
-            continue;
-        }
-        // Extract INT-NNN from filename like "234-core-v21-..."
-        if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
-            if let Some(num) = name.split('-').next() {
-                if num.chars().all(|c| c.is_ascii_digit()) {
-                    ids.push(format!("INT-{}", num));
-                }
-            }
-        }
-    }
+    let mut ids: Vec<String> = zero_core::ledger::load()
+        .into_iter()
+        .filter(|file| !file.is_record() && file.status == "in-progress")
+        .map(|file| format!("INT-{}", file.id))
+        .filter(|id| id[4..].chars().all(|c| c.is_ascii_digit()))
+        .collect();
     ids.sort();
     ids
 }

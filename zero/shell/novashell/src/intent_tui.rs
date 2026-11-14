@@ -459,39 +459,21 @@ fn render_intent_detail(intent: &Intent) -> Vec<Line<'static>> {
 }
 fn load_intents(_core_root: &str) -> Vec<Intent> {
     let mut intents: Vec<Intent> = Vec::new();
-    // INT-230: one root, three joins. An absent 0-Core yields no directories and
-    // the TUI shows nothing, which is what a TUI with no ledger should show.
-    // NOTE: parse_intent below stays its own parser deliberately -- this Intent
-    // carries title, date, tags, path and full content for rendering, while the
-    // adapter keeps four fields so a prompt render does not load every body.
-    let dirs: Vec<String> = match crate::core_integration::intents_root() {
-        Some(root) => ["future", "in-progress", "complete"]
-            .iter()
-            .map(|d| root.join(d).to_string_lossy().to_string())
-            .collect(),
-        None => Vec::new(),
-    };
-    for dir in &dirs {
-        let path = std::path::Path::new(dir);
-        if !path.exists() {
+    // INT-313 stage 2. The shelf walk is zero_core::ledger. `it` still shows
+    // planned, in-progress, and complete intents, which is what future/,
+    // in-progress/, and complete/ held. Records stay out of this screen.
+    if crate::core_integration::intents_root().is_none() {
+        return intents;
+    }
+    for file in zero_core::ledger::load() {
+        if file.is_record() {
             continue;
         }
-        let entries = match std::fs::read_dir(path) {
-            Ok(e) => e,
-            Err(_) => continue,
-        };
-        for entry in entries.flatten() {
-            let fpath = entry.path();
-            if fpath.extension().and_then(|e| e.to_str()) != Some("md") {
-                continue;
-            }
-            let content = match std::fs::read_to_string(&fpath) {
-                Ok(c) => c,
-                Err(_) => continue,
-            };
-            if let Some(intent) = parse_intent(&fpath, &content) {
-                intents.push(intent);
-            }
+        if !matches!(file.status.as_str(), "planned" | "in-progress" | "complete") {
+            continue;
+        }
+        if let Some(intent) = parse_intent(&file.path, &file.content) {
+            intents.push(intent);
         }
     }
     // Sort: in-progress first, then planned, then complete, then by ID

@@ -171,34 +171,10 @@ fn seed_knowledge(ctx: &AppContext) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     // Seed from intent completions
-    let complete_count = {
-        let intent_dir = ctx.fpath("intents");
-        let categories = [
-            "complete",
-            "decisions",
-            "experiments",
-            "philosophy",
-            "future",
-            "cancelled",
-            "deferred",
-            "incidents",
-        ];
-        let mut count = 0i64;
-        for cat in &categories {
-            if let Ok(entries) = std::fs::read_dir(intent_dir.join(cat)) {
-                for entry in entries.flatten() {
-                    if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
-                        if let Ok(c) = std::fs::read_to_string(entry.path()) {
-                            if c.contains("status: complete") {
-                                count += 1;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        count
-    };
+    let complete_count = zero_core::ledger::load()
+        .into_iter()
+        .filter(|file| file.status == "complete")
+        .count() as i64;
     // Seed from commit patterns
     let commit_count: i64 = db
         .query_row("SELECT COUNT(*) FROM commit_patterns", [], |r| r.get(0))

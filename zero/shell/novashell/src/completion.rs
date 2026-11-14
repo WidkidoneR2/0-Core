@@ -394,34 +394,22 @@ impl<'a> ShellHelper<'a> {
                 .map(|i| line[i + 1..].find(' ').map(|j| i + j + 2).unwrap_or(i + 1))
                 .unwrap_or(line.len());
             let partial = &line[cmd_len..];
-            let home = std::env::var("HOME").unwrap_or_default();
             let mut ids: Vec<String> = Vec::new();
-            let dirs: &[&str] = if line.starts_with("cicomplete ") {
-                &["intents/future", "intents/in-progress"]
+            let want = if line.starts_with("cicomplete ") {
+                &["planned", "in-progress"][..]
             } else if line.starts_with("cistart ") {
-                &["intents/future"]
+                &["planned"][..]
             } else {
-                &["intents/future", "intents/complete", "intents/in-progress"]
+                &["planned", "in-progress", "complete"][..]
             };
-            for dir in dirs {
-                let path = format!("{}/0-core/{}", home, dir);
-                if let Ok(entries) = std::fs::read_dir(&path) {
-                    for e in entries.flatten() {
-                        if let Some(name) = e
-                            .path()
-                            .file_stem()
-                            .and_then(|s| s.to_str())
-                            .map(|s| s.to_string())
-                        {
-                            if let Some(id) = name.split('-').next() {
-                                if id.chars().all(|c| c.is_ascii_digit()) {
-                                    if partial.is_empty() || id.starts_with(partial) {
-                                        ids.push(id.to_string());
-                                    }
-                                }
-                            }
-                        }
-                    }
+            for file in zero_core::ledger::load() {
+                if file.is_record() || !want.contains(&file.status.as_str()) {
+                    continue;
+                }
+                if file.id.chars().all(|c| c.is_ascii_digit())
+                    && (partial.is_empty() || file.id.starts_with(partial))
+                {
+                    ids.push(file.id);
                 }
             }
             ids.sort();

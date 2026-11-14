@@ -783,23 +783,10 @@ pub fn resolve_contradictions(ctx: &AppContext) -> CoreResult<()> {
         let resolution = if desc.contains("focus") && desc.contains("intents") {
             let open: i64 = {
                 let _root = std::path::PathBuf::from(&ctx.core_root);
-                let mut count = 0i64;
-                for dir in &["future"] {
-                    if let Ok(entries) =
-                        std::fs::read_dir(zero_core::paths::intents_dir().join(dir))
-                    {
-                        for entry in entries.flatten() {
-                            if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
-                                if let Ok(c) = std::fs::read_to_string(entry.path()) {
-                                    if c.contains("status: in-progress") {
-                                        count += 1;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-                count
+                zero_core::ledger::load()
+                    .into_iter()
+                    .filter(|file| !file.is_record() && file.status == "in-progress")
+                    .count() as i64
             };
             format!(
                 "Reduce active intents from {} to 2. Complete the current in-progress intent \
@@ -875,22 +862,7 @@ pub fn health_forecast(ctx: &AppContext) -> CoreResult<()> {
         Some(trend.iter().sum::<i64>() as f64 / trend.len() as f64)
     };
     // Count active intents
-    let active_intents: i64 = {
-        let _root = std::path::PathBuf::from(&ctx.core_root);
-        let mut count = 0i64;
-        if let Ok(entries) = std::fs::read_dir(zero_core::paths::intents_dir().join("future")) {
-            for entry in entries.flatten() {
-                if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
-                    if let Ok(c) = std::fs::read_to_string(entry.path()) {
-                        if c.contains("status: in-progress") {
-                            count += 1;
-                        }
-                    }
-                }
-            }
-        }
-        count
-    };
+    let active_intents: i64 = zero_core::ledger::with_status("in-progress").len() as i64;
     // Days since last system update check
     let last_update: i64 = db
         .query_row(

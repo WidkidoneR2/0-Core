@@ -147,12 +147,7 @@ fn git_churn_score() -> u8 {
 }
 
 fn count_active_intents(_ctx: &AppContext) -> u8 {
-    let intents_dir = dirs::home_dir()
-        .unwrap_or_default()
-        .join("0-core/intents/future");
-    std::fs::read_dir(&intents_dir)
-        .map(|rd| rd.filter_map(|e| e.ok()).count() as u8)
-        .unwrap_or(0)
+    zero_core::ledger::with_status("planned").len() as u8
 }
 
 // ── Commands ──────────────────────────────────────────────────────────────────
