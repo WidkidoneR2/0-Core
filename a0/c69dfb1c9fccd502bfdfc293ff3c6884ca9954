@@ -1,0 +1,748 @@
+INT-313 stage 2b -- plan
+  E1 readers call zero_core::ledger and drop their folder lists
+     -     let intents_dir = dirs::home_dir()
+     -         .unwrap_or_default()
+     -         .join("0-core/intents/future");
+     -     std::fs::read_dir(&intents_dir)
+     -         .map(|rd| rd.filter_map(|e| e.ok()).count() as u8)
+     -         .unwrap_or(0)
+     +     zero_core::ledger::with_status("planned").len() as u8
+     -     let complete_count = {
+     -         let intent_dir = ctx.fpath("intents");
+     -         let categories = [
+     -             "complete",
+     -             "decisions",
+     -             "experiments",
+     -             "philosophy",
+     -             "future",
+     -             "cancelled",
+     -             "deferred",
+     -             "incidents",
+     -         ];
+     -         let mut count = 0i64;
+     -         for cat in &categories {
+     -             if let Ok(entries) = std::fs::read_dir(intent_dir.join(cat)) {
+     -                 for entry in entries.flatten() {
+     -                     if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
+     -                         if let Ok(c) = std::fs::read_to_string(entry.path()) {
+     -                             if c.contains("status: complete") {
+     -                                 count += 1;
+     -                             }
+     -                         }
+     -                     }
+     -                 }
+     -             }
+     -         }
+     -         count
+     -     };
+     +     let complete_count = zero_core::ledger::load()
+     +         .into_iter()
+     +         .filter(|file| file.status == "complete")
+     +         .count() as i64;
+     -                 let mut count = 0i64;
+     -                 for dir in &["future"] {
+     -                     if let Ok(entries) =
+     -                         std::fs::read_dir(zero_core::paths::intents_dir().join(dir))
+     -                     {
+     -                         for entry in entries.flatten() {
+     -                             if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
+     -                                 if let Ok(c) = std::fs::read_to_string(entry.path()) {
+     -                                     if c.contains("status: in-progress") {
+     -                                         count += 1;
+     -                                     }
+     -                                 }
+     -                             }
+     -                         }
+     -                     }
+     -                 }
+     -                 count
+     +                 zero_core::ledger::load()
+     +                     .into_iter()
+     +                     .filter(|file| !file.is_record() && file.status == "in-progress")
+     +                     .count() as i64
+     -     let active_intents: i64 = {
+     -         let _root = std::path::PathBuf::from(&ctx.core_root);
+     -         let mut count = 0i64;
+     -         if let Ok(entries) = std::fs::read_dir(zero_core::paths::intents_dir().join("future")) {
+     -             for entry in entries.flatten() {
+     -                 if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
+     -                     if let Ok(c) = std::fs::read_to_string(entry.path()) {
+     -                         if c.contains("status: in-progress") {
+     -                             count += 1;
+     -                         }
+     -                     }
+     -                 }
+     -             }
+     -         }
+     -         count
+     -     };
+     +     let active_intents: i64 = zero_core::ledger::with_status("in-progress").len() as i64;
+     -     let intents_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+     -         .join("0-core/intents/future");
+     -     let in_progress_count = if let Ok(entries) = std::fs::read_dir(&intents_dir) {
+     -         entries
+     -             .filter_map(|e| e.ok())
+     -             .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+     -             .filter(|e| {
+     -                 std::fs::read_to_string(e.path())
+     -                     .map(|c| c.contains("status: in-progress"))
+     -                     .unwrap_or(false)
+     -             })
+     -             .count()
+     -     } else {
+     -         0
+     -     };
+     +     let in_progress_count = zero_core::ledger::load()
+     +         .into_iter()
+     +         .filter(|file| !file.is_record() && file.status == "in-progress")
+     +         .count();
+     -     let intents_dir = std::path::PathBuf::from(std::env::var("HOME").unwrap_or_default())
+     -         .join("0-core/intents/future");
+     -     let mut ids = Vec::new();
+     -     let Ok(entries) = std::fs::read_dir(&intents_dir) else {
+     -         return ids;
+     -     };
+     -     for entry in entries.filter_map(|e| e.ok()) {
+     -         let path = entry.path();
+     -         if path.extension().map(|x| x != "md").unwrap_or(true) {
+     -             continue;
+     -         }
+     -         let Ok(contents) = std::fs::read_to_string(&path) else {
+     -             continue;
+     -         };
+     -         if !contents.contains("status: in-progress") {
+     -             continue;
+     -         }
+     -         // Extract INT-NNN from filename like "234-core-v21-..."
+     -         if let Some(name) = path.file_stem().and_then(|s| s.to_str()) {
+     -             if let Some(num) = name.split('-').next() {
+     -                 if num.chars().all(|c| c.is_ascii_digit()) {
+     -                     ids.push(format!("INT-{}", num));
+     -                 }
+     -             }
+     -         }
+     -     }
+     +     let mut ids: Vec<String> = zero_core::ledger::load()
+     +         .into_iter()
+     +         .filter(|file| !file.is_record() && file.status == "in-progress")
+     +         .map(|file| format!("INT-{}", file.id))
+     +         .filter(|id| id[4..].chars().all(|c| c.is_ascii_digit()))
+     +         .collect();
+     -     let active: i64 = std::fs::read_dir(core_root_path.join("intents/future"))
+     -         .map(|d| {
+     -             d.filter_map(|e| e.ok())
+     -                 .filter(|e| {
+     -                     if let Ok(content) = std::fs::read_to_string(e.path()) {
+     -                         content.contains("status: in-progress")
+     -                             || content.contains("type: in-progress")
+     -                     } else {
+     -                         false
+     -                     }
+     -                 })
+     -                 .count() as i64
+     +     let active: i64 = zero_core::ledger::load()
+     +         .into_iter()
+     +         .filter(|file| {
+     +             !file.is_record()
+     +                 && (file.status == "in-progress" || file.content.contains("type: in-progress"))
+     -         .unwrap_or(0);
+     +         .count() as i64;
+     -     let root = std::path::PathBuf::from(&ctx.core_root);
+     -     let mut intent_content = None;
+     -     for dir in &["intents/future", "intents/complete"] {
+     -         if let Ok(entries) = std::fs::read_dir(root.join(dir)) {
+     -             for entry in entries.flatten() {
+     -                 let name = entry.file_name().to_string_lossy().to_string();
+     -                 if name.starts_with(intent_id) {
+     -                     intent_content = std::fs::read_to_string(entry.path()).ok();
+     -                     break;
+     -                 }
+     -             }
+     +     let intent_content = zero_core::ledger::load().into_iter().find_map(|file| {
+     +         if file.is_record() {
+     +             return None;
+     -     }
+     +         let name = file.path.file_name()?.to_string_lossy().to_string();
+     +         if name.starts_with(intent_id) {
+     +             Some(file.content)
+     +         } else {
+     +             None
+     +         }
+     +     });
+     -     let in_progress = {
+     -         let _root = std::path::PathBuf::from(&ctx.core_root);
+     -         std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
+     -             .map(|d| {
+     -                 d.flatten()
+     -                     .filter(|e| {
+     -                         std::fs::read_to_string(e.path())
+     -                             .map(|c| c.contains("status: in-progress"))
+     -                             .unwrap_or(false)
+     -                     })
+     -                     .count()
+     -             })
+     -             .unwrap_or(0)
+     -     };
+     +     let in_progress = zero_core::ledger::with_status("in-progress").len();
+     -         let in_progress = {
+     -             let _root = std::path::PathBuf::from(&ctx.core_root);
+     -             std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
+     -                 .map(|d| {
+     -                     d.flatten()
+     -                         .filter(|e| {
+     -                             std::fs::read_to_string(e.path())
+     -                                 .map(|c| c.contains("status: in-progress"))
+     -                                 .unwrap_or(false)
+     -                         })
+     -                         .count()
+     -                 })
+     -                 .unwrap_or(0)
+     -         };
+     +         let in_progress = zero_core::ledger::with_status("in-progress").len();
+     -     let complete_count = std::fs::read_dir(zero_core::paths::intents_dir().join("complete"))
+     -         .map(|d| d.flatten().count())
+     -         .unwrap_or(0);
+     +     let complete_count = zero_core::ledger::with_status("complete").len();
+     - fn eval_intent_overflow(ctx: &AppContext) -> Option<Reaction> {
+     -     let intents_dir = ctx.fpath("intents/future");
+     -     let count = std::fs::read_dir(&intents_dir)
+     -         .ok()?
+     -         .filter_map(|e| e.ok())
+     -         .filter(|e| {
+     -             std::fs::read_to_string(e.path())
+     -                 .unwrap_or_default()
+     -                 .contains("status: in-progress")
+     -         })
+     -         .count();
+     + fn eval_intent_overflow(_ctx: &AppContext) -> Option<Reaction> {
+     +     let count = zero_core::ledger::with_status("in-progress").len();
+     -     let active_intents: i64 = std::fs::read_dir(ctx.fpath("intents/future"))
+     -         .map(|d| {
+     -             d.filter_map(|e| e.ok())
+     -                 .filter(|e| {
+     -                     std::fs::read_to_string(e.path())
+     -                         .map(|c| {
+     -                             c.contains("status: in-progress") || c.contains("type: in-progress")
+     -                         })
+     -                         .unwrap_or(false)
+     -                 })
+     -                 .count() as i64
+     +     let active_intents: i64 = zero_core::ledger::load()
+     +         .into_iter()
+     +         .filter(|file| {
+     +             !file.is_record()
+     +                 && (file.status == "in-progress" || file.content.contains("type: in-progress"))
+     -         .unwrap_or(0);
+     +         .count() as i64;
+     - fn get_in_progress_intents(ctx: &AppContext) -> Vec<String> {
+     -     let _root = std::path::PathBuf::from(&ctx.core_root);
+     -     std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
+     -         .map(|entries| {
+     -             entries
+     -                 .flatten()
+     -                 .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+     -                 .filter_map(|e| {
+     -                     let content = std::fs::read_to_string(e.path()).ok()?;
+     -                     if !content.contains("status: in-progress") {
+     -                         return None;
+     -                     }
+     -                     let title = content
+     -                         .lines()
+     -                         .find(|l| l.starts_with("title:"))?
+     -                         .trim_start_matches("title:")
+     -                         .trim()
+     -                         .trim_matches('"')
+     -                         .to_string();
+     -                     let id = e
+     -                         .file_name()
+     -                         .to_string_lossy()
+     -                         .split('-')
+     -                         .next()
+     -                         .unwrap_or("?")
+     -                         .to_string();
+     -                     Some(format!("INT-{}: {}", id, title))
+     -                 })
+     -                 .collect()
+     -         })
+     -         .unwrap_or_default()
+     + fn get_in_progress_intents(_ctx: &AppContext) -> Vec<String> {
+     +     zero_core::ledger::load()
+     +         .into_iter()
+     +         .filter(|file| !file.is_record() && file.status == "in-progress")
+     +         .map(|file| format!("INT-{}: {}", file.id, file.title))
+     +         .collect()
+     - fn get_planned_intents(ctx: &AppContext) -> Vec<String> {
+     -     let _root = std::path::PathBuf::from(&ctx.core_root);
+     -     std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
+     -         .map(|entries| {
+     -             entries
+     -                 .flatten()
+     -                 .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+     -                 .filter_map(|e| {
+     -                     let content = std::fs::read_to_string(e.path()).ok()?;
+     -                     if !content.contains("status: planned") {
+     -                         return None;
+     -                     }
+     -                     let title = content
+     -                         .lines()
+     -                         .find(|l| l.starts_with("title:"))?
+     -                         .trim_start_matches("title:")
+     -                         .trim()
+     -                         .trim_matches('"')
+     -                         .to_string();
+     -                     let id = e
+     -                         .file_name()
+     -                         .to_string_lossy()
+     -                         .split('-')
+     -                         .next()
+     -                         .unwrap_or("?")
+     -                         .to_string();
+     -                     Some(format!("INT-{}: {}", id, title))
+     -                 })
+     -                 .collect()
+     -         })
+     -         .unwrap_or_default()
+     + fn get_planned_intents(_ctx: &AppContext) -> Vec<String> {
+     +     zero_core::ledger::load()
+     +         .into_iter()
+     +         .filter(|file| !file.is_record() && file.status == "planned")
+     +         .map(|file| format!("INT-{}: {}", file.id, file.title))
+     +         .collect()
+     -             let related: Vec<String> =
+     -                 std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
+     -                     .map(|entries| {
+     -                         entries
+     -                             .flatten()
+     -                             .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+     -                             .filter_map(|e| {
+     -                                 let c = std::fs::read_to_string(e.path()).ok()?;
+     -                                 if !c.contains("status: in-progress") {
+     -                                     return None;
+     -                                 }
+     -                                 let t = c
+     -                                     .lines()
+     -                                     .find(|l| l.starts_with("title:"))?
+     -                                     .trim_start_matches("title:")
+     -                                     .trim()
+     -                                     .trim_matches('"')
+     -                                     .to_string();
+     -                                 let id = e
+     -                                     .file_name()
+     -                                     .to_string_lossy()
+     -                                     .split('-')
+     -                                     .next()
+     -                                     .unwrap_or("?")
+     -                                     .to_string();
+     -                                 Some(format!("INT-{}: {}", id, t))
+     -                             })
+     -                             .collect()
+     -                     })
+     -                     .unwrap_or_default();
+     +             let related: Vec<String> = zero_core::ledger::with_status("in-progress")
+     +                 .into_iter()
+     +                 .map(|file| format!("INT-{}: {}", file.id, file.title))
+     +                 .collect();
+     -     for dir in &["future", "complete"] {
+     -         if let Ok(entries) = std::fs::read_dir(zero_core::paths::intents_dir().join(dir)) {
+     -             for entry in entries.flatten() {
+     -                 if !entry.path().extension().map(|e| e == "md").unwrap_or(false) {
+     -                     continue;
+     -                 }
+     -                 let Ok(content) = std::fs::read_to_string(entry.path()) else {
+     -                     continue;
+     -                 };
+     -                 let id = content
+     -                     .lines()
+     -                     .find(|l| l.starts_with("id:"))
+     -                     .map(|l| l.trim_start_matches("id:").trim().to_string())
+     -                     .unwrap_or_default();
+     -                 let title = content
+     -                     .lines()
+     -                     .find(|l| l.starts_with("title:"))
+     -                     .map(|l| {
+     -                         l.trim_start_matches("title:")
+     -                             .trim()
+     -                             .trim_matches('"')
+     -                             .to_string()
+     -                     })
+     -                     .unwrap_or_default();
+     -                 let status = content
+     -                     .lines()
+     -                     .find(|l| l.starts_with("status:"))
+     -                     .map(|l| l.trim_start_matches("status:").trim().to_string())
+     -                     .unwrap_or_default();
+     -                 let priority = content
+     -                     .lines()
+     -                     .find(|l| l.starts_with("priority:"))
+     -                     .map(|l| l.trim_start_matches("priority:").trim().to_string())
+     -                     .unwrap_or_default();
+     -                 let version = content
+     -                     .lines()
+     -                     .find(|l| l.starts_with("version:"))
+     -                     .map(|l| l.trim_start_matches("version:").trim().to_string())
+     -                     .unwrap_or_default();
+     -                 let tags: Vec<String> = content
+     -                     .lines()
+     -                     .find(|l| l.starts_with("tags:"))
+     -                     .map(|l| {
+     -                         l.trim_start_matches("tags:")
+     -                             .trim()
+     -                             .trim_start_matches('[')
+     -                             .trim_end_matches(']')
+     -                             .split(',')
+     -                             .map(|t| t.trim().to_string())
+     -                             .collect()
+     -                     })
+     -                     .unwrap_or_default();
+     -                 let depends_on: Vec<String> = content
+     -                     .lines()
+     -                     .find(|l| l.starts_with("depends_on:"))
+     -                     .map(|l| {
+     -                         l.trim_start_matches("depends_on:")
+     -                             .trim()
+     -                             .trim_start_matches('[')
+     -                             .trim_end_matches(']')
+     -                             .split(',')
+     -                             .map(|t| t.trim().to_string())
+     -                             .filter(|t| !t.is_empty())
+     -                             .collect()
+     -                     })
+     -                     .unwrap_or_default();
+     -                 if !id.is_empty() {
+     -                     intents.push(IntentMeta {
+     -                         id,
+     -                         title,
+     -                         status,
+     -                         tags,
+     -                         priority,
+     -                         version,
+     -                         depends_on,
+     -                     });
+     -                 }
+     -             }
+     +     for file in zero_core::ledger::load()
+     +         .into_iter()
+     +         .filter(|file| !file.is_record())
+     +     {
+     +         let content = file.content;
+     +         let _entry_id = file.id;
+     +         if content.is_empty() {
+     +             continue;
+     +         }
+     +         let id = content
+     +             .lines()
+     +             .find(|l| l.starts_with("id:"))
+     +             .map(|l| l.trim_start_matches("id:").trim().to_string())
+     +             .unwrap_or_default();
+     +         let title = content
+     +             .lines()
+     +             .find(|l| l.starts_with("title:"))
+     +             .map(|l| {
+     +                 l.trim_start_matches("title:")
+     +                     .trim()
+     +                     .trim_matches('"')
+     +                     .to_string()
+     +             })
+     +             .unwrap_or_default();
+     +         let status = content
+     +             .lines()
+     +             .find(|l| l.starts_with("status:"))
+     +             .map(|l| l.trim_start_matches("status:").trim().to_string())
+     +             .unwrap_or_default();
+     +         let priority = content
+     +             .lines()
+     +             .find(|l| l.starts_with("priority:"))
+     +             .map(|l| l.trim_start_matches("priority:").trim().to_string())
+     +             .unwrap_or_default();
+     +         let version = content
+     +             .lines()
+     +             .find(|l| l.starts_with("version:"))
+     +             .map(|l| l.trim_start_matches("version:").trim().to_string())
+     +             .unwrap_or_default();
+     +         let tags: Vec<String> = content
+     +             .lines()
+     +             .find(|l| l.starts_with("tags:"))
+     +             .map(|l| {
+     +                 l.trim_start_matches("tags:")
+     +                     .trim()
+     +                     .trim_start_matches('[')
+     +                     .trim_end_matches(']')
+     +                     .split(',')
+     +                     .map(|t| t.trim().to_string())
+     +                     .collect()
+     +             })
+     +             .unwrap_or_default();
+     +         let depends_on: Vec<String> = content
+     +             .lines()
+     +             .find(|l| l.starts_with("depends_on:"))
+     +             .map(|l| {
+     +                 l.trim_start_matches("depends_on:")
+     +                     .trim()
+     +                     .trim_start_matches('[')
+     +                     .trim_end_matches(']')
+     +                     .split(',')
+     +                     .map(|t| t.trim().to_string())
+     +                     .filter(|t| !t.is_empty())
+     +                     .collect()
+     +             })
+     +             .unwrap_or_default();
+     +         if !id.is_empty() {
+     +             intents.push(IntentMeta {
+     +                 id,
+     +                 title,
+     +                 status,
+     +                 tags,
+     +                 priority,
+     +                 version,
+     +                 depends_on,
+     +             });
+     -     let active_intents: i64 = std::fs::read_dir(ctx.fpath("intents/future"))
+     -         .map(|d| {
+     -             d.filter_map(|e| e.ok())
+     -                 .filter(|e| {
+     -                     std::fs::read_to_string(e.path())
+     -                         .map(|c| c.contains("status: in-progress"))
+     -                         .unwrap_or(false)
+     -                 })
+     -                 .count() as i64
+     -         })
+     -         .unwrap_or(0);
+     +     let active_intents: i64 = zero_core::ledger::with_status("in-progress").len() as i64;
+     -             for dir in &["future", "complete", "in-progress"] {
+     -                 let path = intents_root.join(dir).to_string_lossy().to_string();
+     -                 if let Ok(entries) = std::fs::read_dir(&path) {
+     -                     for entry in entries.flatten() {
+     -                         let name = entry.file_name().to_string_lossy().to_string();
+     -                         if !name.ends_with(".md") {
+     -                             continue;
+     -                         }
+     -                         let num = name.split('-').next().unwrap_or("").to_string();
+     -                         let title = name
+     -                             .trim_end_matches(".md")
+     -                             .splitn(3, '-')
+     -                             .nth(2)
+     -                             .unwrap_or("")
+     -                             .replace('-', " ");
+     -                         // INT-221 G5: --active MEANT ITS OPPOSITE. The condition skipped
+     -                         // everything that was NOT future, so `pick intent --active` listed the 51
+     -                         // FUTURE intents and hid the two actually in progress. Found by running
+     -                         // every subcommand rather than only `pick file`, which is what G5 asks for.
+     -                         //
+     -                         // `status` here is the DIRECTORY NAME, and there is no `planned` directory:
+     -                         // planned intents live in `future/` with `status: planned` in their
+     -                         // frontmatter. So this picker labels a planned intent [future] while `intl`
+     -                         // labels the same intent [planned] -- two vocabularies for one state, which
+     -                         // is how the filter came to mean the wrong thing.
+     -                         //
+     -                         // ACTIVE MEANS IN-PROGRESS, matching the "ACTIVE (in-progress)" heading
+     -                         // `intl` already prints. One word, one meaning.
+     -                         let status = *dir;
+     -                         if extra == "--active" && status != "in-progress" {
+     -                             continue;
+     -                         }
+     -                         items.push_str(&format!(
+     -                             "INT-{}  [{}]  {}
+     - ",
+     -                             num, status, title
+     -                         ));
+     -                     }
+     +             let _root = intents_root;
+     +             for file in zero_core::ledger::load() {
+     +                 if file.is_record()
+     +                     || !matches!(file.status.as_str(), "planned" | "in-progress" | "complete")
+     +                 {
+     +                     continue;
+     +                 let name = match file.path.file_name() {
+     +                     Some(n) => n.to_string_lossy().to_string(),
+     +                     None => continue,
+     +                 };
+     +                 if !name.ends_with(".md") {
+     +                     continue;
+     +                 }
+     +                 let num = name.split('-').next().unwrap_or("").to_string();
+     +                 let title = name
+     +                     .trim_end_matches(".md")
+     +                     .splitn(3, '-')
+     +                     .nth(2)
+     +                     .unwrap_or("")
+     +                     .replace('-', " ");
+     +                 // INT-313 stage 2. The label is the status line, which is what
+     +                 // `intl` already prints. --active still means in-progress.
+     +                 let status = file.status.as_str();
+     +                 if extra == "--active" && status != "in-progress" {
+     +                     continue;
+     +                 }
+     +                 items.push_str(&format!(
+     +                     "INT-{}  [{}]  {}
+     + ",
+     +                     num, status, title
+     +                 ));
+     -             let home = std::env::var("HOME").unwrap_or_default();
+     -             let dirs: &[&str] = if line.starts_with("cicomplete ") {
+     -                 &["intents/future", "intents/in-progress"]
+     +             let want = if line.starts_with("cicomplete ") {
+     +                 &["planned", "in-progress"][..]
+     -                 &["intents/future"]
+     +                 &["planned"][..]
+     -                 &["intents/future", "intents/complete", "intents/in-progress"]
+     +                 &["planned", "in-progress", "complete"][..]
+     -             for dir in dirs {
+     -                 let path = format!("{}/0-core/{}", home, dir);
+     -                 if let Ok(entries) = std::fs::read_dir(&path) {
+     -                     for e in entries.flatten() {
+     -                         if let Some(name) = e
+     -                             .path()
+     -                             .file_stem()
+     -                             .and_then(|s| s.to_str())
+     -                             .map(|s| s.to_string())
+     -                         {
+     -                             if let Some(id) = name.split('-').next() {
+     -                                 if id.chars().all(|c| c.is_ascii_digit()) {
+     -                                     if partial.is_empty() || id.starts_with(partial) {
+     -                                         ids.push(id.to_string());
+     -                                     }
+     -                                 }
+     -                             }
+     -                         }
+     -                     }
+     +             for file in zero_core::ledger::load() {
+     +                 if file.is_record() || !want.contains(&file.status.as_str()) {
+     +                     continue;
+     +                 }
+     +                 if file.id.chars().all(|c| c.is_ascii_digit())
+     +                     && (partial.is_empty() || file.id.starts_with(partial))
+     +                 {
+     +                     ids.push(file.id);
+     -     // INT-230: one root, three joins. An absent 0-Core yields no directories and
+     -     // the TUI shows nothing, which is what a TUI with no ledger should show.
+     -     // NOTE: parse_intent below stays its own parser deliberately -- this Intent
+     -     // carries title, date, tags, path and full content for rendering, while the
+     -     // adapter keeps four fields so a prompt render does not load every body.
+     -     let dirs: Vec<String> = match crate::core_integration::intents_root() {
+     -         Some(root) => ["future", "in-progress", "complete"]
+     -             .iter()
+     -             .map(|d| root.join(d).to_string_lossy().to_string())
+     -             .collect(),
+     -         None => Vec::new(),
+     -     };
+     -     for dir in &dirs {
+     -         let path = std::path::Path::new(dir);
+     -         if !path.exists() {
+     +     // INT-313 stage 2. The shelf walk is zero_core::ledger. `it` still shows
+     +     // planned, in-progress, and complete intents, which is what future/,
+     +     // in-progress/, and complete/ held. Records stay out of this screen.
+     +     if crate::core_integration::intents_root().is_none() {
+     +         return intents;
+     +     }
+     +     for file in zero_core::ledger::load() {
+     +         if file.is_record() {
+     -         let entries = match std::fs::read_dir(path) {
+     -             Ok(e) => e,
+     -             Err(_) => continue,
+     -         };
+     -         for entry in entries.flatten() {
+     -             let fpath = entry.path();
+     -             if fpath.extension().and_then(|e| e.to_str()) != Some("md") {
+     -                 continue;
+     -             }
+     -             let content = match std::fs::read_to_string(&fpath) {
+     -                 Ok(c) => c,
+     -                 Err(_) => continue,
+     -             };
+     -             if let Some(intent) = parse_intent(&fpath, &content) {
+     -                 intents.push(intent);
+     -             }
+     +         if !matches!(file.status.as_str(), "planned" | "in-progress" | "complete") {
+     +             continue;
+     +         }
+     +         if let Some(intent) = parse_intent(&file.path, &file.content) {
+     +             intents.push(intent);
+     -     let active_intent = std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
+     -         .ok()
+     -         .and_then(|d| {
+     -             d.filter_map(|e| e.ok())
+     -                 .find(|e| {
+     -                     std::fs::read_to_string(e.path())
+     -                         .map(|c| c.contains("status: in-progress"))
+     -                         .unwrap_or(false)
+     -                 })
+     -                 .map(|e| {
+     -                     let name = e.file_name().to_string_lossy().to_string();
+     -                     let num = name.split('-').next().unwrap_or("").to_string();
+     -                     format!("INT-{}", num)
+     -                 })
+     -         });
+     +     let active_intent = zero_core::ledger::load()
+     +         .into_iter()
+     +         .find(|file| !file.is_record() && file.status == "in-progress")
+     +         .map(|file| format!("INT-{}", file.id));
+     -     let active = std::fs::read_dir(zero_core::paths::intents_dir().join("future"))
+     -         .ok()
+     -         .and_then(|d| {
+     -             d.filter_map(|e| e.ok())
+     -                 .find(|e| {
+     -                     std::fs::read_to_string(e.path())
+     -                         .map(|c| c.contains("status: in-progress"))
+     -                         .unwrap_or(false)
+     -                 })
+     -                 .map(|e| e.path())
+     -         });
+     +     let active = zero_core::ledger::load()
+     +         .into_iter()
+     +         .find(|file| !file.is_record() && file.status == "in-progress")
+     +         .map(|file| file.path);
+     - /// Active in-progress intent, scanned from intents/in-progress/ (matches fsh prompt + `fg done`).
+     - /// Returns (id, short_title). Single source of truth -- callers: done.rs, sync.rs.
+     + /// Active in-progress intent, from the status line. Callers: done.rs, sync.rs.
+     + /// Returns (id, short_title).
+     -     let _home = std::env::var("HOME").ok()?;
+     -     let dir = zero_core::paths::intents_dir()
+     -         .join("in-progress")
+     -         .to_string_lossy()
+     +     let mut hits: Vec<_> = zero_core::ledger::load()
+     +         .into_iter()
+     +         .filter(|file| !file.is_record() && file.status == "in-progress")
+     +         .collect();
+     +     hits.sort_by(|a, b| a.path.file_name().cmp(&b.path.file_name()));
+     +     let file = hits.into_iter().next()?;
+     +     let title = if file.title.is_empty() {
+     +         format!("INT-{}", file.id)
+     +     } else {
+     +         file.title
+     +     };
+     +     let short = title
+     +         .split(" -- ")
+     +         .next()
+     +         .unwrap_or(&title)
+     +         .trim()
+     -     let mut entries: Vec<_> = std::fs::read_dir(&dir).ok()?.flatten().collect();
+     -     entries.sort_by_key(|e| e.file_name());
+     -     for entry in entries {
+     -         let name = entry.file_name().to_string_lossy().to_string();
+     -         if !name.ends_with(".md") {
+     -             continue;
+     -         }
+     -         let content = std::fs::read_to_string(entry.path()).ok()?;
+     -         if content.contains("status: in-progress") {
+     -             let id = name.split('-').next().unwrap_or("").to_string();
+     -             let title = content
+     -                 .lines()
+     -                 .find(|l| l.starts_with("title:"))
+     -                 .map(|l| {
+     -                     l.trim_start_matches("title:")
+     -                         .trim()
+     -                         .trim_matches('"')
+     -                         .to_string()
+     -                 })
+     -                 .unwrap_or_else(|| format!("INT-{}", id));
+     -             let short = title
+     -                 .split(" -- ")
+     -                 .next()
+     -                 .unwrap_or(&title)
+     -                 .trim()
+     -                 .to_string();
+     -             return Some((id, short));
+     -         }
+     -     }
+     -     None
+     +     Some((file.id, short))
