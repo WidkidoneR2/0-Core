@@ -3,7 +3,7 @@ id: 309
 date: 2026-11-10
 type: future
 title: "Gate fields and validate"
-status: in-progress
+status: complete
 tags: [intent, ledger, gates]
 ---
 
@@ -102,3 +102,6 @@ closes it. No code is written before G2 and G3 have those lines.
 
 ## Open for Christian
 Ruled 2026-11-14. G2 through G5 accepted. G7 closed by the laptop doors.
+
+## Versions
+- core 4.8.0 -> 4.9.0 (minor)
