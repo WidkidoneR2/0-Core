@@ -1,0 +1,902 @@
+INT-313 stage 6 -- plan
+  E1 welcome, Friday plan, strategy, and zero-git read the ledger
+  E2 it shows in-progress and planned; the Complete section is gone
+     +/// Planned and in-progress intents. Frontmatter status, so a body that quotes
+     +/// `status: in-progress` does not open a planned intent, and `future/` or
+     +/// `active/` are not read.
+     +pub(crate) fn open_intent_rows() -> Vec<(String, String, String)> {
+     +    let mut rows: Vec<(String, String, String)> = zero_core::ledger::live()
+     +        .into_iter()
+     +        .filter(|f| f.status == "planned" || f.status == "in-progress")
+     +        .map(|f| (f.id, f.title, f.status))
+     +        .collect();
+     +    rows.sort_by(|a, b| a.0.cmp(&b.0));
+     +    rows
+     +}
+     +
+     -    // Read planned + in-progress intents from filesystem
+     -    let mut open_intents: Vec<(String, String, String)> = Vec::new(); // (id, title, status)
+     -    for dir in &["future", "active"] {
+     -        let path = zero_core::paths::intents_dir().join(dir);
+     -        if let Ok(entries) = std::fs::read_dir(&path) {
+     -            for entry in entries.flatten() {
+     -                let p = entry.path();
+     -                if p.extension().map(|e| e == "md").unwrap_or(false) {
+     -                    if let Ok(c) = std::fs::read_to_string(&p) {
+     -                        let is_open =
+     -                            c.contains("status: planned") || c.contains("status: in-progress");
+     -                        if is_open {
+     -                            let fname = p
+     -                                .file_stem()
+     -                                .unwrap_or_default()
+     -                                .to_string_lossy()
+     -                                .to_string();
+     -                            let id = fname.split('-').next().unwrap_or("").to_string();
+     -                            let title = c
+     -                                .lines()
+     -                                .find(|l| l.starts_with("title:"))
+     -                                .map(|l| l[6..].trim().trim_matches('"').to_string())
+     -                                .unwrap_or_else(|| fname.clone());
+     -                            let status = if c.contains("status: in-progress") {
+     -                                "in-progress".to_string()
+     -                            } else {
+     -                                "planned".to_string()
+     -                            };
+     -                            open_intents.push((id, title, status));
+     -                        }
+     -                    }
+     -                }
+     -            }
+     -        }
+     -    }
+     -    open_intents.sort_by(|a, b| a.0.cmp(&b.0));
+     +    let open_intents = open_intent_rows();
+     +
+     +#[cfg(test)]
+     +mod tests {
+     +    use super::open_intent_rows;
+     +
+     +    #[test]
+     +    fn open_rows_are_planned_and_in_progress_on_the_live_shelf() {
+     +        let dir = std::env::temp_dir().join(format!(
+     +            "phase2-open-rows-{}-{}",
+     +            std::process::id(),
+     +            std::time::SystemTime::now()
+     +                .duration_since(std::time::UNIX_EPOCH)
+     +                .unwrap()
+     +                .as_nanos()
+     +        ));
+     +        let _ = std::fs::remove_dir_all(&dir);
+     +        let open = dir.join("0-core/zero/intents/open");
+     +        std::fs::create_dir_all(&open).unwrap();
+     +        std::fs::write(
+     +            open.join("010-planned.md"),
+     +            "---\nid: 10\nstatus: planned\ntitle: \"Stay\"\n---\n\nstatus: in-progress\n",
+     +        )
+     +        .unwrap();
+     +        std::fs::write(
+     +            open.join("020-active.md"),
+     +            "---\nid: 20\nstatus: in-progress\ntitle: \"Working\"\n---\n\n",
+     +        )
+     +        .unwrap();
+     +        let active = dir.join("0-core/zero/intents/active");
+     +        std::fs::create_dir_all(&active).unwrap();
+     +        std::fs::write(
+     +            active.join("040-old.md"),
+     +            "---\nid: 40\nstatus: in-progress\ntitle: \"Old shelf\"\n---\n",
+     +        )
+     +        .unwrap();
+     +        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+     +        let prev = std::env::var("HOME").ok();
+     +        // SAFETY: restored before the test returns.
+     +        unsafe { std::env::set_var("HOME", &dir) };
+     +        let rows = open_intent_rows();
+     +        match prev {
+     +            Some(h) => unsafe { std::env::set_var("HOME", h) },
+     +            None => unsafe { std::env::remove_var("HOME") },
+     +        }
+     +        let _ = std::fs::remove_dir_all(&dir);
+     +        assert_eq!(
+     +            rows,
+     +            vec![
+     +                ("10".to_string(), "Stay".to_string(), "planned".to_string()),
+     +                (
+     +                    "20".to_string(),
+     +                    "Working".to_string(),
+     +                    "in-progress".to_string()
+     +                ),
+     +            ]
+     +        );
+     +    }
+     +}
+     -    let mut folders = folders::ACTIVE.to_vec();
+     -    folders.push("complete"); // gates are deferred on finished work too, as before
+     -    let found_path = finder::find_intent_file(&base, id, &folders);
+     +    // Finished work stays on the live shelf. complete/ is not a directory.
+     +    let found_path = finder::find_intent_file(&base, id, folders::LIFECYCLE);
+     -    let mut folders = folders::ACTIVE.to_vec();
+     -    folders.push("complete"); // gates are deferred on finished work too, as before
+     -    let found_path = finder::find_intent_file(&base, id, &folders);
+     +    // Finished work stays on the live shelf. complete/ is not a directory.
+     +    let found_path = finder::find_intent_file(&base, id, folders::LIFECYCLE);
+     +/// Completed intent ids. Live status complete, plus every id git recorded under
+     +/// `zero/intents/complete/`. Same set the doctor prints.
+     +fn completed_intent_count() -> usize {
+     +    zero_core::ledger::completed_ids().len()
+     +}
+     +
+     -    // Count complete intents — scan all categories by status: complete (mirrors doctor)
+     -    let complete_count = {
+     -        let intent_dir = zero_core::paths::intents_dir();
+     -        let categories = [
+     -            "complete",
+     -            "decisions",
+     -            "experiments",
+     -            "philosophy",
+     -            "future",
+     -            "cancelled",
+     -            "deferred",
+     -            "incidents",
+     -            "active",
+     -        ];
+     -        let mut count = 0usize;
+     -        for cat in &categories {
+     -            if let Ok(entries) = std::fs::read_dir(intent_dir.join(cat)) {
+     -                for entry in entries.flatten() {
+     -                    if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
+     -                        if let Ok(c) = std::fs::read_to_string(entry.path()) {
+     -                            if c.contains("status: complete") {
+     -                                count += 1;
+     -                            }
+     -                        }
+     -                    }
+     -                }
+     -            }
+     -        }
+     -        count
+     -    };
+     +    // Completed ids, the same set the doctor prints. A body that quotes
+     +    // `status: complete` and a record shelf do not count.
+     +    let complete_count = completed_intent_count();
+     -    // Factor 3: Intent velocity (max 10)
+     -    let _root = std::path::PathBuf::from(&ctx.core_root);
+     -    let complete_count = {
+     -        let intent_dir = zero_core::paths::intents_dir();
+     -        let categories = [
+     -            "complete",
+     -            "decisions",
+     -            "experiments",
+     -            "philosophy",
+     -            "future",
+     -            "cancelled",
+     -            "deferred",
+     -            "incidents",
+     -            "active",
+     -        ];
+     -        let mut count = 0usize;
+     -        for cat in &categories {
+     -            if let Ok(entries) = std::fs::read_dir(intent_dir.join(cat)) {
+     -                for entry in entries.flatten() {
+     -                    if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
+     -                        if let Ok(c) = std::fs::read_to_string(entry.path()) {
+     -                            if c.contains("status: complete") {
+     -                                count += 1;
+     -                            }
+     -                        }
+     -                    }
+     -                }
+     -            }
+     -        }
+     -        count
+     -    };
+     +    // Factor 3: Intent velocity (max 10). Same completed-id set as quarter.
+     +    let complete_count = completed_intent_count();
+     +
+     +#[cfg(test)]
+     +mod tests {
+     +    use super::completed_intent_count;
+     +
+     +    #[test]
+     +    fn the_complete_count_is_the_ledger_not_a_body_scan() {
+     +        let dir = std::env::temp_dir().join(format!(
+     +            "strategy-complete-{}-{}",
+     +            std::process::id(),
+     +            std::time::SystemTime::now()
+     +                .duration_since(std::time::UNIX_EPOCH)
+     +                .unwrap()
+     +                .as_nanos()
+     +        ));
+     +        let _ = std::fs::remove_dir_all(&dir);
+     +        let open = dir.join("0-core/zero/intents/open");
+     +        std::fs::create_dir_all(&open).unwrap();
+     +        std::fs::write(
+     +            open.join("010-planned.md"),
+     +            "---\nid: 10\nstatus: planned\ntitle: \"Stay\"\n---\n\nstatus: complete\n",
+     +        )
+     +        .unwrap();
+     +        std::fs::write(
+     +            open.join("030-done.md"),
+     +            "---\nid: 30\nstatus: complete\ntitle: \"Done\"\n---\n\n",
+     +        )
+     +        .unwrap();
+     +        let decisions = dir.join("0-core/zero/intents/decisions");
+     +        std::fs::create_dir_all(&decisions).unwrap();
+     +        std::fs::write(
+     +            decisions.join("137-x.md"),
+     +            "---\nid: 137\nstatus: complete\n---\n",
+     +        )
+     +        .unwrap();
+     +        let complete = dir.join("0-core/zero/intents/complete");
+     +        std::fs::create_dir_all(&complete).unwrap();
+     +        std::fs::write(
+     +            complete.join("040-old.md"),
+     +            "---\nid: 40\nstatus: complete\ntitle: \"Old shelf\"\n---\n",
+     +        )
+     +        .unwrap();
+     +        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+     +        let prev = std::env::var("HOME").ok();
+     +        // SAFETY: restored before the test returns.
+     +        unsafe { std::env::set_var("HOME", &dir) };
+     +        let n = completed_intent_count();
+     +        match prev {
+     +            Some(h) => unsafe { std::env::set_var("HOME", h) },
+     +            None => unsafe { std::env::remove_var("HOME") },
+     +        }
+     +        let _ = std::fs::remove_dir_all(&dir);
+     +        assert_eq!(n, 1);
+     +    }
+     +}
+     -    // INT-030: read all three dirs with correct status
+     -    let dirs = [
+     -        ("in-progress", "in-progress"),
+     -        ("complete", "complete"),
+     -        ("future", "planned"),
+     -    ];
+     -    // INT-230: a SEVENTH intent reader, kept deliberately. It maps each FOLDER
+     -    // to a status label and needs complete/ in full, while ledger() reads the
+     -    // frontmatter status field and carries only complete ids. Only the root
+     -    // moves; the folder-to-status logic stays where its caller needs it.
+     -    let intents_root = crate::core_integration::intents_root();
+     -    for (dir, dir_status) in &dirs {
+     -        let path = match &intents_root {
+     -            Some(r) => r.join(dir),
+     -            None => continue,
+     -        };
+     -        if let Ok(entries) = std::fs::read_dir(&path) {
+     -            for entry in entries.flatten() {
+     -                let name = entry.file_name().to_string_lossy().to_string();
+     -                if !name.ends_with(".md") {
+     -                    continue;
+     -                }
+     -                let file_content = std::fs::read_to_string(entry.path()).unwrap_or_default();
+     -                let id = name.split('-').next().unwrap_or("0").to_string();
+     -                let title = file_content
+     -                    .lines()
+     -                    .find(|l| l.starts_with("title:"))
+     -                    .map(|l| {
+     -                        l.trim_start_matches("title:")
+     -                            .trim()
+     -                            .trim_matches('"')
+     -                            .to_string()
+     -                    })
+     -                    .or_else(|| {
+     -                        file_content
+     -                            .lines()
+     -                            .find(|l| l.trim_start().starts_with("# "))
+     -                            .map(|l| l.trim_start_matches('#').trim().to_string())
+     -                    })
+     -                    .unwrap_or_else(|| name.replace(".md", ""));
+     -                // Prefer status from frontmatter, fall back to dir_status
+     -                let status = file_content
+     -                    .lines()
+     -                    .find(|l| l.starts_with("status:"))
+     -                    .map(|l| l.trim_start_matches("status:").trim().to_string())
+     -                    .unwrap_or_else(|| dir_status.to_string());
+     -                let mut row = HashMap::new();
+     -                row.insert(
+     -                    "id".to_string(),
+     -                    crate::value::Value::Int(id.parse().unwrap_or(0)),
+     -                );
+     -                row.insert("title".to_string(), crate::value::Value::Text(title));
+     -                row.insert("status".to_string(), crate::value::Value::Text(status));
+     -                rows.push(row);
+     -            }
+     +    // Planned, in-progress, and complete, from the ledger. Complete ids that
+     +    // exist only in git history have no title on disk. An old shelf is not read.
+     +    if crate::core_integration::intents_root().is_none() {
+     +        return CommandResult::Output("  ○ No intents found".to_string());
+     +    }
+     +    let mut seen = std::collections::HashSet::new();
+     +    for file in zero_core::ledger::live() {
+     +        if !matches!(file.status.as_str(), "planned" | "in-progress" | "complete") {
+     +            continue;
+     +        if file.id.is_empty() || !file.id.chars().all(|c| c.is_ascii_digit()) {
+     +            continue;
+     +        }
+     +        seen.insert(file.id.clone());
+     +        let mut row = HashMap::new();
+     +        row.insert(
+     +            "id".to_string(),
+     +            crate::value::Value::Int(file.id.parse().unwrap_or(0)),
+     +        );
+     +        row.insert("title".to_string(), crate::value::Value::Text(file.title));
+     +        row.insert("status".to_string(), crate::value::Value::Text(file.status));
+     +        rows.push(row);
+     +    }
+     +    for id in zero_core::ledger::completed_ids() {
+     +        if seen.contains(&id) || id.is_empty() || !id.chars().all(|c| c.is_ascii_digit()) {
+     +            continue;
+     +        }
+     +        let mut row = HashMap::new();
+     +        row.insert(
+     +            "id".to_string(),
+     +            crate::value::Value::Int(id.parse().unwrap_or(0)),
+     +        );
+     +        row.insert(
+     +            "title".to_string(),
+     +            crate::value::Value::Text(String::new()),
+     +        );
+     +        row.insert(
+     +            "status".to_string(),
+     +            crate::value::Value::Text("complete".to_string()),
+     +        );
+     +        rows.push(row);
+     -    // Count intents
+     -    // INT-230: the ONE place a zero is allowed on absence -- this renders in a
+     -    // version panel where "0 intents" prints beside "unknown version", so the
+     -    // zero reads as absence rather than as a count that was taken.
+     -    let count_md = |sub: &str| -> usize {
+     -        let root = match crate::core_integration::intents_root() {
+     -            Some(r) => r,
+     -            None => return 0,
+     -        };
+     -        std::fs::read_dir(root.join(sub))
+     -            .map(|d| {
+     -                d.flatten()
+     -                    .filter(|e| e.path().extension().map(|x| x == "md").unwrap_or(false))
+     -                    .count()
+     -            })
+     -            .unwrap_or(0)
+     +    // Count intents from the ledger. A zero here is the one place absence and
+     +    // an empty shelf print the same way: this panel already prints "unknown
+     +    // version" beside the count when 0-Core is not present.
+     +    let (complete, in_progress, planned) = if crate::core_integration::present() {
+     +        (
+     +            zero_core::ledger::completed_ids().len(),
+     +            zero_core::ledger::with_status("in-progress").len(),
+     +            zero_core::ledger::with_status("planned").len(),
+     +        )
+     +    } else {
+     +        (0, 0, 0)
+     -    let complete = count_md("complete");
+     -    let in_progress = count_md("in-progress");
+     -    let planned = count_md("future");
+     +
+     +#[cfg(test)]
+     +mod ledger_reader_tests {
+     +    use super::{intents, CommandResult};
+     +
+     +    #[test]
+     +    fn the_intents_table_reads_the_open_shelf() {
+     +        if std::env::var_os("NSH_INTENTS_TABLE_CHILD").is_none() {
+     +            let status = std::process::Command::new(std::env::current_exe().unwrap())
+     +                .args([
+     +                    "commands::ledger_reader_tests::the_intents_table_reads_the_open_shelf",
+     +                    "--exact",
+     +                    "--test-threads=1",
+     +                ])
+     +                .env("NSH_INTENTS_TABLE_CHILD", "1")
+     +                .status()
+     +                .unwrap();
+     +            assert!(status.success());
+     +            return;
+     +        }
+     +        let dir = std::env::temp_dir().join(format!(
+     +            "nsh-intents-table-{}-{}",
+     +            std::process::id(),
+     +            std::time::SystemTime::now()
+     +                .duration_since(std::time::UNIX_EPOCH)
+     +                .unwrap()
+     +                .as_nanos()
+     +        ));
+     +        let _ = std::fs::remove_dir_all(&dir);
+     +        let open = dir.join("0-core/zero/intents/open");
+     +        std::fs::create_dir_all(&open).unwrap();
+     +        std::fs::write(
+     +            open.join("010-planned.md"),
+     +            "---\nid: 10\nstatus: planned\ntitle: \"Stay\"\n---\n\nstatus: in-progress\n",
+     +        )
+     +        .unwrap();
+     +        std::fs::write(
+     +            open.join("020-active.md"),
+     +            "---\nid: 20\nstatus: in-progress\ntitle: \"Working\"\n---\n\n",
+     +        )
+     +        .unwrap();
+     +        let future = dir.join("0-core/zero/intents/future");
+     +        std::fs::create_dir_all(&future).unwrap();
+     +        std::fs::write(
+     +            future.join("040-old.md"),
+     +            "---\nid: 40\nstatus: planned\ntitle: \"Old\"\n---\n",
+     +        )
+     +        .unwrap();
+     +        let prev = std::env::var("HOME").ok();
+     +        // SAFETY: restored before the test returns.
+     +        unsafe { std::env::set_var("HOME", &dir) };
+     +        let result = intents("");
+     +        match prev {
+     +            Some(h) => unsafe { std::env::set_var("HOME", h) },
+     +            None => unsafe { std::env::remove_var("HOME") },
+     +        }
+     +        let _ = std::fs::remove_dir_all(&dir);
+     +        let CommandResult::Value(crate::value::Value::Table(rows)) = result else {
+     +            panic!("the shelf holds two intents");
+     +        };
+     +        assert_eq!(rows.len(), 2);
+     +        let mut got: Vec<(i64, String)> = rows
+     +            .iter()
+     +            .map(|row| {
+     +                let id = match row.get("id") {
+     +                    Some(crate::value::Value::Int(n)) => *n,
+     +                    _ => panic!("id"),
+     +                };
+     +                let status = match row.get("status") {
+     +                    Some(crate::value::Value::Text(s)) => s.clone(),
+     +                    _ => panic!("status"),
+     +                };
+     +                (id, status)
+     +            })
+     +            .collect();
+     +        got.sort();
+     +        assert_eq!(
+     +            got,
+     +            vec![(10, "planned".to_string()), (20, "in-progress".to_string())]
+     +        );
+     +    }
+     +}
+     +    /// Intents whose frontmatter status is `planned`. Records are not loaded.
+     +    pub fn planned_count(&self) -> usize {
+     +        self.intents.iter().filter(|i| i.is_planned()).count()
+     +    }
+     +
+     +    /// Completed intent ids: live status complete, plus every id git recorded
+     +    /// under `zero/intents/complete/`. Same set the doctor prints.
+     +    pub fn done_count(&self) -> usize {
+     +        self.complete_ids.len()
+     +    }
+     +
+     +
+     +    /// Welcome planned/done. A body that quotes a status does not count, a file
+     +    /// on an old shelf does not count, and a missing shelf is None rather than
+     +    /// a zero.
+     +    #[test]
+     +    fn welcome_counts_follow_the_ledger_and_absence_is_unknown() {
+     +        // HOME is process-global. The count runs in a child so a parallel test
+     +        // that reads the real checkout does not see this shelf.
+     +        if std::env::var_os("NSH_WELCOME_LEDGER_CHILD").is_none() {
+     +            let status = std::process::Command::new(std::env::current_exe().unwrap())
+     +                .args([
+     +                    "core_integration::tests::welcome_counts_follow_the_ledger_and_absence_is_unknown",
+     +                    "--exact",
+     +                    "--test-threads=1",
+     +                ])
+     +                .env("NSH_WELCOME_LEDGER_CHILD", "1")
+     +                .status()
+     +                .unwrap();
+     +            assert!(status.success());
+     +            return;
+     +        }
+     +        let dir = std::env::temp_dir().join(format!(
+     +            "nsh-welcome-ledger-{}-{}",
+     +            std::process::id(),
+     +            std::time::SystemTime::now()
+     +                .duration_since(std::time::UNIX_EPOCH)
+     +                .unwrap()
+     +                .as_nanos()
+     +        ));
+     +        let _ = std::fs::remove_dir_all(&dir);
+     +        std::fs::create_dir_all(&dir).unwrap();
+     +        let prev = std::env::var("HOME").ok();
+     +        // SAFETY: restored before the test returns.
+     +        unsafe { std::env::set_var("HOME", &dir) };
+     +        assert!(super::ledger().is_none(), "no shelf is not an empty count");
+     +        assert!(!super::present());
+     +
+     +        let open = dir.join("0-core/zero/intents/open");
+     +        std::fs::create_dir_all(&open).unwrap();
+     +        std::fs::write(
+     +            open.join("010-planned.md"),
+     +            "---\nid: 10\nstatus: planned\ntitle: \"Stay\"\n---\n\nstatus: in-progress\nstatus: complete\n",
+     +        )
+     +        .unwrap();
+     +        std::fs::write(
+     +            open.join("020-active.md"),
+     +            "---\nid: 20\nstatus: in-progress\ntitle: \"Working\"\n---\n\n",
+     +        )
+     +        .unwrap();
+     +        std::fs::write(
+     +            open.join("030-done.md"),
+     +            "---\nid: 30\nstatus: complete\ntitle: \"Done\"\n---\n\n",
+     +        )
+     +        .unwrap();
+     +        let future = dir.join("0-core/zero/intents/future");
+     +        std::fs::create_dir_all(&future).unwrap();
+     +        std::fs::write(
+     +            future.join("040-old.md"),
+     +            "---\nid: 40\nstatus: planned\ntitle: \"Old shelf\"\n---\n",
+     +        )
+     +        .unwrap();
+     +        let decisions = dir.join("0-core/zero/intents/decisions");
+     +        std::fs::create_dir_all(&decisions).unwrap();
+     +        std::fs::write(
+     +            decisions.join("137-x.md"),
+     +            "---\nid: 137\nstatus: planned\n---\n",
+     +        )
+     +        .unwrap();
+     +
+     +        let ledger = super::ledger().expect("the open shelf is present");
+     +        assert_eq!(ledger.planned_count(), 1);
+     +        assert_eq!(ledger.active_count(), 1);
+     +        assert_eq!(ledger.done_count(), 1);
+     +
+     +        match prev {
+     +            Some(h) => unsafe { std::env::set_var("HOME", h) },
+     +            None => unsafe { std::env::remove_var("HOME") },
+     +        }
+     +        let _ = std::fs::remove_dir_all(&dir);
+     +    }
+     -    Complete,
+     -            StatusFilter::Planned => StatusFilter::Complete,
+     -            StatusFilter::Complete => StatusFilter::All,
+     +            StatusFilter::Planned => StatusFilter::All,
+     -            StatusFilter::Complete => "complete",
+     -    let complete = filtered.iter().filter(|i| i.status == "complete").count();
+     -        Span::styled("complete ", Style::default().fg(Color::Rgb(107, 227, 163))),
+     -        Span::styled(
+     -            format!("{}  ", complete),
+     -            Style::default()
+     -                .fg(Color::Rgb(107, 227, 163))
+     -                .add_modifier(Modifier::BOLD),
+     -        ),
+     -                "complete" => Span::styled("✓ ", Style::default().fg(Color::Rgb(107, 227, 163))),
+     -                "complete" => Color::Rgb(107, 227, 163),
+     -    // INT-313 stage 2. The shelf walk is zero_core::ledger. `it` still shows
+     -    // planned, in-progress, and complete intents, which is what future/,
+     -    // in-progress/, and complete/ held. Records stay out of this screen.
+     +    // Finished intents are git history. This screen shows the live shelf:
+     +    // in-progress and planned. Records stay out.
+     -        if !matches!(file.status.as_str(), "planned" | "in-progress" | "complete") {
+     +        if !matches!(file.status.as_str(), "planned" | "in-progress") {
+     -    // Sort: in-progress first, then planned, then complete, then by ID
+     +    // Sort: in-progress first, then planned, then by ID
+     -            "complete" => 2,
+     -            _ => 3,
+     +            _ => 2,
+     -                StatusFilter::Complete => i.status == "complete",
+     +
+     +#[cfg(test)]
+     +mod tests {
+     +    use super::{load_intents, StatusFilter};
+     +
+     +    #[test]
+     +    fn tab_cycles_all_in_progress_and_planned() {
+     +        let mut filter = StatusFilter::All;
+     +        let mut labels = vec![filter.label().to_string()];
+     +        for _ in 0..3 {
+     +            filter = filter.next();
+     +            labels.push(filter.label().to_string());
+     +        }
+     +        assert_eq!(
+     +            labels,
+     +            vec![
+     +                "all".to_string(),
+     +                "in-progress".to_string(),
+     +                "planned".to_string(),
+     +                "all".to_string(),
+     +            ]
+     +        );
+     +    }
+     +
+     +    #[test]
+     +    fn a_finished_intent_is_not_on_the_screen() {
+     +        if std::env::var_os("NSH_IT_LEDGER_CHILD").is_none() {
+     +            let status = std::process::Command::new(std::env::current_exe().unwrap())
+     +                .args([
+     +                    "intent_tui::tests::a_finished_intent_is_not_on_the_screen",
+     +                    "--exact",
+     +                    "--test-threads=1",
+     +                ])
+     +                .env("NSH_IT_LEDGER_CHILD", "1")
+     +                .status()
+     +                .unwrap();
+     +            assert!(status.success());
+     +            return;
+     +        }
+     +        let dir = std::env::temp_dir().join(format!(
+     +            "nsh-it-ledger-{}-{}",
+     +            std::process::id(),
+     +            std::time::SystemTime::now()
+     +                .duration_since(std::time::UNIX_EPOCH)
+     +                .unwrap()
+     +                .as_nanos()
+     +        ));
+     +        let _ = std::fs::remove_dir_all(&dir);
+     +        let open = dir.join("0-core/zero/intents/open");
+     +        std::fs::create_dir_all(&open).unwrap();
+     +        std::fs::write(
+     +            open.join("010-planned.md"),
+     +            "---\nid: 10\nstatus: planned\ntitle: \"Stay\"\n---\n\n",
+     +        )
+     +        .unwrap();
+     +        std::fs::write(
+     +            open.join("020-active.md"),
+     +            "---\nid: 20\nstatus: in-progress\ntitle: \"Working\"\n---\n\n",
+     +        )
+     +        .unwrap();
+     +        std::fs::write(
+     +            open.join("030-done.md"),
+     +            "---\nid: 30\nstatus: complete\ntitle: \"Done\"\n---\n\n",
+     +        )
+     +        .unwrap();
+     +        let prev = std::env::var("HOME").ok();
+     +        // SAFETY: restored before the test returns. This process is the child.
+     +        unsafe { std::env::set_var("HOME", &dir) };
+     +        let shown: Vec<(String, String)> = load_intents("")
+     +            .into_iter()
+     +            .map(|i| (i.id, i.status))
+     +            .collect();
+     +        match prev {
+     +            Some(h) => unsafe { std::env::set_var("HOME", h) },
+     +            None => unsafe { std::env::remove_var("HOME") },
+     +        }
+     +        let _ = std::fs::remove_dir_all(&dir);
+     +        assert_eq!(
+     +            shown,
+     +            vec![
+     +                ("20".to_string(), "in-progress".to_string()),
+     +                ("10".to_string(), "planned".to_string()),
+     +            ]
+     +        );
+     +    }
+     +}
+     -    // Count intents by scanning all categories — mirrors doctor check_intents logic exactly
+     -    // ⚠️ ABSENT IS NOT EMPTY, and the rule was already written eight lines above for health:
+     -    // "the banner says so rather than inventing a number." These two did invent one. The loop
+     -    // below reads nine directories with `if let Ok(entries)`, so on a machine without a ledger all
+     -    // nine miss, nothing increments, and the banner printed `0 done · 0 planned` about a directory
+     -    // that is not there. Seen on Void and on Omarchy, beside an honest `? commits`.
+     -    // INT-230: main.rs had its own existence check. The adapter owns that
+     -    // question now -- one place asks whether 0-Core is here.
+     +    // Planned and done come from the ledger, the same counts intl and the doctor use.
+     +    // planned: live frontmatter status planned. done: completed_ids (live status
+     +    // complete, plus every id git recorded under zero/intents/complete/).
+     +    // ABSENT IS NOT EMPTY. present() is false when the shelf is not there, and the
+     +    // banner prints ? rather than 0. ledger() is None in that case, so the zeros
+     +    // below are never shown.
+     -    let (complete_count, planned_count) = {
+     -        let intent_dir = zero_core::paths::intents_dir();
+     -        let categories = [
+     -            "complete",
+     -            "decisions",
+     -            "experiments",
+     -            "philosophy",
+     -            "future",
+     -            "cancelled",
+     -            "deferred",
+     -            "incidents",
+     -            "active",
+     -        ];
+     -        let mut complete = 0usize;
+     -        let mut planned = 0usize;
+     -        for cat in &categories {
+     -            if let Ok(entries) = std::fs::read_dir(intent_dir.join(cat)) {
+     -                for entry in entries.flatten() {
+     -                    if entry.path().extension().map(|e| e == "md").unwrap_or(false) {
+     -                        if let Ok(content) = std::fs::read_to_string(entry.path()) {
+     -                            if content.contains("status: complete") {
+     -                                complete += 1;
+     -                            } else if content.contains("status: planned") && *cat == "future" {
+     -                                // PLANNED IS A future/ FACT. Counting it across all nine
+     -                                // directories reported 43 where intl reported 40, because
+     -                                // four decisions and philosophy documents carry
+     -                                // status: planned -- a status those categories have no use
+     -                                // for. That disagreement is the INT-211 finding and belongs
+     -                                // there, visible, rather than absorbed into a banner count.
+     -                                // The banner should agree with the tool used to read the
+     -                                // ledger.
+     -                                //
+     -                                // complete still scans everything: a completed intent
+     -                                // legitimately lives in complete/, and that count is a
+     -                                // total rather than a directory fact.
+     -                                planned += 1;
+     -                            }
+     -                        }
+     -                    }
+     -                }
+     -            }
+     -        }
+     -        (complete, planned)
+     -    };
+     +    let (complete_count, planned_count) = crate::core_integration::ledger()
+     +        .map(|l| (l.done_count(), l.planned_count()))
+     +        .unwrap_or((0, 0));
+     +/// In-progress intents as `(INT-N, title)`. Frontmatter status and a numeric
+     +/// id. A file on `future/` or `in-progress/` is not read.
+     +pub(crate) fn in_progress_refs() -> Vec<(String, String)> {
+     +    let mut active: Vec<(String, String)> = zero_core::ledger::with_status("in-progress")
+     +        .into_iter()
+     +        .filter(|f| !f.id.is_empty() && f.id.chars().all(|c| c.is_ascii_digit()))
+     +        .map(|f| (format!("INT-{}", f.id), f.title))
+     +        .collect();
+     +    active.sort();
+     +    active.dedup();
+     +    active
+     +}
+     +
+     -        let _home = std::env::var("HOME").unwrap_or_default();
+     -        // INT-333 v5: scan both future/ and in-progress/ for active intents
+     -        let base = zero_core::paths::intents_dir();
+     -        let mut active: Vec<String> = Vec::new();
+     -        for dir_name in &["future", "in-progress"] {
+     -            let dir = base.join(dir_name);
+     -            if let Ok(entries) = std::fs::read_dir(&dir) {
+     -                for entry in entries.flatten() {
+     -                    if let Ok(c) = std::fs::read_to_string(entry.path()) {
+     -                        if c.contains("status: in-progress") {
+     -                            let name = entry.file_name().to_string_lossy().to_string();
+     -                            let num = name.split('-').next().unwrap_or("").to_string();
+     -                            if !num.is_empty() && num.parse::<u32>().is_ok() {
+     -                                active.push(format!("INT-{}", num));
+     -                            }
+     -                        }
+     -                    }
+     -                }
+     -            }
+     -        }
+     -        active.sort();
+     -        active.dedup();
+     +        let active: Vec<String> = in_progress_refs().into_iter().map(|(id, _)| id).collect();
+     -        let _home = std::env::var("HOME").unwrap_or_default();
+     -        // INT-333 v5: scan both future/ and in-progress/ directories
+     -        let base = zero_core::paths::intents_dir();
+     -        let mut active: Vec<(String, String)> = Vec::new();
+     -        for dir_name in &["future", "in-progress"] {
+     -            let dir = base.join(dir_name);
+     -            if let Ok(entries) = std::fs::read_dir(&dir) {
+     -                for entry in entries.flatten() {
+     -                    if let Ok(c) = std::fs::read_to_string(entry.path()) {
+     -                        if c.contains("status: in-progress") {
+     -                            let fname = entry.file_name().to_string_lossy().to_string();
+     -                            let num = fname.split('-').next().unwrap_or("").to_string();
+     -                            if !num.is_empty() && num.parse::<u32>().is_ok() {
+     -                                active.push((format!("INT-{}", num), String::new()));
+     -                            }
+     -                        }
+     -                    }
+     -                }
+     -            }
+     -        }
+     -        active.sort();
+     -        active.dedup();
+     +        let active = in_progress_refs();
+     +/// The first unchecked gate in the live file for this intent id.
+     +pub(crate) fn next_open_gate(intent_id: i64) -> Option<String> {
+     +    let want = intent_id.to_string();
+     +    let file = zero_core::ledger::live()
+     +        .into_iter()
+     +        .find(|f| !f.is_record() && f.id == want)?;
+     +    for line in file.content.lines() {
+     +        if let Some(rest) = line.strip_prefix("- [ ] ") {
+     +            return Some(rest.trim().chars().take(80).collect());
+     +        }
+     +    }
+     +    None
+     +}
+     +
+     -    // INT-071 gate_hint: record the next open gate (first unchecked - [ ] in the charter)
+     -    // for the RESOLVED intent_id -- the same intent attribution chose (message or active),
+     -    // not a second independent get_active_intent() call. Scans in-progress/ and future/.
+     -    let gate_hint: Option<String> = intent_id.and_then(|iid| {
+     -        let _home = std::env::var("HOME").unwrap_or_default();
+     -        let prefix = format!("{:03}-", iid);
+     -        for sub in ["in-progress", "future"] {
+     -            let dir = zero_core::paths::intents_dir()
+     -                .join(sub)
+     -                .to_string_lossy()
+     -                .to_string();
+     -            let entries = match std::fs::read_dir(&dir) {
+     -                Ok(e) => e,
+     -                Err(_) => continue,
+     -            };
+     -            for entry in entries.flatten() {
+     -                let name = entry.file_name().to_string_lossy().to_string();
+     -                if !name.starts_with(&prefix) {
+     -                    continue;
+     -                }
+     -                if let Ok(content) = std::fs::read_to_string(entry.path()) {
+     -                    for line in content.lines() {
+     -                        if let Some(rest) = line.strip_prefix("- [ ] ") {
+     -                            return Some(rest.trim().chars().take(80).collect::<String>());
+     -                        }
+     -                    }
+     -                }
+     -            }
+     -        }
+     -        None
+     -    });
+     +    // INT-071 gate_hint: the first unchecked box in the live file for the
+     +    // resolved intent id. The file comes from the ledger, not from in-progress/ or future/.
+     +    let gate_hint: Option<String> = intent_id.and_then(next_open_gate);
+     +
+     +#[cfg(test)]
+     +mod tests {
+     +    use super::commit::in_progress_refs;
+     +    use super::next_open_gate;
+     +
+     +    static HOME_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+     +
+     +    fn shelf() -> std::path::PathBuf {
+     +        let dir = std::env::temp_dir().join(format!(
+     +            "zero-git-ledger-{}-{}",
+     +            std::process::id(),
+     +            std::time::SystemTime::now()
+     +                .duration_since(std::time::UNIX_EPOCH)
+     +                .unwrap()
+     +                .as_nanos()
+     +        ));
+     +        let _ = std::fs::remove_dir_all(&dir);
+     +        let open = dir.join("0-core/zero/intents/open");
+     +        std::fs::create_dir_all(&open).unwrap();
+     +        std::fs::write(
+     +            open.join("010-planned.md"),
+     +            "---\nid: 10\nstatus: planned\ntitle: \"Stay\"\n---\n\nstatus: in-progress\n- [ ] not this one\n",
+     +        )
+     +        .unwrap();
+     +        std::fs::write(
+     +            open.join("020-active.md"),
+     +            "---\nid: 20\nstatus: in-progress\ntitle: \"Working\"\n---\n\n- [ ] write the gate\n- [ ] later\n",
+     +        )
+     +        .unwrap();
+     +        let future = dir.join("0-core/zero/intents/future");
+     +        std::fs::create_dir_all(&future).unwrap();
+     +        std::fs::write(
+     +            future.join("040-old.md"),
+     +            "---\nid: 40\nstatus: in-progress\ntitle: \"Old\"\n---\n\n- [ ] old gate\n",
+     +        )
+     +        .unwrap();
+     +        dir
+     +    }
+     +
+     +    #[test]
+     +    fn active_refs_come_from_the_live_shelf() {
+     +        let dir = shelf();
+     +        let _guard = HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+     +        let prev = std::env::var("HOME").ok();
+     +        // SAFETY: restored before the test returns.
+     +        unsafe { std::env::set_var("HOME", &dir) };
+     +        let refs = in_progress_refs();
+     +        match prev {
+     +            Some(h) => unsafe { std::env::set_var("HOME", h) },
+     +            None => unsafe { std::env::remove_var("HOME") },
+     +        }
+     +        let _ = std::fs::remove_dir_all(&dir);
+     +        assert_eq!(refs, vec![("INT-20".to_string(), "Working".to_string())]);
+     +    }
+     +
+     +    #[test]
+     +    fn the_open_gate_is_read_from_the_live_file() {
+     +        let dir = shelf();
+     +        let _guard = HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+     +        let prev = std::env::var("HOME").ok();
+     +        // SAFETY: restored before the test returns.
+     +        unsafe { std::env::set_var("HOME", &dir) };
+     +        let gate = next_open_gate(20);
+     +        let missing = next_open_gate(40);
+     +        match prev {
+     +            Some(h) => unsafe { std::env::set_var("HOME", h) },
+     +            None => unsafe { std::env::remove_var("HOME") },
+     +        }
+     +        let _ = std::fs::remove_dir_all(&dir);
+     +        assert_eq!(gate.as_deref(), Some("write the gate"));
+     +        assert_eq!(missing, None);
+     +    }
+     +}
