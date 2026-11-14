@@ -1,0 +1,10 @@
+INT-308 commit 3 -- plan
+  E1 add_with and note do what the red tests asked. G4 is ticked. G5 stays open.
+
+cargo test -p core: 289 passed, 0 failed
+cargo test -p novashell: 262 passed, 0 failed
+the four add_and_note tests pass
+
+nsh-test: timeout 900, exit 124. No Results line. The harness prints counts only after every case returns. Last case in progress: repl_277_g6_prompt_tells_the_terminal_the_cwd_and_the_title (scratch g5-g6osc, case138). Output tail was only the banner:
+  nsh-test v2.2.0
+  under test: 5.5.0
