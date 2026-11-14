@@ -334,6 +334,25 @@ pub fn show_models(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
+/// In-progress ids as `INT-N`, comma-joined. No ids is `none`.
+fn format_active_intents(ids: impl IntoIterator<Item = impl AsRef<str>>) -> String {
+    let mut ids: Vec<String> = ids
+        .into_iter()
+        .map(|id| id.as_ref().trim().to_string())
+        .filter(|id| !id.is_empty())
+        .collect();
+    ids.sort_by_key(|id| id.parse::<u64>().unwrap_or(u64::MAX));
+    ids.dedup();
+    if ids.is_empty() {
+        "none".to_string()
+    } else {
+        ids.iter()
+            .map(|id| format!("INT-{id}"))
+            .collect::<Vec<_>>()
+            .join(", ")
+    }
+}
+
 /// Friday speaks when it detects a known error pattern
 pub fn speak_on_error(ctx: &AppContext, error_output: &str) -> CoreResult<()> {
     if let Some((desc, resolution, confidence)) =
@@ -397,8 +416,14 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
             );
         }
     }
-    // Phase 3: Brief
+    // Phase 3: Brief. Active intents are the live in-progress ids, not
+    // domain_state, which nothing writes.
     let now = now_ts();
+    let active_intent = format_active_intents(
+        zero_core::ledger::with_status("in-progress")
+            .into_iter()
+            .map(|file| file.id),
+    );
     let brief = if !patterns.is_empty() {
         format!(
             "Friday sees {} cross-layer signal(s). {}{}",
@@ -430,15 +455,6 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
                 rusqlite::params![now - 86400],
                 |r| r.get(0),
             ).unwrap_or(0);
-            let active_intent: String = ctx
-                .runtime
-                .db
-                .query_row(
-                    "SELECT value FROM domain_state WHERE key='active_intent' LIMIT 1",
-                    [],
-                    |r| r.get(0),
-                )
-                .unwrap_or_else(|_| "none".to_string());
             format!(
                 "Healthy. {} deploy(s), {} commit(s) today. Active: {}. No conflicts detected.",
                 deploy_count, commit_count, active_intent
@@ -449,9 +465,10 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
     let _ = ctx.runtime.db.execute(
         "INSERT INTO synthesis_snapshots (timestamp, health, alignment, active_intent,
          session_commits, top_pattern, friday_brief, brief_confidence, contradiction)
-         VALUES (?1, 100, 1.0, 'INT-216', 0, 'meta-interpretation', ?2, 0.85, ?3)",
+         VALUES (?1, 100, 1.0, ?2, 0, 'meta-interpretation', ?3, 0.85, ?4)",
         params![
             now,
+            active_intent,
             brief,
             if contradictions.is_empty() { "" } else { "yes" }
         ],
@@ -1333,4 +1350,17 @@ pub fn show_simulation_accuracy(ctx: &AppContext) -> CoreResult<()> {
     }
     println!("  {}", "─".repeat(55).dimmed());
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::format_active_intents;
+
+    #[test]
+    fn active_intents_are_int_n_or_none() {
+        assert_eq!(format_active_intents(["313"]), "INT-313");
+        assert_eq!(format_active_intents(["313", "10"]), "INT-10, INT-313");
+        assert_eq!(format_active_intents(Vec::<&str>::new()), "none");
+        assert_eq!(format_active_intents(["", "  "]), "none");
+    }
 }
