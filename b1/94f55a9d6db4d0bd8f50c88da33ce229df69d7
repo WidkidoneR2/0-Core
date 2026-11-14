@@ -1,0 +1,9 @@
+INT-309 commit 2 -- plan
+  E1 red tests for the reader, the RULED line, empty v2 evidence, and the placeholder note.
+
+test result: FAILED. 1 passed; 4 failed; 0 ignored; 0 measured; 289 filtered out
+  a_v1_ticked_gate_without_a_receipt_still_completes ... ok
+  a_wrapped_evidence_field_is_the_receipt ... FAILED
+  a_ruled_line_does_not_hide_the_receipt ... FAILED
+  an_empty_v2_evidence_refuses_completion ... FAILED
+  a_v1_placeholder_is_listed_and_not_a_hard_error ... FAILED
