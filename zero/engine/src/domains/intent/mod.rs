@@ -3020,6 +3020,27 @@ pub fn create_in(
     Ok(path)
 }
 
+/// Non-interactive `core intent add`. The four flags, then `create_in`.
+/// A bad flag returns before anything is written.
+pub fn add_with(
+    _base: &std::path::Path,
+    _category: &str,
+    _title: &str,
+    _status: &str,
+    _tags: &str,
+) -> CoreResult<PathBuf> {
+    Err(crate::errors::CoreError::Runtime("not implemented".into()))
+}
+
+/// `core intent note`. Stores the plan under refs/notes/seals and returns the seal.
+pub fn note(
+    _repo: &std::path::Path,
+    _plan: &std::path::Path,
+    _commit: Option<&str>,
+) -> CoreResult<String> {
+    Err(crate::errors::CoreError::Runtime("not implemented".into()))
+}
+
 /// Prompt on a TTY. Returns None when stdin is not a terminal -- never block a script.
 fn prompt(label: &str) -> Option<String> {
     use std::io::{IsTerminal, Write};
@@ -5155,5 +5176,127 @@ mod g5_release_tests {
             msg,
             "INT-295: complete; nsh 5.3.12, nsh-test 2.0.15, zero-doctor 0.1.4\n\nIntent: INT-295\nRelease: nsh 5.3.12, nsh-test 2.0.15, zero-doctor 0.1.4\n"
         );
+    }
+}
+
+#[cfg(test)]
+mod add_and_note_tests {
+    use super::{add_with, note};
+    use crate::domains::intent::trace::seal_digest;
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "int308-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn four_flags_and_no_terminal_write_status_and_tags() {
+        let base = scratch("add");
+        let path = add_with(&base, "open", "A flagged intent", "planned", "ledger, git")
+            .expect("the four flags write a file");
+        let text = std::fs::read_to_string(&path).unwrap();
+        assert!(text.contains("\nstatus: planned\n"), "{text}");
+        assert!(text.contains("tags: [ledger, git]"), "{text}");
+        assert!(text.contains("title: \"A flagged intent\""));
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    #[test]
+    fn a_bad_status_writes_nothing() {
+        let base = scratch("bad");
+        let err = add_with(&base, "open", "Nope", "banana", "ledger").unwrap_err();
+        let msg = err.to_string();
+        assert!(
+            msg.contains("unknown status"),
+            "a bad flag names the status: {msg}"
+        );
+        let n = std::fs::read_dir(base.join("open"))
+            .map(|d| d.count())
+            .unwrap_or(0);
+        assert_eq!(n, 0, "a bad flag writes nothing");
+        let _ = std::fs::remove_dir_all(&base);
+    }
+
+    fn git(dir: &std::path::Path, args: &[&str]) {
+        let out = std::process::Command::new("git")
+            .arg("-C")
+            .arg(dir)
+            .args(args)
+            .output()
+            .unwrap();
+        assert!(
+            out.status.success(),
+            "{args:?} {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+
+    fn repo(name: &str) -> std::path::PathBuf {
+        let dir = scratch(name);
+        git(&dir, &["init", "-q", "-b", "main"]);
+        git(&dir, &["config", "user.email", "t@example.com"]);
+        git(&dir, &["config", "user.name", "Test"]);
+        git(&dir, &["commit", "-q", "--allow-empty", "-m", "init"]);
+        dir
+    }
+
+    #[test]
+    fn the_stored_note_hashes_to_the_printed_seal() {
+        let dir = repo("note");
+        let plan = dir.join("plan.txt");
+        let bytes = b"line one  \nline two\n";
+        std::fs::write(&plan, bytes).unwrap();
+        let seal = note(&dir, &plan, None).expect("note stored");
+        assert_eq!(seal, seal_digest(bytes));
+        let shown = std::process::Command::new("git")
+            .args([
+                "-C",
+                dir.to_str().unwrap(),
+                "notes",
+                "--ref=seals",
+                "show",
+                "HEAD",
+            ])
+            .output()
+            .unwrap();
+        assert!(
+            shown.status.success(),
+            "{}",
+            String::from_utf8_lossy(&shown.stderr)
+        );
+        assert_eq!(shown.stdout, bytes);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn a_missing_plan_or_commit_is_refused() {
+        let dir = repo("miss");
+        let missing = dir.join("no-such-plan.txt");
+        let err = note(&dir, &missing, None).unwrap_err();
+        assert!(err.to_string().contains("plan"), "{err}");
+        let plan = dir.join("plan.txt");
+        std::fs::write(&plan, b"plan\n").unwrap();
+        let err = note(
+            &dir,
+            &plan,
+            Some("deadbeefdeadbeefdeadbeefdeadbeefdeadbeef"),
+        )
+        .unwrap_err();
+        assert!(err.to_string().contains("commit"), "{err}");
+        let listed = std::process::Command::new("git")
+            .args(["-C", dir.to_str().unwrap(), "notes", "--ref=seals", "list"])
+            .output()
+            .unwrap();
+        assert!(listed.stdout.is_empty(), "a refusal stores nothing");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
