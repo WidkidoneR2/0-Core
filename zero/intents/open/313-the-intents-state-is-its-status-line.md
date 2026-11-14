@@ -3,7 +3,7 @@ id: 313
 date: 2026-11-13
 type: future
 title: "The intent's state is its status line"
-status: in-progress
+status: complete
 format: 2
 tags: [intent, ledger]
 ---
@@ -133,3 +133,13 @@ is already history.
       ruling: approved by christian 2026-11-14.
       evidence: laptop 2026-11-13 -- `it` ledger TUI (no Complete section), intl 45, ints 313 prints the intent, Friday brief "Active: INT-313" after f53da092, d 100% 28/28 with "In progress: INT-313".
 ⏸ cistart/cicomplete -- deferred: proven by cicomplete 313 itself (status flips to complete, file stays in open/) and by cistart 308 tomorrow -- approved by: christian 2026-11-14
+
+## Versions
+- core 4.6.0 -> 4.7.0 (minor)
+- nsh 5.4.0 -> 5.5.0 (minor)
+- nsh-test 2.1.0 -> 2.2.0 (minor)
+- zero-context 1.0.2 -> 1.1.0 (minor)
+- zero-core 1.0.5 -> 1.1.0 (minor)
+- zero-daemon 4.0.2 -> 4.1.0 (minor)
+- zero-deadwood 1.0.2 -> 1.1.0 (minor)
+- zero-git 5.1.4 -> 5.2.0 (minor)

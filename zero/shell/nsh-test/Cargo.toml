@@ -1,6 +1,6 @@
 [package]
 name = "nsh-test"
-version = "2.1.0"
+version = "2.2.0"
 edition = "2021"
 license = "MIT"
 description = "nsh permanent regression suite -- INT-202"

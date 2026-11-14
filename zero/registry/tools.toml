@@ -5,7 +5,7 @@
 
 [[tool]]
 name = "core"
-version = "4.6.0"
+version = "4.7.0"
 category = "core"
 description = "Main engine — 15 domains, capability model"
 expected_usage = "high"
@@ -24,7 +24,7 @@ retired = true
 
 [[tool]]
 name = "zero-daemon"
-version = "4.0.2"
+version = "4.1.0"
 category = "core"
 description = "Background daemon with event bus and pub/sub"
 expected_usage = "rare"
@@ -33,7 +33,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "zero-git"
-version = "5.1.4"
+version = "5.2.0"
 category = "development"
 description = "Git operations with Risk Score engine"
 expected_usage = "high"
@@ -51,7 +51,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "nsh"
-version = "5.4.0"
+version = "5.5.0"
 category = "shell"
 description = "NovaShell -- the structured shell of Project 0. Package: novashell."
 expected_usage = "high"
@@ -154,7 +154,7 @@ retired = true
 
 [[tool]]
 name = "zero-context"
-version = "1.0.2"
+version = "1.1.0"
 category = "intelligence"
 description = "Deep codebase understanding engine — scan, map, patterns, summary, decisions"
 expected_usage = "medium"
@@ -295,7 +295,7 @@ retired = false
 
 [[tool]]
 name = "zero-core"
-version = "1.0.5"
+version = "1.1.0"
 category = "core"
 description = "Shared library crate -- Wayland, theme, glyph, canvas primitives (lib, not a binary)"
 expected_usage = "medium"
@@ -304,7 +304,7 @@ deployable = false
 retired = false
 [[tool]]
 name = "zero-deadwood"
-version = "1.0.2"
+version = "1.1.0"
 category = "development"
 description = "Dead-code and orphan detector (reports, never deletes)"
 expected_usage = "medium"
@@ -322,7 +322,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "nsh-test"
-version = "2.1.0"
+version = "2.2.0"
 category = "development"
 description = "fsh regression and bash-conformance suite -- gates every push"
 expected_usage = "medium"

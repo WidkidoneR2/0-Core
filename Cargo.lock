@@ -504,7 +504,7 @@ dependencies = [
 
 [[package]]
 name = "core"
-version = "4.6.0"
+version = "4.7.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1604,7 +1604,7 @@ dependencies = [
 
 [[package]]
 name = "novashell"
-version = "5.4.0"
+version = "5.5.0"
 dependencies = [
  "anyhow",
  "chrono",
@@ -1628,7 +1628,7 @@ dependencies = [
 
 [[package]]
 name = "nsh-test"
-version = "2.1.0"
+version = "2.2.0"
 dependencies = [
  "chrono",
  "colored",
@@ -3612,7 +3612,7 @@ dependencies = [
 
 [[package]]
 name = "zero-context"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "clap",
  "colored",
@@ -3624,7 +3624,7 @@ dependencies = [
 
 [[package]]
 name = "zero-core"
-version = "1.0.5"
+version = "1.1.0"
 dependencies = [
  "fontdue",
  "libc",
@@ -3637,7 +3637,7 @@ dependencies = [
 
 [[package]]
 name = "zero-daemon"
-version = "4.0.2"
+version = "4.1.0"
 dependencies = [
  "chrono",
  "clap",
@@ -3653,7 +3653,7 @@ dependencies = [
 
 [[package]]
 name = "zero-deadwood"
-version = "1.0.2"
+version = "1.1.0"
 dependencies = [
  "clap",
  "colored",
@@ -3713,7 +3713,7 @@ dependencies = [
 
 [[package]]
 name = "zero-git"
-version = "5.1.4"
+version = "5.2.0"
 dependencies = [
  "anyhow",
  "chrono",
