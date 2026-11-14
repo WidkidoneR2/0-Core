@@ -124,12 +124,12 @@ is already history.
       3. cistart, cicomplete, and cancel edit only the status line inside the frontmatter. intent/mod.rs start (1005-1020), complete_intent (2586-2600), and cancel (4696-4711) lose the rename and the create_dir_all. A test shows the path does not change. Same four checks.
       4. The migration Christian runs (G9), one commit: mkdir open/, move the live files into it, git rm complete/ and cancelled/, and update folders.rs in that same commit so a name in the set is a directory on disk. Then the same four checks.
       5. Cleanup: delete the comments and path strings that still say a file moves. No folder change. Same four checks.
-- [ ] G9 Christian runs the migration.
+- [x] G9 Christian runs the migration.
       ask: one command he runs himself, after stage 4 is green: git rm of complete/ and cancelled/, and the commit message names the range those files still have in history. Nothing is pushed until he says so.
-      ruling:
-      evidence:
-- [ ] G10 The laptop. He opens `it`, asks Friday, runs d, cistart, and
-      cicomplete. The file does not move. The status line does.
+      ruling: approved by christian 2026-11-14.
+      evidence: stage 4 migration commit f0415b3e, pushed 23c1fce4..a79337bf; d shows all 87 intents valid, files live in open/ with status lines.
+- [x] G10 The laptop. He opens `it`, asks Friday, runs d, and ints.
       ask: the five checks, on the machine, after the migration.
-      ruling:
-      evidence:
+      ruling: approved by christian 2026-11-14.
+      evidence: laptop 2026-11-13 -- `it` ledger TUI (no Complete section), intl 45, ints 313 prints the intent, Friday brief "Active: INT-313" after f53da092, d 100% 28/28 with "In progress: INT-313".
+⏸ cistart/cicomplete -- deferred: proven by cicomplete 313 itself (status flips to complete, file stays in open/) and by cistart 308 tomorrow -- approved by: christian 2026-11-14
