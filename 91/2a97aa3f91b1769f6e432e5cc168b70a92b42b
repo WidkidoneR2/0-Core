@@ -1,0 +1,10 @@
+INT-309 commit 3 -- plan
+  E1 the reader keeps wrapped evidence, RULED does not hide a receipt, validate lists old shape without failing v1, create_in writes format 2.
+
+red: 1 passed, 4 failed (v1 completion already ok)
+cargo test -p core: 295 passed, 0 failed
+cargo test -p novashell: 262 passed, 0 failed
+cargo test -p nsh-test: 6 passed, 0 failed
+core intent validate: exit 0, All 87 intents valid
+a real v1 intent (308) still completes
+nsh-test suite: timeout 900, exit 124, no Results line. Last case: repl_277_g6_prompt_tells_the_terminal_the_cwd_and_the_title (scratch g5-g6osc, case138). Tail was only the banner, under test 5.6.0.
