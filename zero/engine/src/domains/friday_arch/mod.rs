@@ -147,23 +147,12 @@ pub fn detect_patterns(ctx: &AppContext) -> CoreResult<Vec<String>> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     let mut patterns_found: Vec<String> = Vec::new();
-    // Pattern 1: Active intent count vs alignment
-    let active_intents: i64 = {
-        let future_dir = ctx.fpath("intents/future");
-        std::fs::read_dir(&future_dir)
-            .ok()
-            .map(|d| {
-                d.filter_map(|e| e.ok())
-                    .filter(|e| {
-                        std::fs::read_to_string(e.path())
-                            .ok()
-                            .map(|c| c.contains("status: in-progress"))
-                            .unwrap_or(false)
-                    })
-                    .count() as i64
-            })
-            .unwrap_or(0)
-    };
+    // Pattern 1: Active intent count vs alignment.
+    // INT-313. The old scan counted every file in future/ whose text contained
+    // "status: in-progress", which is a body quote (INT-308) and missed the
+    // file whose frontmatter actually says in-progress when it lives elsewhere.
+    // Active is the status line.
+    let active_intents: i64 = zero_core::ledger::with_status("in-progress").len() as i64;
     if active_intents > 2 {
         let desc = format!(
             "CONTRADICTION: {} active intents -- values declare focus>speed",

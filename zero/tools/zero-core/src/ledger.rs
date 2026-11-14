@@ -136,4 +136,28 @@ mod tests {
         assert!(got.iter().all(|r| r.folder == "future"));
         assert_eq!(got.len(), 2);
     }
+
+    #[test]
+    fn in_progress_is_one_status_line_not_every_quote() {
+        let dir = std::env::temp_dir().join(format!("ledger-count-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(dir.join("future")).unwrap();
+        fs::create_dir_all(dir.join("in-progress")).unwrap();
+        fs::write(
+            dir.join("future/308-quote.md"),
+            "---\nid: 308\nstatus: planned\n---\n\nstatus: in-progress\n",
+        )
+        .unwrap();
+        fs::write(
+            dir.join("in-progress/313-live.md"),
+            "---\nid: 313\nstatus: in-progress\n---\n\n",
+        )
+        .unwrap();
+        let n = load_from(&dir)
+            .into_iter()
+            .filter(|file| !file.is_record() && file.status == "in-progress")
+            .count();
+        let _ = fs::remove_dir_all(&dir);
+        assert_eq!(n, 1);
+    }
 }
