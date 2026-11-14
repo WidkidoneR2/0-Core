@@ -3,7 +3,7 @@ id: 308
 date: 2026-11-10
 type: future
 title: "Ledger commands for cistart, intent add, and the seal note"
-status: in-progress
+status: complete
 tags: [intent, ledger, nsh, git]
 ---
 
@@ -98,3 +98,8 @@ reason, closes it. No code is written before G1, G2, and G3 have those lines.
 
 ## Open for Christian
 Ruled 2026-11-14. G1 declined. G2 and G3 accepted. See the RULED lines.
+
+## Versions
+- core 4.7.0 -> 4.8.0 (minor)
+- nsh 5.5.0 -> 5.6.0 (minor)
+- zero-core 1.1.0 -> 1.2.0 (minor)
