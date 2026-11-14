@@ -486,13 +486,14 @@ fn archived_intent_ids() -> Option<std::collections::HashSet<String>> {
 ///
 /// decisions/137: intent lifecycle dirs share ONE id namespace (a file MOVES between them).
 /// Each record dir owns its own sequence.
-pub fn validate_issues() -> (usize, Vec<String>) {
+pub fn validate_issues() -> (usize, Vec<String>, Vec<String>) {
     use folders::LIFECYCLE;
     const VALID_STATUS: &[&str] = KNOWN_STATUS;
     let all_folders: Vec<&str> = LIFECYCLE.iter().chain(folders::RECORDS).copied().collect();
 
     let base = zero_core::paths::intents_dir();
     let mut issues: Vec<String> = Vec::new();
+    let mut notes: Vec<String> = Vec::new();
     // ⚠️ AN ABSENT LEDGER IS NOT AN EMPTY ONE, and until 2026-08-23 this could not tell them apart.
     // Every folder below is read with `let Ok(entries) = read_dir(..) else { continue }`, so on a
     // machine without 0-Core all nine simply skip: count stays 0, issues stays empty, and the
@@ -508,7 +509,7 @@ pub fn validate_issues() -> (usize, Vec<String>) {
             "intent ledger not found at {} -- this machine has no 0-Core checkout",
             base.display()
         ));
-        return (0, issues);
+        return (0, issues, Vec::new());
     }
     let mut seen: HashMap<(String, String), usize> = HashMap::new();
     // INT-213 G2/G3: (id, depends_on, where) -- resolved after every file is known.
@@ -616,6 +617,17 @@ pub fn validate_issues() -> (usize, Vec<String>) {
                 }
                 *seen.entry((ns.to_string(), id)).or_insert(0) += 1;
             }
+            let format2 = field("format").as_deref() == Some("2");
+            let shape = old_shape_notes(&content);
+            if format2 {
+                for note in shape {
+                    issues.push(format!("format 2: {note}: {folder}/{name}"));
+                }
+            } else {
+                for note in shape {
+                    notes.push(format!("{note}: {folder}/{name}"));
+                }
+            }
         }
     }
 
@@ -673,21 +685,56 @@ pub fn validate_issues() -> (usize, Vec<String>) {
             }
         }
     }
-    (count, issues)
+    (count, issues, notes)
 }
 
-/// Old-shape notes. Empty until the reader exists. Not the issues vector d reads.
-pub fn old_shape_notes(_content: &str) -> Vec<String> {
-    Vec::new()
+/// Old-shape notes. Listed by validate. Not the issues vector d reads, unless the file is format 2.
+pub fn old_shape_notes(content: &str) -> Vec<String> {
+    let mut notes = Vec::new();
+    if content.contains("[What problem does this solve?]")
+        || content.contains("[Describe the goal and desired outcome]")
+        || content.contains("[High-level approach]")
+    {
+        notes.push("placeholder body".to_string());
+    }
+    if content.contains("INT-158 -- EVIDENCE CONVENTION")
+        || content.contains("Delete this comment when the intent is written")
+    {
+        notes.push("INT-158 boilerplate".to_string());
+    }
+    if content
+        .lines()
+        .any(|line| line.trim_start().starts_with("- [~]"))
+    {
+        notes.push("[~] gate".to_string());
+    }
+    for section in [
+        "## Vision",
+        "## The Problem",
+        "## The Solution",
+        "## Success Criteria",
+    ] {
+        let present = content.lines().any(|line| {
+            let t = line.trim();
+            t == section || t.starts_with(&format!("{section} "))
+        });
+        if !present {
+            notes.push(format!("missing section {section}"));
+        }
+    }
+    notes
 }
 
 pub fn validate(_ctx: &AppContext) -> CoreResult<()> {
-    let (count, issues) = validate_issues();
+    let (count, issues, notes) = validate_issues();
 
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
     println!("{}", "🔍 Intent Ledger Validation".bold());
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
 
+    for note in &notes {
+        println!("  {} {}", "·".dimmed(), note.dimmed());
+    }
     if issues.is_empty() {
         println!("  {} All {} intents valid", "✅".green(), count);
     } else {
@@ -697,6 +744,16 @@ pub fn validate(_ctx: &AppContext) -> CoreResult<()> {
         println!("  {} {} issues found", "✗".bright_red(), issues.len());
     }
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+    let format2 = issues.iter().any(|issue| issue.starts_with("format 2:"));
+    if format2 {
+        return Err(crate::errors::CoreError::Reported(format!(
+            "{} format 2 issue(s)",
+            issues
+                .iter()
+                .filter(|issue| issue.starts_with("format 2:"))
+                .count()
+        )));
+    }
     Ok(())
 }
 
@@ -3042,9 +3099,12 @@ pub fn create_in(
     };
 
     let problem = seed.map_or("[What problem does this solve?]", |s| s.problem.as_str());
-    let criteria = seed.map_or("- [ ] ...", |s| s.gate.as_str());
+    let criteria = seed.map_or(
+        "- [ ] ...\n      ask:\n      ruling:\n      evidence:",
+        |s| s.gate.as_str(),
+    );
     let content = format!(
-        "---\nid: {:03}\ndate: {}\ntype: {}\ntitle: \"{}\"\nstatus: {}\ntags: {}\n---\n\n\
+        "---\nid: {:03}\ndate: {}\ntype: {}\ntitle: \"{}\"\nstatus: {}\ntags: {}\nformat: 2\n---\n\n\
 ## Vision\n[Describe the goal and desired outcome]\n\n\
 ## The Problem\n{}\n\n\
 ## The Solution\n[High-level approach]\n\n\
@@ -5029,7 +5089,7 @@ mod absent_ledger_tests {
         let prev = std::env::var("HOME").ok();
         // SAFETY: single-threaded test, restored below.
         unsafe { std::env::set_var("HOME", &dir) };
-        let (count, issues) = super::validate_issues();
+        let (count, issues, _notes) = super::validate_issues();
         match prev {
             Some(h) => unsafe { std::env::set_var("HOME", h) },
             None => unsafe { std::env::remove_var("HOME") },
@@ -5108,7 +5168,7 @@ mod status_is_not_the_folder_tests {
             "---\nid: 314\ntitle: \"bad\"\nstatus: nope\ndate: 2026-11-13\n---\n\n",
         )
         .unwrap();
-        let (count, issues) = with_home(&dir, super::validate_issues);
+        let (count, issues, _notes) = with_home(&dir, super::validate_issues);
         let _ = std::fs::remove_dir_all(&dir);
         assert_eq!(count, 2);
         assert!(
@@ -5216,7 +5276,7 @@ mod depends_on_archive_tests {
             "---\nid: 289\ntitle: \"typo\"\nstatus: planned\ndate: 2026-11-14\ndepends_on: [999]\n---\n\n",
         )
         .unwrap();
-        let (_count, issues) =
+        let (_count, issues, _notes) =
             super::status_is_not_the_folder_tests::with_home(&dir, super::validate_issues);
         let _ = std::fs::remove_dir_all(&dir);
         assert!(

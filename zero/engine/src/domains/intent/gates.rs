@@ -25,10 +25,16 @@ pub struct Gate {
     #[allow(dead_code)] // read by the G6 and G7 consumers, which migrate next
     pub id: Option<String>,
     pub state: GateState,
-    /// An INT-158 evidence comment follows the gate (and any wrapped lines of it).
+    /// An INT-158 evidence comment follows the gate, or a format 2 `evidence:` field is set.
     #[allow(dead_code)] // read by the G6 and G7 consumers, which migrate next
     pub evidence: bool,
     pub text: String,
+    /// Indented `ask:` field, including wrap lines.
+    pub ask: String,
+    /// Indented `ruling:` field, including wrap lines.
+    pub ruling: String,
+    /// Indented `evidence:` field, including wrap lines. Empty is not a receipt.
+    pub evidence_text: String,
 }
 
 #[derive(Debug, Default, PartialEq, Eq)]
@@ -45,8 +51,12 @@ pub struct GateReport {
 #[derive(Debug, PartialEq, Eq)]
 pub enum Refusal {
     BadDeferral(Vec<String>),
-    NoGates { section_found: bool },
+    NoGates {
+        section_found: bool,
+    },
     OpenGates(Vec<String>),
+    /// A done format 2 gate whose `evidence:` field is empty.
+    MissingEvidence(Vec<String>),
     StrayOpen(Vec<String>),
 }
 
@@ -127,16 +137,90 @@ fn live_lines(content: &str) -> Vec<&str> {
     out
 }
 
-/// An INT-158 evidence comment follows the gate at `at`, after any wrapped lines of it.
-fn evidence_follows(lines: &[&str], at: usize) -> bool {
+struct GateTail {
+    ask: String,
+    ruling: String,
+    evidence_text: String,
+    evidence: bool,
+}
+
+fn append_field(buf: &mut String, more: &str) {
+    if more.is_empty() {
+        return;
+    }
+    if !buf.is_empty() {
+        buf.push(' ');
+    }
+    buf.push_str(more);
+}
+
+/// Indented ask/ruling/evidence fields, their wrap lines, and a receipt that
+/// follows an unindented RULED line. A RULED line does not end the scan.
+fn gate_tail(lines: &[&str], at: usize) -> GateTail {
+    let mut ask = String::new();
+    let mut ruling = String::new();
+    let mut evidence_text = String::new();
+    let mut html = false;
+    let mut which = "";
     let mut j = at + 1;
-    while j < lines.len() && !lines[j].trim().is_empty() && lines[j].starts_with([' ', '\t']) {
-        j += 1;
+    while j < lines.len() {
+        let line = lines[j];
+        let trimmed = line.trim();
+        if trimmed.is_empty() {
+            j += 1;
+            continue;
+        }
+        if line.starts_with([' ', '\t']) {
+            if let Some(rest) = trimmed.strip_prefix("ask:") {
+                which = "ask";
+                append_field(&mut ask, rest.trim());
+            } else if let Some(rest) = trimmed.strip_prefix("ruling:") {
+                which = "ruling";
+                append_field(&mut ruling, rest.trim());
+            } else if let Some(rest) = trimmed.strip_prefix("evidence:") {
+                which = "evidence";
+                append_field(&mut evidence_text, rest.trim());
+            } else if which == "ask" {
+                append_field(&mut ask, trimmed);
+            } else if which == "ruling" {
+                append_field(&mut ruling, trimmed);
+            } else if which == "evidence" {
+                append_field(&mut evidence_text, trimmed);
+            }
+            j += 1;
+            continue;
+        }
+        if trimmed.starts_with("RULED") {
+            j += 1;
+            continue;
+        }
+        if trimmed.starts_with("<!--") && trimmed.to_ascii_lowercase().contains("evidence") {
+            html = true;
+            j += 1;
+            continue;
+        }
+        break;
     }
-    j < lines.len() && {
-        let t = lines[j].trim_start();
-        t.starts_with("<!--") && t.to_ascii_lowercase().contains("evidence")
+    GateTail {
+        evidence: html || !evidence_text.trim().is_empty(),
+        ask,
+        ruling,
+        evidence_text,
     }
+}
+
+fn is_format_2(content: &str) -> bool {
+    content
+        .split("---")
+        .nth(1)
+        .map(|fm| {
+            fm.lines().any(|line| {
+                line.trim()
+                    .strip_prefix("format:")
+                    .is_some_and(|v| v.trim() == "2")
+            })
+        })
+        .unwrap_or(false)
 }
 
 /// Read the gates out of an intent file. Only the Success Criteria section holds gates.
@@ -159,7 +243,7 @@ pub fn read_gates(content: &str) -> GateReport {
             }
             continue;
         }
-        let evidence = evidence_follows(&lines, at);
+        let tail = gate_tail(&lines, at);
         if let Some((state, text)) = box_state(t) {
             if text.is_empty() || text == "..." {
                 continue; // the scaffold's placeholder is not a gate
@@ -172,8 +256,11 @@ pub fn read_gates(content: &str) -> GateReport {
             report.gates.push(Gate {
                 id: gate_id(text),
                 state,
-                evidence,
+                evidence: tail.evidence,
                 text: text.to_string(),
+                ask: tail.ask,
+                ruling: tail.ruling,
+                evidence_text: tail.evidence_text,
             });
         } else if t.starts_with(PAUSE) {
             if is_signed_deferral(line) {
@@ -181,8 +268,11 @@ pub fn read_gates(content: &str) -> GateReport {
                 report.gates.push(Gate {
                     id: gate_id(text),
                     state: GateState::Deferred,
-                    evidence,
+                    evidence: tail.evidence,
                     text: text.to_string(),
+                    ask: tail.ask,
+                    ruling: tail.ruling,
+                    evidence_text: tail.evidence_text,
                 });
             } else if !line.contains("[date]") && !line.contains("[reason]") {
                 report.bad_deferrals.push(t.to_string());
@@ -244,6 +334,17 @@ pub fn check_completion(content: &str) -> Result<(), Refusal> {
     if !open.is_empty() {
         return Err(Refusal::OpenGates(open));
     }
+    if is_format_2(content) {
+        let bare: Vec<String> = report
+            .gates
+            .iter()
+            .filter(|g| g.state == GateState::Done && g.evidence_text.trim().is_empty())
+            .map(|g| g.text.clone())
+            .collect();
+        if !bare.is_empty() {
+            return Err(Refusal::MissingEvidence(bare));
+        }
+    }
     if !report.stray_open.is_empty() {
         return Err(Refusal::StrayOpen(report.stray_open));
     }
@@ -300,6 +401,15 @@ pub fn explain(refusal: &Refusal, today: &str) -> Vec<String> {
             out.push(String::new());
             out.push("cicomplete blocked. Demonstrate gates or formally defer them.".to_string());
         }
+        Refusal::MissingEvidence(gates) => {
+            out.push(format!(
+                "cicomplete BLOCKED -- {} done format 2 gate(s) have an empty evidence: field:",
+                gates.len()
+            ));
+            for g in gates {
+                out.push(format!("  {}", g));
+            }
+        }
         Refusal::StrayOpen(lines) => {
             out.push(format!(
                 "cicomplete BLOCKED -- {} unticked checkbox(es) outside the Success Criteria section:",
@@ -335,6 +445,12 @@ pub fn summary(refusal: &Refusal) -> String {
             section_found: false,
         } => "no Success Criteria section, so no gates".to_string(),
         Refusal::OpenGates(v) => format!("{} open gate(s)", v.len()),
+        Refusal::MissingEvidence(v) => {
+            format!(
+                "{} done format 2 gate(s) with an empty evidence field",
+                v.len()
+            )
+        }
         Refusal::StrayOpen(v) => format!(
             "{} unticked checkbox(es) outside the Success Criteria section",
             v.len()
@@ -470,6 +586,7 @@ mod explain_tests {
                 section_found: true,
             },
             Refusal::OpenGates(vec!["G1 x".to_string()]),
+            Refusal::MissingEvidence(vec!["G1 done".to_string()]),
             Refusal::StrayOpen(vec!["- [ ] remember".to_string()]),
         ]
     }
@@ -480,13 +597,13 @@ mod explain_tests {
             .iter()
             .map(|r| explain(r, "2026-10-22")[0].clone())
             .collect();
-        assert_eq!(heads.len(), 5);
+        assert_eq!(heads.len(), 6);
     }
 
     #[test]
     fn every_refusal_has_its_own_summary() {
         let sums: HashSet<String> = all().iter().map(summary).collect();
-        assert_eq!(sums.len(), 5);
+        assert_eq!(sums.len(), 6);
         assert!(sums.iter().all(|s| !s.is_empty()));
     }
 
@@ -701,9 +818,33 @@ mod tests {
     }
 
     #[test]
+    fn a_real_v1_intent_on_disk_still_completes() {
+        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
+            "../intents/open/308-ledger-commands-for-cistart-intent-add-and-the-seal-note.md",
+        );
+        let content = std::fs::read_to_string(&path).unwrap();
+        let fm = content.split("---").nth(1).unwrap_or("");
+        assert!(
+            !fm.lines().any(|line| line
+                .trim()
+                .strip_prefix("format:")
+                .is_some_and(|v| v.trim() == "2")),
+            "308 is a v1 file"
+        );
+        assert_eq!(check_completion(&content), Ok(()));
+    }
+
     fn a_v1_ticked_gate_without_a_receipt_still_completes() {
         let c = "---\n---\n## Success Criteria\n- [x] G1 done\n";
         assert_eq!(check_completion(c), Ok(()));
+    }
+
+    #[test]
+    fn a_v2_gate_with_evidence_completes_and_a_deferral_still_counts() {
+        let done = "---\nformat: 2\n---\n## Success Criteria\n- [x] G1 done\n      evidence: shown\n      in the log\n";
+        assert_eq!(check_completion(done), Ok(()));
+        let deferred = "---\nformat: 2\n---\n## Success Criteria\n\u{23f8} G1 later -- deferred: no data -- approved by: christian 2026-11-14\n";
+        assert_eq!(check_completion(deferred), Ok(()));
     }
 }
 

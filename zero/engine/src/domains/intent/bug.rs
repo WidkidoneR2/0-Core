@@ -2524,7 +2524,10 @@ mod bug_tests {
         assert!(
             plain.contains("## The Problem\n[What problem does this solve?]\n\n## The Solution")
         );
-        assert!(plain.contains("## Success Criteria\n- [ ] ...\n\n<!-- INT-158"));
+        assert!(plain.contains("format: 2\n"));
+        assert!(plain.contains(
+            "## Success Criteria\n- [ ] ...\n      ask:\n      ruling:\n      evidence:\n\n<!-- INT-158"
+        ));
         let seed = Seed {
             problem: "P".to_string(),
             gate: "- [ ] G".to_string(),
@@ -2548,7 +2551,7 @@ mod bug_tests {
                 )
                 .replace(
                     "## Success Criteria\n- [ ] G\n\n",
-                    "## Success Criteria\n- [ ] ...\n\n"
+                    "## Success Criteria\n- [ ] ...\n      ask:\n      ruling:\n      evidence:\n\n"
                 )
                 .replace("id: 002", "id: 001"),
             plain
