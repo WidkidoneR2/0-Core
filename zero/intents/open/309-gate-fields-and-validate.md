@@ -86,12 +86,14 @@ closes it. No code is written before G2 and G3 have those lines.
       Then the same tests pass. The suite is cargo test -p core. Proof: the
       red output, then the green output, each under its plan Seal.
       ruling: RULED 2026-11-14 (Christian): red first, then the reader, validate, and create_in.
-      evidence: red commit 9895be4d, 1 passed and 4 failed. The v1 ticked gate already completed. The other four failed. Green counts are recorded in the plan for this commit.
-- [ ] G7 Doors, after any ship. cargo test -p core passes. cargo test -p
+      evidence: red commit b194f55a, 1 passed and 4 failed. The v1 ticked gate already completed. The other four failed. Green commit 912a97aa. Rulings commit 866131a7. Seals notes f81754e3.
+- [x] G7 Doors, after any ship. cargo test -p core passes. cargo test -p
       novashell passes. nsh-test passes after cargo build -p novashell -p
       nsh-test. core intent validate reports every intent valid. d reports 0
       failed. ship, then reload, and the deployed artifact is what was watched.
       Proof: the door output.
+      ruling: RULED 2026-11-14 (Christian): doors passed after ship core. nsh was unchanged.
+      evidence: laptop 2026-11-14, HEAD 912a97aa. ship core shipped core 4.8.0. doors 4 passed 0 failed: core pass 0.2s, shell pass 5.1s, nsh-test pass 133.6s, validate pass 0.0s.
 
 ## Out of scope
 - A batch rewrite of the v1 intents.
@@ -99,4 +101,4 @@ closes it. No code is written before G2 and G3 have those lines.
 - Failing d's Intent Ledger check on an old file.
 
 ## Open for Christian
-Ruled 2026-11-14. G2 through G5 accepted. G7 stays open until the doors.
+Ruled 2026-11-14. G2 through G5 accepted. G7 closed by the laptop doors.
