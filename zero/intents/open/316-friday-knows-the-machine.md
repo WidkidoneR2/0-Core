@@ -3,7 +3,7 @@ id: 316
 date: 2026-11-15
 type: future
 title: "Friday knows the machine"
-status: in-progress
+status: complete
 tags: [friday, ledger]
 format: 2
 ---
@@ -115,3 +115,6 @@ mark."
 
 ## Versions
 - none. The red tests do not change a crate version.
+
+## Versions
+- core 5.0.0 -> 5.1.0 (minor)
