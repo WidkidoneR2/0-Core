@@ -3,7 +3,7 @@ id: 314
 date: 2026-11-15
 type: future
 title: "Friday tells the truth and reads the room"
-status: in-progress
+status: complete
 tags: [friday, brief, ledger]
 format: 2
 ---
