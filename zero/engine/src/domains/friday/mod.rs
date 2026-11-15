@@ -1894,6 +1894,71 @@ mod seed_count_tests {
         let _ = std::fs::remove_dir_all(&dir);
         assert_eq!(n, 1, "a decision is not a completed intent");
     }
+
+    #[test]
+    fn friday_intent_count_matches_ledger_done() {
+        let dir = std::env::temp_dir().join(format!(
+            "friday-intent-count-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let repo = dir.join("0-core");
+        let open = repo.join("zero/intents/open");
+        let complete = repo.join("zero/intents/complete");
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::create_dir_all(&complete).unwrap();
+        std::fs::write(
+            open.join("030-done.md"),
+            "---\nid: 30\nstatus: complete\ntitle: \"Done\"\n---\n",
+        )
+        .unwrap();
+        std::fs::write(
+            complete.join("277-archived.md"),
+            "---\nid: 277\nstatus: complete\ntitle: \"Archived\"\n---\n",
+        )
+        .unwrap();
+        let git = |args: &[&str]| {
+            let output = std::process::Command::new("git")
+                .args(args)
+                .current_dir(&repo)
+                .env("GIT_AUTHOR_NAME", "test")
+                .env("GIT_AUTHOR_EMAIL", "test@example.com")
+                .env("GIT_COMMITTER_NAME", "test")
+                .env("GIT_COMMITTER_EMAIL", "test@example.com")
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "git {args:?}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        };
+        git(&["init"]);
+        git(&["add", "zero/intents"]);
+        git(&["commit", "-m", "archive the completed intent"]);
+        std::fs::remove_file(complete.join("277-archived.md")).unwrap();
+        git(&["add", "-A"]);
+        git(&["commit", "-m", "leave the completed intent in history"]);
+        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prev = std::env::var("HOME").ok();
+        unsafe { std::env::set_var("HOME", &dir) };
+        let friday = super::completed_intent_count();
+        let done_ids = zero_core::ledger::completed_ids();
+        let done = done_ids.len();
+        match prev {
+            Some(h) => unsafe { std::env::set_var("HOME", h) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(
+            friday, done,
+            "friday completed_intent_count is {friday}; ledger completed_ids is {done} ({done_ids:?})"
+        );
+    }
 }
 
 #[cfg(test)]
@@ -2132,6 +2197,79 @@ mod int315 {
         assert!(
             !msg.contains("186") && msg.contains(&format!("{n} intents complete")),
             "ledger count is {n}; milestone used a fallback: {msg}"
+        );
+    }
+
+    const PAST_EVERY_COMMIT_THRESHOLD: u32 = 2600;
+
+    fn commit_milestone_line(line: &str) -> bool {
+        [
+            "500 commits",
+            "1000 commits",
+            "1500 commits",
+            "2000 commits",
+            "2500 commits",
+        ]
+        .iter()
+        .any(|prefix| line.starts_with(prefix))
+    }
+
+    fn recorded_milestones(ctx: &crate::app::context::AppContext) -> Vec<String> {
+        let mut stmt = ctx
+            .runtime
+            .db
+            .prepare("SELECT milestone FROM friday_milestones ORDER BY id")
+            .unwrap();
+        stmt.query_map([], |row| row.get(0))
+            .unwrap()
+            .filter_map(std::result::Result::ok)
+            .collect()
+    }
+
+    #[test]
+    fn milestones_announce_only_the_highest_crossed() {
+        let (dir, ctx) = scratch("highest");
+        seed_commits(&dir, PAST_EVERY_COMMIT_THRESHOLD);
+        let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _home = HomeGuard::set(&dir);
+        let first = check_milestones(&ctx).unwrap_or_default();
+        let recorded = recorded_milestones(&ctx);
+        let lower = [
+            "commits_500",
+            "commits_1000",
+            "commits_1500",
+            "commits_2000",
+        ];
+        let missing: Vec<&str> = lower
+            .into_iter()
+            .filter(|key| !recorded.iter().any(|row| row == *key))
+            .collect();
+        let second = check_milestones(&ctx);
+        let second_commit = second.as_deref().filter(|line| commit_milestone_line(line));
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(
+            first.contains("2500 commits. Project 0 keeps building.")
+                && missing.is_empty()
+                && second_commit.is_none(),
+            "first call announced {first:?} instead of the 2500 milestone; missing lower commit rows {missing:?} (recorded {recorded:?}); second call commit milestone: {second_commit:?}"
+        );
+    }
+
+    #[test]
+    fn milestone_line_names_the_measured_count() {
+        let (dir, ctx) = scratch("measured");
+        seed_commits(&dir, PAST_EVERY_COMMIT_THRESHOLD);
+        let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _home = HomeGuard::set(&dir);
+        let measured = crate::domains::friday_arch::room::git_commit_count(std::path::Path::new(
+            &ctx.core_root,
+        ))
+        .expect("measured git commit count");
+        let line = check_milestones(&ctx).unwrap_or_default();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(
+            line.contains(&measured.to_string()),
+            "milestone line {line:?} does not name the measured git commit count {measured}"
         );
     }
 
