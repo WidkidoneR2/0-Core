@@ -1,0 +1,7 @@
+INT-314 commit 3 -- plan
+  E1 sentence_for for run and get_voice. Git failure is unknown. Rank, three anomalies, habit line. G1-G6 ticked. G7 stays open.
+
+cargo test -p core: 304 passed
+cargo test -p novashell: 263 passed
+cargo test -p nsh-test: 6 passed
+core intent validate: All 88 intents valid
