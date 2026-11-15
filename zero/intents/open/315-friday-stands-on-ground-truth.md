@@ -3,7 +3,7 @@ id: 315
 date: 2026-11-15
 type: future
 title: "Friday stands on ground truth"
-status: in-progress
+status: complete
 tags: [friday, ledger]
 format: 2
 ---
@@ -121,3 +121,9 @@ the shell-history double-write. This intent only stops Friday from reading it.
 - A daemon, a socket, or a timer.
 - An LLM call or an embedding.
 - Rewriting INT-191, INT-132, or INT-041 in this file.
+
+## Versions
+- core 4.10.0 -> 5.0.0 (major)
+- nsh 5.7.0 -> 6.0.0 (major)
+- zero-daemon 4.1.0 -> 5.0.0 (major)
+- zero-doctor 0.2.0 -> 1.0.0 (major)
