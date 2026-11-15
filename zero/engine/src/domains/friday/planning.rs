@@ -102,7 +102,8 @@ fn start_session_internal(ctx: &AppContext) -> CoreResult<String> {
     )?;
     Ok(session_id)
 }
-/// Internal: write a summary row for a session to friday_knowledge.
+/// Internal: write a summary row for a session into the session buffer.
+/// A session log is not a fact, so it does not land in friday_knowledge.
 /// Does not clear current_session_id -- caller decides.
 fn write_session_summary(ctx: &AppContext, sid: &str) -> CoreResult<()> {
     let db = &ctx.runtime.db;
@@ -127,9 +128,10 @@ fn write_session_summary(ctx: &AppContext, sid: &str) -> CoreResult<()> {
         format!("session {} summary -- {}", sid, parts.join(" | "))
     };
     db.execute(
-        "INSERT OR REPLACE INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at) \
-         VALUES ('session_summary', ?1, ?2, 0.8, 'planning', ?3, ?3)",
-        rusqlite::params![sid, summary, now],
+        "INSERT INTO friday_session_context \
+         (session_id, timestamp, exchange_kind, content, confidence) \
+         VALUES (?1, ?2, 'summary', ?3, 0.8)",
+        rusqlite::params![sid, now, summary],
     )?;
     Ok(())
 }
