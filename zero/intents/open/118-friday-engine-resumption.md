@@ -3,7 +3,7 @@ id: 118
 date: 2026-07-02
 type: future
 title: "Friday engine resumption"
-status: planned
+status: cancelled
 tags: [core engine, Friday]
 ---
 
@@ -125,3 +125,6 @@ DISCIPLINE (so the vision's size never breaks the forest's method):
 - [ ] health_check_failed emitted as a discrete event from doctor
 - [ ] causal-chain rule detects deploy-cycle-after-health-dip
 - [ ] demonstrated on a real failure case (INT-251 Pillar 2 unlocked)
+
+## Gate Check
+🚫 118 -- cancelled: Causal half is built (doctor emits health_check_failed; reasoning.rs tool_retirement_regression). Semantic memory is excluded as AI. -- approved by: christian 2026-11-15
