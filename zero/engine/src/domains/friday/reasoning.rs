@@ -36,7 +36,7 @@ pub enum ObservationKind {
     SystemWide,
 }
 
-/// The starter rule set -- 10 rules covering key system patterns
+/// The starter rule set -- 7 rules covering key system patterns
 pub fn starter_rules() -> Vec<Rule> {
     vec![
         Rule {

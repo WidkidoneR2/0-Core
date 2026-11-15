@@ -374,6 +374,18 @@ pub fn speak_on_error(ctx: &AppContext, error_output: &str) -> CoreResult<()> {
     }
     Ok(())
 }
+/// Mean confidence of learned patterns. No readable average is not 0.85.
+fn measured_brief_confidence(db: &rusqlite::Connection) -> f64 {
+    db.query_row(
+        "SELECT AVG(confidence) FROM friday_patterns",
+        [],
+        |row| row.get::<_, Option<f64>>(0),
+    )
+    .ok()
+    .flatten()
+    .unwrap_or(0.0)
+}
+
 /// Run the full Friday formal architecture cycle
 pub fn run(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
@@ -432,15 +444,22 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
             .unwrap_or(0);
     // Store brief in synthesis. The health trend reads these rows.
     // The spoken sentence is sentence_for, never this stored text.
+    // Health is the doctor's last measurement. Confidence is the mean of learned
+    // patterns. Neither is a standing literal, and an unreadable pattern table
+    // is 0 -- the column is NOT NULL, and 0 does not clear get_voice's gate.
+    let health: Option<i64> = zero_core::paths::read_health().map(i64::from);
+    let confidence = measured_brief_confidence(&ctx.runtime.db);
     let _ = ctx.runtime.db.execute(
         "INSERT INTO synthesis_snapshots (timestamp, health, alignment, active_intent,
          session_commits, top_pattern, friday_brief, brief_confidence, contradiction)
-         VALUES (?1, 100, 1.0, ?2, ?3, 'meta-interpretation', ?4, 0.85, ?5)",
+         VALUES (?1, ?2, 1.0, ?3, ?4, 'meta-interpretation', ?5, ?6, ?7)",
         params![
             now,
+            health,
             active_intent,
             session_commits,
             brief,
+            confidence,
             if contradictions.is_empty() { "" } else { "yes" }
         ],
     );
