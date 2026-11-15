@@ -1,0 +1,5 @@
+INT-310 commit 2 -- plan
+  E1 red: record counted as complete, progress line empty, read_open has no gates, failed open restores raw only.
+
+cargo test -p core: FAILED. 0 passed; 3 failed
+cargo test -p novashell: FAILED. 0 passed; 1 failed
