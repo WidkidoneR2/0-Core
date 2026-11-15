@@ -4251,3 +4251,47 @@ mod guard_cost {
         assert!(sink > 0, "the calls must have produced words");
     }
 }
+
+/// INT-315 G2: the every-tenth-command path and the failure popup are still here.
+#[cfg(test)]
+mod int315 {
+    #[test]
+    fn attention_every_tenth_command_is_gone() {
+        let src = include_str!("main.rs");
+        // Split so this test does not count as the path it is looking for.
+        let call = concat!("friday_", "proactive_message(");
+        let tenth = concat!("session_commands % ", "10");
+        let mut still = Vec::new();
+        if src.contains(call) {
+            still.push("friday proactive message");
+        }
+        if src.contains(tenth) {
+            still.push("every tenth command");
+        }
+        assert!(
+            still.is_empty(),
+            "expected the every-tenth-command Friday path to be gone; observed still present: {}",
+            still.join(", ")
+        );
+    }
+
+    #[test]
+    fn friday_failure_hint_raises_no_popup() {
+        let src = include_str!("main.rs");
+        let header = concat!("fn friday_", "failure_hint");
+        let popup = concat!("notify-", "send");
+        let Some(start) = src.find(header) else {
+            return;
+        };
+        let rest = &src[start..];
+        let end = rest[header.len()..]
+            .find("\nfn ")
+            .map(|i| header.len() + i)
+            .unwrap_or(rest.len());
+        let body = &rest[..end];
+        assert!(
+            !body.contains(popup),
+            "expected friday_failure_hint to raise no desktop popup; observed a popup spawn still in the function"
+        );
+    }
+}

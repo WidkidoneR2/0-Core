@@ -1156,3 +1156,26 @@ async fn friday_dismiss(pattern_trigger: Option<String>) -> crate::protocol::Res
         }
     }
 }
+
+/// INT-315 G2: the daemon still wakes every 30 minutes and runs the learning loop.
+#[cfg(test)]
+mod int315 {
+    #[test]
+    fn daemon_has_no_friday_learning_timer() {
+        let src = include_str!("daemon.rs");
+        let call = concat!("friday_", "learning_loop()");
+        let args = concat!("[\"friday\", \"", "learning-loop\"]");
+        let mut still = Vec::new();
+        if src.contains(call) {
+            still.push("learning loop task");
+        }
+        if src.contains(args) {
+            still.push("core friday learning-loop");
+        }
+        assert!(
+            still.is_empty(),
+            "expected no 30-minute daemon timer running core friday learning-loop; observed still scheduled: {}",
+            still.join(", ")
+        );
+    }
+}
