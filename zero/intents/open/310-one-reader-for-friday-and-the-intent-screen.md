@@ -83,12 +83,14 @@ code is written before G1 and G2 have those lines.
       novashell. Proof: the red output, then the green output, each under its
       plan Seal.
       ruling: RULED 2026-11-15 (Christian): red first, then the shared reader.
-      evidence: red commit c01dee3b, core 0 passed 3 failed, novashell 0 passed 1 failed. Green: cargo test -p core 298 passed; cargo test -p novashell 263 passed.
-- [ ] G4 Doors, after any ship. cargo test -p core passes. cargo test -p
+      evidence: red commit 87186685, core 0 passed 3 failed, novashell 0 passed 1 failed. Green commit d14203fd: cargo test -p core 298 passed; cargo test -p novashell 263 passed. Rulings commit 2af3e72f.
+- [x] G4 Doors, after any ship. cargo test -p core passes. cargo test -p
       novashell passes. nsh-test passes after cargo build -p novashell -p
       nsh-test. core intent validate reports every intent valid. d reports 0
       failed. ship, then reload, and the deployed artifact is what was watched.
       Proof: the door output.
+      ruling: RULED 2026-11-15 (Christian): doors passed after ship core and ship nsh.
+      evidence: laptop 2026-11-15. Rulings 2af3e72f, red 87186685, green d14203fd. Seal notes efa08eb3. ship core and ship nsh, then reload. Banner 304/304, shell 100%. doors 4 passed 0 failed: core pass 0.2s, shell pass 2.0s, nsh-test pass 133.2s, validate pass 0.0s.
 
 ## Out of scope
 - A second parser of an intent file.
@@ -96,4 +98,4 @@ code is written before G1 and G2 have those lines.
 - Changing what Friday says beyond what the one reader returns.
 
 ## Open for Christian
-Ruled 2026-11-15. G1 keeps the ledger. G2 is planned and in-progress, with a Drop guard. The gate line is display-only.
+Ruled 2026-11-15. G1 keeps the ledger. G2 is planned and in-progress, with a Drop guard. The gate line is display-only. G4 closed by the laptop doors.
