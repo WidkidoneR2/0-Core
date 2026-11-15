@@ -26,11 +26,81 @@ pub fn commits_since_local_midnight(repo: &Path) -> String {
     }
 }
 
-/// The sentence that is spoken. The stored snapshot is not a source.
+/// Commits on `repo`, or nothing when git cannot be asked. A missing repo is not zero.
+pub(crate) fn git_commit_count(repo: &Path) -> Option<i64> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["rev-list", "--count", "HEAD"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    text.parse().ok()
+}
+
+/// Commits at or after `since_unix`, or nothing when git cannot be asked.
+pub(crate) fn git_commits_since(repo: &Path, since_unix: i64) -> Option<i64> {
+    let since = format!("--since=@{since_unix}");
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["rev-list", "--count", since.as_str(), "HEAD"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    text.parse().ok()
+}
+
+/// The sentence that is spoken. Health and conflicts are measured by `sentence_for`.
 pub fn brief_sentence(commit_phrase: &str, deploy_count: i64, active: &str) -> String {
-    format!(
-        "Healthy. {deploy_count} deploy(s), {commit_phrase} commit(s) today. Active: {active}. No conflicts detected."
+    format!("{deploy_count} deploy(s), {commit_phrase} commit(s) today. Active: {active}.")
+}
+
+fn snapshot_health(db: &rusqlite::Connection) -> Option<i64> {
+    db.query_row(
+        "SELECT health FROM synthesis_snapshots ORDER BY timestamp DESC LIMIT 1",
+        [],
+        |row| row.get::<_, Option<i64>>(0),
     )
+    .ok()
+    .flatten()
+}
+
+fn unresolved_contradictions(db: &rusqlite::Connection) -> Option<i64> {
+    db.query_row(
+        "SELECT COUNT(*) FROM friday_contradictions WHERE resolved = 0",
+        [],
+        |row| row.get(0),
+    )
+    .ok()
+}
+
+fn health_words(health: Option<i64>) -> String {
+    match health {
+        Some(n) => format!("Health {n}."),
+        None => "health unknown.".to_string(),
+    }
+}
+
+fn conflict_words(count: Option<i64>) -> String {
+    match count {
+        Some(0) => " No conflicts detected.".to_string(),
+        Some(1) => " 1 contradiction.".to_string(),
+        Some(n) if n > 1 => format!(" {n} contradictions."),
+        _ => String::new(),
+    }
 }
 
 pub fn sentence_for(ctx: &AppContext) -> String {
@@ -50,7 +120,13 @@ pub fn sentence_for(ctx: &AppContext) -> String {
             .into_iter()
             .map(|file| file.id),
     );
-    brief_sentence(&phrase, deploy_count, &active)
+    let middle = brief_sentence(&phrase, deploy_count, &active);
+    format!(
+        "{} {}{}",
+        health_words(snapshot_health(&ctx.runtime.db)),
+        middle,
+        conflict_words(unresolved_contradictions(&ctx.runtime.db))
+    )
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -246,11 +322,30 @@ pub fn habit_pair(commands: &[String]) -> Option<(String, String, usize)> {
     Some((key.0.clone(), key.1.clone(), count))
 }
 
-// INT-315 G2 stub: the brief has no dim source line yet.
-#[allow(dead_code)]
+/// `from git · ledger · 1,204 commands`. The count is supplied by the caller.
 pub fn source_line(command_count: u64) -> String {
-    let _ = command_count;
-    String::new()
+    format!(
+        "from git · ledger · {} commands",
+        with_thousands(command_count)
+    )
+}
+
+fn with_thousands(n: u64) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, ch) in digits.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    out.chars().rev().collect()
+}
+
+/// Rows in command_execution, or nothing when that table cannot be read.
+pub fn command_count(db: &rusqlite::Connection) -> Option<u64> {
+    db.query_row("SELECT COUNT(*) FROM command_execution", [], |row| row.get(0))
+        .ok()
 }
 
 /// `✦ cargo  →  git  12`, or nothing when the history is thin or the pair is rare.
@@ -261,7 +356,10 @@ pub fn habit_line(commands: &[String]) -> Option<String> {
 
 pub fn habit_from_db(db: &rusqlite::Connection) -> Option<(String, String, usize)> {
     let mut statement = db
-        .prepare("SELECT command FROM shell_history ORDER BY timestamp ASC, id ASC")
+        .prepare(
+            "SELECT typed_text FROM command_execution
+             ORDER BY session_id ASC, execution_id ASC",
+        )
         .ok()?;
     let commands: Vec<String> = statement
         .query_map([], |row| row.get(0))

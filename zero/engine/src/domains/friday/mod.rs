@@ -127,6 +127,7 @@ fn now_ts() -> i64 {
 }
 fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(CREATE_TABLES)?;
+    ensure_pattern_identity(&ctx.runtime.db)?;
     // INT-128: keep native/foreign metadata in sync with the knowledge base.
     let _ = sync_knowledge_meta(&ctx.runtime.db);
     planning::ensure_tables(ctx)?;
@@ -166,6 +167,24 @@ fn sync_knowledge_meta(db: &rusqlite::Connection) -> rusqlite::Result<()> {
     }
     Ok(())
 }
+
+/// One row per (trigger, action). Existing databases are deduped before the
+/// unique index is added, so a second extract replaces the row instead of
+/// inserting another.
+fn ensure_pattern_identity(db: &rusqlite::Connection) -> CoreResult<()> {
+    db.execute_batch(
+        "DELETE FROM friday_patterns
+         WHERE id NOT IN (
+             SELECT id FROM (
+                 SELECT MIN(id) AS id FROM friday_patterns GROUP BY trigger, action
+             )
+         );
+         CREATE UNIQUE INDEX IF NOT EXISTS idx_friday_pat_trigger_action
+             ON friday_patterns(trigger, action);",
+    )?;
+    Ok(())
+}
+
 /// Completed intents for the seed. Records still count. That is the bug.
 fn completed_intent_count() -> usize {
     zero_core::ledger::load()
@@ -337,9 +356,10 @@ pub fn observe(ctx: &AppContext) -> CoreResult<()> {
     );
     Ok(())
 }
-// INT-315 G2 stub: status still ends on the literal counts.
+/// Closing line for `core friday status`. The counted lines above are the
+/// measurement. This stays empty rather than repeat a number that was not counted.
 fn status_closing_line() -> &'static str {
-    "Friday is active -- 892h of observation, 14 patterns, 333 facts."
+    ""
 }
 
 /// core friday status -- what Friday has observed and learned
@@ -424,7 +444,10 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
         }
         println!();
     }
-    println!("  {} {}", "💡".dimmed(), status_closing_line());
+    let closing = status_closing_line();
+    if !closing.is_empty() {
+        println!("  {} {}", "💡".dimmed(), closing);
+    }
     println!("  {} Use: core friday ask <question>", "→".dimmed());
     println!();
     Ok(())
@@ -1542,17 +1565,22 @@ pub fn run_observe(ctx: &AppContext) -> CoreResult<()> {
 // ═══════════════════════════════════════════════════════════
 // INT-217 -- Core v19: Friday Finds Her Voice
 // ═══════════════════════════════════════════════════════════
-// INT-315 G2 stub: inside the cooldown the voice is silence, not how long ago she spoke.
-#[allow(dead_code)]
+/// How long ago Friday spoke, while the 30-minute cooldown is why she is quiet.
 pub fn cooldown_line(seconds_since_spoken: i64) -> String {
-    let _ = seconds_since_spoken;
-    String::new()
+    let minutes = seconds_since_spoken.max(0) / 60;
+    format!("spoke {minutes}m ago")
+}
+
+/// What `d` should print. Cooldown is a reason, not the same as having nothing to say.
+pub enum Voice {
+    Speak(String, f64),
+    Cooldown(i64),
+    Quiet,
 }
 
 /// Check all thresholds and return Friday's voice if she has earned the right to speak.
-/// Returns Some((brief, confidence)) or None if dormant.
 /// Also handles dormant → observing → active engine_registry transition.
-pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
+pub fn voice(ctx: &AppContext) -> Voice {
     let db = &ctx.runtime.db;
     // Gate 1: synthesis snapshot exists with confidence >= 0.7
     let confidence: Option<f64> = db
@@ -1566,7 +1594,7 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
         Some(confidence) if confidence >= 0.7 => confidence,
         _ => {
             let _ = set_friday_status(ctx, "dormant");
-            return None;
+            return Voice::Quiet;
         }
     };
     // Gate 2: at least 3 days of pattern data (259200 seconds)
@@ -1582,7 +1610,7 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
         .as_secs() as i64;
     if now - oldest_pattern < 259200 {
         let _ = set_friday_status(ctx, "observing");
-        return None;
+        return Voice::Quiet;
     }
     // Gate 3: at least 50 shell_history entries
     let history_count: i64 = db
@@ -1590,7 +1618,7 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
         .unwrap_or(0);
     if history_count < 50 {
         let _ = set_friday_status(ctx, "observing");
-        return None;
+        return Voice::Quiet;
     }
     // Gate 4: rate limit -- max once per 30 minutes
     let last_spoken: i64 = db
@@ -1601,9 +1629,9 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
         )
         .unwrap_or(0);
     if now - last_spoken < 1800 {
-        // Rate limited -- still active, just silent
+        // Rate limited -- still active. The caller can say how long ago she spoke.
         let _ = set_friday_status(ctx, "active");
-        return None;
+        return Voice::Cooldown(now - last_spoken);
     }
     // All gates passed -- Friday is active and ready to speak
     let _ = set_friday_status(ctx, "active");
@@ -1625,15 +1653,29 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
             "INSERT OR IGNORE INTO friday_personality (key, value, updated_at) VALUES ('has_spoken', 'true', ?1)",
             rusqlite::params![now],
         );
-        // Log to events_v2
-        let _ = db.execute(
-            "INSERT INTO events_v2 (timestamp, source, kind, summary, data)
-             VALUES (?1, 'friday', 'milestone', 'Friday spoke for the first time', ?2)",
-            rusqlite::params![now, format!("confidence: {:.2}", confidence)],
+        let payload = format!(
+            "{{\"note\":\"Friday spoke for the first time\",\"confidence\":{confidence:.2}}}"
         );
+        if let Err(err) = db.execute(
+            "INSERT INTO events_v2 (timestamp, source, kind, type_name, payload, confidence)
+             VALUES (?1, 'friday', 'milestone', 'friday_first_speech', ?2, ?3)",
+            rusqlite::params![now, payload, confidence],
+        ) {
+            eprintln!("friday: first speech was not recorded in events_v2: {err}");
+        }
     }
     let brief = crate::domains::friday_arch::room::sentence_for(ctx);
-    Some((brief, confidence))
+    Voice::Speak(brief, confidence)
+}
+
+/// Some((brief, confidence)) when Friday may speak. Cooldown and silence are both None.
+/// Tests use this door. `d` calls `voice` so a cooldown is not the same as silence.
+#[cfg(test)]
+pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
+    match voice(ctx) {
+        Voice::Speak(brief, confidence) => Some((brief, confidence)),
+        Voice::Cooldown(_) | Voice::Quiet => None,
+    }
 }
 /// Set Friday's status in engine_registry.
 fn set_friday_status(ctx: &AppContext, status: &str) -> CoreResult<()> {
@@ -1757,22 +1799,14 @@ pub fn check_milestones(ctx: &AppContext) -> Option<String> {
             message TEXT NOT NULL
         );",
     );
-    // Get live stats
-    let total_commits: i64 = db
-        .query_row("SELECT COUNT(*) FROM commit_patterns", [], |r| r.get(0))
-        .unwrap_or(0);
-    let complete_intents: i64 = db
-        .query_row(
-            "SELECT COUNT(*) FROM friday_observations WHERE kind='intent_complete'",
-            [],
-            |r| r.get(0),
-        )
-        .unwrap_or(0);
-    // Fallback: read from a friday_knowledge fact
-    let complete_intents = if complete_intents == 0 {
-        186
-    } else {
-        complete_intents
+    // Get live stats. Commits are git's count. Intents are the ledger's.
+    // A repo git cannot read does not become zero, and it does not become 186.
+    let commit_count =
+        crate::domains::friday_arch::room::git_commit_count(std::path::Path::new(&ctx.core_root));
+    let complete_intents = completed_intent_count() as i64;
+    let commit_words = match commit_count {
+        Some(n) => n.to_string(),
+        None => "unknown".to_string(),
     };
     let _patterns: i64 = db
         .query_row("SELECT COUNT(*) FROM friday_patterns", [], |r| r.get(0))
@@ -1787,13 +1821,13 @@ pub fn check_milestones(ctx: &AppContext) -> Option<String> {
         ("intents_50",   50,   "intent",  "50 complete intents. Project 0 stopped being a prototype a long time ago.".to_string()),
         ("intents_100",  100,  "intent",  "100 complete intents. More custom Rust tools than most teams build in a year.".to_string()),
         ("intents_150",  150,  "intent",  "150 complete intents. Project 0 rebuilt itself from a catastrophic failure and kept growing.".to_string()),
-        ("intents_200",  200,  "intent",  format!("200 complete intents. {} commits. Friday is active. Project 0 built its own intelligence.", total_commits)),
+        ("intents_200",  200,  "intent",  format!("200 complete intents. {} commits. Friday is active. Project 0 built its own intelligence.", commit_words)),
     ];
     for (key, threshold, kind, message) in &milestones {
-        let count = if *kind == "commit" {
-            total_commits
-        } else {
-            complete_intents
+        let count = match (*kind, commit_count) {
+            ("commit", Some(n)) => n,
+            ("commit", None) => continue,
+            _ => complete_intents,
         };
         if count >= *threshold {
             // Check if already triggered
@@ -2008,6 +2042,49 @@ mod int315 {
         }
     }
 
+    /// The milestone reads git, so the fixture is a real history. commit_patterns
+    /// stays at one row: a count taken from that table cannot reach 2000.
+    fn seed_commits(repo: &std::path::Path, n: u32) {
+        let status = std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(repo)
+            .status()
+            .unwrap();
+        assert!(status.success(), "git init");
+        let head = std::fs::read_to_string(repo.join(".git/HEAD")).unwrap();
+        let branch = head.trim().trim_start_matches("ref: ");
+        let mut script = String::new();
+        for i in 1..=n {
+            let from = if i == 1 {
+                String::new()
+            } else {
+                format!("from :{}\n", i - 1)
+            };
+            script.push_str(&format!(
+                "commit {branch}\nmark :{i}\nauthor Test <test@example.com> 1700000000 +0000\ncommitter Test <test@example.com> 1700000000 +0000\ndata 2\nx\n{from}\n"
+            ));
+        }
+        let mut child = std::process::Command::new("git")
+            .args(["fast-import", "--quiet"])
+            .current_dir(repo)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        {
+            use std::io::Write;
+            let mut stdin = child.stdin.take().unwrap();
+            stdin.write_all(script.as_bytes()).unwrap();
+        }
+        let output = child.wait_with_output().unwrap();
+        assert!(
+            output.status.success(),
+            "fast-import: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
     #[test]
     fn status_has_no_literal_counts() {
         let line = status_closing_line();
@@ -2034,11 +2111,7 @@ mod int315 {
             .db
             .execute_batch(
                 "CREATE TABLE commit_patterns (id INTEGER PRIMARY KEY);
-                 INSERT INTO commit_patterns (id)
-                 WITH RECURSIVE c(n) AS (
-                     SELECT 1 UNION ALL SELECT n + 1 FROM c WHERE n < 2000
-                 )
-                 SELECT n FROM c;
+                 INSERT INTO commit_patterns (id) VALUES (1);
                  CREATE TABLE friday_milestones (
                      id INTEGER PRIMARY KEY AUTOINCREMENT,
                      milestone TEXT NOT NULL UNIQUE,
@@ -2051,6 +2124,7 @@ mod int315 {
                      ('commits_1500', 1, 'already');",
             )
             .unwrap();
+        seed_commits(&dir, 2000);
         let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let _home = HomeGuard::set(&dir);
         let n = completed_intent_count();

@@ -36,7 +36,7 @@ pub enum ObservationKind {
     SystemWide,
 }
 
-/// The starter rule set -- 10 rules covering key system patterns
+/// The starter rule set -- 7 rules covering key system patterns
 pub fn starter_rules() -> Vec<Rule> {
     vec![
         Rule {
@@ -52,12 +52,11 @@ pub fn starter_rules() -> Vec<Rule> {
                         |r| r.get(0),
                     )
                     .unwrap_or(0);
-                let commits: i64 = db.query_row(
-                    "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' AND timestamp > ?1",
-                    rusqlite::params![now - 300],
-                    |r| r.get(0),
-                ).unwrap_or(0);
-                if deploys > 0 && commits == 0 {
+                let commits = crate::domains::friday_arch::room::git_commits_since(
+                    std::path::Path::new(&ctx.core_root),
+                    now - 300,
+                );
+                if deploys > 0 && commits == Some(0) {
                     Some(Observation {
                         conclusion: format!("{} deploy(s) in last 5min without a commit -- deploying uncommitted changes", deploys),
                         confidence: 0.9,
@@ -159,11 +158,10 @@ pub fn starter_rules() -> Vec<Rule> {
                 let db = &ctx.runtime.db;
                 let now = now_ts();
                 let two_hours_ago = now - 7200;
-                let commits: i64 = db.query_row(
-                    "SELECT COUNT(*) FROM git_operations WHERE operation='commit' AND timestamp > ?1",
-                    rusqlite::params![two_hours_ago],
-                    |r| r.get(0),
-                ).unwrap_or(0);
+                let commits = crate::domains::friday_arch::room::git_commits_since(
+                    std::path::Path::new(&ctx.core_root),
+                    two_hours_ago,
+                );
                 let deploys: i64 = db
                     .query_row(
                         "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
@@ -171,7 +169,10 @@ pub fn starter_rules() -> Vec<Rule> {
                         |r| r.get(0),
                     )
                     .unwrap_or(0);
-                if commits >= 3 && deploys == 0 {
+                if let Some(commits) = commits.filter(|n| *n >= 3) {
+                    if deploys != 0 {
+                        return None;
+                    }
                     Some(Observation {
                         conclusion: format!("{} commit(s) in last 2h with no deploy -- consider deploying to validate changes", commits),
                         confidence: 0.8,

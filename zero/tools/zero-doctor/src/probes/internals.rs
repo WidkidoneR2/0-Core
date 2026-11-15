@@ -85,7 +85,7 @@ pub fn friday() -> Measurement {
         )
         .unwrap_or(0.0);
     let last_learned =
-        one("SELECT COALESCE(MAX(updated_at), 0) FROM friday_knowledge").unwrap_or(0);
+        one("SELECT COALESCE(MAX(updated_at), 0) FROM friday_knowledge WHERE domain != 'session_summary' AND domain NOT LIKE 'testing/%'").unwrap_or(0);
 
     let now = chrono::Utc::now().timestamp();
     let stale = last_learned > 0 && (now - last_learned) > 604_800;
