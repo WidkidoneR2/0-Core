@@ -47,6 +47,11 @@ struct Intent {
     path: PathBuf,
     content: String,
 }
+/// What a failed open restores. Raw mode only, until the Drop guard lands.
+pub(crate) fn failed_open_steps() -> &'static [&'static str] {
+    &["raw-off"]
+}
+
 pub fn run_intent_tui(core_root: &str) {
     let _ = enable_raw_mode();
     let mut stdout = io::stdout();
@@ -644,6 +649,15 @@ mod tests {
                 ("20".to_string(), "in-progress".to_string()),
                 ("10".to_string(), "planned".to_string()),
             ]
+        );
+    }
+
+    #[test]
+    fn a_failed_open_leaves_the_alternate_screen() {
+        assert_eq!(
+            super::failed_open_steps(),
+            ["alt-off", "raw-off"],
+            "Terminal::new failing must leave the alternate screen too"
         );
     }
 }

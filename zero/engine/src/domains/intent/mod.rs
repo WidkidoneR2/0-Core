@@ -106,7 +106,33 @@ pub(crate) fn in_progress_ids(ctx: &AppContext) -> Vec<String> {
         .collect()
 }
 
-fn load_all(_ctx: &AppContext) -> Vec<Intent> {
+/// One shelf read. Gates are empty until the green commit attaches read_gates.
+pub struct OpenRead {
+    pub intent: Intent,
+    pub gates: gates::GateReport,
+}
+
+pub fn read_open() -> Vec<OpenRead> {
+    load_all_shelf()
+        .into_iter()
+        .map(|intent| OpenRead {
+            intent,
+            gates: gates::GateReport::default(),
+        })
+        .collect()
+}
+
+/// Display-only. Empty until Friday is wired to read_gates.
+pub fn gate_progress_line(_id: &str, _done: usize, _total: usize) -> String {
+    String::new()
+}
+
+fn load_all(ctx: &AppContext) -> Vec<Intent> {
+    let _ = ctx;
+    load_all_shelf()
+}
+
+fn load_all_shelf() -> Vec<Intent> {
     // INT-313 stage 2. The shelf walk lives in zero_core::ledger. A missing
     // directory is skipped there. Status is the frontmatter line.
     let mut intents: Vec<Intent> = zero_core::ledger::load()
@@ -5479,5 +5505,46 @@ mod add_and_note_tests {
             .unwrap();
         assert!(listed.stdout.is_empty(), "a refusal stores nothing");
         let _ = std::fs::remove_dir_all(&dir);
+    }
+}
+
+#[cfg(test)]
+mod read_open_tests {
+    use super::{gate_progress_line, read_open};
+
+    #[test]
+    fn the_progress_line_names_the_intent_and_the_gates() {
+        assert_eq!(gate_progress_line("310", 2, 5), "INT-310 2/5 gates");
+    }
+
+    #[test]
+    fn read_open_attaches_the_gate_reader() {
+        let dir = std::env::temp_dir().join(format!(
+            "read-open-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let open = dir.join("0-core/zero/intents/open");
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::write(
+            open.join("010-one.md"),
+            "---\nid: 10\ntitle: \"One\"\nstatus: in-progress\ndate: 2026-11-15\n---\n\n## Success Criteria\n- [x] G1 shown\n      evidence: done\n- [ ] G2 open\n",
+        )
+        .unwrap();
+        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prev = std::env::var("HOME").ok();
+        unsafe { std::env::set_var("HOME", &dir) };
+        let rows = read_open();
+        match prev {
+            Some(h) => unsafe { std::env::set_var("HOME", h) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].gates.gates.len(), 2, "read_gates is attached");
     }
 }

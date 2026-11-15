@@ -166,15 +166,20 @@ fn sync_knowledge_meta(db: &rusqlite::Connection) -> rusqlite::Result<()> {
     }
     Ok(())
 }
+/// Completed intents for the seed. Records still count. That is the bug.
+fn completed_intent_count() -> usize {
+    zero_core::ledger::load()
+        .into_iter()
+        .filter(|file| file.status == "complete")
+        .count()
+}
+
 /// Seed initial Friday knowledge from current state
 fn seed_knowledge(ctx: &AppContext) -> CoreResult<()> {
     let db = &ctx.runtime.db;
     let now = now_ts();
     // Seed from intent completions
-    let complete_count = zero_core::ledger::load()
-        .into_iter()
-        .filter(|file| file.status == "complete")
-        .count() as i64;
+    let complete_count = completed_intent_count() as i64;
     // Seed from commit patterns
     let commit_count: i64 = db
         .query_row("SELECT COUNT(*) FROM commit_patterns", [], |r| r.get(0))
@@ -1802,4 +1807,44 @@ pub fn check_milestones(ctx: &AppContext) -> Option<String> {
         }
     }
     None
+}
+
+#[cfg(test)]
+mod seed_count_tests {
+    #[test]
+    fn a_record_does_not_count_as_a_completed_intent() {
+        let dir = std::env::temp_dir().join(format!(
+            "friday-seed-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let open = dir.join("0-core/zero/intents/open");
+        let decisions = dir.join("0-core/zero/intents/decisions");
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::create_dir_all(&decisions).unwrap();
+        std::fs::write(
+            open.join("030-done.md"),
+            "---\nid: 30\nstatus: complete\ntitle: \"Done\"\n---\n",
+        )
+        .unwrap();
+        std::fs::write(
+            decisions.join("137-x.md"),
+            "---\nid: 137\nstatus: complete\ntitle: \"Record\"\n---\n",
+        )
+        .unwrap();
+        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prev = std::env::var("HOME").ok();
+        unsafe { std::env::set_var("HOME", &dir) };
+        let n = super::completed_intent_count();
+        match prev {
+            Some(h) => unsafe { std::env::set_var("HOME", h) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(n, 1, "a decision is not a completed intent");
+    }
 }
