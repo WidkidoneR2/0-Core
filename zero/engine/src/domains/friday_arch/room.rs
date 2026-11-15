@@ -44,6 +44,25 @@ pub(crate) fn git_commit_count(repo: &Path) -> Option<i64> {
     text.parse().ok()
 }
 
+/// Commits at or after `since_unix`, or nothing when git cannot be asked.
+pub(crate) fn git_commits_since(repo: &Path, since_unix: i64) -> Option<i64> {
+    let since = format!("--since=@{since_unix}");
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["rev-list", "--count", since.as_str(), "HEAD"])
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if text.is_empty() || !text.bytes().all(|byte| byte.is_ascii_digit()) {
+        return None;
+    }
+    text.parse().ok()
+}
+
 /// The sentence that is spoken. Health and conflicts are measured by `sentence_for`.
 pub fn brief_sentence(commit_phrase: &str, deploy_count: i64, active: &str) -> String {
     format!("{deploy_count} deploy(s), {commit_phrase} commit(s) today. Active: {active}.")
@@ -318,7 +337,10 @@ pub fn habit_line(commands: &[String]) -> Option<String> {
 
 pub fn habit_from_db(db: &rusqlite::Connection) -> Option<(String, String, usize)> {
     let mut statement = db
-        .prepare("SELECT command FROM shell_history ORDER BY timestamp ASC, id ASC")
+        .prepare(
+            "SELECT typed_text FROM command_execution
+             ORDER BY session_id ASC, execution_id ASC",
+        )
         .ok()?;
     let commands: Vec<String> = statement
         .query_map([], |row| row.get(0))

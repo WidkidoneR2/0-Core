@@ -127,6 +127,7 @@ fn now_ts() -> i64 {
 }
 fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(CREATE_TABLES)?;
+    ensure_pattern_identity(&ctx.runtime.db)?;
     // INT-128: keep native/foreign metadata in sync with the knowledge base.
     let _ = sync_knowledge_meta(&ctx.runtime.db);
     planning::ensure_tables(ctx)?;
@@ -166,6 +167,24 @@ fn sync_knowledge_meta(db: &rusqlite::Connection) -> rusqlite::Result<()> {
     }
     Ok(())
 }
+
+/// One row per (trigger, action). Existing databases are deduped before the
+/// unique index is added, so a second extract replaces the row instead of
+/// inserting another.
+fn ensure_pattern_identity(db: &rusqlite::Connection) -> CoreResult<()> {
+    db.execute_batch(
+        "DELETE FROM friday_patterns
+         WHERE id NOT IN (
+             SELECT id FROM (
+                 SELECT MIN(id) AS id FROM friday_patterns GROUP BY trigger, action
+             )
+         );
+         CREATE UNIQUE INDEX IF NOT EXISTS idx_friday_pat_trigger_action
+             ON friday_patterns(trigger, action);",
+    )?;
+    Ok(())
+}
+
 /// Completed intents for the seed. Records still count. That is the bug.
 fn completed_intent_count() -> usize {
     zero_core::ledger::load()
@@ -1629,12 +1648,16 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
             "INSERT OR IGNORE INTO friday_personality (key, value, updated_at) VALUES ('has_spoken', 'true', ?1)",
             rusqlite::params![now],
         );
-        // Log to events_v2
-        let _ = db.execute(
-            "INSERT INTO events_v2 (timestamp, source, kind, summary, data)
-             VALUES (?1, 'friday', 'milestone', 'Friday spoke for the first time', ?2)",
-            rusqlite::params![now, format!("confidence: {:.2}", confidence)],
+        let payload = format!(
+            "{{\"note\":\"Friday spoke for the first time\",\"confidence\":{confidence:.2}}}"
         );
+        if let Err(err) = db.execute(
+            "INSERT INTO events_v2 (timestamp, source, kind, type_name, payload, confidence)
+             VALUES (?1, 'friday', 'milestone', 'friday_first_speech', ?2, ?3)",
+            rusqlite::params![now, payload, confidence],
+        ) {
+            eprintln!("friday: first speech was not recorded in events_v2: {err}");
+        }
     }
     let brief = crate::domains::friday_arch::room::sentence_for(ctx);
     Some((brief, confidence))
