@@ -785,14 +785,10 @@ pub fn validate(_ctx: &AppContext) -> CoreResult<()> {
         println!("  {} {} issues found", "✗".bright_red(), issues.len());
     }
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-    let format2 = issues.iter().any(|issue| issue.starts_with("format 2:"));
-    if format2 {
+    if !issues.is_empty() {
         return Err(crate::errors::CoreError::Reported(format!(
-            "{} format 2 issue(s)",
-            issues
-                .iter()
-                .filter(|issue| issue.starts_with("format 2:"))
-                .count()
+            "{} issue(s)",
+            issues.len()
         )));
     }
     Ok(())
