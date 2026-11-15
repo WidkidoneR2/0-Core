@@ -401,13 +401,6 @@ fn intent_changed_in(commits: &[Commit], dir: &str, id: &str, cutoff: i64) -> bo
     })
 }
 
-fn registry_changed(commits: &[Commit], cutoff: i64) -> bool {
-    const PATHS: &[&str] = &["registry/tools.toml", "zero/registry/tools.toml"];
-    commits
-        .iter()
-        .any(|c| c.ts >= cutoff && c.files.iter().any(|f| PATHS.contains(&f.as_str())))
-}
-
 fn paint(text: &str, code: &str) -> String {
     if colored::control::SHOULD_COLORIZE.should_colorize() {
         format!("\u{1b}[{code}m{text}\u{1b}[0m")
@@ -433,7 +426,6 @@ fn tree_lines(
 ) -> Vec<String> {
     let mut lines = Vec::new();
     let mut shown = HashSet::new();
-    let reg_recent = registry_changed(commits, cutoff);
     for tool in tools {
         let Some(i) = link_index(tool, crates) else {
             continue;
@@ -463,7 +455,9 @@ fn tree_lines(
         if link_index(tool, crates).is_some() {
             continue;
         }
-        lines.push(node("", &tool.name, "36", reg_recent));
+        // No crate directory, so this node has no files a commit can touch.
+        // A registry edit, a file mtime, or a binary date is not a spark.
+        lines.push(node("", &tool.name, "36", false));
     }
     lines
 }
@@ -556,6 +550,34 @@ mod int316 {
         TempDir(dir)
     }
 
+    // A tool with no crate field, committed only as a registry row. The
+    // registry file and a binary-shaped file are both touched just now, so a
+    // spark taken from file mtimes, binary dates, or the registry commit is
+    // wrong: this node has no crate directory and no intent commit.
+    fn repo_with_crateless_tool() -> TempDir {
+        let dir = std::env::temp_dir().join(format!(
+            "int316-map-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("registry")).unwrap();
+        std::fs::write(
+            dir.join("registry/tools.toml"),
+            "[[tool]]\nname = \"cargo-cache\"\n",
+        )
+        .unwrap();
+        std::fs::create_dir_all(dir.join("bin")).unwrap();
+        std::fs::write(dir.join("bin/cargo-cache"), "bin\n").unwrap();
+        git(&dir, &["init"]);
+        git(&dir, &["add", "."]);
+        git(&dir, &["commit", "-m", "registry: cargo-cache has no crate"]);
+        TempDir(dir)
+    }
+
     struct ColorOverride;
 
     impl ColorOverride {
@@ -613,6 +635,17 @@ mod int316 {
         assert!(
             tool && krate && intent && recent,
             "colored tree: tool maptool cyan={tool}, crate mapcrate green={krate}, intent INT-310 magenta={intent}, spark on the last 24h={recent}; got {text:?}"
+        );
+    }
+
+    #[test]
+    fn g3_a_tool_with_no_crate_and_no_commits_has_no_spark() {
+        let repo = repo_with_crateless_tool();
+        let text = render_map(&repo.0);
+        let line = text.lines().find(|l| l.contains("cargo-cache")).unwrap_or("");
+        assert!(
+            !line.is_empty() && !line.contains('✦'),
+            "a tool with no crate and no intent commits must not spark (no registry mtime, no binary date); got {line:?} in {text:?}"
         );
     }
 }
