@@ -3,7 +3,7 @@ id: 315
 date: 2026-11-15
 type: future
 title: "Friday stands on ground truth"
-status: planned
+status: in-progress
 tags: [friday, ledger]
 format: 2
 ---
