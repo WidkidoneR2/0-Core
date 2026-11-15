@@ -1,0 +1,4 @@
+INT-314 commit 2 -- plan
+  E1 red: git says 0, the sentence ignores the phrase, rank is unsorted, anomalies keep normal, the habit line is silent, get_voice replays STALE.
+
+cargo test -p core: FAILED. 0 passed; 6 failed
