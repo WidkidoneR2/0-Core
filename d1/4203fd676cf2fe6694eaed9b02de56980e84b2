@@ -1,0 +1,6 @@
+INT-310 commit 3 -- plan
+  E1 read_open attaches gates. list, Friday, and it use it. A record is not complete. The Drop leaves the alternate screen. Friday prints the gate line. G0-G3 ticked. G4 stays open.
+
+cargo test -p core: 298 passed
+cargo test -p novashell: 263 passed
+core intent validate: All 87 intents valid
