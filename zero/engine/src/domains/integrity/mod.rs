@@ -460,13 +460,10 @@ pub fn run_pipeline(
         all_issues.extend(issues);
     }
 
-    // Compute total possible weight (all checks at max weight 3 avg)
-    let total_weight: u32 = all_issues
-        .iter()
-        .map(|i| i.weight as u32)
-        .sum::<u32>()
-        .max(1)
-        * 3; // baseline
+    // One unit for every check that ran, plus each found issue's own weight.
+    // A check that returned nothing is that unit and nothing more. No * 3.
+    let found_weight: u32 = all_issues.iter().map(|i| i.weight as u32).sum();
+    let total_weight: u32 = found_weight + checks.len() as u32;
 
     // Phase B — Plan (classify)
     let auto_fixable: Vec<&IntegrityIssue> = all_issues
