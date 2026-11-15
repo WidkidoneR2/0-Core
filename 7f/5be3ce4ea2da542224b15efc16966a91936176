@@ -1,0 +1,2 @@
+INT-039 cancel -- plan
+  E1 status cancelled. The NixOS daemon is stale. state.db already persists. Decision 147.
