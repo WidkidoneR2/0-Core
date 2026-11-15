@@ -374,6 +374,16 @@ pub fn speak_on_error(ctx: &AppContext, error_output: &str) -> CoreResult<()> {
     }
     Ok(())
 }
+/// Mean confidence of learned patterns. No readable average is not 0.85.
+fn measured_brief_confidence(db: &rusqlite::Connection) -> f64 {
+    db.query_row("SELECT AVG(confidence) FROM friday_patterns", [], |row| {
+        row.get::<_, Option<f64>>(0)
+    })
+    .ok()
+    .flatten()
+    .unwrap_or(0.0)
+}
+
 /// Run the full Friday formal architecture cycle
 pub fn run(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
@@ -432,15 +442,22 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
             .unwrap_or(0);
     // Store brief in synthesis. The health trend reads these rows.
     // The spoken sentence is sentence_for, never this stored text.
+    // Health is the doctor's last measurement. Confidence is the mean of learned
+    // patterns. Neither is a standing literal, and an unreadable pattern table
+    // is 0 -- the column is NOT NULL, and 0 does not clear get_voice's gate.
+    let health: Option<i64> = zero_core::paths::read_health().map(i64::from);
+    let confidence = measured_brief_confidence(&ctx.runtime.db);
     let _ = ctx.runtime.db.execute(
         "INSERT INTO synthesis_snapshots (timestamp, health, alignment, active_intent,
          session_commits, top_pattern, friday_brief, brief_confidence, contradiction)
-         VALUES (?1, 100, 1.0, ?2, ?3, 'meta-interpretation', ?4, 0.85, ?5)",
+         VALUES (?1, ?2, 1.0, ?3, ?4, 'meta-interpretation', ?5, ?6, ?7)",
         params![
             now,
+            health,
             active_intent,
             session_commits,
             brief,
+            confidence,
             if contradictions.is_empty() { "" } else { "yes" }
         ],
     );
@@ -448,6 +465,9 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
     room::print_room(ctx);
     println!("  {} Friday brief:", "💡".normal());
     println!("  {}", brief.bright_white());
+    if let Some(commands) = room::command_count(&ctx.runtime.db) {
+        println!("  {}", room::source_line(commands).dimmed());
+    }
     println!();
     println!("  {} Friday produces insight, not authority.", "→".dimmed());
     Ok(())
@@ -1334,5 +1354,119 @@ mod tests {
         assert_eq!(format_active_intents(["313", "10"]), "INT-10, INT-313");
         assert_eq!(format_active_intents(Vec::<&str>::new()), "none");
         assert_eq!(format_active_intents(["", "  "]), "none");
+    }
+}
+
+#[cfg(test)]
+mod int315 {
+    struct HomeGuard {
+        prev_home: Option<String>,
+        prev_cache: Option<String>,
+    }
+
+    impl HomeGuard {
+        fn isolate(dir: &std::path::Path) -> Self {
+            let prev_home = std::env::var("HOME").ok();
+            let prev_cache = std::env::var("XDG_CACHE_HOME").ok();
+            unsafe {
+                std::env::set_var("HOME", dir);
+                std::env::set_var("XDG_CACHE_HOME", dir.join(".cache"));
+            }
+            Self {
+                prev_home,
+                prev_cache,
+            }
+        }
+    }
+
+    impl Drop for HomeGuard {
+        fn drop(&mut self) {
+            unsafe {
+                match self.prev_home.take() {
+                    Some(home) => std::env::set_var("HOME", home),
+                    None => std::env::remove_var("HOME"),
+                }
+                match self.prev_cache.take() {
+                    Some(cache) => std::env::set_var("XDG_CACHE_HOME", cache),
+                    None => std::env::remove_var("XDG_CACHE_HOME"),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn snapshot_health_and_confidence_are_measured() {
+        let dir = std::env::temp_dir().join(format!(
+            "int315-snap-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("0-core/zero/intents/open")).unwrap();
+        let ctx = crate::app::context::AppContext {
+            runtime: crate::runtime::Runtime {
+                root: dir.clone(),
+                logs: dir.join("logs"),
+                cache: dir.join("cache"),
+                snapshots: dir.join("snapshots"),
+                locks: dir.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: dir.to_string_lossy().to_string(),
+            core_root: dir.to_string_lossy().to_string(),
+            source_root: dir.join("0-core/zero").to_string_lossy().to_string(),
+        };
+        ctx.runtime
+            .db
+            .execute_batch(
+                "CREATE TABLE synthesis_snapshots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp INTEGER NOT NULL,
+                    health INTEGER,
+                    alignment REAL NOT NULL DEFAULT 1.0,
+                    active_intent TEXT NOT NULL DEFAULT '',
+                    session_commits INTEGER NOT NULL DEFAULT 0,
+                    top_pattern TEXT NOT NULL DEFAULT '',
+                    friday_brief TEXT NOT NULL DEFAULT '',
+                    brief_confidence REAL NOT NULL DEFAULT 0.0,
+                    contradiction TEXT NOT NULL DEFAULT ''
+                );
+                CREATE TABLE domain_state (
+                    domain TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    value TEXT NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    PRIMARY KEY (domain, key)
+                );
+                INSERT INTO domain_state (domain, key, value, updated_at)
+                    VALUES ('doctor', 'last_health', '72', 1);",
+            )
+            .unwrap();
+        let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _env = HomeGuard::isolate(&dir);
+        zero_core::paths::write_health(&zero_core::paths::health_status_file(), Some(72)).unwrap();
+        super::run(&ctx).unwrap();
+        let (health, confidence): (i64, f64) = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT health, brief_confidence FROM synthesis_snapshots ORDER BY timestamp DESC LIMIT 1",
+                [],
+                |row| Ok((row.get(0)?, row.get(1)?)),
+            )
+            .unwrap();
+        assert_eq!(
+            health, 72,
+            "snapshot health is a literal, measured health is 72 (confidence {confidence})"
+        );
+        assert!(
+            (confidence - 0.85).abs() > f64::EPSILON,
+            "brief_confidence is the literal 0.85"
+        );
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }

@@ -1,5 +1,7 @@
 #![allow(clippy::all)]
 // NovaShell — state.db connection
+use std::borrow::Cow;
+
 use anyhow::{Context, Result};
 use rusqlite::Connection;
 use rustyline::{history::FileHistory, Editor, Helper};
@@ -94,6 +96,263 @@ pub struct ExecutionCompletion<'a> {
     pub exit_code: Option<i32>,
     pub duration_ms: Option<u64>,
     pub finished_at: i64,
+}
+
+// INT-315: secret values become *** before a command_execution row is written.
+// The rest of the command stays byte-identical. New rows only; this does not
+// read or write shell_history.
+//
+// Shapes, and only these:
+// - a long flag in `--name value` or `--name=value` form, when a whole name
+//   segment is token, password, passwd, secret, key, auth, apikey, or pat.
+//   Segments split on '-', '_' and '.'. Short flags such as -p are not secrets.
+// - URL userinfo: scheme://user:pass@ becomes scheme://***@
+// - an Authorization header: "Authorization: scheme value" keeps the scheme,
+//   and a bare "Authorization: value" redacts that single value
+// - an env assignment whose name has one of those same whole segments:
+//   NAME=value becomes NAME=***
+fn redact_secrets(input: &str) -> Cow<'_, str> {
+    let mut rewritten: Option<String> = None;
+    let mut copied = 0;
+    let mut i = 0;
+    while i < input.len() {
+        if let Some(hit) = secret_at(input, i) {
+            if hit.start >= i
+                && hit.end > hit.start
+                && hit.end <= input.len()
+                && input.is_char_boundary(hit.start)
+                && input.is_char_boundary(hit.end)
+            {
+                let buf = rewritten.get_or_insert_with(|| String::with_capacity(input.len()));
+                buf.push_str(&input[copied..hit.start]);
+                buf.push_str("***");
+                copied = hit.end;
+                i = hit.end;
+                continue;
+            }
+        }
+        i += utf8_len_at(input, i);
+    }
+    match rewritten {
+        Some(mut buf) => {
+            buf.push_str(&input[copied..]);
+            Cow::Owned(buf)
+        }
+        None => Cow::Borrowed(input),
+    }
+}
+
+struct SecretSpan {
+    start: usize,
+    end: usize,
+}
+
+fn secret_at(input: &str, i: usize) -> Option<SecretSpan> {
+    authorization_at(input, i)
+        .or_else(|| long_flag_at(input, i))
+        .or_else(|| env_assignment_at(input, i))
+        .or_else(|| url_userinfo_at(input, i))
+}
+
+fn authorization_at(input: &str, i: usize) -> Option<SecretSpan> {
+    if !at_boundary(input, i, |c| c.is_ascii_alphanumeric() || c == b'_') {
+        return None;
+    }
+    const NAME: &str = "authorization";
+    let rest = &input[i..];
+    if rest.len() < NAME.len() + 1 || !rest[..NAME.len()].eq_ignore_ascii_case(NAME) {
+        return None;
+    }
+    if rest.as_bytes()[NAME.len()] != b':' {
+        return None;
+    }
+    let first_at = skip_ascii_ws(input, i + NAME.len() + 1);
+    let first = read_value(input, first_at)?;
+    // A quoted token is the whole value. An unquoted scheme keeps a second token.
+    if input.as_bytes()[first_at] == b'\'' || input.as_bytes()[first_at] == b'"' {
+        return Some(first);
+    }
+    let second_at = skip_ascii_ws(input, first.end);
+    if let Some(second) = read_value(input, second_at) {
+        return Some(second);
+    }
+    Some(first)
+}
+
+fn long_flag_at(input: &str, i: usize) -> Option<SecretSpan> {
+    if !at_boundary(input, i, is_name_byte) {
+        return None;
+    }
+    let bytes = input.as_bytes();
+    if i + 2 > bytes.len() || bytes[i] != b'-' || bytes[i + 1] != b'-' {
+        return None;
+    }
+    let mut j = i + 2;
+    while j < bytes.len() && is_name_byte(bytes[j]) {
+        j += 1;
+    }
+    if j == i + 2 || !name_has_secret_segment(&input[i + 2..j]) {
+        return None;
+    }
+    let value_at = if j < bytes.len() && bytes[j] == b'=' {
+        j + 1
+    } else if j < bytes.len() && bytes[j].is_ascii_whitespace() {
+        skip_ascii_ws(input, j)
+    } else {
+        return None;
+    };
+    read_value(input, value_at)
+}
+
+fn env_assignment_at(input: &str, i: usize) -> Option<SecretSpan> {
+    if !at_boundary(input, i, is_name_byte) {
+        return None;
+    }
+    let bytes = input.as_bytes();
+    if i >= bytes.len() || !(bytes[i].is_ascii_alphabetic() || bytes[i] == b'_') {
+        return None;
+    }
+    let mut j = i + 1;
+    while j < bytes.len() && is_name_byte(bytes[j]) {
+        j += 1;
+    }
+    if j >= bytes.len() || bytes[j] != b'=' {
+        return None;
+    }
+    if !name_has_secret_segment(&input[i..j]) {
+        return None;
+    }
+    read_value(input, j + 1)
+}
+
+fn url_userinfo_at(input: &str, i: usize) -> Option<SecretSpan> {
+    if !at_boundary(input, i, |c| {
+        c.is_ascii_alphanumeric() || c == b'+' || c == b'-' || c == b'.'
+    }) {
+        return None;
+    }
+    let bytes = input.as_bytes();
+    if i >= bytes.len() || !bytes[i].is_ascii_alphabetic() {
+        return None;
+    }
+    let mut j = i + 1;
+    while j < bytes.len()
+        && (bytes[j].is_ascii_alphanumeric()
+            || bytes[j] == b'+'
+            || bytes[j] == b'-'
+            || bytes[j] == b'.')
+    {
+        j += 1;
+    }
+    if !input[j..].starts_with("://") {
+        return None;
+    }
+    let start = j + 3;
+    let mut k = start;
+    let mut saw_colon = false;
+    while k < bytes.len() {
+        let c = bytes[k];
+        if c == b'@' {
+            if saw_colon && k > start {
+                return Some(SecretSpan { start, end: k });
+            }
+            return None;
+        }
+        if c == b'/' || c == b'?' || c == b'#' || c.is_ascii_whitespace() || c == b'\'' || c == b'"'
+        {
+            return None;
+        }
+        if !c.is_ascii() {
+            return None;
+        }
+        if c == b':' {
+            saw_colon = true;
+        }
+        k += 1;
+    }
+    None
+}
+
+fn read_value(input: &str, i: usize) -> Option<SecretSpan> {
+    let bytes = input.as_bytes();
+    if i >= bytes.len() || bytes[i].is_ascii_whitespace() {
+        return None;
+    }
+    if bytes[i] == b'\'' || bytes[i] == b'"' {
+        let quote = bytes[i];
+        let start = i + 1;
+        let mut end = start;
+        while end < bytes.len() && bytes[end] != quote {
+            end += 1;
+        }
+        if end == start {
+            return None;
+        }
+        return Some(SecretSpan { start, end });
+    }
+    let mut end = i;
+    while end < bytes.len() {
+        let c = bytes[end];
+        if c.is_ascii_whitespace() || c == b'\'' || c == b'"' {
+            break;
+        }
+        if input.is_char_boundary(end) {
+            end += input[end..]
+                .chars()
+                .next()
+                .map(|ch| ch.len_utf8())
+                .unwrap_or(1);
+        } else {
+            end += 1;
+        }
+    }
+    if end == i {
+        None
+    } else {
+        Some(SecretSpan { start: i, end })
+    }
+}
+
+fn is_name_byte(c: u8) -> bool {
+    c.is_ascii_alphanumeric() || c == b'-' || c == b'_' || c == b'.'
+}
+
+/// A secret word matches only as a whole segment. `api-key` and `API_KEY`
+/// match on `key`; `author`, `monkey`, `keyboard` and `keep` do not.
+fn name_has_secret_segment(name: &str) -> bool {
+    const SEGMENTS: &[&str] = &[
+        "token", "password", "passwd", "secret", "key", "auth", "apikey", "pat",
+    ];
+    name.split(|c| c == '-' || c == '_' || c == '.')
+        .filter(|segment| !segment.is_empty())
+        .any(|segment| {
+            SEGMENTS
+                .iter()
+                .any(|secret| segment.eq_ignore_ascii_case(secret))
+        })
+}
+
+fn at_boundary(input: &str, i: usize, continues: impl Fn(u8) -> bool) -> bool {
+    match i.checked_sub(1).map(|p| input.as_bytes()[p]) {
+        None => true,
+        Some(c) => !continues(c),
+    }
+}
+
+fn skip_ascii_ws(input: &str, mut i: usize) -> usize {
+    let bytes = input.as_bytes();
+    while i < bytes.len() && bytes[i].is_ascii_whitespace() {
+        i += 1;
+    }
+    i
+}
+
+fn utf8_len_at(input: &str, i: usize) -> usize {
+    input[i..]
+        .chars()
+        .next()
+        .map(|ch| ch.len_utf8())
+        .unwrap_or(1)
 }
 
 impl StateDb {
@@ -427,6 +686,8 @@ impl StateDb {
     }
 
     pub fn begin_command_execution(&self, start: &ExecutionStart) -> rusqlite::Result<()> {
+        // INT-315: redact typed_text as the row is inserted. Old rows stay.
+        let typed_text = redact_secrets(start.typed_text);
         self.conn.execute(
             "INSERT INTO command_execution
                  (session_id, execution_id, typed_text, execution_state, started_at, cwd, intent_id)
@@ -434,7 +695,7 @@ impl StateDb {
             rusqlite::params![
                 start.session_id,
                 clamp_execution_id(start.execution_id),
-                start.typed_text,
+                typed_text.as_ref(),
                 EXEC_STARTED,
                 start.started_at,
                 start.cwd,
@@ -449,13 +710,15 @@ impl StateDb {
     /// ⚠️ A row left in state `started` is EVIDENCE -- the shell died mid-command -- so this method
     /// never inserts. If no `begin` happened, nothing is updated and the absence is itself true.
     pub fn complete_command_execution(&self, done: &ExecutionCompletion) -> rusqlite::Result<()> {
+        // INT-315: redact executed_text on the way into the same new row.
+        let executed_text = done.executed_text.map(redact_secrets);
         let changed = self.conn.execute(
             "UPDATE command_execution
                 SET executed_text = ?1, execution_state = ?2, exit_code = ?3,
                     duration_ms = ?4, finished_at = ?5
               WHERE session_id = ?6 AND execution_id = ?7",
             rusqlite::params![
-                done.executed_text,
+                executed_text.as_deref(),
                 done.state,
                 done.exit_code,
                 done.duration_ms.map(|d| d as i64),
@@ -678,4 +941,192 @@ pub fn spawn_sh_with_leak_check(cmd: &str) -> std::io::Result<std::process::Exit
         }
     }
     child.wait()
+}
+
+/// INT-315 G3: command_execution stores typed_text and executed_text with
+/// secret values replaced by ***. New rows only. shell_history is not written
+/// by these calls.
+#[cfg(test)]
+mod int315 {
+    use std::borrow::Cow;
+
+    use super::{redact_secrets, ExecutionCompletion, ExecutionStart, StateDb, EXEC_OK};
+
+    #[test]
+    fn flag_values_in_space_and_equals_form() {
+        let line = "curl --fail --token dummy_flag_token --password=dummy_flag_password --secret dummy_flag_secret https://example.com/flagged";
+        assert_eq!(
+            redact_secrets(line).as_ref(),
+            "curl --fail --token *** --password=*** --secret *** https://example.com/flagged"
+        );
+        assert_eq!(
+            redact_secrets("cmd --passwd hunter2 --auth letmein --api-key=abc --Token sekrit")
+                .as_ref(),
+            "cmd --passwd *** --auth *** --api-key=*** --Token ***"
+        );
+        assert_eq!(
+            redact_secrets("--password=\"sekrit\"").as_ref(),
+            "--password=\"***\""
+        );
+    }
+
+    #[test]
+    fn url_userinfo_becomes_stars() {
+        assert_eq!(
+            redact_secrets("curl https://dummy_url_user:dummy_url_pass@example.com/resource")
+                .as_ref(),
+            "curl https://***@example.com/resource"
+        );
+    }
+
+    #[test]
+    fn authorization_header_scheme_and_bare() {
+        assert_eq!(
+            redact_secrets(
+                "curl -H 'Authorization: Bearer dummy_auth_bearer' https://example.com/private"
+            )
+            .as_ref(),
+            "curl -H 'Authorization: Bearer ***' https://example.com/private"
+        );
+        assert_eq!(
+            redact_secrets("Authorization: dummy_bare").as_ref(),
+            "Authorization: ***"
+        );
+    }
+
+    #[test]
+    fn env_assignments_whose_names_carry_a_secret_word() {
+        let line = "GITHUB_TOKEN=dummy_env_token MY_PASSWORD=dummy_env_password DB_SECRET=dummy_env_secret API_KEY=dummy_env_key git status";
+        assert_eq!(
+            redact_secrets(line).as_ref(),
+            "GITHUB_TOKEN=*** MY_PASSWORD=*** DB_SECRET=*** API_KEY=*** git status"
+        );
+        assert_eq!(
+            redact_secrets("DB_PASSWD=sekrit github_token=sekrit API_KEY='sekrit'").as_ref(),
+            "DB_PASSWD=*** github_token=*** API_KEY='***'"
+        );
+    }
+
+    #[test]
+    fn segment_match_spares_author_and_monkey() {
+        for line in [
+            "--author=christian",
+            "MONKEY=1",
+            "--keyboard x",
+            "AUTHOR=x",
+            "--keep",
+        ] {
+            match redact_secrets(line) {
+                Cow::Borrowed(same) => assert_eq!(same, line),
+                Cow::Owned(owned) => panic!("rewrote {line:?} into {owned:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn non_secret_commands_stay_byte_identical() {
+        for line in [
+            "git commit -m 'keyboard fix'",
+            "ls --sort=modified",
+            "curl -p secret",
+            "curl https://example.com/resource",
+        ] {
+            match redact_secrets(line) {
+                Cow::Borrowed(same) => assert_eq!(same, line),
+                Cow::Owned(owned) => panic!("rewrote {line:?} into {owned:?}"),
+            }
+        }
+    }
+
+    #[test]
+    fn command_execution_redacts_secrets_at_insert() {
+        let db = StateDb::open_in_memory().expect("in-memory state db");
+        // Four shapes, dummy values only: flag (space and equals), URL userinfo,
+        // an Authorization header, and env assignments whose names carry
+        // TOKEN, SECRET, PASSWORD, or KEY.
+        let cases: &[(&str, &[&str], &[&str])] = &[
+            (
+                "curl --fail --token dummy_flag_token --password=dummy_flag_password --secret dummy_flag_secret https://example.com/flagged",
+                &[
+                    "dummy_flag_token",
+                    "dummy_flag_password",
+                    "dummy_flag_secret",
+                ],
+                &["curl --fail", "https://example.com/flagged"],
+            ),
+            (
+                "curl https://dummy_url_user:dummy_url_pass@example.com/resource",
+                &["dummy_url_user", "dummy_url_pass"],
+                &["curl", "example.com/resource"],
+            ),
+            (
+                "curl -H 'Authorization: Bearer dummy_auth_bearer' https://example.com/private",
+                &["dummy_auth_bearer"],
+                &["curl", "https://example.com/private"],
+            ),
+            (
+                "GITHUB_TOKEN=dummy_env_token MY_PASSWORD=dummy_env_password DB_SECRET=dummy_env_secret API_KEY=dummy_env_key git status",
+                &[
+                    "dummy_env_token",
+                    "dummy_env_password",
+                    "dummy_env_secret",
+                    "dummy_env_key",
+                ],
+                &["git status"],
+            ),
+        ];
+        let mut problems = Vec::new();
+        for (id, (line, secrets, kept)) in cases.iter().enumerate() {
+            let execution_id = (id + 1) as u64;
+            db.begin_command_execution(&ExecutionStart {
+                session_id: "int315",
+                execution_id,
+                typed_text: line,
+                cwd: "/tmp",
+                intent_id: None,
+                started_at: 1,
+            })
+            .expect("begin");
+            db.complete_command_execution(&ExecutionCompletion {
+                session_id: "int315",
+                execution_id,
+                executed_text: Some(line),
+                state: EXEC_OK,
+                exit_code: Some(0),
+                duration_ms: Some(1),
+                finished_at: 2,
+            })
+            .expect("complete");
+            let (typed, executed): (String, Option<String>) = db
+                .conn
+                .query_row(
+                    "SELECT typed_text, executed_text FROM command_execution WHERE session_id = ?1 AND execution_id = ?2",
+                    rusqlite::params!["int315", execution_id as i64],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .expect("row");
+            let executed = executed.unwrap_or_default();
+            for secret in *secrets {
+                if typed.contains(secret) {
+                    problems.push(format!("typed_text kept {secret}: {typed}"));
+                }
+                if executed.contains(secret) {
+                    problems.push(format!("executed_text kept {secret}: {executed}"));
+                }
+            }
+            for part in *kept {
+                if !typed.contains(part) {
+                    problems.push(format!("typed_text lost {part}: observed {typed}"));
+                }
+                if !executed.contains(part) {
+                    problems.push(format!("executed_text lost {part}: observed {executed}"));
+                }
+            }
+        }
+        assert!(
+            problems.is_empty(),
+            "expected dummy secrets redacted at insert and the rest of the command kept; observed {}",
+            problems.join(" | ")
+        );
+    }
 }

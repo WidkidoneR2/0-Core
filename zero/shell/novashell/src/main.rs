@@ -1460,9 +1460,9 @@ fn keep_launch_cwd() -> bool {
 /// and INT-196 all exist to eliminate. Moving it costs nothing; duplicating it costs the
 /// invariant.
 ///
-/// The engine is the eventual owner. It is not the owner yet because five main.rs free
-/// functions -- split_into_segments, detect_redirect, expand_vars, friday_next_cmd_hint and
-/// friday_proactive_message -- would have to cross the crate boundary in the same change.
+/// The engine is the eventual owner. It is not the owner yet because four main.rs free
+/// functions -- split_into_segments, detect_redirect, expand_vars and
+/// friday_next_cmd_hint -- would have to cross the crate boundary in the same change.
 fn run_input(
     mut engine: &mut crate::engine::Engine,
     line: &str,
@@ -2506,8 +2506,6 @@ fn run_input(
                 );
             }
         }
-        // INT-203 Phase 2 + INT-277: Friday proactive message with attention scoring
-        friday_proactive_message(&engine, _session_commands);
     } // end 'segments loop
     crate::engine::SegmentOutcome::Next
 }
@@ -3986,78 +3984,6 @@ fn friday_failure_hint(
                 "  Friday: {} failed {} times in a row -- check the command",
                 fail_cmd, consecutive
             );
-            let notify_body = format!(
-                "{} failed {} times in a row -- Friday suggests checking the command",
-                fail_cmd, consecutive
-            );
-            if let Ok(mut child) = std::process::Command::new("notify-send")
-                .args(["Friday", &notify_body])
-                .spawn()
-            {
-                // reaped on its own thread, so this long-running process leaves no zombie
-                std::thread::spawn(move || {
-                    let _ = child.wait();
-                });
-            }
-        }
-    }
-}
-
-/// Friday's every-tenth-command proactive message -- ADVISORY, interactive-only.
-///
-/// INT-203 Phase 2 + INT-277: Friday proactive message with attention scoring
-///
-/// ⚠️ INT-201: lifted out of the postexec tail. The counter is SESSION state owned by the REPL,
-/// and a `-c` caller has no session to count -- so this must never run for one.
-fn friday_proactive_message(engine: &engine::Engine, session_commands: usize) {
-    if session_commands % 10 == 0 && session_commands > 0 {
-        let pattern: Option<(String, String, f64)> = engine.db().conn.query_row(
-            "SELECT trigger, action, confidence FROM friday_patterns WHERE confidence >= 0.7 ORDER BY confidence DESC LIMIT 1",
-            [], |r| Ok((r.get::<_,String>(0)?, r.get::<_,String>(1)?, r.get::<_,f64>(2)?))
-        ).ok();
-        if let Some((trigger, action, conf)) = pattern {
-            // INT-277: compute attention score before speaking
-            let seen_count: i64 = engine
-                .db()
-                .conn
-                .query_row(
-                    "SELECT COUNT(*) FROM friday_attention WHERE event_type = 'pattern_match'",
-                    [],
-                    |r| r.get(0),
-                )
-                .unwrap_or(0);
-            let novelty = match seen_count {
-                0 => 1.0f64,
-                1..=2 => 0.7,
-                3..=10 => 0.4,
-                _ => 0.15,
-            };
-            let risk = 0.4f64; // pattern suggestion is informational
-            let strategic_relevance = if conf >= 0.95 { 0.8 } else { 0.5 };
-            let uncertainty = 1.0 - conf;
-            let temporal_pressure = 0.3f64;
-            let attention_score =
-                (novelty * risk * strategic_relevance * uncertainty * temporal_pressure).powf(0.2);
-            let spoke = attention_score >= 0.6;
-            // Record in friday_attention
-            let now = std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .unwrap_or_default()
-                .as_secs() as i64;
-            let _ = engine.db().conn.execute(
-                "INSERT INTO friday_attention (timestamp, event_type, event_detail, novelty, risk, strategic_relevance, uncertainty, temporal_pressure, attention_score, threshold, spoke) VALUES (?1,'pattern_match',?2,?3,?4,?5,?6,?7,?8,0.6,?9)",
-                rusqlite::params![now, format!("{} -> {}", trigger, action), novelty, risk, strategic_relevance, uncertainty, temporal_pressure, attention_score, if spoke { 1 } else { 0 }],
-            );
-            if spoke {
-                use colored::Colorize;
-                println!();
-                println!(
-                    "  Friday: When {} → {} ({:.0}%)",
-                    trigger.bright_cyan(),
-                    action.bright_white(),
-                    conf * 100.0
-                );
-            }
         }
     }
 }
@@ -4249,5 +4175,49 @@ mod guard_cost {
             "GUARD PARSE COST: {calls} calls, {per:.0} ns each, {total:?} total (sink {sink})"
         );
         assert!(sink > 0, "the calls must have produced words");
+    }
+}
+
+/// INT-315 G2: the every-tenth-command path and the failure popup are still here.
+#[cfg(test)]
+mod int315 {
+    #[test]
+    fn attention_every_tenth_command_is_gone() {
+        let src = include_str!("main.rs");
+        // Split so this test does not count as the path it is looking for.
+        let call = concat!("friday_", "proactive_message(");
+        let tenth = concat!("session_commands % ", "10");
+        let mut still = Vec::new();
+        if src.contains(call) {
+            still.push("friday proactive message");
+        }
+        if src.contains(tenth) {
+            still.push("every tenth command");
+        }
+        assert!(
+            still.is_empty(),
+            "expected the every-tenth-command Friday path to be gone; observed still present: {}",
+            still.join(", ")
+        );
+    }
+
+    #[test]
+    fn friday_failure_hint_raises_no_popup() {
+        let src = include_str!("main.rs");
+        let header = concat!("fn friday_", "failure_hint");
+        let popup = concat!("notify-", "send");
+        let Some(start) = src.find(header) else {
+            return;
+        };
+        let rest = &src[start..];
+        let end = rest[header.len()..]
+            .find("\nfn ")
+            .map(|i| header.len() + i)
+            .unwrap_or(rest.len());
+        let body = &rest[..end];
+        assert!(
+            !body.contains(popup),
+            "expected friday_failure_hint to raise no desktop popup; observed a popup spawn still in the function"
+        );
     }
 }

@@ -36,7 +36,7 @@ pub enum ObservationKind {
     SystemWide,
 }
 
-/// The starter rule set -- 10 rules covering key system patterns
+/// The starter rule set -- 7 rules covering key system patterns
 pub fn starter_rules() -> Vec<Rule> {
     vec![
         Rule {
@@ -52,12 +52,11 @@ pub fn starter_rules() -> Vec<Rule> {
                         |r| r.get(0),
                     )
                     .unwrap_or(0);
-                let commits: i64 = db.query_row(
-                    "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' AND timestamp > ?1",
-                    rusqlite::params![now - 300],
-                    |r| r.get(0),
-                ).unwrap_or(0);
-                if deploys > 0 && commits == 0 {
+                let commits = crate::domains::friday_arch::room::git_commits_since(
+                    std::path::Path::new(&ctx.core_root),
+                    now - 300,
+                );
+                if deploys > 0 && commits == Some(0) {
                     Some(Observation {
                         conclusion: format!("{} deploy(s) in last 5min without a commit -- deploying uncommitted changes", deploys),
                         confidence: 0.9,
@@ -159,11 +158,10 @@ pub fn starter_rules() -> Vec<Rule> {
                 let db = &ctx.runtime.db;
                 let now = now_ts();
                 let two_hours_ago = now - 7200;
-                let commits: i64 = db.query_row(
-                    "SELECT COUNT(*) FROM git_operations WHERE operation='commit' AND timestamp > ?1",
-                    rusqlite::params![two_hours_ago],
-                    |r| r.get(0),
-                ).unwrap_or(0);
+                let commits = crate::domains::friday_arch::room::git_commits_since(
+                    std::path::Path::new(&ctx.core_root),
+                    two_hours_ago,
+                );
                 let deploys: i64 = db
                     .query_row(
                         "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
@@ -171,7 +169,10 @@ pub fn starter_rules() -> Vec<Rule> {
                         |r| r.get(0),
                     )
                     .unwrap_or(0);
-                if commits >= 3 && deploys == 0 {
+                if let Some(commits) = commits.filter(|n| *n >= 3) {
+                    if deploys != 0 {
+                        return None;
+                    }
                     Some(Observation {
                         conclusion: format!("{} commit(s) in last 2h with no deploy -- consider deploying to validate changes", commits),
                         confidence: 0.8,
@@ -346,4 +347,108 @@ pub fn show(ctx: &AppContext) -> CoreResult<()> {
         }
     }
     Ok(())
+}
+
+#[cfg(test)]
+mod int315 {
+    use super::{reason, starter_rules};
+
+    fn git_repo() -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "int315-reason-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let run = |args: &[&str]| {
+            let status = std::process::Command::new("git")
+                .args(args)
+                .current_dir(&dir)
+                .env("GIT_AUTHOR_NAME", "test")
+                .env("GIT_AUTHOR_EMAIL", "test@example.com")
+                .env("GIT_COMMITTER_NAME", "test")
+                .env("GIT_COMMITTER_EMAIL", "test@example.com")
+                .status()
+                .unwrap();
+            assert!(status.success(), "{args:?}");
+        };
+        run(&["init"]);
+        std::fs::write(dir.join("f"), "x\n").unwrap();
+        run(&["add", "f"]);
+        run(&["commit", "-m", "today"]);
+        dir
+    }
+
+    #[test]
+    fn ship_after_plain_git_commit_is_not_an_anomaly() {
+        let repo = git_repo();
+        let ctx = crate::app::context::AppContext {
+            runtime: crate::runtime::Runtime {
+                root: repo.clone(),
+                logs: repo.join("logs"),
+                cache: repo.join("cache"),
+                snapshots: repo.join("snapshots"),
+                locks: repo.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: repo.to_string_lossy().to_string(),
+            core_root: repo.to_string_lossy().to_string(),
+            source_root: repo.join("zero").to_string_lossy().to_string(),
+        };
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        ctx.runtime
+            .db
+            .execute_batch(
+                "CREATE TABLE deploy_patterns (timestamp INTEGER NOT NULL);
+                 CREATE TABLE events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    domain TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    timestamp INTEGER NOT NULL
+                 );",
+            )
+            .unwrap();
+        ctx.runtime
+            .db
+            .execute(
+                "INSERT INTO deploy_patterns (timestamp) VALUES (?1)",
+                rusqlite::params![now],
+            )
+            .unwrap();
+        let observations = reason(&ctx).unwrap();
+        let hit = observations
+            .iter()
+            .any(|(text, _, kind)| kind == "anomaly" && text.contains("without a commit"));
+        let _ = std::fs::remove_dir_all(&repo);
+        assert!(
+            !hit,
+            "a ship after a plain git commit is not deploy_without_commit: {observations:?}"
+        );
+    }
+
+    #[test]
+    fn starter_rules_doc_matches_count() {
+        let src = include_str!("reasoning.rs");
+        let line = src
+            .lines()
+            .find(|line| line.contains("starter rule set"))
+            .expect("starter rule doc comment");
+        let claimed: usize = line
+            .split_whitespace()
+            .find_map(|word| word.parse().ok())
+            .expect("a count in the starter rule doc comment");
+        let held = starter_rules().len();
+        assert_eq!(
+            claimed, held,
+            "doc says {claimed} rules, starter_rules holds {held}"
+        );
+    }
 }

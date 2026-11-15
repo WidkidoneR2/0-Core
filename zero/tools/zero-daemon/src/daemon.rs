@@ -79,11 +79,6 @@ impl Daemon {
         tokio::spawn(async move {
             signal_aggregation(signal_db).await;
         });
-        // INT-220 Gate 6 -- Friday learning loop (runs every 30 minutes)
-        tokio::spawn(async move {
-            friday_learning_loop().await;
-        });
-
         // INT-249b -- WAL checkpoint loop (every 5 minutes)
         // Prevents WAL bloat that causes morning-after-suspend SQLITE_READONLY warnings.
         let checkpoint_db = db_path.clone();
@@ -1055,31 +1050,6 @@ async fn contradiction_detection_loop(db_path: String) {
         }
     }
 }
-// INT-220 Gate 6 -- Friday learning loop background task
-async fn friday_learning_loop() {
-    loop {
-        tokio::time::sleep(tokio::time::Duration::from_secs(1800)).await; // 30 minutes
-                                                                          // This spawned core from scripts/, deleted in e733287d, and threw the
-                                                                          // result away with let _. The loop has fired every thirty minutes since
-                                                                          // the migration, done nothing, and said nothing. A background task that
-                                                                          // cannot report its own failure is indistinguishable from one that is
-                                                                          // working.
-        match tokio::process::Command::new("core")
-            .args(["friday", "learning-loop"])
-            .output()
-            .await
-        {
-            Ok(o) if o.status.success() => {}
-            Ok(o) => eprintln!(
-                "friday learning-loop exited {}: {}",
-                o.status,
-                String::from_utf8_lossy(&o.stderr).trim()
-            ),
-            Err(e) => eprintln!("friday learning-loop could not run: {}", e),
-        }
-    }
-}
-
 // INT-220 Gate 11 -- Negative learning: dismissal penalizes confidence by -0.3
 async fn friday_dismiss(pattern_trigger: Option<String>) -> crate::protocol::Response {
     use crate::protocol::Response;
@@ -1154,5 +1124,28 @@ async fn friday_dismiss(pattern_trigger: Option<String>) -> crate::protocol::Res
             message: None,
             priority: "silent".to_string(),
         }
+    }
+}
+
+/// INT-315 G2: the daemon still wakes every 30 minutes and runs the learning loop.
+#[cfg(test)]
+mod int315 {
+    #[test]
+    fn daemon_has_no_friday_learning_timer() {
+        let src = include_str!("daemon.rs");
+        let call = concat!("friday_", "learning_loop()");
+        let args = concat!("[\"friday\", \"", "learning-loop\"]");
+        let mut still = Vec::new();
+        if src.contains(call) {
+            still.push("learning loop task");
+        }
+        if src.contains(args) {
+            still.push("core friday learning-loop");
+        }
+        assert!(
+            still.is_empty(),
+            "expected no 30-minute daemon timer running core friday learning-loop; observed still scheduled: {}",
+            still.join(", ")
+        );
     }
 }

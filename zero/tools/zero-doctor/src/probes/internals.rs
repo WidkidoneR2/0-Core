@@ -85,7 +85,7 @@ pub fn friday() -> Measurement {
         )
         .unwrap_or(0.0);
     let last_learned =
-        one("SELECT COALESCE(MAX(updated_at), 0) FROM friday_knowledge").unwrap_or(0);
+        one("SELECT COALESCE(MAX(updated_at), 0) FROM friday_knowledge WHERE domain != 'session_summary' AND domain NOT LIKE 'testing/%'").unwrap_or(0);
 
     let now = chrono::Utc::now().timestamp();
     let stale = last_learned > 0 && (now - last_learned) > 604_800;
@@ -265,5 +265,50 @@ mod tests {
                 m.message
             );
         }
+    }
+
+    /// INT-315 G2: freshness is MAX(updated_at) over every friday_knowledge row,
+    /// so a fresh session summary or a testing fact hides an old real fact.
+    #[test]
+    fn freshness_ignores_session_summaries() {
+        let now: i64 = 1_700_000_000;
+        let old = now - 30 * 86_400;
+        let db = rusqlite::Connection::open_in_memory().expect("memory db");
+        db.execute_batch(
+            "CREATE TABLE friday_knowledge (
+                domain TEXT NOT NULL,
+                key TEXT NOT NULL,
+                updated_at INTEGER NOT NULL
+            );",
+        )
+        .unwrap();
+        for (domain, key, updated_at) in [
+            ("session_summary", "latest", now),
+            ("testing/probe", "case", now),
+            ("project", "real", old),
+        ] {
+            db.execute(
+                "INSERT INTO friday_knowledge (domain, key, updated_at) VALUES (?1, ?2, ?3)",
+                rusqlite::params![domain, key, updated_at],
+            )
+            .unwrap();
+        }
+        let src = include_str!("internals.rs");
+        let marker = concat!(
+            "SELECT COALESCE(MAX(updated_at), 0) FROM ",
+            "friday_knowledge"
+        );
+        let at = src.find(marker).expect("friday freshness query");
+        let tail = &src[at..];
+        let end = tail.find('"').expect("end of freshness query");
+        let sql = &tail[..end];
+        let last: i64 = db
+            .query_row(sql, [], |row| row.get(0))
+            .unwrap_or_else(|err| panic!("freshness query failed: {err}; sql={sql}"));
+        let age_days = (now - last) / 86_400;
+        assert_eq!(
+            age_days, 30,
+            "expected freshness to report the old fact's age (30 days, updated_at {old}); observed last_learned {last} ({age_days} days) from {sql}"
+        );
     }
 }
