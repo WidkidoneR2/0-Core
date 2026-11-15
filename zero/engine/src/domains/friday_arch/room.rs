@@ -246,6 +246,13 @@ pub fn habit_pair(commands: &[String]) -> Option<(String, String, usize)> {
     Some((key.0.clone(), key.1.clone(), count))
 }
 
+// INT-315 G2 stub: the brief has no dim source line yet.
+#[allow(dead_code)]
+pub fn source_line(command_count: u64) -> String {
+    let _ = command_count;
+    String::new()
+}
+
 /// `✦ cargo  →  git  12`, or nothing when the history is thin or the pair is rare.
 #[cfg(test)]
 pub fn habit_line(commands: &[String]) -> Option<String> {
@@ -431,5 +438,195 @@ mod tests {
         assert_eq!(habit_line(&commands[..49]), None);
         let rare: Vec<String> = (0..50).map(|n| format!("cmd{n} rest")).collect();
         assert_eq!(habit_line(&rare), None);
+    }
+}
+
+#[cfg(test)]
+mod int315 {
+    use super::*;
+    use crate::app::context::AppContext;
+
+    fn scratch(name: &str) -> (std::path::PathBuf, AppContext) {
+        let dir = std::env::temp_dir().join(format!(
+            "int315-room-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("0-core/zero/intents/open")).unwrap();
+        let ctx = AppContext {
+            runtime: crate::runtime::Runtime {
+                root: dir.clone(),
+                logs: dir.join("logs"),
+                cache: dir.join("cache"),
+                snapshots: dir.join("snapshots"),
+                locks: dir.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: dir.to_string_lossy().to_string(),
+            core_root: dir.to_string_lossy().to_string(),
+            source_root: dir.join("0-core/zero").to_string_lossy().to_string(),
+        };
+        (dir, ctx)
+    }
+
+    struct HomeGuard {
+        prev: Option<String>,
+    }
+
+    impl HomeGuard {
+        fn set(dir: &std::path::Path) -> Self {
+            let prev = std::env::var("HOME").ok();
+            unsafe { std::env::set_var("HOME", dir) }
+            Self { prev }
+        }
+    }
+
+    impl Drop for HomeGuard {
+        fn drop(&mut self) {
+            unsafe {
+                match self.prev.take() {
+                    Some(home) => std::env::set_var("HOME", home),
+                    None => std::env::remove_var("HOME"),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn habit_reads_typed_text_by_session_and_execution() {
+        let (_dir, ctx) = scratch("habit");
+        ctx.runtime
+            .db
+            .execute_batch(
+                "CREATE TABLE shell_history (
+                    id INTEGER PRIMARY KEY,
+                    command TEXT NOT NULL,
+                    timestamp INTEGER NOT NULL
+                );
+                CREATE TABLE command_execution (
+                    session_id TEXT NOT NULL,
+                    execution_id INTEGER NOT NULL,
+                    typed_text TEXT NOT NULL,
+                    executed_text TEXT,
+                    execution_state TEXT NOT NULL,
+                    started_at INTEGER NOT NULL,
+                    PRIMARY KEY (session_id, execution_id)
+                );",
+            )
+            .unwrap();
+        for cycle in 0..13 {
+            let base = cycle * 4;
+            for (offset, command) in [
+                "cargo test",
+                "cargo test -p core",
+                "git commit",
+                "git commit -m x",
+            ]
+            .into_iter()
+            .enumerate()
+            {
+                ctx.runtime
+                    .db
+                    .execute(
+                        "INSERT INTO shell_history (id, command, timestamp) VALUES (?1, ?2, ?3)",
+                        rusqlite::params![base + offset as i64 + 1, command, base + offset as i64],
+                    )
+                    .unwrap();
+            }
+        }
+        for n in 1..=50 {
+            let typed = if n % 2 == 1 {
+                "cargo test"
+            } else {
+                "git commit"
+            };
+            let executed = if n % 2 == 1 {
+                "cargo test -p core"
+            } else {
+                "git commit -m x"
+            };
+            ctx.runtime
+                .db
+                .execute(
+                    "INSERT INTO command_execution
+                        (session_id, execution_id, typed_text, executed_text, execution_state, started_at)
+                     VALUES ('s1', ?1, ?2, ?3, 'finished', ?4)",
+                    rusqlite::params![n, typed, executed, 10_000 - n],
+                )
+                .unwrap();
+        }
+        assert_eq!(
+            habit_from_db(&ctx.runtime.db),
+            Some(("cargo".to_string(), "git".to_string(), 25)),
+            "habit must pair typed_text in (session_id, execution_id) order, not a line with its expansion"
+        );
+    }
+
+    #[test]
+    fn brief_says_health_unknown_when_unmeasured() {
+        let (dir, ctx) = scratch("health");
+        let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _home = HomeGuard::set(&dir);
+        let unmeasured = sentence_for(&ctx);
+        assert!(
+            unmeasured.contains("health unknown") && !unmeasured.contains("Healthy."),
+            "{unmeasured}"
+        );
+        ctx.runtime
+            .db
+            .execute_batch(
+                "CREATE TABLE synthesis_snapshots (
+                    timestamp INTEGER,
+                    health INTEGER,
+                    brief_confidence REAL
+                );",
+            )
+            .unwrap();
+        ctx.runtime
+            .db
+            .execute(
+                "INSERT INTO synthesis_snapshots (timestamp, health, brief_confidence) VALUES (1, 72, 0.4)",
+                [],
+            )
+            .unwrap();
+        let measured = sentence_for(&ctx);
+        assert!(
+            measured.contains("72") && !measured.contains("health unknown"),
+            "{measured}"
+        );
+    }
+
+    #[test]
+    fn brief_has_no_unconditional_no_conflicts() {
+        let (dir, ctx) = scratch("conflicts");
+        super::super::ensure_tables(&ctx).unwrap();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        ctx.runtime
+            .db
+            .execute(
+                "INSERT INTO friday_contradictions
+                    (engine_a, signal_a, engine_b, signal_b, description, severity, detected_at)
+                 VALUES ('alignment', 'focus>speed', 'intent', '3 active intents',
+                         'focus contradicts the open work', 'medium', ?1)",
+                rusqlite::params![now],
+            )
+            .unwrap();
+        let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _home = HomeGuard::set(&dir);
+        let said = sentence_for(&ctx);
+        assert!(!said.contains("No conflicts detected."), "{said}");
+    }
+
+    #[test]
+    fn source_line_names_git_ledger_and_command_count() {
+        assert_eq!(source_line(1204), "from git · ledger · 1,204 commands");
     }
 }

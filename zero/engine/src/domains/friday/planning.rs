@@ -1230,3 +1230,70 @@ pub fn review(ctx: &AppContext) -> CoreResult<()> {
     println!();
     Ok(())
 }
+
+#[cfg(test)]
+mod int315 {
+    fn scratch() -> crate::app::context::AppContext {
+        let dir = std::env::temp_dir().join(format!(
+            "int315-plan-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        crate::app::context::AppContext {
+            runtime: crate::runtime::Runtime {
+                root: dir.clone(),
+                logs: dir.join("logs"),
+                cache: dir.join("cache"),
+                snapshots: dir.join("snapshots"),
+                locks: dir.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: dir.to_string_lossy().to_string(),
+            core_root: dir.to_string_lossy().to_string(),
+            source_root: dir.join("zero").to_string_lossy().to_string(),
+        }
+    }
+
+    #[test]
+    fn session_summary_is_not_a_fact() {
+        let ctx = scratch();
+        super::super::phase2::ensure_tables(&ctx).unwrap();
+        ctx.runtime
+            .db
+            .execute_batch(
+                "CREATE TABLE friday_knowledge (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    domain TEXT NOT NULL,
+                    key TEXT NOT NULL,
+                    fact TEXT NOT NULL,
+                    confidence REAL NOT NULL DEFAULT 0.7,
+                    source TEXT NOT NULL,
+                    created_at INTEGER NOT NULL,
+                    updated_at INTEGER NOT NULL,
+                    times_used INTEGER NOT NULL DEFAULT 0,
+                    UNIQUE(domain, key)
+                );",
+            )
+            .unwrap();
+        super::session_start(&ctx).unwrap();
+        super::session_end(&ctx).unwrap();
+        let n: i64 = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM friday_knowledge WHERE domain = 'session_summary'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(
+            n, 0,
+            "a rolled session must not land a session_summary fact"
+        );
+    }
+}
