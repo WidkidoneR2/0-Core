@@ -679,3 +679,106 @@ pub fn spawn_sh_with_leak_check(cmd: &str) -> std::io::Result<std::process::Exit
     }
     child.wait()
 }
+
+/// INT-315 G2: a command_execution insert still stores the typed line and the
+/// executed line unchanged, so a dummy secret written here is still in the row.
+#[cfg(test)]
+mod int315 {
+    use super::{ExecutionCompletion, ExecutionStart, StateDb, EXEC_OK};
+
+    #[test]
+    fn command_execution_redacts_secrets_at_insert() {
+        let db = StateDb::open_in_memory().expect("in-memory state db");
+        // Four shapes, dummy values only: flag (space and equals), URL userinfo,
+        // an Authorization header, and env assignments whose names carry
+        // TOKEN, SECRET, PASSWORD, or KEY.
+        let cases: &[(&str, &[&str], &[&str])] = &[
+            (
+                "curl --fail --token dummy_flag_token --password=dummy_flag_password --secret dummy_flag_secret https://example.com/flagged",
+                &[
+                    "dummy_flag_token",
+                    "dummy_flag_password",
+                    "dummy_flag_secret",
+                ],
+                &["curl --fail", "https://example.com/flagged"],
+            ),
+            (
+                "curl https://dummy_url_user:dummy_url_pass@example.com/resource",
+                &["dummy_url_user", "dummy_url_pass"],
+                &["curl", "example.com/resource"],
+            ),
+            (
+                "curl -H 'Authorization: Bearer dummy_auth_bearer' https://example.com/private",
+                &["dummy_auth_bearer"],
+                &["curl", "https://example.com/private"],
+            ),
+            (
+                "GITHUB_TOKEN=dummy_env_token MY_PASSWORD=dummy_env_password DB_SECRET=dummy_env_secret API_KEY=dummy_env_key git status",
+                &[
+                    "dummy_env_token",
+                    "dummy_env_password",
+                    "dummy_env_secret",
+                    "dummy_env_key",
+                ],
+                &["git status"],
+            ),
+        ];
+        let mut problems = Vec::new();
+        for (id, (line, secrets, kept)) in cases.iter().enumerate() {
+            let execution_id = (id + 1) as u64;
+            db.begin_command_execution(&ExecutionStart {
+                session_id: "int315",
+                execution_id,
+                typed_text: line,
+                cwd: "/tmp",
+                intent_id: None,
+                started_at: 1,
+            })
+            .expect("begin");
+            db.complete_command_execution(&ExecutionCompletion {
+                session_id: "int315",
+                execution_id,
+                executed_text: Some(line),
+                state: EXEC_OK,
+                exit_code: Some(0),
+                duration_ms: Some(1),
+                finished_at: 2,
+            })
+            .expect("complete");
+            let (typed, executed): (String, Option<String>) = db
+                .conn
+                .query_row(
+                    "SELECT typed_text, executed_text FROM command_execution WHERE session_id = ?1 AND execution_id = ?2",
+                    rusqlite::params!["int315", execution_id as i64],
+                    |row| Ok((row.get(0)?, row.get(1)?)),
+                )
+                .expect("row");
+            let executed = executed.unwrap_or_default();
+            for secret in *secrets {
+                if typed.contains(secret) {
+                    problems.push(format!("typed_text kept {secret}: {typed}"));
+                }
+                if executed.contains(secret) {
+                    problems.push(format!("executed_text kept {secret}: {executed}"));
+                }
+            }
+            for part in *kept {
+                if !typed.contains(part) {
+                    problems.push(format!(
+                        "typed_text lost {part}: observed {typed}"
+                    ));
+                }
+                if !executed.contains(part) {
+                    problems.push(format!(
+                        "executed_text lost {part}: observed {executed}"
+                    ));
+                }
+            }
+        }
+        assert!(
+            problems.is_empty(),
+            "expected dummy secrets redacted at insert and the rest of the command kept; observed {}",
+            problems.join(" | ")
+        );
+    }
+}
