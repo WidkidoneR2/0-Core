@@ -322,11 +322,30 @@ pub fn habit_pair(commands: &[String]) -> Option<(String, String, usize)> {
     Some((key.0.clone(), key.1.clone(), count))
 }
 
-// INT-315 G2 stub: the brief has no dim source line yet.
-#[allow(dead_code)]
+/// `from git · ledger · 1,204 commands`. The count is supplied by the caller.
 pub fn source_line(command_count: u64) -> String {
-    let _ = command_count;
-    String::new()
+    format!(
+        "from git · ledger · {} commands",
+        with_thousands(command_count)
+    )
+}
+
+fn with_thousands(n: u64) -> String {
+    let digits = n.to_string();
+    let mut out = String::new();
+    for (i, ch) in digits.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            out.push(',');
+        }
+        out.push(ch);
+    }
+    out.chars().rev().collect()
+}
+
+/// Rows in command_execution, or nothing when that table cannot be read.
+pub fn command_count(db: &rusqlite::Connection) -> Option<u64> {
+    db.query_row("SELECT COUNT(*) FROM command_execution", [], |row| row.get(0))
+        .ok()
 }
 
 /// `✦ cargo  →  git  12`, or nothing when the history is thin or the pair is rare.

@@ -604,8 +604,8 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
             );
             println!();
         }
-        match crate::domains::friday::get_voice(ctx) {
-            Some((brief, confidence)) => {
+        match crate::domains::friday::voice(ctx) {
+            crate::domains::friday::Voice::Speak(brief, confidence) => {
                 println!(
                     "  Friday: {} · {} patterns · {} facts",
                     "active".bright_green(),
@@ -622,8 +622,30 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
                         confidence * 100.0
                     );
                 }
+                if let Some(commands) =
+                    crate::domains::friday_arch::room::command_count(&ctx.runtime.db)
+                {
+                    println!(
+                        "  {}",
+                        crate::domains::friday_arch::room::source_line(commands).dimmed()
+                    );
+                }
             }
-            None => {
+            crate::domains::friday::Voice::Cooldown(seconds) => {
+                if pats > 0 || facts > 0 {
+                    println!(
+                        "  Friday: {} · {} patterns · {} facts",
+                        "active".dimmed(),
+                        pats.to_string().bright_cyan(),
+                        facts.to_string().bright_white()
+                    );
+                }
+                println!(
+                    "  {}",
+                    crate::domains::friday::cooldown_line(seconds).dimmed()
+                );
+            }
+            crate::domains::friday::Voice::Quiet => {
                 let status: String = ctx
                     .runtime
                     .db

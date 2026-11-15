@@ -1565,17 +1565,22 @@ pub fn run_observe(ctx: &AppContext) -> CoreResult<()> {
 // ═══════════════════════════════════════════════════════════
 // INT-217 -- Core v19: Friday Finds Her Voice
 // ═══════════════════════════════════════════════════════════
-// INT-315 G2 stub: inside the cooldown the voice is silence, not how long ago she spoke.
-#[allow(dead_code)]
+/// How long ago Friday spoke, while the 30-minute cooldown is why she is quiet.
 pub fn cooldown_line(seconds_since_spoken: i64) -> String {
-    let _ = seconds_since_spoken;
-    String::new()
+    let minutes = seconds_since_spoken.max(0) / 60;
+    format!("spoke {minutes}m ago")
+}
+
+/// What `d` should print. Cooldown is a reason, not the same as having nothing to say.
+pub enum Voice {
+    Speak(String, f64),
+    Cooldown(i64),
+    Quiet,
 }
 
 /// Check all thresholds and return Friday's voice if she has earned the right to speak.
-/// Returns Some((brief, confidence)) or None if dormant.
 /// Also handles dormant → observing → active engine_registry transition.
-pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
+pub fn voice(ctx: &AppContext) -> Voice {
     let db = &ctx.runtime.db;
     // Gate 1: synthesis snapshot exists with confidence >= 0.7
     let confidence: Option<f64> = db
@@ -1589,7 +1594,7 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
         Some(confidence) if confidence >= 0.7 => confidence,
         _ => {
             let _ = set_friday_status(ctx, "dormant");
-            return None;
+            return Voice::Quiet;
         }
     };
     // Gate 2: at least 3 days of pattern data (259200 seconds)
@@ -1605,7 +1610,7 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
         .as_secs() as i64;
     if now - oldest_pattern < 259200 {
         let _ = set_friday_status(ctx, "observing");
-        return None;
+        return Voice::Quiet;
     }
     // Gate 3: at least 50 shell_history entries
     let history_count: i64 = db
@@ -1613,7 +1618,7 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
         .unwrap_or(0);
     if history_count < 50 {
         let _ = set_friday_status(ctx, "observing");
-        return None;
+        return Voice::Quiet;
     }
     // Gate 4: rate limit -- max once per 30 minutes
     let last_spoken: i64 = db
@@ -1624,9 +1629,9 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
         )
         .unwrap_or(0);
     if now - last_spoken < 1800 {
-        // Rate limited -- still active, just silent
+        // Rate limited -- still active. The caller can say how long ago she spoke.
         let _ = set_friday_status(ctx, "active");
-        return None;
+        return Voice::Cooldown(now - last_spoken);
     }
     // All gates passed -- Friday is active and ready to speak
     let _ = set_friday_status(ctx, "active");
@@ -1660,7 +1665,15 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
         }
     }
     let brief = crate::domains::friday_arch::room::sentence_for(ctx);
-    Some((brief, confidence))
+    Voice::Speak(brief, confidence)
+}
+
+/// Some((brief, confidence)) when Friday may speak. Cooldown and silence are both None.
+pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
+    match voice(ctx) {
+        Voice::Speak(brief, confidence) => Some((brief, confidence)),
+        Voice::Cooldown(_) | Voice::Quiet => None,
+    }
 }
 /// Set Friday's status in engine_registry.
 fn set_friday_status(ctx: &AppContext, status: &str) -> CoreResult<()> {

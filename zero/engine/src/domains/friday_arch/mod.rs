@@ -467,6 +467,9 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
     room::print_room(ctx);
     println!("  {} Friday brief:", "💡".normal());
     println!("  {}", brief.bright_white());
+    if let Some(commands) = room::command_count(&ctx.runtime.db) {
+        println!("  {}", room::source_line(commands).dimmed());
+    }
     println!();
     println!("  {} Friday produces insight, not authority.", "→".dimmed());
     Ok(())
