@@ -58,41 +58,62 @@ the expiry of old rows, and D4's N belong to those stages. INT-191 still owns
 the shell-history double-write. This intent only stops Friday from reading it.
 
 ## Success Criteria
-- [ ] G1 The rulings are in this file before any code. The open questions are
+- [x] G1 The rulings are in this file before any code. The open questions are
       the ask lines. A ruling line answers each one, or declines it.
       ask: 1. Redact at the command_execution insert, so every reader is safe, or only when Friday copies a command into her own tables? Recommend the insert. 2. Which shapes are secrets: values after --password, --token and --secret, URL userinfo, and Authorization values? Recommend those four. 3. When no doctor health has been measured, the brief says "health unknown" rather than "Healthy." Recommend that word. 4. The snapshot's health=100 and brief_confidence=0.85 are replaced with the last measured health and a confidence that is not a literal. Recommend yes, in this stage, because get_voice treats 0.85 as proof she may speak.
-      ruling:
-      evidence:
-- [ ] G2 Red first, under its own plan Seal. A typed line beside its expansion
+      ruling: Christian 2026-11-15: 1 redact at the nsh
+      command_execution insert, typed_text and executed_text, new rows only.
+      2 the four shapes: --password/--token/--secret flags
+      (incl --flag=value), URL userinfo, Authorization values,
+      secret-named env assignments; whole-segment match.
+      3 "health unknown" when no measured health. 4 yes, health and
+      confidence are measured, not literals. Scope also removes the
+      every-10th-command path, the notify-send popup and the 30-min
+      daemon learning-loop timer.
+      evidence: rulings recorded before code; G2 red tests written after
+      (commits 39e5e830, a1682fd4, now folded into 6eef5e40).
+- [x] G2 Red first, under its own plan Seal. A typed line beside its expansion
       makes the habit pair a command with itself. A ship after a plain git
       commit raises deploy_without_commit. The literal lines are still present.
       The suite is cargo test -p core and cargo test -p novashell.
       ask:
-      ruling:
-      evidence:
-- [ ] G3 Green. The same tests pass. command_execution is the habit source, git
+      ruling: red first on branches int-315-g2-core and int-315-g2-nsh.
+      evidence: laptop 2026-11-15: core int315 0 passed 13 failed;
+      novashell, zero-daemon, zero-doctor int315 all red before the fix.
+- [x] G3 Green. The same tests pass. command_execution is the habit source, git
       is the commit source, the literals are gone, the attention path is gone,
       the cooldown names how long ago she spoke, session summaries are not
       facts, and the dim source line is present.
       ask:
-      ruling:
-      evidence:
-- [ ] G4 nsh-test, after cargo build -p novashell -p nsh-test, under a timeout.
+      ruling: fix plan Seal 831d24dca797ad6b (red plan cited in the body
+      per AGENTS.md two-plan rule); landed as 6eef5e40 + ab185ae1, both
+      intact under core intent seals check.
+      evidence: laptop 2026-11-15 on main ab185ae1: cargo test -p core
+      317 passed 0 failed; cargo test -p novashell 272 passed 0 failed;
+      earlier int315 runs core 13, novashell 9, zero-daemon 1,
+      zero-doctor 1 green; zero-doctor full 96 passed.
+- [x] G4 nsh-test, after cargo build -p novashell -p nsh-test, under a timeout.
       If it stalls, the last case is named.
       ask:
-      ruling:
-      evidence:
-- [ ] G5 Doors, on the laptop, after ship. cargo test -p core, cargo test -p
+      ruling: run on the laptop.
+      evidence: cargo build -p novashell -p nsh-test then timeout 600
+      nsh-test: 304 / 304 passed.
+- [x] G5 Doors, on the laptop, after ship. cargo test -p core, cargo test -p
       novashell, nsh-test, and core intent validate. The deployed brief is what
       was watched.
       ask:
-      ruling:
-      evidence:
-- [ ] G6 cicomplete. The gates above are ticked with evidence, or declined with
+      ruling: after ship core 4.10.0 and ship nsh 5.7.0.
+      evidence: doors 4 passed 0 failed (core, shell, nsh-test, validate);
+      core intent validate: All 89 intents valid; d: 28 passed,
+      0 warnings, 0 failed, Health 100%. Deployed brief watched:
+      "Friday: Health 100. 17 deploy(s), 2 commit(s) today. Active:
+      INT-315. No conflicts detected." then "from git · ledger ·
+      45,251 commands".
+- [x] G6 cicomplete. The gates above are ticked with evidence, or declined with
       a signed reason.
       ask:
-      ruling:
-      evidence:
+      ruling: G1-G5 ticked with evidence, none deferred.
+      evidence: cicomplete 315 run by Christian after this edit.
 
 ## Out of scope
 - Stages 2 through 6, including the 30-day half-life, row expiry, and D4's N.
