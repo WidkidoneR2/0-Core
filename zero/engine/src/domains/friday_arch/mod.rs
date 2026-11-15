@@ -6,6 +6,7 @@ use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
 use rusqlite::params;
+pub mod room;
 fn now_ts() -> i64 {
     std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)

@@ -1848,3 +1848,94 @@ mod seed_count_tests {
         assert_eq!(n, 1, "a decision is not a completed intent");
     }
 }
+
+#[cfg(test)]
+mod voice_tests {
+    #[test]
+    fn the_voice_does_not_replay_the_stored_brief() {
+        let dir = std::env::temp_dir().join(format!(
+            "friday-voice-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("0-core/zero/intents/open")).unwrap();
+        let repo = dir.join("repo");
+        std::fs::create_dir_all(&repo).unwrap();
+        let git = |args: &[&str]| {
+            let status = std::process::Command::new("git")
+                .args(args)
+                .current_dir(&repo)
+                .env("GIT_AUTHOR_NAME", "test")
+                .env("GIT_AUTHOR_EMAIL", "test@example.com")
+                .env("GIT_COMMITTER_NAME", "test")
+                .env("GIT_COMMITTER_EMAIL", "test@example.com")
+                .status()
+                .unwrap();
+            assert!(status.success());
+        };
+        git(&["init"]);
+        std::fs::write(repo.join("f"), "x\n").unwrap();
+        git(&["add", "f"]);
+        git(&["commit", "-m", "today"]);
+        let ctx = crate::app::context::AppContext {
+            runtime: crate::runtime::Runtime {
+                root: dir.clone(),
+                logs: dir.join("logs"),
+                cache: dir.join("cache"),
+                snapshots: dir.join("snapshots"),
+                locks: dir.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: dir.to_string_lossy().to_string(),
+            core_root: repo.to_string_lossy().to_string(),
+            source_root: dir.join("0-core/zero").to_string_lossy().to_string(),
+        };
+        ctx.runtime
+            .db
+            .execute_batch(
+                "CREATE TABLE synthesis_snapshots (
+                timestamp INTEGER, health INTEGER, alignment REAL, active_intent TEXT,
+                session_commits INTEGER, top_pattern TEXT, friday_brief TEXT,
+                brief_confidence REAL, contradiction TEXT
+            );
+            CREATE TABLE shell_history (id INTEGER PRIMARY KEY, command TEXT, timestamp INTEGER);
+            CREATE TABLE friday_patterns (last_seen INTEGER);",
+            )
+            .unwrap();
+        ctx.runtime.db.execute(
+            "INSERT INTO synthesis_snapshots (timestamp, health, alignment, active_intent, session_commits, top_pattern, friday_brief, brief_confidence, contradiction)
+             VALUES (1, 100, 1.0, 'none', 0, '', 'STALE SNAPSHOT', 0.9, '')",
+            [],
+        ).unwrap();
+        for n in 0..50 {
+            ctx.runtime
+                .db
+                .execute(
+                    "INSERT INTO shell_history (command, timestamp) VALUES ('echo', ?1)",
+                    rusqlite::params![n],
+                )
+                .unwrap();
+        }
+        ctx.runtime
+            .db
+            .execute("INSERT INTO friday_patterns (last_seen) VALUES (1)", [])
+            .unwrap();
+        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prev = std::env::var("HOME").ok();
+        unsafe { std::env::set_var("HOME", &dir) };
+        let spoken = super::get_voice(&ctx).map(|(text, _)| text);
+        match prev {
+            Some(h) => unsafe { std::env::set_var("HOME", h) },
+            None => unsafe { std::env::remove_var("HOME") },
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+        let spoken = spoken.expect("friday should speak");
+        assert!(!spoken.contains("STALE"), "{spoken}");
+        assert!(spoken.contains("1 commit(s) today"), "{spoken}");
+    }
+}
