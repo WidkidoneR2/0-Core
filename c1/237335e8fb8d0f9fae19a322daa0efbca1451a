@@ -1,0 +1,7 @@
+INT-315 G3 plan (approved by Christian 2026-11-15)
+Five small jobs, each turning only its own G2 tests green; each runs its crate's full suite.
+1. Honest words: remove 892h/14/333 literals and the 186 fallback; starter_rules doc count matches; "Healthy."/"No conflicts detected." replaced by measured values or "health unknown"; snapshot stores measured health and confidence.
+2. Ground truth: habit line reads command_execution typed_text by (session_id, execution_id); deploy_without_commit checks real git; extract_patterns no longer duplicates rows; first-speech insert uses real events_v2 columns.
+3. Memory: session summaries are not facts; doctor freshness ignores session summaries and testing/* facts.
+4. Quiet voice: cooldown line "spoke Nm ago"; source line "from git · ledger · N commands"; remove every-10th-command path, notify-send popup, and 30-minute daemon learning-loop timer.
+5. Redaction: nsh redacts flags, URL userinfo, Authorization headers, and secret-named env assignments in typed_text and executed_text at insert, new rows only.
