@@ -1546,12 +1546,15 @@ pub fn run_observe(ctx: &AppContext) -> CoreResult<()> {
 pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
     let db = &ctx.runtime.db;
     // Gate 1: synthesis snapshot exists with confidence >= 0.7
-    let row: Option<(String, f64, i64)> = db.query_row(
-        "SELECT friday_brief, brief_confidence, timestamp FROM synthesis_snapshots ORDER BY timestamp DESC LIMIT 1",
-        [], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?))
-    ).ok();
-    let (brief, confidence, _ts) = match row {
-        Some((b, c, t)) if c >= 0.7 && !b.is_empty() => (b, c, t),
+    let confidence: Option<f64> = db
+        .query_row(
+            "SELECT brief_confidence FROM synthesis_snapshots ORDER BY timestamp DESC LIMIT 1",
+            [],
+            |row| row.get(0),
+        )
+        .ok();
+    let confidence = match confidence {
+        Some(confidence) if confidence >= 0.7 => confidence,
         _ => {
             let _ = set_friday_status(ctx, "dormant");
             return None;
@@ -1620,6 +1623,7 @@ pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
             rusqlite::params![now, format!("confidence: {:.2}", confidence)],
         );
     }
+    let brief = crate::domains::friday_arch::room::sentence_for(ctx);
     Some((brief, confidence))
 }
 /// Set Friday's status in engine_registry.

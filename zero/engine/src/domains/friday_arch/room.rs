@@ -1,18 +1,56 @@
 //! INT-314. The brief is computed here. run and get_voice both ask this module.
-//! The red bodies are the bugs: a missing git says 0, the stored sentence is spoken,
-//! rank is unsorted, every observation is shown, and the habit line is silent.
-use std::path::Path;
+//! The snapshot is still written for the health trend. Nothing here prints it back.
+use std::path::{Path, PathBuf};
+
+use colored::*;
+
+use crate::app::context::AppContext;
 
 /// `4` or `unknown`. A missing git is not a zero.
 pub fn commits_since_local_midnight(repo: &Path) -> String {
-    let _ = repo;
-    "0".to_string()
+    let out = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["rev-list", "--count", "--since=midnight", "HEAD"])
+        .output();
+    match out {
+        Ok(output) if output.status.success() => {
+            let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            if !text.is_empty() && text.bytes().all(|byte| byte.is_ascii_digit()) {
+                text
+            } else {
+                "unknown".to_string()
+            }
+        }
+        _ => "unknown".to_string(),
+    }
 }
 
 /// The sentence that is spoken. The stored snapshot is not a source.
 pub fn brief_sentence(commit_phrase: &str, deploy_count: i64, active: &str) -> String {
-    let _ = (commit_phrase, deploy_count, active);
-    "0 commit(s) today".to_string()
+    format!(
+        "Healthy. {deploy_count} deploy(s), {commit_phrase} commit(s) today. Active: {active}. No conflicts detected."
+    )
+}
+
+pub fn sentence_for(ctx: &AppContext) -> String {
+    let phrase = commits_since_local_midnight(Path::new(&ctx.core_root));
+    let now = super::now_ts();
+    let deploy_count: i64 = ctx
+        .runtime
+        .db
+        .query_row(
+            "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
+            rusqlite::params![now - 86400],
+            |row| row.get(0),
+        )
+        .unwrap_or(0);
+    let active = super::format_active_intents(
+        zero_core::ledger::with_status("in-progress")
+            .into_iter()
+            .map(|file| file.id),
+    );
+    brief_sentence(&phrase, deploy_count, &active)
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -26,37 +64,237 @@ pub struct RoomRank {
 }
 
 pub fn is_stalled(row: &RoomRank) -> bool {
-    let _ = row;
-    false
+    row.days_since_name >= 14 && row.days_since_gate >= 14
 }
 
-pub fn rank_room(rows: Vec<RoomRank>) -> Vec<RoomRank> {
+pub fn rank_room(mut rows: Vec<RoomRank>) -> Vec<RoomRank> {
+    rows.sort_by(|a, b| {
+        b.open_gates
+            .cmp(&a.open_gates)
+            .then(b.days_since_name.cmp(&a.days_since_name))
+            .then(a.id.cmp(&b.id))
+    });
     rows
 }
 
+#[cfg(test)]
 pub fn rank_plain(row: &RoomRank) -> String {
-    format!("INT-{} {}/{}", row.id, row.done, row.total)
+    let mut line = format!("INT-{} {}/{}", row.id, row.done, row.total);
+    if is_stalled(row) {
+        line.push_str(" stalled");
+    }
+    line
+}
+
+fn git_latest_ts(repo: &Path, args: &[String]) -> Option<i64> {
+    let output = std::process::Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(args)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if text.is_empty() {
+        return None;
+    }
+    text.parse().ok()
+}
+
+fn days_from(ts: Option<i64>) -> u32 {
+    let Some(ts) = ts else {
+        return u32::MAX / 4;
+    };
+    let age = super::now_ts().saturating_sub(ts);
+    (age / 86400) as u32
+}
+
+fn days_since_name(repo: &Path, id: &str) -> u32 {
+    let pattern = format!("INT-{id}([^0-9]|$)");
+    let ts = git_latest_ts(
+        repo,
+        &[
+            "log".to_string(),
+            "-1".to_string(),
+            "--format=%ct".to_string(),
+            "--extended-regexp".to_string(),
+            format!("--grep={pattern}"),
+        ],
+    );
+    days_from(ts)
+}
+
+fn days_since_gate(repo: &Path, path: &Path) -> u32 {
+    let ts = git_latest_ts(
+        repo,
+        &[
+            "log".to_string(),
+            "-1".to_string(),
+            "--format=%ct".to_string(),
+            "--".to_string(),
+            path.display().to_string(),
+        ],
+    );
+    days_from(ts)
+}
+
+pub fn live_ranks(repo: &Path) -> Vec<RoomRank> {
+    let rows = crate::domains::intent::read_open()
+        .into_iter()
+        .filter(|row| row.intent.status == "in-progress")
+        .filter(|row| {
+            !crate::domains::intent::folders::RECORDS.contains(&row.intent.folder.as_str())
+        })
+        .filter_map(|row| {
+            let id = row.intent.id.parse::<u32>().ok()?;
+            let total = row.gates.gates.len();
+            let done = row
+                .gates
+                .gates
+                .iter()
+                .filter(|gate| gate.state == crate::domains::intent::gates::GateState::Done)
+                .count();
+            let open_gates = row
+                .gates
+                .gates
+                .iter()
+                .filter(|gate| gate.state == crate::domains::intent::gates::GateState::Open)
+                .count();
+            Some(RoomRank {
+                id,
+                done,
+                total,
+                open_gates,
+                days_since_name: days_since_name(repo, &row.intent.id),
+                days_since_gate: days_since_gate(
+                    repo,
+                    Path::new(&format!(
+                        "zero/intents/{}/{}",
+                        row.intent.folder, row.intent.filename
+                    )),
+                ),
+            })
+        })
+        .collect();
+    rank_room(rows)
 }
 
 /// (conclusion, confidence, kind). Kind is anomaly, causal, system, or normal.
-pub fn pick_anomalies(rows: Vec<(String, f64, String)>) -> Vec<(String, f64, String)> {
+pub fn pick_anomalies(mut rows: Vec<(String, f64, String)>) -> Vec<(String, f64, String)> {
+    rows.retain(|(_, _, kind)| kind != "normal");
+    rows.sort_by(|a, b| {
+        b.1.partial_cmp(&a.1)
+            .unwrap_or(std::cmp::Ordering::Equal)
+            .then(a.0.cmp(&b.0))
+    });
+    rows.truncate(3);
     rows
 }
 
 pub fn anomaly_line(confidence: f64, conclusion: &str) -> String {
-    let _ = (confidence, conclusion);
-    String::new()
+    format!("⚠ {confidence:.2} {conclusion}")
 }
 
 pub fn anomaly_is_red(kind: &str) -> bool {
-    let _ = kind;
-    false
+    kind == "causal"
+}
+
+pub fn live_anomalies(ctx: &AppContext) -> Vec<(String, f64, String)> {
+    let rows = crate::domains::friday::reasoning::reason(ctx).unwrap_or_default();
+    pick_anomalies(rows)
+}
+
+fn first_word(command: &str) -> &str {
+    command.split_whitespace().next().unwrap_or("")
+}
+
+pub fn habit_pair(commands: &[String]) -> Option<(String, String, usize)> {
+    if commands.len() < 50 {
+        return None;
+    }
+    let mut counts = std::collections::HashMap::<(String, String), usize>::new();
+    let mut first_seen = Vec::<(String, String)>::new();
+    for pair in commands.windows(2) {
+        let left = first_word(&pair[0]);
+        let right = first_word(&pair[1]);
+        if left.is_empty() || right.is_empty() {
+            continue;
+        }
+        let key = (left.to_string(), right.to_string());
+        let count = counts.entry(key.clone()).or_insert(0);
+        if *count == 0 {
+            first_seen.push(key);
+        }
+        *count += 1;
+    }
+    let mut best: Option<(&(String, String), usize)> = None;
+    for key in &first_seen {
+        let count = counts[key];
+        if best
+            .map(|(_, best_count)| count > best_count)
+            .unwrap_or(true)
+        {
+            best = Some((key, count));
+        }
+    }
+    let (key, count) = best?;
+    if count < 3 {
+        return None;
+    }
+    Some((key.0.clone(), key.1.clone(), count))
 }
 
 /// `✦ cargo  →  git  12`, or nothing when the history is thin or the pair is rare.
+#[cfg(test)]
 pub fn habit_line(commands: &[String]) -> Option<String> {
-    let _ = commands;
-    None
+    habit_pair(commands).map(|(left, right, count)| format!("✦ {left}  →  {right}  {count}"))
+}
+
+pub fn habit_from_db(db: &rusqlite::Connection) -> Option<(String, String, usize)> {
+    let mut statement = db
+        .prepare("SELECT command FROM shell_history ORDER BY timestamp ASC, id ASC")
+        .ok()?;
+    let commands: Vec<String> = statement
+        .query_map([], |row| row.get(0))
+        .ok()?
+        .filter_map(|row| row.ok())
+        .collect();
+    habit_pair(&commands)
+}
+
+pub fn print_room(ctx: &AppContext) {
+    let repo = PathBuf::from(&ctx.core_root);
+    for row in live_ranks(&repo) {
+        print!(
+            "    {} {} {}",
+            "✦".bright_magenta(),
+            format!("INT-{}", row.id).bright_cyan(),
+            format!("{}/{}", row.done, row.total).bright_green()
+        );
+        if is_stalled(&row) {
+            print!(" {}", "stalled".bright_red());
+        }
+        println!();
+    }
+    for (conclusion, confidence, kind) in live_anomalies(ctx) {
+        let line = anomaly_line(confidence, &conclusion);
+        if anomaly_is_red(&kind) {
+            println!("    {}", line.bright_red());
+        } else {
+            println!("    {}", line.bright_yellow());
+        }
+    }
+    if let Some((left, right, count)) = habit_from_db(&ctx.runtime.db) {
+        println!(
+            "    {} {}  →  {}  {}",
+            "✦".bright_magenta(),
+            left.bright_white(),
+            right.bright_white(),
+            count.to_string().bright_green()
+        );
+    }
 }
 
 #[cfg(test)]

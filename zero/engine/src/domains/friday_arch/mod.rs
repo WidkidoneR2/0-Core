@@ -425,67 +425,27 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
             .into_iter()
             .map(|file| file.id),
     );
-    let brief = if !patterns.is_empty() {
-        format!(
-            "Friday sees {} cross-layer signal(s). {}{}",
-            patterns.len(),
-            if !contradictions.is_empty() {
-                format!("{} contradiction(s) active. ", contradictions.len())
-            } else {
-                String::new()
-            },
-            patterns
-                .first()
-                .map(|p| p.chars().take(80).collect::<String>())
-                .unwrap_or_default()
-        )
-    } else {
-        {
-            // Generate real brief from recent activity
-            let deploy_count: i64 = ctx
-                .runtime
-                .db
-                .query_row(
-                    "SELECT COUNT(*) FROM deploy_patterns WHERE timestamp > ?1",
-                    rusqlite::params![now - 86400],
-                    |r| r.get(0),
-                )
-                .unwrap_or(0);
-            let commit_count: i64 = ctx.runtime.db.query_row(
-                "SELECT COUNT(*) FROM events WHERE domain='git' AND action='commit' AND timestamp > ?1",
-                rusqlite::params![now - 86400],
-                |r| r.get(0),
-            ).unwrap_or(0);
-            format!(
-                "Healthy. {} deploy(s), {} commit(s) today. Active: {}. No conflicts detected.",
-                deploy_count, commit_count, active_intent
-            )
-        }
-    };
-    // Store brief in synthesis
+    let brief = room::sentence_for(ctx);
+    let session_commits: i64 =
+        room::commits_since_local_midnight(std::path::Path::new(&ctx.core_root))
+            .parse()
+            .unwrap_or(0);
+    // Store brief in synthesis. The health trend reads these rows.
+    // The spoken sentence is sentence_for, never this stored text.
     let _ = ctx.runtime.db.execute(
         "INSERT INTO synthesis_snapshots (timestamp, health, alignment, active_intent,
          session_commits, top_pattern, friday_brief, brief_confidence, contradiction)
-         VALUES (?1, 100, 1.0, ?2, 0, 'meta-interpretation', ?3, 0.85, ?4)",
+         VALUES (?1, 100, 1.0, ?2, ?3, 'meta-interpretation', ?4, 0.85, ?5)",
         params![
             now,
             active_intent,
+            session_commits,
             brief,
             if contradictions.is_empty() { "" } else { "yes" }
         ],
     );
     println!();
-    for line in crate::domains::intent::gate_progress_lines() {
-        let mut parts = line.splitn(2, ' ');
-        let id = parts.next().unwrap_or("");
-        let rest = parts.next().unwrap_or("");
-        println!(
-            "    {} {} {}",
-            "✦".bright_magenta(),
-            id.bright_cyan(),
-            rest.bright_green()
-        );
-    }
+    room::print_room(ctx);
     println!("  {} Friday brief:", "💡".normal());
     println!("  {}", brief.bright_white());
     println!();
