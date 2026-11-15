@@ -42,38 +42,38 @@ intent. It is not part of it.
       as 0 and a stored snapshot is not replayed as today's count.
       ask:
       ruling: RULED 2026-11-15 (Christian): one function, used by run and get_voice. Keep the INSERT for the health trend. Never print the stored friday_brief. A git failure prints unknown.
-      evidence: red e480525b returned 0 and STALE SNAPSHOT. Green: room::sentence_for, used by run and get_voice. cargo test -p core 304 passed.
+      evidence: red 49df42be returned 0 and STALE SNAPSHOT. Green: room::sentence_for, used by run and get_voice. cargo test -p core 304 passed.
 - [x] G2 In-progress intents are ranked by open gates and by days since a commit
       named the id. An intent with no gate change and no naming commit for 14
       days is flagged stalled.
       ask:
       ruling: RULED 2026-11-15 (Christian): sort by open gates, then days. A tie is the lower id. stalled is a red mark. The line is a magenta star, a cyan id, and a green done/total. Both clocks at 14 days is stalled.
-      evidence: red e480525b left the rows in file order. Green: rank_room and print_room. Same cargo test -p core, 304 passed.
+      evidence: red 49df42be left the rows in file order. Green: rank_room and print_room. Same cargo test -p core, 304 passed.
 - [x] G3 The brief surfaces what reasoning::reason() returns, in Friday's colors,
       and prints no anomaly line when that list is empty.
       ask:
       ruling: RULED 2026-11-15 (Christian): at most 3, highest confidence, skip normal. Yellow warning, the confidence, and the conclusion. Causal is red. Empty prints nothing.
-      evidence: red e480525b kept the normal row. Green: pick_anomalies and print_room. Same cargo test -p core, 304 passed.
+      evidence: red 49df42be kept the normal row. Green: pick_anomalies and print_room. Same cargo test -p core, 304 passed.
 - [x] G4 One habit line from shell_history and friday_patterns: the top command
       and its usual follow-up.       Quiet when shell_history is under 50 rows.
       ask:
       ruling: RULED 2026-11-15 (Christian): the most common consecutive shell_history pair, first word only. The line is a star, the two words, and the count in green. Quiet under 50 rows, or when that pair happened fewer than 3 times.
-      evidence: red e480525b returned no line. Green: habit_line. Same cargo test -p core, 304 passed.
+      evidence: red 49df42be returned no line. Green: habit_line. Same cargo test -p core, 304 passed.
 - [x] G5 Red first. The four behaviours above fail under their own plan Seal
       before the fix. The suite is cargo test -p core.
       ask:
       ruling: RULED 2026-11-15 (Christian): red first, then the brief.
-      evidence: commit e480525b, cargo test -p core FAILED. 0 passed; 6 failed.
+      evidence: commit 49df42be, cargo test -p core FAILED. 0 passed; 6 failed.
 - [x] G6 Green. The same tests pass.
       ask:
       ruling: RULED 2026-11-15 (Christian): the same tests pass.
-      evidence: cargo test -p core 304 passed, including the 6 that failed in e480525b.
-- [ ] G7 Doors, on the laptop, after ship. cargo test -p core passes. cargo test
+      evidence: green 38e8bd09. cargo test -p core 304 passed, including the 6 that failed in 49df42be.
+- [x] G7 Doors, on the laptop, after ship. cargo test -p core passes. cargo test
       -p novashell passes. nsh-test passes. core intent validate reports every
       intent valid. The deployed brief is what was watched.
       ask:
-      ruling:
-      evidence:
+      ruling: RULED 2026-11-15 (Christian): doors passed after ship core.
+      evidence: laptop 2026-11-15. Rulings 3945278f, red 49df42be, green 38e8bd09. Seal notes 78a71525. ship core shipped core 4.10.0. doors 4 passed 0 failed: core pass 0.2s, shell pass 4.2s, nsh-test pass 132.3s, validate pass 0.0s.
 
 ## Out of scope
 - A morning brief.
@@ -84,4 +84,4 @@ intent. It is not part of it.
 - INT-132. Teaching follows this intent.
 
 ## Open for Christian
-Ruled 2026-11-15. G1 one function, snapshot kept, stored brief never spoken. G2 open gates then days, stalled is a mark. G3 three anomalies. G4 consecutive first words. The stall window is 14 days.
+Ruled 2026-11-15. G1 one function, snapshot kept, stored brief never spoken. G2 open gates then days, stalled is a mark. G3 three anomalies. G4 consecutive first words. The stall window is 14 days. G7 closed by the laptop doors.
