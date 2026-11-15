@@ -349,6 +349,14 @@ pub fn show(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
+// INT-316 G4. Cite a probe status change when `pacman_log` records a -Syu.
+// The path is injectable. No root. Red stub: cites nothing.
+#[cfg(test)]
+fn cite_probe_change(db: &rusqlite::Connection, pacman_log: &std::path::Path) -> Option<String> {
+    let _ = (db, pacman_log);
+    None
+}
+
 #[cfg(test)]
 mod int315 {
     use super::{reason, starter_rules};
@@ -449,6 +457,60 @@ mod int315 {
         assert_eq!(
             claimed, held,
             "doc says {claimed} rules, starter_rules holds {held}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod int316 {
+    use super::cite_probe_change;
+
+    #[test]
+    fn g4_rule_cites_a_probe_change_after_pacman_syu() {
+        let dir = std::env::temp_dir().join(format!(
+            "int316-pacman-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let log_path = dir.join("pacman.log");
+        std::fs::write(
+            &log_path,
+            "[2026-11-15T12:00:00+0000] [PACMAN] Running 'pacman -Syu'\n[2026-11-15T12:00:01+0000] [ALPM] transaction completed\n",
+        )
+        .unwrap();
+        let db = rusqlite::Connection::open_in_memory().unwrap();
+        db.execute_batch(
+            "CREATE TABLE friday_observations (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                timestamp INTEGER NOT NULL,
+                source TEXT NOT NULL,
+                kind TEXT NOT NULL,
+                content TEXT NOT NULL
+            );",
+        )
+        .unwrap();
+        db.execute(
+            "INSERT INTO friday_observations (timestamp, source, kind, content) VALUES (1763203100, 'probe', 'status', 'Reboot Needed pass')",
+            [],
+        )
+        .unwrap();
+        db.execute(
+            "INSERT INTO friday_observations (timestamp, source, kind, content) VALUES (1763203300, 'probe', 'status', 'Reboot Needed warn')",
+            [],
+        )
+        .unwrap();
+        let said = cite_probe_change(&db, &log_path);
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(
+            said.as_deref(),
+            Some("Reboot Needed went from pass to warn after a pacman -Syu"),
+            "injected log {}",
+            log_path.display()
         );
     }
 }

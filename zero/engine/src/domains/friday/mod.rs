@@ -1883,6 +1883,17 @@ pub fn check_milestones(ctx: &AppContext) -> Option<String> {
     Some(message.to_string())
 }
 
+// INT-316 G1. One friday_knowledge row per doctor probe: source "probe", an
+// expiry, text taken from that probe's result. Red stub: writes nothing.
+#[cfg(test)]
+fn record_probe_facts(
+    ctx: &AppContext,
+    checks: &[crate::domains::doctor::CheckResult],
+) -> CoreResult<()> {
+    let _ = (ctx, checks);
+    Ok(())
+}
+
 #[cfg(test)]
 mod seed_count_tests {
     #[test]
@@ -2394,6 +2405,278 @@ mod int315 {
         assert_eq!(
             first, second,
             "extract_patterns duplicated friday_patterns rows: {first} then {second}"
+        );
+    }
+}
+
+#[cfg(test)]
+mod int316 {
+    use super::*;
+    use crate::domains::doctor::{CheckResult, Status, Tier};
+
+    fn scratch(name: &str) -> (std::path::PathBuf, crate::app::context::AppContext) {
+        let dir = std::env::temp_dir().join(format!(
+            "int316-friday-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("0-core/zero/intents/open")).unwrap();
+        let ctx = crate::app::context::AppContext {
+            runtime: crate::runtime::Runtime {
+                root: dir.clone(),
+                logs: dir.join("logs"),
+                cache: dir.join("cache"),
+                snapshots: dir.join("snapshots"),
+                locks: dir.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: dir.to_string_lossy().to_string(),
+            core_root: dir.to_string_lossy().to_string(),
+            source_root: dir.join("0-core/zero").to_string_lossy().to_string(),
+        };
+        (dir, ctx)
+    }
+
+    struct HomeGuard {
+        prev: Option<String>,
+    }
+
+    impl HomeGuard {
+        fn set(dir: &std::path::Path) -> Self {
+            let prev = std::env::var("HOME").ok();
+            unsafe { std::env::set_var("HOME", dir) }
+            Self { prev }
+        }
+    }
+
+    impl Drop for HomeGuard {
+        fn drop(&mut self) {
+            unsafe {
+                match self.prev.take() {
+                    Some(home) => std::env::set_var("HOME", home),
+                    None => std::env::remove_var("HOME"),
+                }
+            }
+        }
+    }
+
+    fn probe(name: &str, status: Status) -> CheckResult {
+        CheckResult {
+            section: "System".into(),
+            id: name.to_ascii_lowercase().replace(' ', "_"),
+            name: name.into(),
+            status,
+            tier: Tier::User,
+            message: name.into(),
+            fix: None,
+        }
+    }
+
+    fn seed_commits(repo: &std::path::Path, n: u32) {
+        let status = std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(repo)
+            .status()
+            .unwrap();
+        assert!(status.success(), "git init");
+        let head = std::fs::read_to_string(repo.join(".git/HEAD")).unwrap();
+        let branch = head.trim().trim_start_matches("ref: ");
+        let mut script = String::new();
+        for i in 1..=n {
+            let from = if i == 1 {
+                String::new()
+            } else {
+                format!("from :{}\n", i - 1)
+            };
+            script.push_str(&format!(
+                "commit {branch}\nmark :{i}\nauthor Test <test@example.com> 1700000000 +0000\ncommitter Test <test@example.com> 1700000000 +0000\ndata 2\nx\n{from}\n"
+            ));
+        }
+        let mut child = std::process::Command::new("git")
+            .args(["fast-import", "--quiet"])
+            .current_dir(repo)
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::piped())
+            .spawn()
+            .unwrap();
+        {
+            use std::io::Write;
+            let mut stdin = child.stdin.take().unwrap();
+            stdin.write_all(script.as_bytes()).unwrap();
+        }
+        let output = child.wait_with_output().unwrap();
+        assert!(
+            output.status.success(),
+            "fast-import: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+
+    fn mentions(line: &str, raw: &str, grouped: &str) -> usize {
+        line.matches(raw).count() + line.matches(grouped).count()
+    }
+
+    #[test]
+    fn g1_probe_rows_carry_source_probe_and_an_expiry() {
+        let (dir, ctx) = scratch("probe-expiry");
+        ctx.runtime.db.execute_batch(CREATE_TABLES).unwrap();
+        let checks = vec![probe("Reboot Needed", Status::Warn)];
+        record_probe_facts(&ctx, &checks).unwrap();
+        let mut stmt = ctx
+            .runtime
+            .db
+            .prepare("SELECT source, expires_at, fact FROM friday_knowledge WHERE source = 'probe'")
+            .unwrap_or_else(|err| {
+                panic!("probe facts need source='probe' and an expiry: {err}")
+            });
+        let rows: Vec<(String, i64, String)> = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
+            .unwrap()
+            .filter_map(Result::ok)
+            .collect();
+        let _ = std::fs::remove_dir_all(&dir);
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        assert!(
+            !rows.is_empty(),
+            "after a doctor result, friday_knowledge has no source='probe' rows"
+        );
+        assert!(
+            rows.iter().all(|(source, expires, fact)| {
+                source == "probe" && *expires > now && fact.contains("Reboot Needed")
+            }),
+            "probe rows need source='probe', a future expiry, and the probe result; got {rows:?}"
+        );
+    }
+
+    #[test]
+    fn g1_probe_facts_are_built_from_results_not_written_by_hand() {
+        let (dir, ctx) = scratch("probe-built");
+        ctx.runtime.db.execute_batch(CREATE_TABLES).unwrap();
+        let checks = vec![
+            probe("Disk Space", Status::Pass),
+            probe("Reboot Needed", Status::Warn),
+        ];
+        record_probe_facts(&ctx, &checks).unwrap();
+        let mut stmt = ctx
+            .runtime
+            .db
+            .prepare("SELECT source, fact FROM friday_knowledge")
+            .unwrap();
+        let facts: Vec<(String, String)> = stmt
+            .query_map([], |row| Ok((row.get(0)?, row.get(1)?)))
+            .unwrap()
+            .filter_map(Result::ok)
+            .collect();
+        let _ = std::fs::remove_dir_all(&dir);
+        let from_probe = facts.iter().any(|(source, fact)| {
+            source == "probe"
+                && fact.contains("Disk Space")
+                && fact.to_ascii_lowercase().contains("pass")
+        }) && facts.iter().any(|(source, fact)| {
+            source == "probe"
+                && fact.contains("Reboot Needed")
+                && fact.to_ascii_lowercase().contains("warn")
+        });
+        let handwritten = facts.iter().any(|(_, fact)| fact.contains("I am Friday"));
+        assert!(
+            from_probe && !handwritten,
+            "probe facts are built from the doctor's results and are not hand-written; got {facts:?}"
+        );
+    }
+
+    #[test]
+    fn g2_pacman_hyprland_and_systemd_are_native() {
+        let (dir, ctx) = scratch("native");
+        let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|err| err.into_inner());
+        let _home = HomeGuard::set(&dir);
+        ctx.runtime
+            .db
+            .execute_batch(
+                "CREATE TABLE IF NOT EXISTS friday_state (
+                    key TEXT PRIMARY KEY,
+                    value TEXT NOT NULL,
+                    updated_at INTEGER NOT NULL
+                );",
+            )
+            .unwrap();
+        ctx.runtime.db.execute_batch(CREATE_TABLES).unwrap();
+        seed_knowledge(&ctx).unwrap();
+        seed_linux_knowledge(&ctx).unwrap();
+        for (domain, key, fact) in [
+            (
+                "packages",
+                "pacman",
+                "pacman installs packages on this machine",
+            ),
+            ("compositor", "hyprland", "Hyprland is the compositor"),
+            ("services", "systemd", "systemd manages services"),
+        ] {
+            ctx.runtime
+                .db
+                .execute(
+                    "INSERT INTO friday_knowledge
+                        (domain, key, fact, confidence, source, created_at, updated_at)
+                     VALUES (?1, ?2, ?3, 1.0, 'seed', 1, 1)",
+                    rusqlite::params![domain, key, fact],
+                )
+                .unwrap();
+        }
+        sync_knowledge_meta(&ctx.runtime.db).unwrap();
+        let mut labels = Vec::new();
+        for key in ["pacman", "hyprland", "systemd"] {
+            let system: String = ctx
+                .runtime
+                .db
+                .query_row(
+                    "SELECT system FROM friday_knowledge_meta WHERE key = ?1",
+                    [key],
+                    |row| row.get(0),
+                )
+                .unwrap_or_else(|_| "missing".into());
+            labels.push(format!("{key}={system}"));
+        }
+        let nix: i64 = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM friday_knowledge WHERE lower(fact) LIKE '%nixos%'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(
+            labels.iter().all(|label| label.ends_with("=native")) && nix == 0,
+            "pacman, Hyprland, and systemd are system=native, and no fact says NixOS; got {labels:?}, nixos rows {nix}"
+        );
+    }
+
+    #[test]
+    fn g5_milestone_names_each_number_once() {
+        let (dir, ctx) = scratch("milestone");
+        seed_commits(&dir, 5415);
+        let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|err| err.into_inner());
+        let _home = HomeGuard::set(&dir);
+        let line = check_milestones(&ctx).unwrap_or_default();
+        drop(_home);
+        drop(_lock);
+        let _ = std::fs::remove_dir_all(&dir);
+        let count_hits = mentions(&line, "5415", "5,415");
+        let mark_hits = mentions(&line, "2500", "2,500");
+        assert!(
+            line.starts_with("5,415 commits. Past the 2,500 mark.")
+                && count_hits == 1
+                && mark_hits == 1,
+            "each number once; count mentions {count_hits}, mark mentions {mark_hits}; got {line:?}"
         );
     }
 }

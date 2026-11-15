@@ -170,3 +170,137 @@ pub fn impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
     println!();
     Ok(())
 }
+
+// INT-316 G3. Intent ids from `git log --name-only --grep=INT-NNN` whose
+// commits touch `file`. Red stub: returns nothing.
+#[cfg(test)]
+fn impact_intents(repo: &std::path::Path, file: &str) -> Vec<String> {
+    let _ = (repo, file);
+    Vec::new()
+}
+
+// INT-316 G3. Tool, crate, and intent tree. Tools cyan, crates green, intents
+// magenta, and a spark on anything changed in the last 24 hours.
+// Red stub: empty.
+#[cfg(test)]
+fn render_map(repo: &std::path::Path) -> String {
+    let _ = repo;
+    String::new()
+}
+
+#[cfg(test)]
+mod int316 {
+    use super::{impact_intents, render_map};
+
+    struct TempDir(std::path::PathBuf);
+
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    fn git(dir: &std::path::Path, args: &[&str]) {
+        let status = std::process::Command::new("git")
+            .args(args)
+            .current_dir(dir)
+            .env("GIT_AUTHOR_NAME", "test")
+            .env("GIT_AUTHOR_EMAIL", "test@example.com")
+            .env("GIT_COMMITTER_NAME", "test")
+            .env("GIT_COMMITTER_EMAIL", "test@example.com")
+            .status()
+            .unwrap();
+        assert!(status.success(), "{args:?}");
+    }
+
+    // A temp repo whose tree names a tool and a crate, and whose history
+    // mentions INT-310 and INT-314 on the same file.
+    fn repo_touched_by_two_intents() -> TempDir {
+        let dir = std::env::temp_dir().join(format!(
+            "int316-map-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let file = dir.join("zero/mapcrate/src/lib.rs");
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(dir.join("registry")).unwrap();
+        std::fs::write(dir.join("registry/tools.toml"), "[[tool]]\nname = \"maptool\"\n").unwrap();
+        std::fs::write(
+            dir.join("zero/mapcrate/Cargo.toml"),
+            "[package]\nname = \"mapcrate\"\nversion = \"0.0.0\"\nedition = \"2021\"\n",
+        )
+        .unwrap();
+        std::fs::write(&file, "one\n").unwrap();
+        git(&dir, &["init"]);
+        git(&dir, &["add", "."]);
+        git(&dir, &["commit", "-m", "INT-310: one reader"]);
+        std::fs::write(&file, "two\n").unwrap();
+        git(&dir, &["add", "zero/mapcrate/src/lib.rs"]);
+        git(&dir, &["commit", "-m", "INT-314: tells the truth"]);
+        TempDir(dir)
+    }
+
+    struct ColorOverride;
+
+    impl ColorOverride {
+        fn on() -> Self {
+            colored::control::set_override(true);
+            Self
+        }
+    }
+
+    impl Drop for ColorOverride {
+        fn drop(&mut self) {
+            colored::control::unset_override();
+        }
+    }
+
+    fn painted(text: &str, name: &str, code: &str) -> bool {
+        let mut rest = text;
+        while let Some(at) = rest.find(name) {
+            let prefix = &rest[..at];
+            if let Some(i) = prefix.rfind('\u{1b}') {
+                let seq = &prefix[i..];
+                let closed = seq.contains("\u{1b}[0m");
+                if seq.contains(code) && !closed {
+                    return true;
+                }
+            }
+            rest = &rest[at + name.len()..];
+        }
+        false
+    }
+
+    #[test]
+    fn g3_impact_of_a_file_returns_int_310_and_int_314() {
+        let repo = repo_touched_by_two_intents();
+        let file = "zero/mapcrate/src/lib.rs";
+        let mut got = impact_intents(&repo.0, file);
+        got.sort();
+        assert_eq!(
+            got,
+            vec!["INT-310".to_string(), "INT-314".to_string()],
+            "impact of {file} should name both intents"
+        );
+    }
+
+    #[test]
+    fn g3_map_colors_tools_crates_intents_and_marks_recent() {
+        let repo = repo_touched_by_two_intents();
+        let _color = ColorOverride::on();
+        let text = render_map(&repo.0);
+        drop(_color);
+        let tool = painted(&text, "maptool", "36");
+        let krate = painted(&text, "mapcrate", "32");
+        let intent = painted(&text, "INT-310", "35");
+        let recent = text.contains('✦');
+        assert!(
+            tool && krate && intent && recent,
+            "colored tree: tool maptool cyan={tool}, crate mapcrate green={krate}, intent INT-310 magenta={intent}, spark on the last 24h={recent}; got {text:?}"
+        );
+    }
+}
