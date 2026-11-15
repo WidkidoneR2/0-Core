@@ -3,7 +3,7 @@ id: 039
 date: 2026-06-08
 type: feature
 title: "friday-daemon: persistent Friday process across sessions"
-status: planned
+status: cancelled
 tags: [friday, daemon, systemd, ipc, event-bus, persistence, rust, nixos]
 version: TBD
 ---
@@ -80,3 +80,6 @@ Phase 4 -- continuous operation: always-on ingestion + one idle-time task demons
 
 ## The Rule
 "An intelligence that sleeps between sessions is a notebook. Friday should stay awake." 🌲
+
+## Gate Check
+🚫 039 -- cancelled: Stale: a NixOS systemd daemon. Friday's memory already persists in state.db. Decision 147 keeps the bus in core. -- approved by: christian 2026-11-15
