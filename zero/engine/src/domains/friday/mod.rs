@@ -337,6 +337,11 @@ pub fn observe(ctx: &AppContext) -> CoreResult<()> {
     );
     Ok(())
 }
+// INT-315 G2 stub: status still ends on the literal counts.
+fn status_closing_line() -> &'static str {
+    "Friday is active -- 892h of observation, 14 patterns, 333 facts."
+}
+
 /// core friday status -- what Friday has observed and learned
 pub fn status(ctx: &AppContext) -> CoreResult<()> {
     ensure_tables(ctx)?;
@@ -419,10 +424,7 @@ pub fn status(ctx: &AppContext) -> CoreResult<()> {
         }
         println!();
     }
-    println!(
-        "  {} Friday is active -- 892h of observation, 14 patterns, 333 facts.",
-        "💡".dimmed()
-    );
+    println!("  {} {}", "💡".dimmed(), status_closing_line());
     println!("  {} Use: core friday ask <question>", "→".dimmed());
     println!();
     Ok(())
@@ -1540,6 +1542,13 @@ pub fn run_observe(ctx: &AppContext) -> CoreResult<()> {
 // ═══════════════════════════════════════════════════════════
 // INT-217 -- Core v19: Friday Finds Her Voice
 // ═══════════════════════════════════════════════════════════
+// INT-315 G2 stub: inside the cooldown the voice is silence, not how long ago she spoke.
+#[allow(dead_code)]
+pub fn cooldown_line(seconds_since_spoken: i64) -> String {
+    let _ = seconds_since_spoken;
+    String::new()
+}
+
 /// Check all thresholds and return Friday's voice if she has earned the right to speak.
 /// Returns Some((brief, confidence)) or None if dormant.
 /// Also handles dormant → observing → active engine_registry transition.
@@ -1941,5 +1950,211 @@ mod voice_tests {
         let spoken = spoken.expect("friday should speak");
         assert!(!spoken.contains("STALE"), "{spoken}");
         assert!(spoken.contains("1 commit(s) today"), "{spoken}");
+    }
+}
+
+#[cfg(test)]
+mod int315 {
+    use super::*;
+
+    fn scratch(name: &str) -> (std::path::PathBuf, crate::app::context::AppContext) {
+        let dir = std::env::temp_dir().join(format!(
+            "int315-friday-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("0-core/zero/intents/open")).unwrap();
+        let ctx = crate::app::context::AppContext {
+            runtime: crate::runtime::Runtime {
+                root: dir.clone(),
+                logs: dir.join("logs"),
+                cache: dir.join("cache"),
+                snapshots: dir.join("snapshots"),
+                locks: dir.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: dir.to_string_lossy().to_string(),
+            core_root: dir.to_string_lossy().to_string(),
+            source_root: dir.join("0-core/zero").to_string_lossy().to_string(),
+        };
+        (dir, ctx)
+    }
+
+    struct HomeGuard {
+        prev: Option<String>,
+    }
+
+    impl HomeGuard {
+        fn set(dir: &std::path::Path) -> Self {
+            let prev = std::env::var("HOME").ok();
+            unsafe { std::env::set_var("HOME", dir) }
+            Self { prev }
+        }
+    }
+
+    impl Drop for HomeGuard {
+        fn drop(&mut self) {
+            unsafe {
+                match self.prev.take() {
+                    Some(home) => std::env::set_var("HOME", home),
+                    None => std::env::remove_var("HOME"),
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn status_has_no_literal_counts() {
+        let line = status_closing_line();
+        assert!(!line.contains("892h"), "{line}");
+        assert!(!line.contains("14 patterns"), "{line}");
+        assert!(!line.contains("333 facts"), "{line}");
+    }
+
+    #[test]
+    fn milestones_have_no_186_fallback() {
+        let (dir, ctx) = scratch("miles");
+        let open = dir.join("0-core/zero/intents/open");
+        std::fs::write(
+            open.join("010-one.md"),
+            "---\nid: 10\nstatus: complete\ntitle: \"One\"\n---\n",
+        )
+        .unwrap();
+        std::fs::write(
+            open.join("011-two.md"),
+            "---\nid: 11\nstatus: complete\ntitle: \"Two\"\n---\n",
+        )
+        .unwrap();
+        ctx.runtime
+            .db
+            .execute_batch(
+                "CREATE TABLE commit_patterns (id INTEGER PRIMARY KEY);
+                 INSERT INTO commit_patterns (id)
+                 WITH RECURSIVE c(n) AS (
+                     SELECT 1 UNION ALL SELECT n + 1 FROM c WHERE n < 2000
+                 )
+                 SELECT n FROM c;
+                 CREATE TABLE friday_milestones (
+                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                     milestone TEXT NOT NULL UNIQUE,
+                     triggered_at INTEGER NOT NULL,
+                     message TEXT NOT NULL
+                 );
+                 INSERT INTO friday_milestones (milestone, triggered_at, message) VALUES
+                     ('commits_500', 1, 'already'),
+                     ('commits_1000', 1, 'already'),
+                     ('commits_1500', 1, 'already');",
+            )
+            .unwrap();
+        let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _home = HomeGuard::set(&dir);
+        let n = completed_intent_count();
+        let msg = check_milestones(&ctx).unwrap_or_default();
+        assert!(
+            !msg.contains("186") && msg.contains(&format!("{n} intents complete")),
+            "ledger count is {n}; milestone used a fallback: {msg}"
+        );
+    }
+
+    #[test]
+    fn first_speech_insert_uses_real_events_v2_columns() {
+        let (dir, ctx) = scratch("speech");
+        ctx.runtime
+            .db
+            .execute_batch(
+                "CREATE TABLE synthesis_snapshots (
+                    timestamp INTEGER, health INTEGER, alignment REAL, active_intent TEXT,
+                    session_commits INTEGER, top_pattern TEXT, friday_brief TEXT,
+                    brief_confidence REAL, contradiction TEXT
+                );
+                CREATE TABLE shell_history (id INTEGER PRIMARY KEY, command TEXT, timestamp INTEGER);
+                CREATE TABLE friday_patterns (last_seen INTEGER);",
+            )
+            .unwrap();
+        ctx.runtime
+            .db
+            .execute_batch(crate::domains::events::signal::CREATE_TABLE)
+            .unwrap();
+        ctx.runtime.db.execute(
+            "INSERT INTO synthesis_snapshots (timestamp, health, alignment, active_intent, session_commits, top_pattern, friday_brief, brief_confidence, contradiction)
+             VALUES (1, 72, 1.0, 'none', 0, '', 'live', 0.9, '')",
+            [],
+        ).unwrap();
+        for n in 0..50 {
+            ctx.runtime
+                .db
+                .execute(
+                    "INSERT INTO shell_history (command, timestamp) VALUES ('echo', ?1)",
+                    rusqlite::params![n],
+                )
+                .unwrap();
+        }
+        ctx.runtime
+            .db
+            .execute("INSERT INTO friday_patterns (last_seen) VALUES (1)", [])
+            .unwrap();
+        let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _home = HomeGuard::set(&dir);
+        let spoken = get_voice(&ctx);
+        assert!(
+            spoken.is_some(),
+            "gates should let Friday speak so the milestone insert runs"
+        );
+        let n: i64 = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM events_v2 WHERE kind = 'milestone'",
+                [],
+                |row| row.get(0),
+            )
+            .unwrap();
+        assert_eq!(n, 1, "first speech should land one events_v2 milestone row");
+    }
+
+    #[test]
+    fn cooldown_line_names_minutes_since_spoken() {
+        assert_eq!(cooldown_line(720), "spoke 12m ago");
+    }
+
+    #[test]
+    fn extract_patterns_twice_does_not_duplicate_rows() {
+        let (_dir, ctx) = scratch("patterns");
+        super::phase2::ensure_tables(&ctx).unwrap();
+        ctx.runtime
+            .db
+            .execute_batch(
+                "CREATE TABLE shell_history (
+                    id INTEGER PRIMARY KEY,
+                    command TEXT,
+                    timestamp INTEGER
+                );
+                INSERT INTO shell_history (command, timestamp) VALUES
+                    ('cargo test -p core', 1),
+                    ('cargo test -p core', 2),
+                    ('cargo test -p core', 3);",
+            )
+            .unwrap();
+        extract_patterns(&ctx).unwrap();
+        let first: i64 = ctx
+            .runtime
+            .db
+            .query_row("SELECT COUNT(*) FROM friday_patterns", [], |row| row.get(0))
+            .unwrap();
+        extract_patterns(&ctx).unwrap();
+        let second: i64 = ctx
+            .runtime
+            .db
+            .query_row("SELECT COUNT(*) FROM friday_patterns", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(
+            first, second,
+            "extract_patterns duplicated friday_patterns rows: {first} then {second}"
+        );
     }
 }

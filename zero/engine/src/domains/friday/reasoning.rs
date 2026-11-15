@@ -347,3 +347,107 @@ pub fn show(ctx: &AppContext) -> CoreResult<()> {
     }
     Ok(())
 }
+
+#[cfg(test)]
+mod int315 {
+    use super::{reason, starter_rules};
+
+    fn git_repo() -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "int315-reason-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let run = |args: &[&str]| {
+            let status = std::process::Command::new("git")
+                .args(args)
+                .current_dir(&dir)
+                .env("GIT_AUTHOR_NAME", "test")
+                .env("GIT_AUTHOR_EMAIL", "test@example.com")
+                .env("GIT_COMMITTER_NAME", "test")
+                .env("GIT_COMMITTER_EMAIL", "test@example.com")
+                .status()
+                .unwrap();
+            assert!(status.success(), "{args:?}");
+        };
+        run(&["init"]);
+        std::fs::write(dir.join("f"), "x\n").unwrap();
+        run(&["add", "f"]);
+        run(&["commit", "-m", "today"]);
+        dir
+    }
+
+    #[test]
+    fn ship_after_plain_git_commit_is_not_an_anomaly() {
+        let repo = git_repo();
+        let ctx = crate::app::context::AppContext {
+            runtime: crate::runtime::Runtime {
+                root: repo.clone(),
+                logs: repo.join("logs"),
+                cache: repo.join("cache"),
+                snapshots: repo.join("snapshots"),
+                locks: repo.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: repo.to_string_lossy().to_string(),
+            core_root: repo.to_string_lossy().to_string(),
+            source_root: repo.join("zero").to_string_lossy().to_string(),
+        };
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs() as i64;
+        ctx.runtime
+            .db
+            .execute_batch(
+                "CREATE TABLE deploy_patterns (timestamp INTEGER NOT NULL);
+                 CREATE TABLE events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    domain TEXT NOT NULL,
+                    action TEXT NOT NULL,
+                    timestamp INTEGER NOT NULL
+                 );",
+            )
+            .unwrap();
+        ctx.runtime
+            .db
+            .execute(
+                "INSERT INTO deploy_patterns (timestamp) VALUES (?1)",
+                rusqlite::params![now],
+            )
+            .unwrap();
+        let observations = reason(&ctx).unwrap();
+        let hit = observations
+            .iter()
+            .any(|(text, _, kind)| kind == "anomaly" && text.contains("without a commit"));
+        let _ = std::fs::remove_dir_all(&repo);
+        assert!(
+            !hit,
+            "a ship after a plain git commit is not deploy_without_commit: {observations:?}"
+        );
+    }
+
+    #[test]
+    fn starter_rules_doc_matches_count() {
+        let src = include_str!("reasoning.rs");
+        let line = src
+            .lines()
+            .find(|line| line.contains("starter rule set"))
+            .expect("starter rule doc comment");
+        let claimed: usize = line
+            .split_whitespace()
+            .find_map(|word| word.parse().ok())
+            .expect("a count in the starter rule doc comment");
+        let held = starter_rules().len();
+        assert_eq!(
+            claimed, held,
+            "doc says {claimed} rules, starter_rules holds {held}"
+        );
+    }
+}
