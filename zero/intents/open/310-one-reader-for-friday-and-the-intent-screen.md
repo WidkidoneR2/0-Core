@@ -3,7 +3,7 @@ id: 310
 date: 2026-11-10
 type: future
 title: "One reader for Friday and the intent screen"
-status: planned
+status: in-progress
 tags: [intent, ledger, friday, nsh]
 ---
 
@@ -59,16 +59,23 @@ code is written before G1 and G2 have those lines.
       seed_knowledge's list is mod.rs:176, and it loads three directories at
       intent_tui.rs:468. Proof: a dated line in this file saying the recon
       stands, or the correction.
+      ruling: RULED 2026-11-15 (Christian): re-read against 0bef81a7. Those folder lists are gone. phase2::open_intent_rows uses ledger::live. planning.rs and seed_knowledge use ledger::load. seed_knowledge still counts a record whose status is complete. it load_intents uses ledger::load and keeps planned and in-progress. Terminal::new failure disables raw mode and does not leave the alternate screen. Friday and it do not call gates::read_gates.
+      evidence: the ruling line above.
 - [ ] G1 Friday. Christian rules the cut. One shape to accept, change, or
       reject: phase2::plan, the two planning.rs readers, and seed_knowledge
       ask load_all and folders. The private lists, including active, deferred,
       and the HOME joins, go. A quoted "status: planned" in a body is not a
       second status. Proof: the RULED line.
+      ruling: RULED 2026-11-15 (Christian): keep Friday on ledger::with_status and ledger::live. Drop records from seed_knowledge's complete count. A body quote is not a status.
+      evidence: the ruling line above.
 - [ ] G2 `it`. Christian rules the folders and the failure path. One shape to
       accept, change, or reject: load_intents uses the same reader as core
       intent list, including planned, cancelled, and the record directories.
       Findings stay out. The terminal is restored on failure, including when
       Terminal::new fails and when the loop panics. Proof: the RULED line.
+      ruling: RULED 2026-11-15 (Christian): it shows planned and in-progress only. Records and findings stay out. A Drop guard restores raw mode and leaves the alternate screen when Terminal::new fails and when the loop panics.
+      evidence: the ruling line above.
+      ruling: RULED 2026-11-15 (Christian): Friday shows one display-only line per in-progress intent, INT-310 2/5 gates, read from gates::read_gates. No writes. cicomplete stays the judge.
 - [ ] G3 Red, then the readers, only after G1 and G2 are ruled. Shown failing
       first, under its own plan Seal: Friday misses an in-progress intent, and
       `it` leaves the terminal raw when the screen fails to open. Then the
@@ -87,6 +94,4 @@ code is written before G1 and G2 have those lines.
 - Changing what Friday says beyond what the one reader returns.
 
 ## Open for Christian
-- G1, which Friday sentences may change when the reader changes.
-- G2, which record directories `it` shows, and how a failed open restores the
-  terminal.
+Ruled 2026-11-15. G1 keeps the ledger. G2 is planned and in-progress, with a Drop guard. The gate line is display-only.
