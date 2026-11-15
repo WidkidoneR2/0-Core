@@ -167,3 +167,86 @@ pub fn desktop(summary: &str, body: &str, critical: bool) {
         ])
         .status();
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// F-0013. desktop() must not print busctl's reply. A fake busctl, first on
+    /// PATH, prints `u 1` and exits 0. The check runs in a child so that inherited
+    /// stdout is the pipe we capture. The real session bus is never contacted.
+    #[test]
+    fn f0013_desktop_notify_prints_nothing() {
+        if std::env::var_os("F0013_CHILD").is_some() {
+            let prev = std::env::var_os("ZERO_NO_NOTIFY");
+            unsafe { std::env::remove_var("ZERO_NO_NOTIFY") };
+            desktop("INT-317", "quiet", false);
+            match prev {
+                Some(value) => unsafe { std::env::set_var("ZERO_NO_NOTIFY", value) },
+                None => {}
+            }
+            return;
+        }
+
+        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let dir = std::env::temp_dir().join(format!(
+            "f0013-busctl-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let marker = dir.join("ran");
+        let script = dir.join("busctl");
+        std::fs::write(
+            &script,
+            format!(
+                "#!/bin/sh\nprintf 'u 1\\n'\n: > '{}'\nexit 0\n",
+                marker.display()
+            ),
+        )
+        .unwrap();
+        use std::os::unix::fs::PermissionsExt;
+        std::fs::set_permissions(&script, std::fs::Permissions::from_mode(0o755)).unwrap();
+
+        let old_path = std::env::var("PATH").unwrap_or_default();
+        let child_path = format!("{}:{}", dir.display(), old_path);
+        let exe = std::env::current_exe().unwrap();
+        let out = std::process::Command::new(&exe)
+            .args([
+                "domains::notify::tests::f0013_desktop_notify_prints_nothing",
+                "--exact",
+                "--test-threads=1",
+                "--nocapture",
+            ])
+            .env("F0013_CHILD", "1")
+            .env("PATH", &child_path)
+            .env_remove("ZERO_NO_NOTIFY")
+            .env(
+                "DBUS_SESSION_BUS_ADDRESS",
+                format!("unix:path={}", dir.join("no-bus").display()),
+            )
+            .output()
+            .unwrap();
+        let stdout = String::from_utf8_lossy(&out.stdout).to_string();
+        let stderr = String::from_utf8_lossy(&out.stderr).to_string();
+        let marker_ran = marker.exists();
+        let status = out.status;
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(
+            status.success(),
+            "child failed: {status}\nstdout:\n{stdout}\nstderr:\n{stderr}"
+        );
+        assert!(
+            marker_ran,
+            "fake busctl did not run, so this result must not be trusted"
+        );
+        assert!(
+            !stdout.contains("u 1"),
+            "busctl stdout leaked into the caller:\n{stdout}"
+        );
+    }
+}
