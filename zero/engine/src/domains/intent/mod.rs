@@ -785,14 +785,10 @@ pub fn validate(_ctx: &AppContext) -> CoreResult<()> {
         println!("  {} {} issues found", "✗".bright_red(), issues.len());
     }
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
-    let format2 = issues.iter().any(|issue| issue.starts_with("format 2:"));
-    if format2 {
+    if !issues.is_empty() {
         return Err(crate::errors::CoreError::Reported(format!(
-            "{} format 2 issue(s)",
-            issues
-                .iter()
-                .filter(|issue| issue.starts_with("format 2:"))
-                .count()
+            "{} issue(s)",
+            issues.len()
         )));
     }
     Ok(())
@@ -5227,6 +5223,89 @@ mod status_is_not_the_folder_tests {
             "an unknown status is still refused: {:?}",
             issues
         );
+    }
+
+    fn scratch_ctx(root: &std::path::Path) -> crate::app::context::AppContext {
+        crate::app::context::AppContext {
+            runtime: crate::runtime::Runtime {
+                root: root.to_path_buf(),
+                logs: root.join("logs"),
+                cache: root.join("cache"),
+                snapshots: root.join("snapshots"),
+                locks: root.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: root.display().to_string(),
+            core_root: root.display().to_string(),
+            source_root: root.join("zero").display().to_string(),
+        }
+    }
+
+    fn ledger_home(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "core-f0054-{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("0-core/zero/intents/open")).unwrap();
+        dir
+    }
+
+    /// F-0054. Any issue, not only a format 2 issue, makes validate return Err.
+    /// A malformed frontmatter is not a format 2 issue. Today validate returns Ok.
+    #[test]
+    fn f0054_validate_errs_on_any_issue() {
+        let dir = ledger_home("bad");
+        std::fs::write(
+            dir.join("0-core/zero/intents/open/901-bad.md"),
+            "this file has no frontmatter\n",
+        )
+        .unwrap();
+        let ctx = scratch_ctx(&dir);
+        let (result, issues) = with_home(&dir, || {
+            let result = super::validate(&ctx);
+            let (_count, issues, _notes) = super::validate_issues();
+            (result, issues)
+        });
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(!issues.is_empty(), "the planted ledger produced no issue");
+        assert!(
+            issues.iter().all(|issue| !issue.starts_with("format 2:")),
+            "the only defect must not be a format 2 issue: {issues:?}"
+        );
+        assert!(
+            result.is_err(),
+            "validate returned Ok while the ledger had issues: {issues:?}"
+        );
+    }
+
+    /// A ledger whose only file is valid: validate returns Ok.
+    #[test]
+    fn f0054_validate_ok_on_clean_ledger() {
+        let dir = ledger_home("clean");
+        std::fs::write(
+            dir.join("0-core/zero/intents/open/901-clean.md"),
+            "---\nid: 901\ntitle: \"clean\"\nstatus: planned\ndate: 2026-11-15\nformat: 2\n---\n\n\
+## Vision\nA clean ledger.\n\n\
+## The Problem\nNone.\n\n\
+## The Solution\nStay valid.\n\n\
+## Success Criteria\n- [ ] G1 stays open.\n      ask:\n      ruling:\n      evidence:\n",
+        )
+        .unwrap();
+        let ctx = scratch_ctx(&dir);
+        let (result, issues) = with_home(&dir, || {
+            let result = super::validate(&ctx);
+            let (_count, issues, _notes) = super::validate_issues();
+            (result, issues)
+        });
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(issues.is_empty(), "clean ledger had issues: {issues:?}");
+        assert!(result.is_ok(), "clean ledger: {result:?}");
     }
 }
 

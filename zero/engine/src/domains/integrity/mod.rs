@@ -460,13 +460,10 @@ pub fn run_pipeline(
         all_issues.extend(issues);
     }
 
-    // Compute total possible weight (all checks at max weight 3 avg)
-    let total_weight: u32 = all_issues
-        .iter()
-        .map(|i| i.weight as u32)
-        .sum::<u32>()
-        .max(1)
-        * 3; // baseline
+    // One unit for every check that ran, plus each found issue's own weight.
+    // A check that returned nothing is that unit and nothing more. No * 3.
+    let found_weight: u32 = all_issues.iter().map(|i| i.weight as u32).sum();
+    let total_weight: u32 = found_weight + checks.len() as u32;
 
     // Phase B — Plan (classify)
     let auto_fixable: Vec<&IntegrityIssue> = all_issues
@@ -2224,5 +2221,78 @@ mod tests {
             "another tool changed:\n{registry}"
         );
         assert!(done.is_some(), "the proposal is not marked applied");
+    }
+
+    /// One check that is either silent or emits a single unfixed alert.
+    struct ProportionCheck {
+        name: &'static str,
+        weight: Option<u8>,
+    }
+
+    impl IntegrityCheck for ProportionCheck {
+        fn name(&self) -> &'static str {
+            self.name
+        }
+        fn category(&self) -> Category {
+            Category::Intent
+        }
+        fn run(&self, _ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
+            match self.weight {
+                None => Vec::new(),
+                Some(weight) => vec![IntegrityIssue::alert(
+                    Category::Intent,
+                    self.name,
+                    "one remaining issue",
+                    weight,
+                )],
+            }
+        }
+    }
+
+    /// Silent checks plus one remaining issue of `weight`. Nothing is auto-fixed.
+    fn proportion_suite(weight: u8) -> Vec<Box<dyn IntegrityCheck>> {
+        vec![
+            Box::new(ProportionCheck {
+                name: "silent-a",
+                weight: None,
+            }),
+            Box::new(ProportionCheck {
+                name: "silent-b",
+                weight: None,
+            }),
+            Box::new(ProportionCheck {
+                name: "weighted",
+                weight: Some(weight),
+            }),
+        ]
+    }
+
+    /// F-0012. integrity_pct is a proportion of remaining weight. A heavier
+    /// remaining issue scores lower than a lighter one, and neither is the flat 67
+    /// that `total_weight * 3` produces for every unfixed issue.
+    #[test]
+    fn f0012_integrity_pct_is_a_proportion() {
+        fn pct(weight: u8) -> u32 {
+            let (ctx, root) = stand_in(&format!("f0012-{weight}"));
+            let checks = proportion_suite(weight);
+            let result = run_pipeline(&IntegrityContext::new(&ctx), &checks, true);
+            let _ = std::fs::remove_dir_all(&root);
+            assert_eq!(result.auto_fixed, 0, "nothing is auto-fixed");
+            assert_eq!(result.alerts, 1, "one remaining issue");
+            assert_eq!(result.issue_weight, u32::from(weight));
+            result.integrity_pct()
+        }
+        let light = pct(1);
+        let heavy = pct(5);
+        assert_ne!(
+            light, heavy,
+            "a weight-1 issue and a weight-5 issue scored the same percentage ({light})"
+        );
+        assert_ne!(light, 67, "weight 1 scored 67");
+        assert_ne!(heavy, 67, "weight 5 scored 67");
+        assert!(
+            heavy < light,
+            "weight 5 ({heavy}) is not lower than weight 1 ({light})"
+        );
     }
 }
