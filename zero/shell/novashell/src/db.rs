@@ -103,14 +103,14 @@ pub struct ExecutionCompletion<'a> {
 // read or write shell_history.
 //
 // Shapes, and only these:
-// - a long flag whose name contains token, password, passwd, secret, key, or
-//   auth, in `--name value` or `--name=value` form (short flags such as -p
-//   are not secrets)
+// - a long flag in `--name value` or `--name=value` form, when a whole name
+//   segment is token, password, passwd, secret, key, auth, apikey, or pat.
+//   Segments split on '-', '_' and '.'. Short flags such as -p are not secrets.
 // - URL userinfo: scheme://user:pass@ becomes scheme://***@
 // - an Authorization header: "Authorization: scheme value" keeps the scheme,
 //   and a bare "Authorization: value" redacts that single value
-// - an env assignment whose name contains TOKEN, SECRET, PASSWORD, PASSWD,
-//   or KEY: NAME=value becomes NAME=***
+// - an env assignment whose name has one of those same whole segments:
+//   NAME=value becomes NAME=***
 fn redact_secrets(input: &str) -> Cow<'_, str> {
     let mut rewritten: Option<String> = None;
     let mut copied = 0;
@@ -180,9 +180,7 @@ fn authorization_at(input: &str, i: usize) -> Option<SecretSpan> {
 }
 
 fn long_flag_at(input: &str, i: usize) -> Option<SecretSpan> {
-    if !at_boundary(input, i, |c| {
-        c.is_ascii_alphanumeric() || c == b'_' || c == b'-'
-    }) {
+    if !at_boundary(input, i, is_name_byte) {
         return None;
     }
     let bytes = input.as_bytes();
@@ -190,17 +188,10 @@ fn long_flag_at(input: &str, i: usize) -> Option<SecretSpan> {
         return None;
     }
     let mut j = i + 2;
-    while j < bytes.len()
-        && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'-' || bytes[j] == b'_')
-    {
+    while j < bytes.len() && is_name_byte(bytes[j]) {
         j += 1;
     }
-    if j == i + 2
-        || !name_contains(
-            &input[i + 2..j],
-            &["token", "password", "passwd", "secret", "key", "auth"],
-        )
-    {
+    if j == i + 2 || !name_has_secret_segment(&input[i + 2..j]) {
         return None;
     }
     let value_at = if j < bytes.len() && bytes[j] == b'=' {
@@ -214,7 +205,7 @@ fn long_flag_at(input: &str, i: usize) -> Option<SecretSpan> {
 }
 
 fn env_assignment_at(input: &str, i: usize) -> Option<SecretSpan> {
-    if !at_boundary(input, i, |c| c.is_ascii_alphanumeric() || c == b'_') {
+    if !at_boundary(input, i, is_name_byte) {
         return None;
     }
     let bytes = input.as_bytes();
@@ -222,16 +213,13 @@ fn env_assignment_at(input: &str, i: usize) -> Option<SecretSpan> {
         return None;
     }
     let mut j = i + 1;
-    while j < bytes.len() && (bytes[j].is_ascii_alphanumeric() || bytes[j] == b'_') {
+    while j < bytes.len() && is_name_byte(bytes[j]) {
         j += 1;
     }
     if j >= bytes.len() || bytes[j] != b'=' {
         return None;
     }
-    if !name_contains(
-        &input[i..j],
-        &["TOKEN", "SECRET", "PASSWORD", "PASSWD", "KEY"],
-    ) {
+    if !name_has_secret_segment(&input[i..j]) {
         return None;
     }
     read_value(input, j + 1)
@@ -325,20 +313,23 @@ fn read_value(input: &str, i: usize) -> Option<SecretSpan> {
     }
 }
 
-fn name_contains(name: &str, needles: &[&str]) -> bool {
-    needles
-        .iter()
-        .any(|needle| contains_ignore_ascii_case(name, needle))
+fn is_name_byte(c: u8) -> bool {
+    c.is_ascii_alphanumeric() || c == b'-' || c == b'_' || c == b'.'
 }
 
-fn contains_ignore_ascii_case(haystack: &str, needle: &str) -> bool {
-    let hay = haystack.as_bytes();
-    let ned = needle.as_bytes();
-    if ned.is_empty() || hay.len() < ned.len() {
-        return false;
-    }
-    hay.windows(ned.len())
-        .any(|window| window.eq_ignore_ascii_case(ned))
+/// A secret word matches only as a whole segment. `api-key` and `API_KEY`
+/// match on `key`; `author`, `monkey`, `keyboard` and `keep` do not.
+fn name_has_secret_segment(name: &str) -> bool {
+    const SEGMENTS: &[&str] = &[
+        "token", "password", "passwd", "secret", "key", "auth", "apikey", "pat",
+    ];
+    name.split(|c| c == '-' || c == '_' || c == '.')
+        .filter(|segment| !segment.is_empty())
+        .any(|segment| {
+            SEGMENTS
+                .iter()
+                .any(|secret| segment.eq_ignore_ascii_case(secret))
+        })
 }
 
 fn at_boundary(input: &str, i: usize, continues: impl Fn(u8) -> bool) -> bool {
@@ -1014,6 +1005,22 @@ mod int315 {
             redact_secrets("DB_PASSWD=sekrit github_token=sekrit API_KEY='sekrit'").as_ref(),
             "DB_PASSWD=*** github_token=*** API_KEY='***'"
         );
+    }
+
+    #[test]
+    fn segment_match_spares_author_and_monkey() {
+        for line in [
+            "--author=christian",
+            "MONKEY=1",
+            "--keyboard x",
+            "AUTHOR=x",
+            "--keep",
+        ] {
+            match redact_secrets(line) {
+                Cow::Borrowed(same) => assert_eq!(same, line),
+                Cow::Owned(owned) => panic!("rewrote {line:?} into {owned:?}"),
+            }
+        }
     }
 
     #[test]
