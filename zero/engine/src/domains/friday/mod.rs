@@ -185,12 +185,10 @@ fn ensure_pattern_identity(db: &rusqlite::Connection) -> CoreResult<()> {
     Ok(())
 }
 
-/// Completed intents for the seed. Records still count. That is the bug.
+/// Completed intent ids. Live status complete, plus every id git recorded under
+/// `zero/intents/complete/`. Same source the dashboard and strategy use.
 fn completed_intent_count() -> usize {
-    zero_core::ledger::load()
-        .into_iter()
-        .filter(|file| !file.is_record() && file.status == "complete")
-        .count()
+    zero_core::ledger::completed_ids().len()
 }
 
 /// Seed initial Friday knowledge from current state
@@ -1790,13 +1788,25 @@ pub fn write_journal_entry(ctx: &AppContext) -> CoreResult<()> {
 pub fn check_milestones(ctx: &AppContext) -> Option<String> {
     let db = &ctx.runtime.db;
     let now = now_ts();
-    // Ensure milestone table exists
+    // Ensure the milestone row and the knowledge fact both have a table.
     let _ = db.execute_batch(
         "CREATE TABLE IF NOT EXISTS friday_milestones (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             milestone TEXT NOT NULL UNIQUE,
             triggered_at INTEGER NOT NULL,
             message TEXT NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS friday_knowledge (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            domain TEXT NOT NULL,
+            key TEXT NOT NULL,
+            fact TEXT NOT NULL,
+            confidence REAL NOT NULL DEFAULT 0.7,
+            source TEXT NOT NULL,
+            created_at INTEGER NOT NULL,
+            updated_at INTEGER NOT NULL,
+            times_used INTEGER NOT NULL DEFAULT 0,
+            UNIQUE(domain, key)
         );",
     );
     // Get live stats. Commits are git's count. Intents are the ledger's.
@@ -1823,37 +1833,54 @@ pub fn check_milestones(ctx: &AppContext) -> Option<String> {
         ("intents_150",  150,  "intent",  "150 complete intents. Project 0 rebuilt itself from a catastrophic failure and kept growing.".to_string()),
         ("intents_200",  200,  "intent",  format!("200 complete intents. {} commits. Friday is active. Project 0 built its own intelligence.", commit_words)),
     ];
+    // Every crossed, unrecorded milestone is recorded. Only the highest is announced.
+    // A commit count git could not read is skipped, never replaced with a fallback.
+    let mut crossed: Vec<(&str, i64, &str, &str)> = Vec::new();
     for (key, threshold, kind, message) in &milestones {
         let count = match (*kind, commit_count) {
             ("commit", Some(n)) => n,
             ("commit", None) => continue,
             _ => complete_intents,
         };
-        if count >= *threshold {
-            // Check if already triggered
-            let already: i64 = db
-                .query_row(
-                    "SELECT COUNT(*) FROM friday_milestones WHERE milestone = ?1",
-                    rusqlite::params![key],
-                    |r| r.get(0),
-                )
-                .unwrap_or(0);
-            if already == 0 {
-                let _ = db.execute(
-                    "INSERT OR IGNORE INTO friday_milestones (milestone, triggered_at, message) VALUES (?1, ?2, ?3)",
-                    rusqlite::params![key, now, message],
-                );
-                // Record in friday_knowledge permanently
-                let fact = format!("milestone: {} -- {}", key, message);
-                let _ = db.execute(
-                    "INSERT OR IGNORE INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at) VALUES ('milestone', ?1, ?2, 1.0, 'easter_egg', ?3, ?3)",
-                    rusqlite::params![key, fact, now],
-                );
-                return Some(message.clone());
-            }
+        if count < *threshold {
+            continue;
+        }
+        let already: i64 = db
+            .query_row(
+                "SELECT COUNT(*) FROM friday_milestones WHERE milestone = ?1",
+                rusqlite::params![key],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
+        if already == 0 {
+            crossed.push((key, *threshold, kind, message.as_str()));
         }
     }
-    None
+    if crossed.is_empty() {
+        return None;
+    }
+    for (key, _threshold, _kind, message) in &crossed {
+        let _ = db.execute(
+            "INSERT OR IGNORE INTO friday_milestones (milestone, triggered_at, message) VALUES (?1, ?2, ?3)",
+            rusqlite::params![key, now, message],
+        );
+        let fact = format!("milestone: {key} -- {message}");
+        let _ = db.execute(
+            "INSERT OR IGNORE INTO friday_knowledge (domain, key, fact, confidence, source, created_at, updated_at) VALUES ('milestone', ?1, ?2, 1.0, 'easter_egg', ?3, ?3)",
+            rusqlite::params![key, fact, now],
+        );
+    }
+    let &(_, threshold, kind, message) = crossed
+        .iter()
+        .max_by_key(|item| item.1)
+        .expect("crossed is non-empty");
+    if kind == "commit" {
+        let count = commit_count.expect("a commit milestone was crossed, so git answered");
+        return Some(format!(
+            "{count} commits. Past the {threshold} mark. {message}"
+        ));
+    }
+    Some(message.to_string())
 }
 
 #[cfg(test)]
