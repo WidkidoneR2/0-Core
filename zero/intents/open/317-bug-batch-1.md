@@ -3,7 +3,7 @@ id: 317
 date: 2026-11-15
 type: future
 title: "Bug batch 1: integrity proportion, validate exit, quiet busctl"
-status: in-progress
+status: complete
 tags: [bugs, ledger]
 format: 2
 ---
@@ -54,3 +54,6 @@ and does not print into the caller.
 
 ## Versions
 - core: patch (fixes three promised behaviours)
+
+## Versions
+- core 5.1.0 -> 5.1.1 (patch)
