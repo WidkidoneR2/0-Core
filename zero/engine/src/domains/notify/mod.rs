@@ -165,6 +165,8 @@ pub fn desktop(summary: &str, body: &str, critical: bool) {
             urgency,
             "0",
         ])
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
         .status();
 }
 
