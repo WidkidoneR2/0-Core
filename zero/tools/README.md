@@ -10,7 +10,7 @@ Project 0's tool ecosystem: 17 active tools (plus 0 retired), each a purpose-bui
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| [`core`](../engine/) | 4.9.0 | The single Rust engine at the heart of Project 0 -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary. |
+| [`core`](../engine/) | 4.10.0 | The single Rust engine at the heart of Project 0 -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary. |
 | [`zero-daemon`](./zero-daemon/) | 4.1.0 | Background daemon for Project 0 operations |
 
 ## Development
@@ -51,7 +51,7 @@ Project 0's tool ecosystem: 17 active tools (plus 0 retired), each a purpose-bui
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| [`novashell`](../shell/novashell/) | 5.6.0 | The shell of Project 0 -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution. |
+| [`novashell`](../shell/novashell/) | 5.7.0 | The shell of Project 0 -- speaks human first, UNIX as fallback. Structured data, natural-language verbs, parallel execution. |
 
 ---
 

@@ -3,7 +3,7 @@ id: 310
 date: 2026-11-10
 type: future
 title: "One reader for Friday and the intent screen"
-status: in-progress
+status: complete
 tags: [intent, ledger, friday, nsh]
 ---
 
@@ -99,3 +99,7 @@ code is written before G1 and G2 have those lines.
 
 ## Open for Christian
 Ruled 2026-11-15. G1 keeps the ledger. G2 is planned and in-progress, with a Drop guard. The gate line is display-only. G4 closed by the laptop doors.
+
+## Versions
+- core 4.9.0 -> 4.10.0 (minor)
+- nsh 5.6.0 -> 5.7.0 (minor)
