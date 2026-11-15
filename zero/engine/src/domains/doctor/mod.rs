@@ -292,6 +292,11 @@ pub fn run(ctx: &AppContext, _preflight: bool) -> CoreResult<()> {
     )?;
 
     let checks = from_engine();
+    // INT-316: one friday_knowledge row per probe, from these results. A write
+    // problem is logged and does not change the doctor's result.
+    if let Err(err) = crate::domains::friday::record_probe_facts(ctx, &checks) {
+        tracing::debug!("friday: probe facts were not recorded: {err}");
+    }
 
     let scored: Vec<_> = checks.iter().collect();
     let total = scored.len() as u32;

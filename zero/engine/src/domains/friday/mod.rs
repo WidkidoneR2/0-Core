@@ -42,6 +42,9 @@ CREATE TABLE IF NOT EXISTS friday_knowledge (
     created_at  INTEGER NOT NULL,
     updated_at  INTEGER NOT NULL,
     times_used  INTEGER NOT NULL DEFAULT 0,
+    -- Probe rows carry an expiry. NULL on every other fact. Existing databases
+    -- gain the column in ensure_knowledge_expires_at, not from this CREATE.
+    expires_at  INTEGER,
     UNIQUE(domain, key)
 );
 -- INT-128: native/foreign/translation metadata for friday_knowledge facts.
@@ -50,7 +53,7 @@ CREATE TABLE IF NOT EXISTS friday_knowledge (
 CREATE TABLE IF NOT EXISTS friday_knowledge_meta (
     domain        TEXT NOT NULL,
     key           TEXT NOT NULL,
-    system        TEXT NOT NULL DEFAULT 'unknown',  -- 'zero' (project) | 'arch' | ... (foreign)
+    system        TEXT NOT NULL DEFAULT 'unknown',  -- 'native' (this machine) | 'zero' (project) | foreign
     kind          TEXT NOT NULL DEFAULT 'fact',      -- 'fact' | 'command' | 'translation'
     translates_to TEXT,                              -- native equivalent, for foreign rows
     PRIMARY KEY (domain, key)
@@ -127,6 +130,7 @@ fn now_ts() -> i64 {
 }
 fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
     ctx.runtime.db.execute_batch(CREATE_TABLES)?;
+    ensure_knowledge_expires_at(&ctx.runtime.db)?;
     ensure_pattern_identity(&ctx.runtime.db)?;
     // INT-128: keep native/foreign metadata in sync with the knowledge base.
     let _ = sync_knowledge_meta(&ctx.runtime.db);
@@ -140,11 +144,12 @@ fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
 /// deriving system/kind from the domain. Seed-agnostic -- reads the db, so facts from
 /// ANY seed path (or runtime `core knowledge add`) get labeled automatically.
 ///
-/// Rule: every fact row is labeled system='zero', kind='fact', with no translation.
-/// session_summary is excluded (a session log, not knowledge).
+/// Rule: a fact row is labeled kind='fact', with no translation. pacman, Hyprland,
+/// and systemd are this machine, so those keys are system='native'. Every other
+/// fact is system='zero'. session_summary is excluded (a session log, not knowledge).
 ///
-/// NOTE: INSERT OR IGNORE means this fills GAPS only -- it never re-derives an existing
-/// meta row. If the derivation rule ever changes, existing rows must be migrated separately.
+/// INSERT OR IGNORE fills gaps only. Rows for those three keys that were already
+/// labeled are updated to 'native' here, so an existing state.db follows the rule.
 fn sync_knowledge_meta(db: &rusqlite::Connection) -> rusqlite::Result<()> {
     // Read fact rows that lack a meta row (excluding the session log).
     let mut stmt = db.prepare(
@@ -158,14 +163,29 @@ fn sync_knowledge_meta(db: &rusqlite::Connection) -> rusqlite::Result<()> {
         .collect();
 
     for (domain, key) in rows {
-        let (system, kind, translates_to): (&str, &str, Option<&str>) = ("zero", "fact", None);
+        let system = if is_native_machine_key(&key) {
+            "native"
+        } else {
+            "zero"
+        };
+        let (kind, translates_to): (&str, Option<&str>) = ("fact", None);
         db.execute(
             "INSERT OR IGNORE INTO friday_knowledge_meta (domain, key, system, kind, translates_to)
              VALUES (?1, ?2, ?3, ?4, ?5)",
             rusqlite::params![domain, key, system, kind, translates_to],
         )?;
     }
+    db.execute(
+        "UPDATE friday_knowledge_meta SET system = 'native'
+         WHERE lower(key) IN ('pacman', 'hyprland', 'systemd') AND system != 'native'",
+        [],
+    )?;
     Ok(())
+}
+
+fn is_native_machine_key(key: &str) -> bool {
+    let key = key.to_ascii_lowercase();
+    matches!(key.as_str(), "pacman" | "hyprland" | "systemd")
 }
 
 /// One row per (trigger, action). Existing databases are deduped before the
@@ -1876,21 +1896,110 @@ pub fn check_milestones(ctx: &AppContext) -> Option<String> {
         .expect("crossed is non-empty");
     if kind == "commit" {
         let count = commit_count.expect("a commit milestone was crossed, so git answered");
-        return Some(format!(
-            "{count} commits. Past the {threshold} mark. {message}"
-        ));
+        let head = format!(
+            "{} commits. Past the {} mark.",
+            with_thousands(count),
+            with_thousands(threshold)
+        );
+        // The stored celebration starts with the mark. The line already said it.
+        let prefix = format!("{threshold} commits. ");
+        let rest = message.strip_prefix(&prefix).unwrap_or(message);
+        if rest.is_empty() {
+            Some(head)
+        } else {
+            Some(format!("{head} {rest}"))
+        }
+    } else {
+        Some(message.to_string())
     }
-    Some(message.to_string())
 }
 
-// INT-316 G1. One friday_knowledge row per doctor probe: source "probe", an
-// expiry, text taken from that probe's result. Red stub: writes nothing.
-#[cfg(test)]
-fn record_probe_facts(
+fn with_thousands(n: i64) -> String {
+    let negative = n < 0;
+    let digits = n.unsigned_abs().to_string();
+    let mut reversed = String::new();
+    for (i, ch) in digits.chars().rev().enumerate() {
+        if i > 0 && i % 3 == 0 {
+            reversed.push(',');
+        }
+        reversed.push(ch);
+    }
+    let mut out: String = reversed.chars().rev().collect();
+    if negative {
+        out.insert(0, '-');
+    }
+    out
+}
+
+/// A probe fact is current for a day. The next doctor run replaces the rows;
+/// the expiry is what a reader has when that run has not happened.
+const PROBE_FACT_TTL_SECS: i64 = 24 * 60 * 60;
+
+/// Nullable column. ALTER only when the column is absent, so an existing
+/// friday_knowledge (a full state.db included) is not rewritten.
+fn ensure_knowledge_expires_at(db: &rusqlite::Connection) -> CoreResult<()> {
+    let present: i64 = db.query_row(
+        "SELECT COUNT(*) FROM pragma_table_info('friday_knowledge') WHERE name = 'expires_at'",
+        [],
+        |row| row.get(0),
+    )?;
+    if present == 0 {
+        db.execute(
+            "ALTER TABLE friday_knowledge ADD COLUMN expires_at INTEGER",
+            [],
+        )?;
+    }
+    Ok(())
+}
+
+fn probe_status_word(status: crate::domains::doctor::Status) -> &'static str {
+    match status {
+        crate::domains::doctor::Status::Pass => "pass",
+        crate::domains::doctor::Status::Warn => "warn",
+        crate::domains::doctor::Status::Fail => "fail",
+        crate::domains::doctor::Status::Blocked => "blocked",
+        crate::domains::doctor::Status::Unknown => "unknown",
+    }
+}
+
+/// One friday_knowledge row per doctor probe. The text is that probe's name,
+/// status, and message. source is "probe". Stale probe rows are replaced.
+pub fn record_probe_facts(
     ctx: &AppContext,
     checks: &[crate::domains::doctor::CheckResult],
 ) -> CoreResult<()> {
-    let _ = (ctx, checks);
+    let db = &ctx.runtime.db;
+    db.execute_batch(CREATE_TABLES)?;
+    ensure_knowledge_expires_at(db)?;
+    let now = now_ts();
+    let expires_at = now.saturating_add(PROBE_FACT_TTL_SECS);
+    db.execute(
+        "DELETE FROM friday_knowledge WHERE source = 'probe'",
+        [],
+    )?;
+    let mut seen = std::collections::HashSet::new();
+    for check in checks {
+        let key = if check.id.is_empty() {
+            check.name.clone()
+        } else {
+            check.id.clone()
+        };
+        if !seen.insert(key.clone()) {
+            continue;
+        }
+        let fact = format!(
+            "{}: {}. {}",
+            check.name,
+            probe_status_word(check.status),
+            check.message
+        );
+        db.execute(
+            "INSERT INTO friday_knowledge
+                (domain, key, fact, confidence, source, created_at, updated_at, expires_at)
+             VALUES ('probe', ?1, ?2, 1.0, 'probe', ?3, ?3, ?4)",
+            params![key, fact, now, expires_at],
+        )?;
+    }
     Ok(())
 }
 
@@ -2241,15 +2350,7 @@ mod int315 {
     const PAST_EVERY_COMMIT_THRESHOLD: u32 = 2600;
 
     fn commit_milestone_line(line: &str) -> bool {
-        [
-            "500 commits",
-            "1000 commits",
-            "1500 commits",
-            "2000 commits",
-            "2500 commits",
-        ]
-        .iter()
-        .any(|prefix| line.starts_with(prefix))
+        line.contains("commits. Past the ")
     }
 
     fn recorded_milestones(ctx: &crate::app::context::AppContext) -> Vec<String> {
@@ -2286,10 +2387,11 @@ mod int315 {
         let second_commit = second.as_deref().filter(|line| commit_milestone_line(line));
         let _ = std::fs::remove_dir_all(&dir);
         assert!(
-            first.contains("2500 commits. Project 0 keeps building.")
+            first.contains("Past the 2,500 mark.")
+                && first.contains("Project 0 keeps building.")
                 && missing.is_empty()
                 && second_commit.is_none(),
-            "first call announced {first:?} instead of the 2500 milestone; missing lower commit rows {missing:?} (recorded {recorded:?}); second call commit milestone: {second_commit:?}"
+            "first call announced {first:?} instead of the 2,500 milestone; missing lower commit rows {missing:?} (recorded {recorded:?}); second call commit milestone: {second_commit:?}"
         );
     }
 
@@ -2304,9 +2406,10 @@ mod int315 {
         ))
         .expect("measured git commit count");
         let line = check_milestones(&ctx).unwrap_or_default();
+        let shown = super::with_thousands(measured);
         let _ = std::fs::remove_dir_all(&dir);
         assert!(
-            line.contains(&measured.to_string()),
+            line.contains(&shown),
             "milestone line {line:?} does not name the measured git commit count {measured}"
         );
     }
