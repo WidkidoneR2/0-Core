@@ -1669,6 +1669,8 @@ pub fn voice(ctx: &AppContext) -> Voice {
 }
 
 /// Some((brief, confidence)) when Friday may speak. Cooldown and silence are both None.
+/// Tests use this door. `d` calls `voice` so a cooldown is not the same as silence.
+#[cfg(test)]
 pub fn get_voice(ctx: &AppContext) -> Option<(String, f64)> {
     match voice(ctx) {
         Voice::Speak(brief, confidence) => Some((brief, confidence)),
