@@ -3,7 +3,7 @@ id: 316
 date: 2026-11-15
 type: future
 title: "Friday knows the machine"
-status: planned
+status: in-progress
 tags: [friday, ledger]
 format: 2
 ---
@@ -56,43 +56,55 @@ The milestone line names each number once: "5,415 commits. Past the 2,500
 mark."
 
 ## Success Criteria
-- [ ] G1 Probe facts. After a doctor run, friday_knowledge gets rows with
+- [x] G1 Probe facts. After a doctor run, friday_knowledge gets rows with
       source='probe' and an expiry, built from the doctor's per-probe
       results. No hand-written facts.
       ask:
-      ruling:
-      evidence:
-- [ ] G2 Native labels. pacman, Hyprland, and systemd are system='native'.
+      ruling: Christian 2026-11-15: approved plan seal 2b01111ceef14935
+      evidence: laptop 2026-11-15 15:07 CST on 0c02204b: Friday facts
+      1266 -> 1294 after d (28 probe facts).
+- [x] G2 Native labels. pacman, Hyprland, and systemd are system='native'.
       No Friday fact or seed says NixOS.
       ask:
-      ruling:
-      evidence:
-- [ ] G3 Map. `core friday map` builds the tool, crate, and intent graph
+      ruling: Christian 2026-11-15: approved plan seal 2b01111ceef14935
+      evidence: laptop 2026-11-15 15:07 CST on 0c02204b: cargo test -p core
+      327 passed 0 failed, including all 7 int316.
+- [x] G3 Map. `core friday map` builds the tool, crate, and intent graph
       from the tree and from `git log --name-only --grep=INT-NNN`.
       `core friday map impact <file>` names the intents and tools that file
       touches. The tree is colored: tools cyan, crates green, intents
       magenta, and a ✦ on anything changed in the last 24 hours.
       ask:
-      ruling:
-      evidence:
-- [ ] G4 Probe-citing rule. Christian ruled yes under D1 on 2026-11-15. A
+      ruling: Christian 2026-11-15: approved plan seal 2b01111ceef14935
+      evidence: laptop 2026-11-15 15:07 CST on 0c02204b: core friday map
+      impact zero/engine/src/domains/friday/mod.rs listed INT-310 and
+      INT-314. Follow-up 1dd1de82 keeps the spark on git alone. The commit
+      that ticks these gates limits shown ids to ids in the ledger.
+- [x] G4 Probe-citing rule. Christian ruled yes under D1 on 2026-11-15. A
       rule may cite a probe change, for example "Reboot Needed went from
       pass to warn after a pacman -Syu", reading the read-only,
       world-readable /var/log/pacman.log. The path is injectable for tests.
       No root.
       ask:
-      ruling:
-      evidence:
-- [ ] G5 Milestone wording names each number once, for example "5,415
+      ruling: Christian 2026-11-15: approved plan seal 2b01111ceef14935.
+      pacman.log read approved under D1.
+      evidence: laptop 2026-11-15 15:07 CST on 0c02204b: cargo test -p core
+      327 passed 0 failed, including the pacman probe rule.
+- [x] G5 Milestone wording names each number once, for example "5,415
       commits. Past the 2,500 mark."
       ask:
-      ruling:
-      evidence:
-- [ ] G6 Doors. On the laptop, after ship: cargo test -p core, cargo test
+      ruling: Christian 2026-11-15: approved plan seal 2b01111ceef14935
+      evidence: laptop 2026-11-15 15:07 CST on 0c02204b: G5 test
+      g5_milestone_names_each_number_once passed, inside cargo test -p core
+      327 passed 0 failed, including all 7 int316.
+- [x] G6 Doors. On the laptop, after ship: cargo test -p core, cargo test
       -p novashell, nsh-test, and core intent validate.
       ask:
-      ruling:
-      evidence:
+      ruling: Christian 2026-11-15: approved plan seal 2b01111ceef14935
+      evidence: laptop 2026-11-15 15:07 CST on 0c02204b: ship core 5.0.0 ok;
+      doors 4/4 (core, shell, nsh-test 151.3s, validate); d 27/28, the only
+      warning Git Repository uncommitted changes. cargo test -p core
+      327 passed 0 failed, including all 7 int316.
 
 ## Out of scope
 - Stages 3 through 6.

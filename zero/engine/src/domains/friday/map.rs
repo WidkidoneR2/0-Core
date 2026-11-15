@@ -42,6 +42,7 @@ pub fn show(ctx: &AppContext) -> CoreResult<()> {
 }
 
 /// Intents, crates, and tools that touch `change`. One `git log --name-only`.
+/// An INT id is shown only when `zero_core::ledger` has that intent.
 pub fn impact(ctx: &AppContext, change: &str) -> CoreResult<()> {
     let repo = Path::new(&ctx.core_root);
     let file = normalize_path(change);
@@ -256,7 +257,33 @@ fn read_commits(repo: &Path) -> Result<Vec<Commit>, String> {
             out.status.code().unwrap_or(-1)
         ));
     }
-    Ok(parse_commits(&String::from_utf8_lossy(&out.stdout)))
+    let mut commits = parse_commits(&String::from_utf8_lossy(&out.stdout));
+    let known = ledger_numbers(repo);
+    for commit in &mut commits {
+        commit
+            .ids
+            .retain(|id| intent_number(id).is_some_and(|n| known.contains(&n)));
+    }
+    Ok(commits)
+}
+
+/// Intent numbers on the ledger under this repo. Records are not intents.
+/// Tests inject the ledger by writing `zero/intents/` in the same temp repo
+/// `render_map` and `impact` already read.
+fn ledger_numbers(repo: &Path) -> HashSet<u64> {
+    zero_core::ledger::load_from(&repo.join("zero/intents"))
+        .into_iter()
+        .filter(|file| !file.is_record())
+        .filter_map(|file| intent_number(&file.id))
+        .collect()
+}
+
+fn intent_number(id: &str) -> Option<u64> {
+    let id = id.trim().strip_prefix("INT-").unwrap_or(id.trim());
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    id.parse().ok()
 }
 
 fn parse_commits(raw: &str) -> Vec<Commit> {
@@ -463,7 +490,7 @@ fn tree_lines(
 }
 
 // INT-316 G3. Intent ids from one `git log --name-only`, kept when the subject
-// or a trailer names INT-NNN and the commit touches `file`.
+// or a trailer names INT-NNN, the commit touches `file`, and the ledger has the id.
 #[cfg(test)]
 fn impact_intents(repo: &Path, file: &str) -> Vec<String> {
     let Ok(commits) = read_commits(repo) else {
@@ -547,6 +574,8 @@ mod int316 {
         std::fs::write(&file, "two\n").unwrap();
         git(&dir, &["add", "zero/mapcrate/src/lib.rs"]);
         git(&dir, &["commit", "-m", "INT-314: tells the truth"]);
+        write_ledger_intent(&dir, "310");
+        write_ledger_intent(&dir, "314");
         TempDir(dir)
     }
 
@@ -574,7 +603,56 @@ mod int316 {
         std::fs::write(dir.join("bin/cargo-cache"), "bin\n").unwrap();
         git(&dir, &["init"]);
         git(&dir, &["add", "."]);
-        git(&dir, &["commit", "-m", "registry: cargo-cache has no crate"]);
+        git(
+            &dir,
+            &["commit", "-m", "registry: cargo-cache has no crate"],
+        );
+        TempDir(dir)
+    }
+
+    // The ledger the map reads: one intent file under zero/intents/open.
+    fn write_ledger_intent(dir: &std::path::Path, id: &str) {
+        let open = dir.join("zero/intents/open");
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::write(
+            open.join(format!("{id}-kept.md")),
+            format!("---\nid: {id}\nstatus: complete\ntitle: \"kept\"\n---\n"),
+        )
+        .unwrap();
+    }
+
+    // INT-999 is named by a commit and is not a ledger file. INT-310 is both.
+    fn repo_naming_an_id_the_ledger_lacks() -> TempDir {
+        let dir = std::env::temp_dir().join(format!(
+            "int316-map-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        let file = dir.join("zero/mapcrate/src/lib.rs");
+        std::fs::create_dir_all(file.parent().unwrap()).unwrap();
+        std::fs::create_dir_all(dir.join("registry")).unwrap();
+        std::fs::write(
+            dir.join("registry/tools.toml"),
+            "[[tool]]\nname = \"maptool\"\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("zero/mapcrate/Cargo.toml"),
+            "[package]\nname = \"mapcrate\"\nversion = \"0.0.0\"\nedition = \"2021\"\n",
+        )
+        .unwrap();
+        std::fs::write(&file, "one\n").unwrap();
+        git(&dir, &["init"]);
+        git(&dir, &["add", "."]);
+        git(&dir, &["commit", "-m", "INT-310: one reader"]);
+        std::fs::write(&file, "two\n").unwrap();
+        git(&dir, &["add", "zero/mapcrate/src/lib.rs"]);
+        git(&dir, &["commit", "-m", "INT-999: throwaway test id"]);
+        write_ledger_intent(&dir, "310");
         TempDir(dir)
     }
 
@@ -639,10 +717,29 @@ mod int316 {
     }
 
     #[test]
+    fn g3_an_id_absent_from_the_ledger_is_not_shown() {
+        let repo = repo_naming_an_id_the_ledger_lacks();
+        let file = "zero/mapcrate/src/lib.rs";
+        let got = impact_intents(&repo.0, file);
+        let text = render_map(&repo.0);
+        assert!(
+            !got.iter().any(|id| id == "INT-999") && !text.contains("INT-999"),
+            "INT-999 is not in the ledger, so impact and the map must not show it; impact={got:?} map={text:?}"
+        );
+        assert!(
+            got.iter().any(|id| id == "INT-310") && text.contains("INT-310"),
+            "INT-310 is in the ledger and touches {file}; impact={got:?} map={text:?}"
+        );
+    }
+
+    #[test]
     fn g3_a_tool_with_no_crate_and_no_commits_has_no_spark() {
         let repo = repo_with_crateless_tool();
         let text = render_map(&repo.0);
-        let line = text.lines().find(|l| l.contains("cargo-cache")).unwrap_or("");
+        let line = text
+            .lines()
+            .find(|l| l.contains("cargo-cache"))
+            .unwrap_or("");
         assert!(
             !line.is_empty() && !line.contains('✦'),
             "a tool with no crate and no intent commits must not spark (no registry mtime, no binary date); got {line:?} in {text:?}"
