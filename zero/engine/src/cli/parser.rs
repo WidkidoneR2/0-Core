@@ -512,14 +512,13 @@ pub enum FridayCommands {
     },
     /// INT-244 v22 -- list all recorded decisions
     Decisions,
-    /// INT-244 v22 -- show the system map (tools, deps, health)
-    MapShow,
+    /// Tool, crate, and intent map from the tree and from git
+    Map {
+        #[command(subcommand)]
+        action: Option<FridayMapCommand>,
+    },
     /// INT-244 v22 -- update the system map from current state
     MapUpdate,
-    #[command(
-        name = "map-impact",
-        about = "INT-244 v22 -- trace impact of a change across the system map"
-    )]
     #[command(
         name = "reason-engine",
         about = "INT-251 v23 -- run reasoning engine on event stream"
@@ -546,10 +545,6 @@ pub enum FridayCommands {
         #[arg(long, help = "Output as JSON")]
         json: bool,
     },
-    MapImpact {
-        #[arg(help = "Tool or component to analyze")]
-        change: String,
-    },
     /// INT-244 v22 -- show Friday self-review for last session
     SelfReview,
     /// INT-244 v22 Pillar 1 -- show pending doc proposals
@@ -570,6 +565,16 @@ pub enum FridayCommands {
     Attention,
     /// Show attention stats (INT-277)
     AttentionDebug,
+}
+
+/// `core friday map` with no subcommand shows the tree. `impact` names one file.
+#[derive(Subcommand, Clone)]
+pub enum FridayMapCommand {
+    /// Intents, tools, and crates that touched one file
+    Impact {
+        /// Path relative to the repository
+        file: String,
+    },
 }
 
 #[derive(Subcommand)]

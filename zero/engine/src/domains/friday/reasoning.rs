@@ -4,6 +4,7 @@
 use crate::app::context::AppContext;
 use crate::errors::CoreResult;
 use colored::*;
+use std::collections::BTreeSet;
 
 fn now_ts() -> i64 {
     use std::time::{SystemTime, UNIX_EPOCH};
@@ -36,7 +37,7 @@ pub enum ObservationKind {
     SystemWide,
 }
 
-/// The starter rule set -- 7 rules covering key system patterns
+/// The starter rule set -- 8 rules covering key system patterns
 pub fn starter_rules() -> Vec<Rule> {
     vec![
         Rule {
@@ -286,6 +287,19 @@ pub fn starter_rules() -> Vec<Rule> {
             }
             },
         },
+        Rule {
+            name: "probe_after_pacman_syu",
+            description: "A probe went from pass to warn after a pacman -Syu",
+            check: |ctx| {
+                cite_probe_change(&ctx.runtime.db, std::path::Path::new(PACMAN_LOG)).map(
+                    |conclusion| Observation {
+                        conclusion,
+                        confidence: 0.85,
+                        kind: ObservationKind::Causal,
+                    },
+                )
+            },
+        },
     ]
 }
 
@@ -349,12 +363,206 @@ pub fn show(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-// INT-316 G4. Cite a probe status change when `pacman_log` records a -Syu.
-// The path is injectable. No root. Red stub: cites nothing.
-#[cfg(test)]
+/// Read-only pacman log. Missing or unreadable is no citation, never an error.
+const PACMAN_LOG: &str = "/var/log/pacman.log";
+
+// INT-316 G4. Previous and current probe status, from source='probe' rows in
+// friday_observations or friday_knowledge. When one went pass to warn and the
+// log records a `pacman -Syu`, cite it. The path is injectable. No root.
 fn cite_probe_change(db: &rusqlite::Connection, pacman_log: &std::path::Path) -> Option<String> {
-    let _ = (db, pacman_log);
-    None
+    let syu = latest_syu(pacman_log)?;
+    let samples = probe_samples(db);
+    pass_to_warn(&samples, syu)
+}
+
+struct ProbeSample {
+    ts: i64,
+    name: String,
+    status: String,
+}
+
+fn latest_syu(path: &std::path::Path) -> Option<i64> {
+    let text = std::fs::read_to_string(path).ok()?;
+    let mut best: Option<i64> = None;
+    let mut saw = false;
+    for line in text.lines() {
+        if !line.contains("pacman -Syu") {
+            continue;
+        }
+        saw = true;
+        if let Some(ts) = pacman_line_ts(line) {
+            best = Some(best.map_or(ts, |b| b.max(ts)));
+        }
+    }
+    if best.is_some() {
+        best
+    } else if saw {
+        Some(0)
+    } else {
+        None
+    }
+}
+
+fn pacman_line_ts(line: &str) -> Option<i64> {
+    let rest = line.split_once('[')?.1;
+    let stamp = rest.split_once(']')?.0;
+    let (date, time) = stamp.split_once('T')?;
+    let mut date_parts = date.split('-');
+    let year: i32 = date_parts.next()?.parse().ok()?;
+    let month: u32 = date_parts.next()?.parse().ok()?;
+    let day: u32 = date_parts.next()?.parse().ok()?;
+    if time.len() < 8 {
+        return None;
+    }
+    let mut clock = time[..8].split(':');
+    let hour: u32 = clock.next()?.parse().ok()?;
+    let min: u32 = clock.next()?.parse().ok()?;
+    let sec: u32 = clock.next()?.parse().ok()?;
+    let offset = tz_offset(&time[8..])?;
+    let naive = chrono::NaiveDate::from_ymd_opt(year, month, day)?.and_hms_opt(hour, min, sec)?;
+    Some(naive.and_utc().timestamp() - i64::from(offset))
+}
+
+fn tz_offset(tz: &str) -> Option<i32> {
+    let tz = tz.trim();
+    if tz.is_empty() {
+        return Some(0);
+    }
+    let (sign, rest) = tz
+        .strip_prefix('+')
+        .map(|rest| (1, rest))
+        .or_else(|| tz.strip_prefix('-').map(|rest| (-1, rest)))?;
+    let rest = rest.replace(':', "");
+    if rest.len() < 4 {
+        return None;
+    }
+    let hours: i32 = rest[..2].parse().ok()?;
+    let mins: i32 = rest[2..4].parse().ok()?;
+    Some(sign * (hours * 3600 + mins * 60))
+}
+
+fn status_word(word: &str) -> Option<&str> {
+    let word = word.trim_matches(|c: char| matches!(c, '.' | ',' | ';'));
+    match word {
+        "pass" | "warn" | "fail" | "blocked" | "unknown" => Some(word),
+        _ => None,
+    }
+}
+
+fn parse_probe(content: &str) -> Option<(String, String)> {
+    let content = content.trim();
+    if content.is_empty() {
+        return None;
+    }
+    if let Some((name, rest)) = content.split_once(':') {
+        let name = name.trim();
+        let word = rest.split_whitespace().next().unwrap_or("");
+        let status = status_word(word)?;
+        if name.is_empty() {
+            return None;
+        }
+        return Some((name.to_string(), status.to_string()));
+    }
+    let parts: Vec<&str> = content.split_whitespace().collect();
+    if parts.len() < 2 {
+        return None;
+    }
+    let status = status_word(parts[parts.len() - 1])?;
+    let name = parts[..parts.len() - 1].join(" ");
+    if name.is_empty() {
+        None
+    } else {
+        Some((name, status.to_string()))
+    }
+}
+
+fn push_sample(
+    out: &mut Vec<ProbeSample>,
+    seen: &mut BTreeSet<(i64, String, String)>,
+    ts: i64,
+    content: &str,
+) {
+    let Some((name, status)) = parse_probe(content) else {
+        return;
+    };
+    if seen.insert((ts, name.clone(), status.clone())) {
+        out.push(ProbeSample { ts, name, status });
+    }
+}
+
+fn probe_samples(db: &rusqlite::Connection) -> Vec<ProbeSample> {
+    let mut out = Vec::new();
+    let mut seen = BTreeSet::new();
+    if let Ok(mut stmt) =
+        db.prepare("SELECT timestamp, content FROM friday_observations WHERE source = 'probe'")
+    {
+        if let Ok(rows) = stmt.query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        }) {
+            for row in rows.flatten() {
+                push_sample(&mut out, &mut seen, row.0, &row.1);
+            }
+        }
+    }
+    if let Ok(mut stmt) =
+        db.prepare("SELECT updated_at, fact FROM friday_knowledge WHERE source = 'probe'")
+    {
+        if let Ok(rows) = stmt.query_map([], |row| {
+            Ok((row.get::<_, i64>(0)?, row.get::<_, String>(1)?))
+        }) {
+            for row in rows.flatten() {
+                push_sample(&mut out, &mut seen, row.0, &row.1);
+            }
+        }
+    }
+    out
+}
+
+fn pass_to_warn(samples: &[ProbeSample], syu: i64) -> Option<String> {
+    use std::collections::BTreeMap;
+    let mut by: BTreeMap<&str, Vec<&ProbeSample>> = BTreeMap::new();
+    for sample in samples {
+        by.entry(sample.name.as_str()).or_default().push(sample);
+    }
+    let mut strict = Vec::new();
+    let mut fallback = Vec::new();
+    for (name, mut group) in by {
+        group.sort_by_key(|s| s.ts);
+        let before = group.iter().rev().find(|s| s.ts <= syu);
+        let after = group.iter().rev().find(|s| s.ts > syu);
+        // A row on each side of the -Syu is the comparison. An older pass-to-warn
+        // does not count once a later row already says what the probe is.
+        if let (Some(before), Some(after)) = (before, after) {
+            if before.status == "pass" && after.status == "warn" {
+                strict.push(name);
+            }
+            continue;
+        }
+        let Some(current) = group.last() else {
+            continue;
+        };
+        let previous = group
+            .iter()
+            .rev()
+            .skip(1)
+            .find(|s| s.status != current.status);
+        if let Some(previous) = previous {
+            if previous.status == "pass" && current.status == "warn" {
+                fallback.push(name);
+            }
+        }
+    }
+    let names = if strict.is_empty() { fallback } else { strict };
+    if names.is_empty() {
+        return None;
+    }
+    Some(
+        names
+            .iter()
+            .map(|name| format!("{name} went from pass to warn after a pacman -Syu"))
+            .collect::<Vec<_>>()
+            .join("\n"),
+    )
 }
 
 #[cfg(test)]

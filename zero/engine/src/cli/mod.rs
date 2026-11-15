@@ -85,7 +85,10 @@ pub fn parse() -> Command {
                 FridayCommand::Decide { what, why, ties_to }
             }
             FridayCommands::Decisions => FridayCommand::Decisions,
-            FridayCommands::MapShow => FridayCommand::MapShow,
+            FridayCommands::Map { action } => match action {
+                None => FridayCommand::MapShow,
+                Some(FridayMapCommand::Impact { file }) => FridayCommand::MapImpact(file),
+            },
             FridayCommands::MapUpdate => FridayCommand::MapUpdate,
             FridayCommands::EventBus {
                 domain,
@@ -97,7 +100,6 @@ pub fn parse() -> Command {
                 json,
             },
             FridayCommands::ReasonEngine => FridayCommand::ReasonEngine,
-            FridayCommands::MapImpact { change } => FridayCommand::MapImpact(change),
             FridayCommands::SelfReview => FridayCommand::SelfReview,
             FridayCommands::Docs => FridayCommand::Docs,
             FridayCommands::DocsAnalyze => FridayCommand::DocsAnalyze,
@@ -780,5 +782,5 @@ use crate::cli::commands::DeployCommand;
 use crate::cli::commands::{FridayArchCommand, FridayCommand, KnowledgeCommand, SynthesizeCommand};
 use crate::cli::parser::DeployCommands;
 use crate::cli::parser::{
-    FridayArchCommands, FridayCommands, KnowledgeCommands, SynthesizeCommands,
+    FridayArchCommands, FridayCommands, FridayMapCommand, KnowledgeCommands, SynthesizeCommands,
 };
