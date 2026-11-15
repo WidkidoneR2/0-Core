@@ -455,9 +455,12 @@ fn check_intent_drift(ctx: &AppContext) -> CoreResult<Option<String>> {
     if recent_lifecycle > 0 {
         return Ok(None);
     }
-    let in_progress_count = zero_core::ledger::load()
+    let in_progress_count = crate::domains::intent::read_open()
         .into_iter()
-        .filter(|file| !file.is_record() && file.status == "in-progress")
+        .filter(|row| {
+            !crate::domains::intent::folders::RECORDS.contains(&row.intent.folder.as_str())
+        })
+        .filter(|row| row.intent.status == "in-progress")
         .count();
     if in_progress_count > 0 {
         let msg = format!(
@@ -999,10 +1002,13 @@ pub fn anticipate(ctx: &AppContext) -> CoreResult<()> {
 /// Find intent IDs whose frontmatter status is in-progress.
 /// Returns vector of "INT-XXX" style identifiers.
 pub fn active_intents() -> Vec<String> {
-    let mut ids: Vec<String> = zero_core::ledger::load()
+    let mut ids: Vec<String> = crate::domains::intent::read_open()
         .into_iter()
-        .filter(|file| !file.is_record() && file.status == "in-progress")
-        .map(|file| format!("INT-{}", file.id))
+        .filter(|row| {
+            !crate::domains::intent::folders::RECORDS.contains(&row.intent.folder.as_str())
+        })
+        .filter(|row| row.intent.status == "in-progress")
+        .map(|row| format!("INT-{}", row.intent.id))
         .filter(|id| id[4..].chars().all(|c| c.is_ascii_digit()))
         .collect();
     ids.sort();

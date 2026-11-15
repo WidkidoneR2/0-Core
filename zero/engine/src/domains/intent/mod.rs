@@ -106,41 +106,56 @@ pub(crate) fn in_progress_ids(ctx: &AppContext) -> Vec<String> {
         .collect()
 }
 
-/// One shelf read. Gates are empty until the green commit attaches read_gates.
+/// One shelf read. ledger::load plus gates::read_gates.
 pub struct OpenRead {
     pub intent: Intent,
     pub gates: gates::GateReport,
 }
 
 pub fn read_open() -> Vec<OpenRead> {
-    load_all_shelf()
+    let mut rows: Vec<OpenRead> = zero_core::ledger::load()
         .into_iter()
-        .map(|intent| OpenRead {
-            intent,
-            gates: gates::GateReport::default(),
+        .filter_map(|file| {
+            let intent = parse_intent(&file.path, &file.folder)?;
+            let gates = gates::read_gates(&file.content);
+            Some(OpenRead { intent, gates })
         })
-        .collect()
+        .collect();
+    rows.sort_by(|a, b| a.intent.id.cmp(&b.intent.id));
+    rows
 }
 
-/// Display-only. Empty until Friday is wired to read_gates.
-pub fn gate_progress_line(_id: &str, _done: usize, _total: usize) -> String {
-    String::new()
+/// Display-only. `INT-310 2/5 gates`. cicomplete does not read this.
+pub fn gate_progress_line(id: &str, done: usize, total: usize) -> String {
+    format!("INT-{id} {done}/{total} gates")
+}
+
+/// One line per in-progress intent. Records stay out. Nothing is written.
+pub fn gate_progress_lines() -> Vec<String> {
+    let mut lines: Vec<String> = read_open()
+        .into_iter()
+        .filter(|row| row.intent.status == "in-progress")
+        .filter(|row| {
+            !crate::domains::intent::folders::RECORDS.contains(&row.intent.folder.as_str())
+        })
+        .map(|row| {
+            let total = row.gates.gates.len();
+            let done = row
+                .gates
+                .gates
+                .iter()
+                .filter(|gate| gate.state == gates::GateState::Done)
+                .count();
+            gate_progress_line(&row.intent.id, done, total)
+        })
+        .collect();
+    lines.sort();
+    lines
 }
 
 fn load_all(ctx: &AppContext) -> Vec<Intent> {
     let _ = ctx;
-    load_all_shelf()
-}
-
-fn load_all_shelf() -> Vec<Intent> {
-    // INT-313 stage 2. The shelf walk lives in zero_core::ledger. A missing
-    // directory is skipped there. Status is the frontmatter line.
-    let mut intents: Vec<Intent> = zero_core::ledger::load()
-        .into_iter()
-        .filter_map(|file| parse_intent(&file.path, &file.folder))
-        .collect();
-    intents.sort_by(|a, b| a.id.cmp(&b.id));
-    intents
+    read_open().into_iter().map(|row| row.intent).collect()
 }
 
 fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
@@ -247,7 +262,7 @@ pub fn list(
             Capability::FilesystemWriteHome,
         ],
     )?;
-    let intents = load_all(ctx);
+    let intents: Vec<Intent> = read_open().into_iter().map(|row| row.intent).collect();
 
     let filtered: Vec<&Intent> = intents
         .iter()

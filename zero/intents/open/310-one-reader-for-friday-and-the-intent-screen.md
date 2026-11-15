@@ -53,7 +53,7 @@ file, dated, in his words. Declining a gate, with the reason, closes it. No
 code is written before G1 and G2 have those lines.
 
 ## Success Criteria
-- [ ] G0 The recon in The Problem is read against the tree and either stands or
+- [x] G0 The recon in The Problem is read against the tree and either stands or
       is corrected here before any other gate. Re-read: phase2.rs:212 names
       future and active, planning.rs:459 and 1014 join HOME to future,
       seed_knowledge's list is mod.rs:176, and it loads three directories at
@@ -61,14 +61,14 @@ code is written before G1 and G2 have those lines.
       stands, or the correction.
       ruling: RULED 2026-11-15 (Christian): re-read against 0bef81a7. Those folder lists are gone. phase2::open_intent_rows uses ledger::live. planning.rs and seed_knowledge use ledger::load. seed_knowledge still counts a record whose status is complete. it load_intents uses ledger::load and keeps planned and in-progress. Terminal::new failure disables raw mode and does not leave the alternate screen. Friday and it do not call gates::read_gates.
       evidence: the ruling line above.
-- [ ] G1 Friday. Christian rules the cut. One shape to accept, change, or
+- [x] G1 Friday. Christian rules the cut. One shape to accept, change, or
       reject: phase2::plan, the two planning.rs readers, and seed_knowledge
       ask load_all and folders. The private lists, including active, deferred,
       and the HOME joins, go. A quoted "status: planned" in a body is not a
       second status. Proof: the RULED line.
       ruling: RULED 2026-11-15 (Christian): keep Friday on ledger::with_status and ledger::live. Drop records from seed_knowledge's complete count. A body quote is not a status.
       evidence: the ruling line above.
-- [ ] G2 `it`. Christian rules the folders and the failure path. One shape to
+- [x] G2 `it`. Christian rules the folders and the failure path. One shape to
       accept, change, or reject: load_intents uses the same reader as core
       intent list, including planned, cancelled, and the record directories.
       Findings stay out. The terminal is restored on failure, including when
@@ -76,12 +76,14 @@ code is written before G1 and G2 have those lines.
       ruling: RULED 2026-11-15 (Christian): it shows planned and in-progress only. Records and findings stay out. A Drop guard restores raw mode and leaves the alternate screen when Terminal::new fails and when the loop panics.
       evidence: the ruling line above.
       ruling: RULED 2026-11-15 (Christian): Friday shows one display-only line per in-progress intent, INT-310 2/5 gates, read from gates::read_gates. No writes. cicomplete stays the judge.
-- [ ] G3 Red, then the readers, only after G1 and G2 are ruled. Shown failing
+- [x] G3 Red, then the readers, only after G1 and G2 are ruled. Shown failing
       first, under its own plan Seal: Friday misses an in-progress intent, and
       `it` leaves the terminal raw when the screen fails to open. Then the
       same tests pass. The suite is cargo test -p core and cargo test -p
       novashell. Proof: the red output, then the green output, each under its
       plan Seal.
+      ruling: RULED 2026-11-15 (Christian): red first, then the shared reader.
+      evidence: red commit c01dee3b, core 0 passed 3 failed, novashell 0 passed 1 failed. Green: cargo test -p core 298 passed; cargo test -p novashell 263 passed.
 - [ ] G4 Doors, after any ship. cargo test -p core passes. cargo test -p
       novashell passes. nsh-test passes after cargo build -p novashell -p
       nsh-test. core intent validate reports every intent valid. d reports 0

@@ -47,27 +47,32 @@ struct Intent {
     path: PathBuf,
     content: String,
 }
-/// What a failed open restores. Raw mode only, until the Drop guard lands.
+/// What a failed open restores: leave the alternate screen, then raw mode.
+#[cfg(test)]
 pub(crate) fn failed_open_steps() -> &'static [&'static str] {
-    &["raw-off"]
+    &["alt-off", "raw-off"]
+}
+
+struct ScreenGuard;
+impl Drop for ScreenGuard {
+    fn drop(&mut self) {
+        let mut stdout = io::stdout();
+        let _ = execute!(stdout, LeaveAlternateScreen);
+        let _ = disable_raw_mode();
+    }
 }
 
 pub fn run_intent_tui(core_root: &str) {
+    let _guard = ScreenGuard;
     let _ = enable_raw_mode();
     let mut stdout = io::stdout();
     let _ = execute!(stdout, EnterAlternateScreen);
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = match Terminal::new(backend) {
         Ok(t) => t,
-        Err(_) => {
-            let _ = disable_raw_mode();
-            return;
-        }
+        Err(_) => return,
     };
     run_loop(&mut terminal, core_root);
-    let mut stdout = io::stdout();
-    let _ = execute!(stdout, LeaveAlternateScreen);
-    let _ = disable_raw_mode();
 }
 fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, core_root: &str) {
     let mut filter = StatusFilter::All;
@@ -449,10 +454,47 @@ fn render_intent_detail(intent: &Intent) -> Vec<Line<'static>> {
     }
     lines
 }
+fn front_field(content: &str, key: &str) -> String {
+    let fm = content.split("---").nth(1).unwrap_or("");
+    fm.lines()
+        .find(|line| line.trim_start().starts_with(&format!("{key}:")))
+        .map(|line| {
+            line.split_once(':')
+                .map(|(_, value)| value)
+                .unwrap_or("")
+                .trim()
+                .trim_matches('"')
+                .trim_matches(|c| c == '[' || c == ']')
+                .to_string()
+        })
+        .unwrap_or_default()
+}
+
+fn body_after_frontmatter(content: &str) -> String {
+    let mut seen = 0;
+    let mut body = Vec::new();
+    for line in content.lines() {
+        if line.trim() == "---" {
+            seen += 1;
+            if seen == 2 {
+                continue;
+            }
+            if seen > 2 {
+                body.push(line);
+            }
+            continue;
+        }
+        if seen >= 2 {
+            body.push(line);
+        }
+    }
+    body.join("\n")
+}
+
 fn load_intents(_core_root: &str) -> Vec<Intent> {
     let mut intents: Vec<Intent> = Vec::new();
-    // Finished intents are git history. This screen shows the live shelf:
-    // in-progress and planned. Records stay out.
+    // Same shelf walk as intent::read_open. Planned and in-progress only.
+    // Records stay out. Status, id, and title come from the ledger, not a second parse.
     if crate::core_integration::intents_root().is_none() {
         return intents;
     }
@@ -463,9 +505,15 @@ fn load_intents(_core_root: &str) -> Vec<Intent> {
         if !matches!(file.status.as_str(), "planned" | "in-progress") {
             continue;
         }
-        if let Some(intent) = parse_intent(&file.path, &file.content) {
-            intents.push(intent);
-        }
+        intents.push(Intent {
+            id: file.id,
+            title: file.title,
+            status: file.status,
+            date: front_field(&file.content, "date"),
+            tags: front_field(&file.content, "tags"),
+            path: file.path,
+            content: body_after_frontmatter(&file.content),
+        });
     }
     // Sort: in-progress first, then planned, then by ID
     intents.sort_by(|a, b| {
@@ -481,67 +529,6 @@ fn load_intents(_core_root: &str) -> Vec<Intent> {
         )
     });
     intents
-}
-fn parse_intent(path: &std::path::Path, content: &str) -> Option<Intent> {
-    let mut id = String::new();
-    let mut title = String::new();
-    let mut status = String::new();
-    let mut date = String::new();
-    let mut tags = String::new();
-    let mut in_frontmatter = false;
-    let mut frontmatter_done = false;
-    let mut body_lines: Vec<&str> = Vec::new();
-    let mut dash_count = 0;
-    for line in content.lines() {
-        if line.trim() == "---" {
-            dash_count += 1;
-            if dash_count == 1 {
-                in_frontmatter = true;
-                continue;
-            }
-            if dash_count == 2 {
-                in_frontmatter = false;
-                frontmatter_done = true;
-                continue;
-            }
-        }
-        if in_frontmatter {
-            if line.starts_with("id:") {
-                id = line.trim_start_matches("id:").trim().to_string();
-            } else if line.starts_with("title:") {
-                title = line
-                    .trim_start_matches("title:")
-                    .trim()
-                    .trim_matches('"')
-                    .to_string();
-            } else if line.starts_with("status:") {
-                status = line.trim_start_matches("status:").trim().to_string();
-            } else if line.starts_with("date:") {
-                date = line.trim_start_matches("date:").trim().to_string();
-            } else if line.starts_with("tags:") {
-                tags = line
-                    .trim_start_matches("tags:")
-                    .trim()
-                    .trim_matches('[')
-                    .trim_matches(']')
-                    .to_string();
-            }
-        } else if frontmatter_done {
-            body_lines.push(line);
-        }
-    }
-    if id.is_empty() || title.is_empty() {
-        return None;
-    }
-    Some(Intent {
-        id,
-        title,
-        status,
-        date,
-        tags,
-        path: path.to_path_buf(),
-        content: body_lines.join("\n"),
-    })
 }
 fn filter_intents(intents: &[Intent], filter: &StatusFilter, query: &str) -> Vec<Intent> {
     intents

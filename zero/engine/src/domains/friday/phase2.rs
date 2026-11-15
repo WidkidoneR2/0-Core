@@ -201,10 +201,13 @@ pub fn show_temporal_models(ctx: &AppContext) -> CoreResult<()> {
 /// `status: in-progress` does not open a planned intent, and `future/` or
 /// `active/` are not read.
 pub(crate) fn open_intent_rows() -> Vec<(String, String, String)> {
-    let mut rows: Vec<(String, String, String)> = zero_core::ledger::live()
+    let mut rows: Vec<(String, String, String)> = crate::domains::intent::read_open()
         .into_iter()
-        .filter(|f| f.status == "planned" || f.status == "in-progress")
-        .map(|f| (f.id, f.title, f.status))
+        .filter(|row| {
+            !crate::domains::intent::folders::RECORDS.contains(&row.intent.folder.as_str())
+        })
+        .filter(|row| row.intent.status == "planned" || row.intent.status == "in-progress")
+        .map(|row| (row.intent.id, row.intent.title, row.intent.status))
         .collect();
     rows.sort_by(|a, b| a.0.cmp(&b.0));
     rows

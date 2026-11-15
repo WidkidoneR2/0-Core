@@ -474,6 +474,17 @@ pub fn run(ctx: &AppContext) -> CoreResult<()> {
         ],
     );
     println!();
+    for line in crate::domains::intent::gate_progress_lines() {
+        let mut parts = line.splitn(2, ' ');
+        let id = parts.next().unwrap_or("");
+        let rest = parts.next().unwrap_or("");
+        println!(
+            "    {} {} {}",
+            "✦".bright_magenta(),
+            id.bright_cyan(),
+            rest.bright_green()
+        );
+    }
     println!("  {} Friday brief:", "💡".normal());
     println!("  {}", brief.bright_white());
     println!();

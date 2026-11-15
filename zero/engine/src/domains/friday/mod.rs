@@ -170,7 +170,7 @@ fn sync_knowledge_meta(db: &rusqlite::Connection) -> rusqlite::Result<()> {
 fn completed_intent_count() -> usize {
     zero_core::ledger::load()
         .into_iter()
-        .filter(|file| file.status == "complete")
+        .filter(|file| !file.is_record() && file.status == "complete")
         .count()
 }
 
