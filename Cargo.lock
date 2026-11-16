@@ -504,7 +504,7 @@ dependencies = [
 
 [[package]]
 name = "core"
-version = "5.1.1"
+version = "5.1.2"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3689,7 +3689,7 @@ dependencies = [
 
 [[package]]
 name = "zero-gate"
-version = "0.1.1"
+version = "0.1.2"
 dependencies = [
  "libc",
 ]

@@ -3,7 +3,7 @@ id: 318
 date: 2026-11-15
 type: future
 title: "Bug batch 2: name dropped intents, honest gate footer, doctor history table"
-status: in-progress
+status: complete
 tags: [bugs, ledger]
 format: 2
 ---
@@ -54,3 +54,7 @@ Doctor history reads health_patterns.
 
 ## Out of scope
 - F-0012, F-0054, F-0013, and the other batches are out of scope.
+
+## Versions
+- core 5.1.1 -> 5.1.2 (patch)
+- zero-gate 0.1.1 -> 0.1.2 (patch)

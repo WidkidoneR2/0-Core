@@ -10,7 +10,7 @@ Project 0's tool ecosystem: 17 active tools (plus 0 retired), each a purpose-bui
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| [`core`](../engine/) | 5.1.1 | The single Rust engine at the heart of Project 0 -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary. |
+| [`core`](../engine/) | 5.1.2 | The single Rust engine at the heart of Project 0 -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary. |
 | [`zero-daemon`](./zero-daemon/) | 5.0.0 | Background daemon for Project 0 operations |
 
 ## Development
@@ -22,7 +22,7 @@ Project 0's tool ecosystem: 17 active tools (plus 0 retired), each a purpose-bui
 | [`ship`](./ship/) | 1.0.2 | Build the workspace and place binaries where PATH can see them |
 | [`teach`](./teach/) | 4.0.2 | Live system narrator — adapts to newcomer or expert |
 | [`zero-deadwood`](./zero-deadwood/) | 1.1.0 | - |
-| [`zero-gate`](./zero-gate/) | 0.1.1 | - |
+| [`zero-gate`](./zero-gate/) | 0.1.2 | - |
 | [`zero-git`](./zero-git/) | 5.2.0 | Git governance for Project 0 -- guarded commits, health-aware verification, and intent-commit genealogy. |
 | [`zero-sandbox`](./zero-sandbox/) | 3.0.2 | Project 0's process boundary -- a policy engine with namespace isolation, so nothing runs unconfined without explicit authorization. |
 
