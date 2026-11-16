@@ -121,7 +121,7 @@ fn split_ledger() -> (Vec<OpenRead>, Vec<String>) {
         if let Some(intent) = parse_intent(&file.path, &file.folder) {
             let gates = gates::read_gates(&file.content);
             rows.push(OpenRead { intent, gates });
-        } else {
+        } else if !is_index_frontmatter(&file.content) {
             let filename = file
                 .path
                 .file_name()
@@ -141,6 +141,16 @@ pub fn read_open() -> Vec<OpenRead> {
 
 pub fn unread_intent_files() -> Vec<String> {
     split_ledger().1
+}
+
+/// True when the frontmatter between the first two `---` has a line that trims
+/// to `type: index`. The body is not consulted.
+fn is_index_frontmatter(content: &str) -> bool {
+    content
+        .split("---")
+        .nth(1)
+        .map(|fm| fm.lines().any(|l| l.trim() == "type: index"))
+        .unwrap_or(false)
 }
 
 /// Display-only. `INT-310 2/5 gates`. cicomplete does not read this.
@@ -615,12 +625,7 @@ pub fn validate_issues() -> (usize, Vec<String>, Vec<String>) {
             // Only the FRONTMATTER decides. A `content.contains("type: index")` here skipped
             // any charter that merely QUOTED the string -- including INT-135's own, which
             // documents this exemption. The validator could not see the intent that built it.
-            let is_index = content
-                .split("---")
-                .nth(1)
-                .map(|fm| fm.lines().any(|l| l.trim() == "type: index"))
-                .unwrap_or(false);
-            if is_index {
+            if is_index_frontmatter(&content) {
                 continue;
             }
 
@@ -5428,6 +5433,37 @@ mod f0002_tests {
                 "  ⚠ 1 intent file(s) could not be read: open/901-notitle.md".to_string(),
                 "    run core intent validate for the reason".to_string(),
             ]
+        );
+    }
+
+    /// F-0002. An index file is not an intent. validate_issues skips `type: index`
+    /// in the frontmatter, and the unread list does too. A file with no title
+    /// beside it is still named.
+    #[test]
+    fn f0002_index_frontmatter_is_not_unread() {
+        let dir = ledger_home();
+        let incidents = dir.join("0-core/zero/intents/incidents");
+        std::fs::create_dir_all(&incidents).unwrap();
+        std::fs::write(
+            incidents.join("00-INDEX.md"),
+            "---\ntype: index\n---\ntitle: \"Incident Log Index\"\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("0-core/zero/intents/open/901-notitle.md"),
+            "---\nid: 901\nstatus: planned\ndate: 2026-11-15\n---\n\n",
+        )
+        .unwrap();
+        let unread =
+            super::status_is_not_the_folder_tests::with_home(&dir, super::unread_intent_files);
+        let _ = std::fs::remove_dir_all(&dir);
+        assert!(
+            unread.iter().any(|name| name == "open/901-notitle.md"),
+            "the no-title file is still unread: {unread:?}"
+        );
+        assert!(
+            unread.iter().all(|name| !name.contains("00-INDEX")),
+            "an index file was named unread: {unread:?}"
         );
     }
 }
