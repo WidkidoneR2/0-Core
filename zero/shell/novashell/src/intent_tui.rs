@@ -1,14 +1,17 @@
 // INT-254: it -- Intent Ledger as Ratatui TUI
-// Two-pane: left=intent list (filterable), right=full intent detail
-// Keys: j/k navigate, tab=cycle filter, enter=expand, e=edit, q=quit, /=search
+// INT-319: Tab focuses a pane. PgUp/PgDn page that pane. Home/End and the wheel scroll.
+// Keys: j/k move, tab=pane, f=filter, home/end, e=edit, q=quit, /=search
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    event::{
+        self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
+        MouseEventKind,
+    },
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 use ratatui::{
     backend::CrosstermBackend,
-    layout::{Constraint, Direction, Layout},
+    layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, BorderType, Borders, List, ListItem, ListState, Paragraph, Wrap},
@@ -47,17 +50,54 @@ struct Intent {
     path: PathBuf,
     content: String,
 }
-/// What a failed open restores: leave the alternate screen, then raw mode.
+/// What a failed open restores: mouse capture, the alternate screen, then raw mode.
 #[cfg(test)]
 pub(crate) fn failed_open_steps() -> &'static [&'static str] {
-    &["alt-off", "raw-off"]
+    &["mouse-off", "alt-off", "raw-off"]
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Focus {
+    List,
+    Detail,
+}
+
+struct Split {
+    list: Rect,
+    detail: Rect,
+    list_rows: usize,
+}
+
+fn pane_under(split: &Split, column: u16, row: u16) -> Option<Focus> {
+    let top = split.list.y;
+    let bottom = split.list.y.saturating_add(split.list.height);
+    if row < top || row >= bottom {
+        return None;
+    }
+    if column >= split.list.x && column < split.list.x.saturating_add(split.list.width) {
+        Some(Focus::List)
+    } else if column >= split.detail.x && column < split.detail.x.saturating_add(split.detail.width)
+    {
+        Some(Focus::Detail)
+    } else {
+        None
+    }
+}
+
+fn pane_border(focused: bool) -> Style {
+    if focused {
+        Style::default().fg(Color::Rgb(107, 227, 163))
+    } else {
+        Style::default().fg(Color::Rgb(50, 80, 55))
+    }
 }
 
 struct ScreenGuard;
 impl Drop for ScreenGuard {
     fn drop(&mut self) {
+        // Quit, Terminal::new failing, and a panic all drop this guard.
         let mut stdout = io::stdout();
-        let _ = execute!(stdout, LeaveAlternateScreen);
+        let _ = execute!(stdout, DisableMouseCapture, LeaveAlternateScreen);
         let _ = disable_raw_mode();
     }
 }
@@ -66,7 +106,7 @@ pub fn run_intent_tui(core_root: &str) {
     let _guard = ScreenGuard;
     let _ = enable_raw_mode();
     let mut stdout = io::stdout();
-    let _ = execute!(stdout, EnterAlternateScreen);
+    let _ = execute!(stdout, EnterAlternateScreen, EnableMouseCapture);
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = match Terminal::new(backend) {
         Ok(t) => t,
@@ -84,10 +124,16 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, core_root: &s
         list_state.select(Some(0));
     }
     let mut detail_scroll: u16 = 0;
+    let mut focus = Focus::List;
+    let mut split = Split {
+        list: Rect::default(),
+        detail: Rect::default(),
+        list_rows: 1,
+    };
     loop {
         let filtered = filter_intents(&intents, &filter, &search_query);
         let _ = terminal.draw(|f| {
-            draw_ui(
+            split = draw_ui(
                 f,
                 &filtered,
                 &mut list_state,
@@ -96,86 +142,186 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, core_root: &s
                 searching,
                 detail_scroll,
                 &intents,
+                focus,
             );
         });
-        if let Ok(Event::Key(KeyEvent {
-            code, modifiers, ..
-        })) = event::read()
-        {
-            if searching {
-                match code {
-                    KeyCode::Esc => {
-                        searching = false;
+        match event::read() {
+            Ok(Event::Key(KeyEvent {
+                code, modifiers, ..
+            })) => {
+                if searching {
+                    match code {
+                        KeyCode::Esc => {
+                            searching = false;
+                            search_query.clear();
+                        }
+                        KeyCode::Enter => {
+                            searching = false;
+                        }
+                        KeyCode::Backspace => {
+                            search_query.pop();
+                        }
+                        KeyCode::Char(c) => {
+                            search_query.push(c);
+                            list_state.select(Some(0));
+                            detail_scroll = 0;
+                        }
+                        _ => {}
+                    }
+                    continue;
+                }
+                match (code, modifiers) {
+                    (KeyCode::Char('q'), _) | (KeyCode::Esc, _) => return,
+                    (KeyCode::Char('c'), KeyModifiers::CONTROL) => return,
+                    (KeyCode::Down, _) | (KeyCode::Char('j'), _) => {
+                        let filtered = filter_intents(&intents, &filter, &search_query);
+                        let i = list_state.selected().unwrap_or(0);
+                        let next = (i + 1).min(filtered.len().saturating_sub(1));
+                        list_state.select(Some(next));
+                        detail_scroll = 0;
+                    }
+                    (KeyCode::Up, _) | (KeyCode::Char('k'), _) => {
+                        let i = list_state.selected().unwrap_or(0);
+                        list_state.select(Some(i.saturating_sub(1)));
+                        detail_scroll = 0;
+                    }
+                    (KeyCode::Tab, _) => {
+                        focus = match focus {
+                            Focus::List => Focus::Detail,
+                            Focus::Detail => Focus::List,
+                        };
+                    }
+                    (KeyCode::Char('f'), _) => {
+                        filter = filter.next();
+                        let filtered = filter_intents(&intents, &filter, &search_query);
+                        if filtered.is_empty() {
+                            list_state.select(None);
+                        } else {
+                            list_state.select(Some(0));
+                        }
+                        detail_scroll = 0;
+                    }
+                    (KeyCode::Char('/'), _) => {
+                        searching = true;
                         search_query.clear();
                     }
-                    KeyCode::Enter => {
-                        searching = false;
-                    }
-                    KeyCode::Backspace => {
-                        search_query.pop();
-                    }
-                    KeyCode::Char(c) => {
-                        search_query.push(c);
+                    (KeyCode::Char('r'), _) => {
+                        intents = load_intents(core_root);
                         list_state.select(Some(0));
                         detail_scroll = 0;
                     }
-                    _ => {}
-                }
-                continue;
-            }
-            match (code, modifiers) {
-                (KeyCode::Char('q'), _) | (KeyCode::Esc, _) => return,
-                (KeyCode::Char('c'), KeyModifiers::CONTROL) => return,
-                (KeyCode::Down, _) | (KeyCode::Char('j'), _) => {
-                    let filtered = filter_intents(&intents, &filter, &search_query);
-                    let i = list_state.selected().unwrap_or(0);
-                    let next = (i + 1).min(filtered.len().saturating_sub(1));
-                    list_state.select(Some(next));
-                    detail_scroll = 0;
-                }
-                (KeyCode::Up, _) | (KeyCode::Char('k'), _) => {
-                    let i = list_state.selected().unwrap_or(0);
-                    list_state.select(Some(i.saturating_sub(1)));
-                    detail_scroll = 0;
-                }
-                (KeyCode::Tab, _) => {
-                    filter = filter.next();
-                    list_state.select(Some(0));
-                    detail_scroll = 0;
-                }
-                (KeyCode::Char('/'), _) => {
-                    searching = true;
-                    search_query.clear();
-                }
-                (KeyCode::Char('r'), _) => {
-                    intents = load_intents(core_root);
-                    list_state.select(Some(0));
-                    detail_scroll = 0;
-                }
-                (KeyCode::Char('e'), _) => {
-                    let filtered = filter_intents(&intents, &filter, &search_query);
-                    if let Some(idx) = list_state.selected() {
-                        if idx < filtered.len() {
-                            let path = filtered[idx].path.to_string_lossy().to_string();
-                            let _ = execute!(io::stdout(), LeaveAlternateScreen);
-                            let _ = disable_raw_mode();
-                            let editor =
-                                std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
-                            let _ = std::process::Command::new(&editor).arg(&path).status();
-                            let _ = enable_raw_mode();
-                            let _ = execute!(io::stdout(), EnterAlternateScreen);
-                            intents = load_intents(core_root);
+                    (KeyCode::Char('e'), _) => {
+                        let filtered = filter_intents(&intents, &filter, &search_query);
+                        if let Some(idx) = list_state.selected() {
+                            if idx < filtered.len() {
+                                let path = filtered[idx].path.to_string_lossy().to_string();
+                                let _ = execute!(
+                                    io::stdout(),
+                                    DisableMouseCapture,
+                                    LeaveAlternateScreen
+                                );
+                                let _ = disable_raw_mode();
+                                let editor =
+                                    std::env::var("EDITOR").unwrap_or_else(|_| "nvim".to_string());
+                                let _ = std::process::Command::new(&editor).arg(&path).status();
+                                let _ = enable_raw_mode();
+                                let _ = execute!(
+                                    io::stdout(),
+                                    EnterAlternateScreen,
+                                    EnableMouseCapture
+                                );
+                                intents = load_intents(core_root);
+                            }
                         }
                     }
+                    (KeyCode::PageDown, _) => match focus {
+                        Focus::List => {
+                            let filtered = filter_intents(&intents, &filter, &search_query);
+                            apply_list_nav(
+                                &mut list_state,
+                                filtered.len(),
+                                split.list_rows,
+                                ListNav::PageDown,
+                                &mut detail_scroll,
+                            );
+                        }
+                        Focus::Detail => {
+                            detail_scroll = detail_scroll.saturating_add(5);
+                        }
+                    },
+                    (KeyCode::PageUp, _) => match focus {
+                        Focus::List => {
+                            let filtered = filter_intents(&intents, &filter, &search_query);
+                            apply_list_nav(
+                                &mut list_state,
+                                filtered.len(),
+                                split.list_rows,
+                                ListNav::PageUp,
+                                &mut detail_scroll,
+                            );
+                        }
+                        Focus::Detail => {
+                            detail_scroll = detail_scroll.saturating_sub(5);
+                        }
+                    },
+                    (KeyCode::Home, _) => {
+                        if focus == Focus::List {
+                            let filtered = filter_intents(&intents, &filter, &search_query);
+                            apply_list_nav(
+                                &mut list_state,
+                                filtered.len(),
+                                split.list_rows,
+                                ListNav::Home,
+                                &mut detail_scroll,
+                            );
+                        }
+                    }
+                    (KeyCode::End, _) => {
+                        if focus == Focus::List {
+                            let filtered = filter_intents(&intents, &filter, &search_query);
+                            apply_list_nav(
+                                &mut list_state,
+                                filtered.len(),
+                                split.list_rows,
+                                ListNav::End,
+                                &mut detail_scroll,
+                            );
+                        }
+                    }
+                    _ => {}
                 }
-                (KeyCode::PageDown, _) => {
-                    detail_scroll = detail_scroll.saturating_add(5);
-                }
-                (KeyCode::PageUp, _) => {
-                    detail_scroll = detail_scroll.saturating_sub(5);
-                }
-                _ => {}
             }
+            Ok(Event::Mouse(mouse)) => {
+                let down = match mouse.kind {
+                    MouseEventKind::ScrollDown => true,
+                    MouseEventKind::ScrollUp => false,
+                    _ => continue,
+                };
+                match pane_under(&split, mouse.column, mouse.row) {
+                    Some(Focus::List) => {
+                        let filtered = filter_intents(&intents, &filter, &search_query);
+                        let i = list_state.selected().unwrap_or(0);
+                        let next = if down {
+                            (i + 1).min(filtered.len().saturating_sub(1))
+                        } else {
+                            i.saturating_sub(1)
+                        };
+                        if next != i {
+                            detail_scroll = 0;
+                        }
+                        list_state.select(Some(next));
+                    }
+                    Some(Focus::Detail) => {
+                        detail_scroll = if down {
+                            detail_scroll.saturating_add(3)
+                        } else {
+                            detail_scroll.saturating_sub(3)
+                        };
+                    }
+                    None => {}
+                }
+            }
+            _ => {}
         }
     }
 }
@@ -188,7 +334,8 @@ fn draw_ui(
     searching: bool,
     detail_scroll: u16,
     _all: &[Intent],
-) {
+    focus: Focus,
+) -> Split {
     let area = f.area();
     // Main layout: header | content | footer
     let chunks = Layout::default()
@@ -259,6 +406,8 @@ fn draw_ui(
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(38), Constraint::Percentage(62)])
         .split(chunks[1]);
+    let list_area = content_chunks[0];
+    let detail_area = content_chunks[1];
     // Left: intent list
     let items: Vec<ListItem> = filtered
         .iter()
@@ -294,7 +443,7 @@ fn draw_ui(
                 )]))
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
-                .border_style(Style::default().fg(Color::Rgb(50, 80, 55))),
+                .border_style(pane_border(focus == Focus::List)),
         )
         .highlight_style(
             Style::default()
@@ -302,7 +451,7 @@ fn draw_ui(
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol("▶ ");
-    f.render_stateful_widget(list, content_chunks[0], list_state);
+    f.render_stateful_widget(list, list_area, list_state);
     // Right: intent detail
     let detail_text = if let Some(idx) = list_state.selected() {
         if idx < filtered.len() {
@@ -338,14 +487,14 @@ fn draw_ui(
                 )]))
                 .borders(Borders::ALL)
                 .border_type(BorderType::Rounded)
-                .border_style(Style::default().fg(Color::Rgb(50, 80, 55))),
+                .border_style(pane_border(focus == Focus::Detail)),
         );
-    f.render_widget(detail, content_chunks[1]);
+    f.render_widget(detail, detail_area);
     // Footer
     let footer_text = if searching {
         "Enter confirm  Esc cancel"
     } else {
-        "↑↓/jk navigate  Tab filter  / search  e edit  r refresh  PgUp/Dn scroll  q quit"
+        "Tab pane  ↑↓/jk move  PgUp/Dn page  Home/End  f filter  / search  e edit  r refresh  wheel scroll  q quit"
     };
     let footer = Paragraph::new(Line::from(vec![Span::styled(
         format!("  {}", footer_text),
@@ -357,6 +506,11 @@ fn draw_ui(
             .border_style(Style::default().fg(Color::Rgb(50, 70, 55))),
     );
     f.render_widget(footer, chunks[2]);
+    Split {
+        list: list_area,
+        detail: detail_area,
+        list_rows: list_area.height.saturating_sub(2) as usize,
+    }
 }
 fn render_intent_detail(intent: &Intent) -> Vec<Line<'static>> {
     let mut lines: Vec<Line<'static>> = Vec::new();
@@ -530,6 +684,43 @@ fn load_intents(_core_root: &str) -> Vec<Intent> {
     });
     intents
 }
+enum ListNav {
+    PageDown,
+    PageUp,
+    Home,
+    End,
+}
+
+fn list_nav(len: usize, height: usize, selected: usize, action: ListNav) -> usize {
+    if len == 0 {
+        return 0;
+    }
+    let last = len - 1;
+    let selected = selected.min(last);
+    let step = height.max(1);
+    match action {
+        ListNav::PageDown => selected.saturating_add(step).min(last),
+        ListNav::PageUp => selected.saturating_sub(step),
+        ListNav::Home => 0,
+        ListNav::End => last,
+    }
+}
+
+fn apply_list_nav(
+    list_state: &mut ListState,
+    len: usize,
+    rows: usize,
+    action: ListNav,
+    detail_scroll: &mut u16,
+) {
+    let selected = list_state.selected().unwrap_or(0);
+    let next = list_nav(len, rows, selected, action);
+    if next != selected {
+        *detail_scroll = 0;
+    }
+    list_state.select(Some(next));
+}
+
 fn filter_intents(intents: &[Intent], filter: &StatusFilter, query: &str) -> Vec<Intent> {
     intents
         .iter()
@@ -556,7 +747,48 @@ fn filter_intents(intents: &[Intent], filter: &StatusFilter, query: &str) -> Vec
 
 #[cfg(test)]
 mod tests {
-    use super::{load_intents, StatusFilter};
+    use super::{list_nav, load_intents, ListNav, StatusFilter};
+
+    #[test]
+    fn list_nav_page_down_moves_by_height_and_clamps() {
+        assert_eq!(list_nav(20, 5, 0, ListNav::PageDown), 5);
+        assert_eq!(list_nav(20, 5, 16, ListNav::PageDown), 19);
+        assert_eq!(list_nav(20, 1, 3, ListNav::PageDown), 4);
+    }
+
+    #[test]
+    fn list_nav_page_up_clamps_at_zero() {
+        assert_eq!(list_nav(20, 5, 12, ListNav::PageUp), 7);
+        assert_eq!(list_nav(20, 5, 3, ListNav::PageUp), 0);
+        assert_eq!(list_nav(20, 5, 0, ListNav::PageUp), 0);
+    }
+
+    #[test]
+    fn list_nav_home_is_zero() {
+        assert_eq!(list_nav(20, 8, 11, ListNav::Home), 0);
+    }
+
+    #[test]
+    fn list_nav_end_is_last() {
+        assert_eq!(list_nav(20, 8, 2, ListNav::End), 19);
+    }
+
+    #[test]
+    fn list_nav_empty_len_returns_zero() {
+        assert_eq!(list_nav(0, 4, 7, ListNav::PageDown), 0);
+        assert_eq!(list_nav(0, 4, 7, ListNav::PageUp), 0);
+        assert_eq!(list_nav(0, 4, 7, ListNav::Home), 0);
+        assert_eq!(list_nav(0, 4, 7, ListNav::End), 0);
+        assert_eq!(list_nav(0, 0, 1, ListNav::End), 0);
+    }
+
+    #[test]
+    fn list_nav_height_zero_moves_by_one() {
+        assert_eq!(list_nav(10, 0, 4, ListNav::PageDown), 5);
+        assert_eq!(list_nav(10, 0, 4, ListNav::PageUp), 3);
+        assert_eq!(list_nav(10, 0, 0, ListNav::PageUp), 0);
+        assert_eq!(list_nav(10, 0, 9, ListNav::PageDown), 9);
+    }
 
     #[test]
     fn tab_cycles_all_in_progress_and_planned() {
@@ -643,7 +875,7 @@ mod tests {
     fn a_failed_open_leaves_the_alternate_screen() {
         assert_eq!(
             super::failed_open_steps(),
-            ["alt-off", "raw-off"],
+            ["mouse-off", "alt-off", "raw-off"],
             "Terminal::new failing must leave the alternate screen too"
         );
     }
