@@ -1973,10 +1973,7 @@ pub fn record_probe_facts(
     ensure_knowledge_expires_at(db)?;
     let now = now_ts();
     let expires_at = now.saturating_add(PROBE_FACT_TTL_SECS);
-    db.execute(
-        "DELETE FROM friday_knowledge WHERE source = 'probe'",
-        [],
-    )?;
+    db.execute("DELETE FROM friday_knowledge WHERE source = 'probe'", [])?;
     let mut seen = std::collections::HashSet::new();
     for check in checks {
         let key = if check.id.is_empty() {
@@ -2635,9 +2632,7 @@ mod int316 {
             .runtime
             .db
             .prepare("SELECT source, expires_at, fact FROM friday_knowledge WHERE source = 'probe'")
-            .unwrap_or_else(|err| {
-                panic!("probe facts need source='probe' and an expiry: {err}")
-            });
+            .unwrap_or_else(|err| panic!("probe facts need source='probe' and an expiry: {err}"));
         let rows: Vec<(String, i64, String)> = stmt
             .query_map([], |row| Ok((row.get(0)?, row.get(1)?, row.get(2)?)))
             .unwrap()
@@ -2699,7 +2694,9 @@ mod int316 {
     #[test]
     fn g2_pacman_hyprland_and_systemd_are_native() {
         let (dir, ctx) = scratch("native");
-        let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|err| err.into_inner());
+        let _lock = crate::HOME_LOCK
+            .lock()
+            .unwrap_or_else(|err| err.into_inner());
         let _home = HomeGuard::set(&dir);
         ctx.runtime
             .db
@@ -2767,7 +2764,9 @@ mod int316 {
     fn g5_milestone_names_each_number_once() {
         let (dir, ctx) = scratch("milestone");
         seed_commits(&dir, 5415);
-        let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|err| err.into_inner());
+        let _lock = crate::HOME_LOCK
+            .lock()
+            .unwrap_or_else(|err| err.into_inner());
         let _home = HomeGuard::set(&dir);
         let line = check_milestones(&ctx).unwrap_or_default();
         drop(_home);
