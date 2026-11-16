@@ -1926,52 +1926,29 @@ pub fn run_quick(_ctx: &AppContext) -> CoreResult<()> {
 }
 pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
     use colored::*;
-    // Read health history from state.db
-    let mut stmt = ctx.runtime.db.prepare(
-        "SELECT score, captured_at FROM horizon_snapshots ORDER BY captured_at DESC LIMIT 20",
-    )?;
-    let rows: Vec<(i64, i64)> = stmt
-        .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
-        .filter_map(|r| r.ok())
-        .collect();
+    // health_patterns holds the history: health_pct is an integer percent and
+    // timestamp is unix seconds, the same clock the writer stores. A fresh
+    // database has no table yet; that is empty history, not an error.
+    let rows: Vec<(i64, i64)> = match ctx.runtime.db.prepare(
+        "SELECT health_pct, timestamp FROM health_patterns ORDER BY timestamp DESC LIMIT 20",
+    ) {
+        Ok(mut stmt) => stmt
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .filter_map(|r| r.ok())
+            .collect(),
+        Err(rusqlite::Error::SqliteFailure(_, Some(msg))) if msg.contains("no such table") => {
+            Vec::new()
+        }
+        Err(e) => return Err(e.into()),
+    };
     println!();
     println!("  {} Doctor History", "📊".normal());
     println!("  {}", "─".repeat(48).dimmed());
     if rows.is_empty() {
-        // Fallback: show from horizon_snapshots
-        let mut stmt2 = ctx.runtime.db.prepare(
-            "SELECT health_score, captured_at FROM horizon_snapshots ORDER BY captured_at DESC LIMIT 10"
-        )?;
-        let rows2: Vec<(i64, i64)> = stmt2
-            .query_map([], |r| Ok((r.get(0)?, r.get(1)?)))?
-            .filter_map(|r| r.ok())
-            .collect();
-        if rows2.is_empty() {
-            println!(
-                "  {} No health history yet — run d regularly to build history",
-                "○".dimmed()
-            );
-        } else {
-            for (score, ts) in &rows2 {
-                let dt = chrono::DateTime::from_timestamp(*ts, 0)
-                    .map(|t| t.format("%Y-%m-%d %H:%M").to_string())
-                    .unwrap_or_default();
-                let bar = "█".repeat((*score / 10) as usize);
-                let color = if *score >= 95 {
-                    bar.bright_green()
-                } else if *score >= 80 {
-                    bar.bright_yellow()
-                } else {
-                    bar.bright_red()
-                };
-                println!(
-                    "  {} {}%  {}",
-                    dt.dimmed(),
-                    score.to_string().bright_white(),
-                    color
-                );
-            }
-        }
+        println!(
+            "  {} No health history yet — run d regularly to build history",
+            "○".dimmed()
+        );
     } else {
         for (score, ts) in &rows {
             let dt = chrono::DateTime::from_timestamp(*ts, 0)
