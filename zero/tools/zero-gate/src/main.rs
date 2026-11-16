@@ -445,6 +445,13 @@ fn gate_retired_spawns(root: &Path) -> Verdict {
     }
 }
 
+/// The could-not-run footer. Unknown only: a Fail ran and refused.
+fn could_not_run_footer(verdicts: &[Verdict]) -> bool {
+    verdicts
+        .iter()
+        .any(|verdict| matches!(verdict, Verdict::Unknown(_)))
+}
+
 fn main() -> ExitCode {
     // INT-256: FIRST statement, before any output. `tool | head -3` must not print a panic.
     // INLINE, NOT the zero_core helper: this crate DELIBERATELY has no zero-core
@@ -536,8 +543,9 @@ fn main() -> ExitCode {
             }
         }
     }
+    let verdicts: Vec<Verdict> = gates.into_iter().map(|g| g.verdict).collect();
 
-    if bad {
+    if could_not_run_footer(&verdicts) {
         eprintln!();
         eprintln!(
             "  {}",
@@ -546,6 +554,8 @@ fn main() -> ExitCode {
                 "a gate that could not run is not a gate that passed -- fix or install, then retry"
             )
         );
+    }
+    if bad {
         return ExitCode::FAILURE;
     }
     ExitCode::SUCCESS
@@ -555,18 +565,11 @@ fn main() -> ExitCode {
 mod tests {
     use super::*;
 
-    /// Today's footer: any Fail or Unknown counts. F-0016: Fail alone should not.
-    fn could_not_run_footer(verdicts: &[Verdict]) -> bool {
-        verdicts
-            .iter()
-            .any(|verdict| matches!(verdict, Verdict::Fail(_) | Verdict::Unknown(_)))
-    }
-
     #[test]
     fn f0016_fail_only_has_no_footer() {
         let verdicts = [Verdict::Fail("red test".into())];
         assert!(
-            !could_not_run_footer(&verdicts),
+            !super::could_not_run_footer(&verdicts),
             "Fail alone must not print the could-not-run footer"
         );
     }
@@ -574,7 +577,7 @@ mod tests {
     #[test]
     fn f0016_unknown_only_has_footer() {
         let verdicts = [Verdict::Unknown("could not run".into())];
-        assert!(could_not_run_footer(&verdicts));
+        assert!(super::could_not_run_footer(&verdicts));
     }
 
     #[test]
@@ -583,13 +586,13 @@ mod tests {
             Verdict::Fail("red test".into()),
             Verdict::Unknown("could not run".into()),
         ];
-        assert!(could_not_run_footer(&verdicts));
+        assert!(super::could_not_run_footer(&verdicts));
     }
 
     #[test]
     fn f0016_pass_and_skip_have_no_footer() {
         let verdicts = [Verdict::Pass, Verdict::Skipped];
-        assert!(!could_not_run_footer(&verdicts));
+        assert!(!super::could_not_run_footer(&verdicts));
     }
 
     #[test]
