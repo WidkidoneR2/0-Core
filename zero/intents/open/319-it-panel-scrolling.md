@@ -3,7 +3,7 @@ id: 319
 date: 2026-11-15
 type: future
 title: "it: page and scroll both panes"
-status: in-progress
+status: complete
 tags: [nsh, tui]
 format: 2
 ---
@@ -59,3 +59,6 @@ Mouse capture is enabled on entry and disabled on every exit.
 ## Out of scope
 - How intents are loaded or filtered stays as it is.
 - Shared TUI code with cheatsheet_tui.rs is not refactored.
+
+## Versions
+- nsh 6.0.0 -> 6.0.1 (patch)
