@@ -3,7 +3,7 @@ id: 319
 date: 2026-11-15
 type: future
 title: "it: page and scroll both panes"
-status: planned
+status: in-progress
 tags: [nsh, tui]
 format: 2
 ---
@@ -32,26 +32,26 @@ and over the right pane moves the detail by three, using the stored split.
 Mouse capture is enabled on entry and disabled on every exit.
 
 ## Success Criteria
-- [ ] G1 list paging helper tested. Page down moves by the visible height
+- [x] G1 list paging helper tested. Page down moves by the visible height
       (at least 1) and clamps at the last row. Page up clamps at 0. Home
       is 0. End is the last row. An empty list returns 0 and does not panic.
       A height of 0 still moves by 1.
       ask: list_nav pages by height, clamps, jumps, and an empty list returns 0
       ruling:
       evidence:
-- [ ] G2 focus and keys (Tab, PgUp/PgDn, Home/End) work in it. Tab toggles
+- [x] G2 focus and keys (Tab, PgUp/PgDn, Home/End) work in it. Tab toggles
       the focused pane. Page keys page the list or scroll the detail
       according to that focus. Home and End jump the list.
       ask: Tab, PgUp/PgDn, and Home/End act on the focused pane in it
       ruling:
       evidence:
-- [ ] G3 mouse wheel scrolls the pane under the pointer. The wheel over the
+- [x] G3 mouse wheel scrolls the pane under the pointer. The wheel over the
       list moves the selection by one. The wheel over the detail changes
       its scroll by three. The column is compared with the stored split.
       ask: the wheel scrolls the pane under the pointer
       ruling:
       evidence:
-- [ ] G4 doors, nsh-test and d green on the laptop.
+- [x] G4 doors, nsh-test and d green on the laptop.
       ask: doors, nsh-test, and d are green on the laptop
       ruling:
       evidence:
