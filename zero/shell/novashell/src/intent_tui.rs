@@ -530,6 +530,18 @@ fn load_intents(_core_root: &str) -> Vec<Intent> {
     });
     intents
 }
+enum ListNav {
+    PageDown,
+    PageUp,
+    Home,
+    End,
+}
+
+fn list_nav(len: usize, height: usize, selected: usize, action: ListNav) -> usize {
+    let _ = (len, height, action);
+    selected
+}
+
 fn filter_intents(intents: &[Intent], filter: &StatusFilter, query: &str) -> Vec<Intent> {
     intents
         .iter()
@@ -556,7 +568,49 @@ fn filter_intents(intents: &[Intent], filter: &StatusFilter, query: &str) -> Vec
 
 #[cfg(test)]
 mod tests {
-    use super::{load_intents, StatusFilter};
+    use super::{list_nav, load_intents, ListNav, StatusFilter};
+
+    #[test]
+    fn list_nav_page_down_moves_by_height_and_clamps() {
+        assert_eq!(list_nav(20, 5, 0, ListNav::PageDown), 5);
+        assert_eq!(list_nav(20, 5, 16, ListNav::PageDown), 19);
+        assert_eq!(list_nav(20, 1, 3, ListNav::PageDown), 4);
+    }
+
+    #[test]
+    fn list_nav_page_up_clamps_at_zero() {
+        assert_eq!(list_nav(20, 5, 12, ListNav::PageUp), 7);
+        assert_eq!(list_nav(20, 5, 3, ListNav::PageUp), 0);
+        assert_eq!(list_nav(20, 5, 0, ListNav::PageUp), 0);
+    }
+
+    #[test]
+    fn list_nav_home_is_zero() {
+        assert_eq!(list_nav(20, 8, 11, ListNav::Home), 0);
+    }
+
+    #[test]
+    fn list_nav_end_is_last() {
+        assert_eq!(list_nav(20, 8, 2, ListNav::End), 19);
+    }
+
+    #[test]
+    fn list_nav_empty_len_returns_zero() {
+        assert_eq!(list_nav(0, 4, 7, ListNav::PageDown), 0);
+        assert_eq!(list_nav(0, 4, 7, ListNav::PageUp), 0);
+        assert_eq!(list_nav(0, 4, 7, ListNav::Home), 0);
+        assert_eq!(list_nav(0, 4, 7, ListNav::End), 0);
+        assert_eq!(list_nav(0, 0, 1, ListNav::End), 0);
+    }
+
+    #[test]
+    fn list_nav_height_zero_moves_by_one() {
+        assert_eq!(list_nav(10, 0, 4, ListNav::PageDown), 5);
+        assert_eq!(list_nav(10, 0, 4, ListNav::PageUp), 3);
+        assert_eq!(list_nav(10, 0, 0, ListNav::PageUp), 0);
+        assert_eq!(list_nav(10, 0, 9, ListNav::PageDown), 9);
+    }
+
 
     #[test]
     fn tab_cycles_all_in_progress_and_planned() {
