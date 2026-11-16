@@ -1,6 +1,6 @@
 // INT-254: it -- Intent Ledger as Ratatui TUI
 // INT-319: Tab focuses a pane. PgUp/PgDn page that pane. Home/End and the wheel scroll.
-// Keys: j/k move, tab=pane, home/end, e=edit, q=quit, /=search
+// Keys: j/k move, tab=pane, f=filter, home/end, e=edit, q=quit, /=search
 use crossterm::{
     event::{
         self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode, KeyEvent, KeyModifiers,
@@ -25,8 +25,6 @@ enum StatusFilter {
     Planned,
 }
 impl StatusFilter {
-    // Tab switches pane focus. The cycle stays so the unit test can still name it.
-    #[allow(dead_code)]
     fn next(&self) -> Self {
         match self {
             StatusFilter::All => StatusFilter::InProgress,
@@ -117,7 +115,7 @@ pub fn run_intent_tui(core_root: &str) {
     run_loop(&mut terminal, core_root);
 }
 fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, core_root: &str) {
-    let filter = StatusFilter::All;
+    let mut filter = StatusFilter::All;
     let mut search_query = String::new();
     let mut searching = false;
     let mut intents = load_intents(core_root);
@@ -192,6 +190,16 @@ fn run_loop(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, core_root: &s
                             Focus::List => Focus::Detail,
                             Focus::Detail => Focus::List,
                         };
+                    }
+                    (KeyCode::Char('f'), _) => {
+                        filter = filter.next();
+                        let filtered = filter_intents(&intents, &filter, &search_query);
+                        if filtered.is_empty() {
+                            list_state.select(None);
+                        } else {
+                            list_state.select(Some(0));
+                        }
+                        detail_scroll = 0;
                     }
                     (KeyCode::Char('/'), _) => {
                         searching = true;
@@ -486,7 +494,7 @@ fn draw_ui(
     let footer_text = if searching {
         "Enter confirm  Esc cancel"
     } else {
-        "Tab pane  ↑↓/jk move  PgUp/Dn page  Home/End  / search  e edit  r refresh  wheel scroll  q quit"
+        "Tab pane  ↑↓/jk move  PgUp/Dn page  Home/End  f filter  / search  e edit  r refresh  wheel scroll  q quit"
     };
     let footer = Paragraph::new(Line::from(vec![Span::styled(
         format!("  {}", footer_text),
