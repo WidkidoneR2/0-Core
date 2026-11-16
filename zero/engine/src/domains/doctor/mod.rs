@@ -1997,6 +1997,68 @@ pub fn run_history(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
+#[cfg(test)]
+mod f0110_tests {
+    fn scratch_ctx(root: &std::path::Path) -> crate::app::context::AppContext {
+        crate::app::context::AppContext {
+            runtime: crate::runtime::Runtime {
+                root: root.to_path_buf(),
+                logs: root.join("logs"),
+                cache: root.join("cache"),
+                snapshots: root.join("snapshots"),
+                locks: root.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: root.display().to_string(),
+            core_root: root.display().to_string(),
+            source_root: root.join("zero").display().to_string(),
+        }
+    }
+
+    /// F-0110. horizon_snapshots has no score column. The health row is in
+    /// health_patterns. run_history still asks for score.
+    #[test]
+    fn f0110_history_reads_health_patterns() {
+        let root = std::env::temp_dir().join(format!(
+            "core-f0110-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let ctx = scratch_ctx(&root);
+        ctx.runtime
+            .db
+            .execute_batch(
+                "CREATE TABLE horizon_snapshots (
+                    id INTEGER PRIMARY KEY,
+                    horizon TEXT,
+                    snapshot TEXT,
+                    created_at INTEGER
+                );
+                CREATE TABLE health_patterns (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp INTEGER NOT NULL,
+                    health_pct INTEGER NOT NULL,
+                    integrity_pct INTEGER NOT NULL,
+                    checks_passed INTEGER NOT NULL,
+                    checks_warned INTEGER NOT NULL,
+                    checks_failed INTEGER NOT NULL,
+                    trigger_type TEXT NOT NULL DEFAULT 'manual'
+                );
+                ALTER TABLE health_patterns ADD COLUMN checks_unknown INTEGER NOT NULL DEFAULT 0;
+                INSERT INTO health_patterns (
+                    timestamp, health_pct, integrity_pct, checks_passed,
+                    checks_warned, checks_failed, checks_unknown, trigger_type
+                ) VALUES (1, 87, 0, 0, 0, 0, 0, 'manual');",
+            )
+            .unwrap();
+        super::run_history(&ctx).expect("run_history reads health_patterns");
+    }
+}
+
 /// INT-269: the check set's path, built in ONE place. from_engine() and check_one() both ask here.
 fn check_set_path() -> std::path::PathBuf {
     zero_core::paths::registry_dir().join("doctor/checks.toml")

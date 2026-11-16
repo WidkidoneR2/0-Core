@@ -555,6 +555,43 @@ fn main() -> ExitCode {
 mod tests {
     use super::*;
 
+    /// Today's footer: any Fail or Unknown counts. F-0016: Fail alone should not.
+    fn could_not_run_footer(verdicts: &[Verdict]) -> bool {
+        verdicts
+            .iter()
+            .any(|verdict| matches!(verdict, Verdict::Fail(_) | Verdict::Unknown(_)))
+    }
+
+    #[test]
+    fn f0016_fail_only_has_no_footer() {
+        let verdicts = [Verdict::Fail("red test".into())];
+        assert!(
+            !could_not_run_footer(&verdicts),
+            "Fail alone must not print the could-not-run footer"
+        );
+    }
+
+    #[test]
+    fn f0016_unknown_only_has_footer() {
+        let verdicts = [Verdict::Unknown("could not run".into())];
+        assert!(could_not_run_footer(&verdicts));
+    }
+
+    #[test]
+    fn f0016_fail_and_unknown_has_footer() {
+        let verdicts = [
+            Verdict::Fail("red test".into()),
+            Verdict::Unknown("could not run".into()),
+        ];
+        assert!(could_not_run_footer(&verdicts));
+    }
+
+    #[test]
+    fn f0016_pass_and_skip_have_no_footer() {
+        let verdicts = [Verdict::Pass, Verdict::Skipped];
+        assert!(!could_not_run_footer(&verdicts));
+    }
+
     #[test]
     fn a_finding_keeps_its_place_and_loses_its_content() {
         let out = redact_findings("leak.txt:1:token = ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789\n");

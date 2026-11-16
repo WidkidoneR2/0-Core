@@ -125,6 +125,11 @@ pub fn read_open() -> Vec<OpenRead> {
     rows
 }
 
+pub fn unread_intent_files() -> Vec<String> {
+    // F-0002: filled in by the fix
+    Vec::new()
+}
+
 /// Display-only. `INT-310 2/5 gates`. cicomplete does not read this.
 pub fn gate_progress_line(id: &str, done: usize, total: usize) -> String {
     format!("INT-{id} {done}/{total} gates")
@@ -5306,6 +5311,63 @@ mod status_is_not_the_folder_tests {
         let _ = std::fs::remove_dir_all(&dir);
         assert!(issues.is_empty(), "clean ledger had issues: {issues:?}");
         assert!(result.is_ok(), "clean ledger: {result:?}");
+    }
+}
+
+#[cfg(test)]
+mod f0002_tests {
+    fn ledger_home() -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "core-f0002-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("0-core/zero/intents/open")).unwrap();
+        dir
+    }
+
+    /// F-0002. ledger::load returns a file with no title. parse_intent rejects it,
+    /// and read_open drops it without a name. The valid file beside it still loads.
+    #[test]
+    fn f0002_read_open_names_dropped_file() {
+        let dir = ledger_home();
+        let open = dir.join("0-core/zero/intents/open");
+        std::fs::write(
+            open.join("900-kept.md"),
+            "---\nid: 900\ntitle: \"kept\"\nstatus: planned\ndate: 2026-11-15\n---\n\n",
+        )
+        .unwrap();
+        std::fs::write(
+            open.join("901-notitle.md"),
+            "---\nid: 901\nstatus: planned\ndate: 2026-11-15\n---\n\n",
+        )
+        .unwrap();
+        let (rows, unread) = super::status_is_not_the_folder_tests::with_home(&dir, || {
+            (super::read_open(), super::unread_intent_files())
+        });
+        let _ = std::fs::remove_dir_all(&dir);
+        let loaded: Vec<&str> = rows
+            .iter()
+            .map(|row| row.intent.filename.as_str())
+            .collect();
+        assert!(
+            loaded.contains(&"900-kept.md"),
+            "the valid row still loads: {loaded:?}"
+        );
+        assert!(
+            !loaded.contains(&"901-notitle.md"),
+            "a file with no title was loaded: {loaded:?}"
+        );
+        assert!(
+            unread
+                .iter()
+                .any(|name| name.contains("open/901-notitle.md")),
+            "dropped file open/901-notitle.md is named, got {unread:?}"
+        );
     }
 }
 
