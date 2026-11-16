@@ -367,7 +367,27 @@ pub fn list(
 
     println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
     println!("  Total: {}", filtered.len());
+    for line in unread_list_warning() {
+        eprintln!("{line}");
+    }
     Ok(())
+}
+
+/// Lines for `core intent list` when the loader dropped a file. Empty when every
+/// file parsed. Stderr only, and only from the list command.
+fn unread_list_warning() -> Vec<String> {
+    let names = unread_intent_files();
+    if names.is_empty() {
+        return Vec::new();
+    }
+    vec![
+        format!(
+            "  ⚠ {} intent file(s) could not be read: {}",
+            names.len(),
+            names.join(", ")
+        ),
+        "    run core intent validate for the reason".to_string(),
+    ]
 }
 
 pub fn stats(ctx: &AppContext) -> CoreResult<()> {
@@ -5380,6 +5400,34 @@ mod f0002_tests {
                 .iter()
                 .any(|name| name.contains("open/901-notitle.md")),
             "dropped file open/901-notitle.md is named, got {unread:?}"
+        );
+    }
+
+    /// F-0002. `core intent list` names a file parse_intent rejected, on the
+    /// same ledger the loader test plants.
+    #[test]
+    fn f0002_list_names_the_dropped_file() {
+        let dir = ledger_home();
+        let open = dir.join("0-core/zero/intents/open");
+        std::fs::write(
+            open.join("900-kept.md"),
+            "---\nid: 900\ntitle: \"kept\"\nstatus: planned\ndate: 2026-11-15\n---\n\n",
+        )
+        .unwrap();
+        std::fs::write(
+            open.join("901-notitle.md"),
+            "---\nid: 901\nstatus: planned\ndate: 2026-11-15\n---\n\n",
+        )
+        .unwrap();
+        let lines =
+            super::status_is_not_the_folder_tests::with_home(&dir, super::unread_list_warning);
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(
+            lines,
+            vec![
+                "  ⚠ 1 intent file(s) could not be read: open/901-notitle.md".to_string(),
+                "    run core intent validate for the reason".to_string(),
+            ]
         );
     }
 }
