@@ -112,22 +112,35 @@ pub struct OpenRead {
     pub gates: gates::GateReport,
 }
 
-pub fn read_open() -> Vec<OpenRead> {
-    let mut rows: Vec<OpenRead> = zero_core::ledger::load()
-        .into_iter()
-        .filter_map(|file| {
-            let intent = parse_intent(&file.path, &file.folder)?;
+/// One ledger read, split into rows `parse_intent` accepted and the
+/// `{folder}/{filename}` of every file it rejected.
+fn split_ledger() -> (Vec<OpenRead>, Vec<String>) {
+    let mut rows = Vec::new();
+    let mut unread = Vec::new();
+    for file in zero_core::ledger::load() {
+        if let Some(intent) = parse_intent(&file.path, &file.folder) {
             let gates = gates::read_gates(&file.content);
-            Some(OpenRead { intent, gates })
-        })
-        .collect();
+            rows.push(OpenRead { intent, gates });
+        } else {
+            let filename = file
+                .path
+                .file_name()
+                .map(|name| name.to_string_lossy().to_string())
+                .unwrap_or_default();
+            unread.push(format!("{}/{}", file.folder, filename));
+        }
+    }
     rows.sort_by(|a, b| a.intent.id.cmp(&b.intent.id));
-    rows
+    unread.sort();
+    (rows, unread)
+}
+
+pub fn read_open() -> Vec<OpenRead> {
+    split_ledger().0
 }
 
 pub fn unread_intent_files() -> Vec<String> {
-    // F-0002: filled in by the fix
-    Vec::new()
+    split_ledger().1
 }
 
 /// Display-only. `INT-310 2/5 gates`. cicomplete does not read this.
