@@ -38,23 +38,23 @@ Mouse capture is enabled on entry and disabled on every exit.
       A height of 0 still moves by 1.
       ask: list_nav pages by height, clamps, jumps, and an empty list returns 0
       ruling:
-      evidence:
+      evidence: list_nav_page_down_moves_by_height_and_clamps, list_nav_page_up_clamps_at_zero, list_nav_home_is_zero, list_nav_end_is_last, list_nav_empty_len_returns_zero, list_nav_height_zero_moves_by_one pass on 3b450709 (novashell 278 passed)
 - [x] G2 focus and keys (Tab, PgUp/PgDn, Home/End) work in it. Tab toggles
       the focused pane. Page keys page the list or scroll the detail
       according to that focus. Home and End jump the list.
       ask: Tab, PgUp/PgDn, and Home/End act on the focused pane in it
       ruling:
-      evidence:
+      evidence: hand check by Christian on the 3b450709 debug nsh; Tab toggles focus, PgUp and PgDn page the focused pane, Home and End jump the list
 - [x] G3 mouse wheel scrolls the pane under the pointer. The wheel over the
       list moves the selection by one. The wheel over the detail changes
       its scroll by three. The column is compared with the stored split.
       ask: the wheel scrolls the pane under the pointer
       ruling:
-      evidence:
+      evidence: hand check by Christian on the 3b450709 debug nsh; the wheel scrolls the right pane independently of the left
 - [x] G4 doors, nsh-test and d green on the laptop.
       ask: doors, nsh-test, and d are green on the laptop
       ruling:
-      evidence:
+      evidence: doors 4 passed (core, shell, nsh-test, validate) on 1e4e5e26; d 27 of 28, the one warning was uncommitted changes
 
 ## Out of scope
 - How intents are loaded or filtered stays as it is.
