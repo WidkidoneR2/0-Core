@@ -3,7 +3,7 @@ id: 327
 date: 2026-11-17
 type: future
 title: "README: the front door shows what Project 0 is"
-status: planned
+status: complete
 tags: [docs, readme]
 format: 2
 ---
@@ -36,21 +36,21 @@ checks its Seal and approves it; AI assistants can draft plans, tests and
 patches; nothing reaches main without his explicit approval.
 
 ## Success Criteria
-- [ ] G1 README.md, assets/readme/banner.svg and
+- [x] G1 README.md, assets/readme/banner.svg and
       assets/readme/terminal-session.svg are on main, and no draft notes or
       FILL markers remain in README.md.
       ask: the new README and both images are on main with no draft notes
       ruling:
-      evidence:
-- [ ] G2 the page renders on GitHub: badges, banner, terminal replay and
+      evidence: README.md and both SVGs on main via the INT-327 merge, no draft notes or FILL markers
+- [x] G2 the page renders on GitHub: badges, banner, terminal replay and
       both mermaid diagrams show.
       ask: the README renders on GitHub with badges, images and diagrams
       ruling:
-      evidence:
-- [ ] G3 doors and d green on the laptop.
+      evidence: hand check by Christian on github.com, badges, banner, terminal replay and both diagrams render
+- [x] G3 doors and d green on the laptop.
       ask: doors and d are green on the laptop
       ruling:
-      evidence:
+      evidence: doors passed and d green after the INT-327 merge
 
 ## Out of scope
 - No code changes and no version bumps.
