@@ -163,17 +163,144 @@ fn could_not(message: String) -> CoreError {
 
 /// Lines `core intent trace INT-x` prints.
 ///
-/// INT-320 red: an id `load_all` does not see is refused. closed.tsv is not read,
-/// so a closed-only id is "INT-N names no intent in the ledger".
+/// A live file is known. An id that is only in closed.tsv is known too: its findings
+/// print, and one line names `git show <commit>:<path>` for the commit that holds its
+/// last text. An id in neither place is "INT-N names no intent in the ledger".
 pub fn trace_intent_lines(repo: &std::path::Path, id: &str) -> Result<Vec<String>, String> {
     let intents = repo.join("zero/intents");
     let live = zero_core::ledger::load_from(&intents)
         .iter()
         .any(|file| !file.is_record() && file.id == id);
-    if !live {
+    let closed = match zero_core::ledger::read_closed(&intents) {
+        Ok(index) => index,
+        Err(err) if live => zero_core::ledger::ClosedIndex {
+            rows: Vec::new(),
+            warnings: vec![err],
+        },
+        Err(err) => {
+            return Err(format!(
+                "closed.tsv could not be read, so whether INT-{id} is in the ledger is not known: {err}"
+            ));
+        }
+    };
+    let row = closed.rows.iter().find(|row| same_intent_id(&row.id, id));
+    if !live && row.is_none() {
         return Err(format!("INT-{id} names no intent in the ledger"));
     }
-    Ok(Vec::new())
+    let records = super::findings::read_records(&intents.join("findings"))?;
+    let label = format!("INT-{id}");
+    let found: Vec<&Record> = records.iter().filter(|r| r.found_by == label).collect();
+    let root = repo.to_string_lossy();
+    let fixed_by = fixes(root.as_ref());
+    let states: Vec<State> = found.iter().map(|r| state_of(r, &fixed_by)).collect();
+    let mut lines = Vec::new();
+    for warning in &closed.warnings {
+        lines.push(format!("  closed.tsv: {warning}"));
+    }
+    lines.push(format!(
+        "  {} found {} finding{}",
+        label.bright_white(),
+        found.len(),
+        if found.len() == 1 { "" } else { "s" }
+    ));
+    for (r, s) in found.iter().zip(&states) {
+        let state = match s {
+            State::Open => "open".yellow().to_string(),
+            State::Fixed(by) => format!("fixed by {}", by.join(", ")).green().to_string(),
+            State::Closed(why) => format!("closed without a fix: {why}").dimmed().to_string(),
+            State::Unread(_) => "not known".red().to_string(),
+        };
+        lines.push(format!(
+            "     {}  {}  {}",
+            r.id.bright_white(),
+            state,
+            r.what
+        ));
+        lines.push(format!("             at {}", r.at.dimmed()));
+    }
+    if let Some(row) = row {
+        lines.push(format!(
+            "  closed {} {}  {}",
+            row.status, row.closed, row.title
+        ));
+        lines.push(format!(
+            "  last text: {}",
+            closed_text_command(repo, &row.last_commit, id)
+        ));
+    }
+    match &fixed_by {
+        Ok(_) => {
+            let open = states.iter().filter(|s| **s == State::Open).count();
+            lines.push(format!("     {open} open"));
+            Ok(lines)
+        }
+        Err(err) => Err(format!(
+            "git could not be read, so no finding above is called open: {err}"
+        )),
+    }
+}
+
+fn same_intent_id(row_id: &str, id: &str) -> bool {
+    if row_id == id {
+        return true;
+    }
+    match (row_id.parse::<u32>(), id.parse::<u32>()) {
+        (Ok(a), Ok(b)) => a == b,
+        _ => false,
+    }
+}
+
+/// `git show <commit>:<path>` for the intent file `id` in `commit`. The path is whatever
+/// that commit still stores. When the path cannot be read, the commit is still named.
+pub(crate) fn closed_text_command(repo: &std::path::Path, commit: &str, id: &str) -> String {
+    let path = repo
+        .to_str()
+        .and_then(|root| {
+            git_read(
+                root,
+                &["ls-tree", "-r", "--name-only", commit, "--", "zero/intents"],
+            )
+            .ok()
+        })
+        .and_then(|text| {
+            text.lines().find_map(|line| {
+                let line = line.trim();
+                history_id(line)
+                    .filter(|found| same_intent_id(found, id))
+                    .map(|_| line.to_string())
+            })
+        });
+    match path {
+        Some(path) => format!("git show {commit}:{path}"),
+        None => format!("git show {commit}:<path not in that commit>"),
+    }
+}
+
+fn history_id(path: &str) -> Option<String> {
+    let path = path.trim().trim_matches('"');
+    let mut parts = path.split('/');
+    if parts.next() != Some("zero") || parts.next() != Some("intents") {
+        return None;
+    }
+    let folder = parts.next()?;
+    let file = parts.next()?;
+    const FOLDERS: &[&str] = &[
+        "future",
+        "planned",
+        "in-progress",
+        "complete",
+        "cancelled",
+        "open",
+    ];
+    if parts.next().is_some() || !FOLDERS.contains(&folder) || !file.ends_with(".md") {
+        return None;
+    }
+    let stem = file.strip_suffix(".md")?;
+    let (num, rest) = stem.split_once('-')?;
+    if rest.is_empty() || num.is_empty() || !num.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    Some(num.to_string())
 }
 
 /// `core intent trace INT-x` -- every finding INT-x found, and whether each is still open.
@@ -196,47 +323,11 @@ pub fn trace(ctx: &AppContext, target: &str) -> CoreResult<()> {
             )));
         }
     };
-    if !super::load_all(ctx).iter().any(|i| i.id == id) {
-        return Err(could_not(format!(
-            "INT-{} names no intent in the ledger",
-            id
-        )));
+    let lines = trace_intent_lines(std::path::Path::new(&ctx.core_root), &id).map_err(could_not)?;
+    for line in lines {
+        println!("{line}");
     }
-    let label = format!("INT-{}", id);
-    let dir = super::intents_dir(ctx).join("findings");
-    let records = super::findings::read_records(&dir).map_err(could_not)?;
-    let found: Vec<&Record> = records.iter().filter(|r| r.found_by == label).collect();
-    let fixed_by = fixes(&ctx.core_root);
-    let states: Vec<State> = found.iter().map(|r| state_of(r, &fixed_by)).collect();
-    println!(
-        "  {} found {} finding{}",
-        label.bright_white(),
-        found.len(),
-        if found.len() == 1 { "" } else { "s" }
-    );
-    for (r, s) in found.iter().zip(&states) {
-        let state = match s {
-            State::Open => "open".yellow().to_string(),
-            State::Fixed(by) => format!("fixed by {}", by.join(", ")).green().to_string(),
-            State::Closed(why) => format!("closed without a fix: {}", why)
-                .dimmed()
-                .to_string(),
-            State::Unread(_) => "not known".red().to_string(),
-        };
-        println!("     {}  {}  {}", r.id.bright_white(), state, r.what);
-        println!("             at {}", r.at.dimmed());
-    }
-    match &fixed_by {
-        Ok(_) => {
-            let open = states.iter().filter(|s| **s == State::Open).count();
-            println!("     {} open", open);
-            Ok(())
-        }
-        Err(e) => Err(could_not(format!(
-            "git could not be read, so no finding above is called open: {}",
-            e
-        ))),
-    }
+    Ok(())
 }
 
 /// The first 16 hex of sha256 over the plan text -- the Seal rule (Christian, 2026-10-04).
