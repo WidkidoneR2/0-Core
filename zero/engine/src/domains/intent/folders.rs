@@ -24,29 +24,120 @@ pub const RECORDS: &[&str] = &["decisions", "experiments", "incidents", "philoso
 #[allow(dead_code)] // classification only: the tree test reads it
 pub const OTHER: &[&str] = &["findings"];
 
+/// Shelves an intent file may have lived in. The live shelf is `open`; the others are
+/// gone from disk and still visible to git. Record shelves are not here.
+const GIT_LIFECYCLE: &[&str] = &[
+    "future",
+    "planned",
+    "in-progress",
+    "complete",
+    "cancelled",
+    "open",
+];
+
 /// The ONE numberer. One plus the highest three-digit id in the directories that share the
 /// category's namespace: all of LIFECYCLE for a lifecycle directory, only its own otherwise.
+/// A lifecycle number also counts `closed.tsv` and, when git can answer about this shelf,
+/// every id git has stored under a lifecycle folder.
 pub fn next_number(base: &Path, category: &str) -> u32 {
     let scan: Vec<&str> = if LIFECYCLE.contains(&category) {
         LIFECYCLE.to_vec()
     } else {
         vec![category]
     };
-    scan.iter()
+    let mut highest = scan
+        .iter()
         .flat_map(|d| fs::read_dir(base.join(d)).ok().into_iter().flatten())
         .flatten()
-        .filter_map(|e| {
-            let n = e.file_name().to_string_lossy().to_string();
-            let p = n.split('-').next()?;
-            if p.len() == 3 && p.bytes().all(|b| b.is_ascii_digit()) {
-                p.parse::<u32>().ok()
-            } else {
-                None
-            }
-        })
+        .filter_map(|e| three_digit_prefix(&e.file_name().to_string_lossy()))
         .max()
-        .unwrap_or(0)
-        + 1
+        .unwrap_or(0);
+    if LIFECYCLE.contains(&category) {
+        match zero_core::ledger::read_closed(base) {
+            Ok(index) => {
+                for warning in &index.warnings {
+                    eprintln!("closed.tsv: {warning}");
+                }
+                for row in &index.rows {
+                    if let Some(n) = three_digit_prefix(&row.id) {
+                        highest = highest.max(n);
+                    }
+                }
+            }
+            Err(err) => eprintln!("closed.tsv: {err}"),
+        }
+        if let Some(n) = highest_git_lifecycle_id(base) {
+            highest = highest.max(n);
+        }
+    }
+    highest + 1
+}
+
+fn three_digit_prefix(name: &str) -> Option<u32> {
+    let prefix = name.split('-').next()?;
+    if prefix.len() == 3 && prefix.bytes().all(|b| b.is_ascii_digit()) {
+        prefix.parse().ok()
+    } else {
+        None
+    }
+}
+
+/// The highest lifecycle id git has stored, when `base` is that repo's intent shelf.
+/// None when git cannot answer, or when `base` is not the shelf of the repo it sits in,
+/// so a scratch directory does not inherit some other repository's numbers.
+fn highest_git_lifecycle_id(base: &Path) -> Option<u32> {
+    let top = git_stdout(base, &["rev-parse", "--show-toplevel"])?;
+    let top = Path::new(top.trim());
+    let shelf = top.join("zero/intents");
+    if base.canonicalize().ok()? != shelf.canonicalize().ok()? {
+        return None;
+    }
+    let text = git_stdout(
+        top,
+        &[
+            "log",
+            "--all",
+            "--name-only",
+            "--format=",
+            "--",
+            "zero/intents",
+        ],
+    )?;
+    let mut highest = None;
+    for line in text.lines() {
+        if let Some(n) = lifecycle_history_id(line) {
+            highest = Some(highest.map_or(n, |h: u32| h.max(n)));
+        }
+    }
+    highest
+}
+
+fn lifecycle_history_id(path: &str) -> Option<u32> {
+    let path = path.trim().trim_matches('"');
+    let mut parts = path.split('/');
+    if parts.next() != Some("zero") || parts.next() != Some("intents") {
+        return None;
+    }
+    let folder = parts.next()?;
+    let file = parts.next()?;
+    if parts.next().is_some() || !GIT_LIFECYCLE.contains(&folder) || !file.ends_with(".md") {
+        return None;
+    }
+    let stem = file.strip_suffix(".md")?;
+    three_digit_prefix(stem)
+}
+
+fn git_stdout(dir: &Path, args: &[&str]) -> Option<String> {
+    let out = std::process::Command::new("git")
+        .arg("-C")
+        .arg(dir)
+        .args(args)
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    String::from_utf8(out.stdout).ok()
 }
 
 #[cfg(test)]
