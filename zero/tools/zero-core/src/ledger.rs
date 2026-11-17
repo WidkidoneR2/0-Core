@@ -40,13 +40,24 @@ pub fn live() -> Vec<IntentFile> {
 }
 
 /// Completed intent ids. The live shelf contributes files whose status is complete.
-/// Git contributes every id that ever lived in `zero/intents/complete/`. If git
-/// cannot answer, only the live shelf is returned.
+/// `closed.tsv` contributes rows whose status is complete. Git contributes every id
+/// that ever lived in `zero/intents/complete/`. If git cannot answer, that archive is
+/// skipped. A missing closed.tsv adds nothing. An unreadable one is reported and adds
+/// nothing, which is not the same as a file that was read and was empty.
 pub fn completed_ids() -> std::collections::HashSet<String> {
     let mut ids: std::collections::HashSet<String> = with_status("complete")
         .into_iter()
         .map(|file| file.id)
         .collect();
+    match completed_ids_from(&crate::paths::intents_dir()) {
+        Ok(closed) => {
+            for warning in &closed.warnings {
+                eprintln!("closed.tsv: {warning}");
+            }
+            ids.extend(closed.ids);
+        }
+        Err(err) => eprintln!("closed.tsv: {err}"),
+    }
     if let Some(archived) = git_ids_in(&["complete"]) {
         ids.extend(archived);
     }
@@ -79,11 +90,96 @@ pub struct ClosedIds {
 
 /// Read `closed.tsv` in `dir` (the intents directory).
 ///
-/// INT-320 red: the file is not read yet, so every directory looks empty.
-/// A missing file and an unreadable file are not told apart.
+/// A missing file is an empty index. An unreadable file is an error naming the path.
+/// A header line whose first field is `id` is skipped. A malformed row is named in
+/// `warnings` and is not a row; the rows around it are kept.
 pub fn read_closed(dir: &Path) -> Result<ClosedIndex, String> {
-    let _ = dir;
-    Ok(ClosedIndex::default())
+    let path = dir.join("closed.tsv");
+    let text = match fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(ClosedIndex::default());
+        }
+        Err(e) => {
+            return Err(format!(
+                "closed.tsv at {} could not be read: {e}",
+                path.display()
+            ));
+        }
+    };
+    Ok(parse_closed(&text))
+}
+
+fn parse_closed(text: &str) -> ClosedIndex {
+    let mut index = ClosedIndex::default();
+    for (n, raw) in text.lines().enumerate() {
+        let line = raw.trim_end_matches('\r');
+        if line.trim().is_empty() {
+            continue;
+        }
+        let first = line.split('\t').next().unwrap_or("").trim();
+        if first == "id" {
+            continue;
+        }
+        match parse_closed_row(line) {
+            Ok(row) => index.rows.push(row),
+            Err(why) => index
+                .warnings
+                .push(format!("line {}: {why}: {line}", n + 1)),
+        }
+    }
+    index
+}
+
+fn parse_closed_row(line: &str) -> Result<ClosedRow, String> {
+    let parts: Vec<&str> = line.split('\t').collect();
+    if parts.len() != 5 {
+        return Err(format!(
+            "expected 5 tab-separated fields, found {}",
+            parts.len()
+        ));
+    }
+    let id = parts[0].trim();
+    let status = parts[1].trim();
+    let closed = parts[2].trim();
+    let last_commit = parts[3].trim();
+    let title = parts[4].trim();
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(format!("id {id:?} is not digits"));
+    }
+    if status != "complete" && status != "cancelled" {
+        return Err(format!("status {status:?} is not complete or cancelled"));
+    }
+    if !is_closed_date(closed) {
+        return Err(format!("closed date {closed:?} is not YYYY-MM-DD"));
+    }
+    if last_commit.is_empty() || last_commit.chars().any(char::is_whitespace) {
+        return Err("last_commit is empty".to_string());
+    }
+    if title.is_empty() {
+        return Err("title is empty".to_string());
+    }
+    Ok(ClosedRow {
+        id: id.to_string(),
+        status: status.to_string(),
+        closed: closed.to_string(),
+        last_commit: last_commit.to_string(),
+        title: title.to_string(),
+    })
+}
+
+fn is_closed_date(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
+        return false;
+    }
+    let digits = |slice: &[u8]| slice.iter().all(|c| c.is_ascii_digit());
+    if !digits(&bytes[..4]) || !digits(&bytes[5..7]) || !digits(&bytes[8..]) {
+        return false;
+    }
+    let month: u32 = value[5..7].parse().unwrap_or(0);
+    let day: u32 = value[8..].parse().unwrap_or(0);
+    (1..=12).contains(&month) && (1..=31).contains(&day)
 }
 
 /// Ids in closed.tsv whose status is complete. Cancelled rows are not ids.
@@ -293,15 +389,8 @@ mod tests {
     }
 
     fn scratch(name: &str) -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!(
-            "ledger-closed-{}-{}-{}",
-            name,
-            std::process::id(),
-            std::time::SystemTime::now()
-                .duration_since(std::time::UNIX_EPOCH)
-                .map(|d| d.as_nanos())
-                .unwrap_or(0)
-        ));
+        let dir =
+            std::env::temp_dir().join(format!("ledger-closed-{}-{}", std::process::id(), name));
         let _ = fs::remove_dir_all(&dir);
         fs::create_dir_all(&dir).unwrap();
         dir
