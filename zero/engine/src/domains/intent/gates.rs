@@ -819,10 +819,9 @@ mod tests {
 
     #[test]
     fn a_real_v1_intent_on_disk_still_completes() {
-        let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join(
-            "../intents/open/308-ledger-commands-for-cistart-intent-add-and-the-seal-note.md",
+        let content = include_str!(
+            "testdata/308-ledger-commands-for-cistart-intent-add-and-the-seal-note.md"
         );
-        let content = std::fs::read_to_string(&path).unwrap();
         let fm = content.split("---").nth(1).unwrap_or("");
         assert!(
             !fm.lines().any(|line| line
@@ -848,7 +847,7 @@ mod tests {
     fn the_orphaned_v1_receipt_test_is_marked_as_a_test() {
         let src = include_str!("gates.rs");
         let marker = "fn a_v1_ticked_gate_without_a_receipt_still_completes";
-        let idx = src.find(marker).expect("the v1 receipt test exists");
+        let idx = src.rfind(marker).expect("the v1 receipt test exists");
         let before = src[..idx].trim_end();
         assert!(
             before.ends_with("#[test]"),
@@ -856,6 +855,7 @@ mod tests {
         );
     }
 
+    #[test]
     fn a_v1_ticked_gate_without_a_receipt_still_completes() {
         let c = "---\n---\n## Success Criteria\n- [x] G1 done\n";
         assert_eq!(check_completion(c), Ok(()));
