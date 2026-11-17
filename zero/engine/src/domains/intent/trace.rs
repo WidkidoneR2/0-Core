@@ -240,7 +240,7 @@ pub fn trace_intent_lines(repo: &std::path::Path, id: &str) -> Result<Vec<String
     }
 }
 
-fn same_intent_id(row_id: &str, id: &str) -> bool {
+pub(crate) fn same_intent_id(row_id: &str, id: &str) -> bool {
     if row_id == id {
         return true;
     }
