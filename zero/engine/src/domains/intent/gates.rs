@@ -834,6 +834,28 @@ mod tests {
         assert_eq!(check_completion(&content), Ok(()));
     }
 
+    #[test]
+    fn the_v1_completion_test_does_not_open_the_real_ledger_file() {
+        let src = include_str!("gates.rs");
+        let needle = format!("intents/open/{}-ledger-commands", 308);
+        assert!(
+            !src.contains(&needle),
+            "a_real_v1_intent_on_disk_still_completes still opens the real ledger file"
+        );
+    }
+
+    #[test]
+    fn the_orphaned_v1_receipt_test_is_marked_as_a_test() {
+        let src = include_str!("gates.rs");
+        let marker = "fn a_v1_ticked_gate_without_a_receipt_still_completes";
+        let idx = src.find(marker).expect("the v1 receipt test exists");
+        let before = src[..idx].trim_end();
+        assert!(
+            before.ends_with("#[test]"),
+            "a_v1_ticked_gate_without_a_receipt_still_completes has no #[test]"
+        );
+    }
+
     fn a_v1_ticked_gate_without_a_receipt_still_completes() {
         let c = "---\n---\n## Success Criteria\n- [x] G1 done\n";
         assert_eq!(check_completion(c), Ok(()));

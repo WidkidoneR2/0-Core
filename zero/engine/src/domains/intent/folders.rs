@@ -192,4 +192,58 @@ mod tests {
         assert_eq!(next_number(&base, "open"), 13);
         let _ = fs::remove_dir_all(&base);
     }
+
+    #[test]
+    fn open_302_plus_closed_319_answers_320() {
+        let base = fixture("closed319", &["open/302-live.md"]);
+        fs::write(
+            base.join("closed.tsv"),
+            "id\tstatus\tclosed\tlast_commit\ttitle\n319\tcomplete\t2026-11-17\tabc1234\tfinished\n",
+        )
+        .unwrap();
+        let n = next_number(&base, "open");
+        let _ = fs::remove_dir_all(&base);
+        assert_eq!(n, 320, "open/302 plus closed 319");
+    }
+
+    #[test]
+    fn a_lifecycle_id_git_has_seen_counts_toward_the_next_number() {
+        let root = std::env::temp_dir().join(format!(
+            "int320-git-number-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = fs::remove_dir_all(&root);
+        let intents = root.join("zero/intents");
+        fs::create_dir_all(intents.join("complete")).unwrap();
+        fs::write(intents.join("complete/319-old.md"), "old\n").unwrap();
+        let git = |args: &[&str]| {
+            let out = std::process::Command::new("git")
+                .arg("-C")
+                .arg(&root)
+                .args(args)
+                .output()
+                .expect("git");
+            assert!(
+                out.status.success(),
+                "{args:?} {}",
+                String::from_utf8_lossy(&out.stderr)
+            );
+        };
+        git(&["init", "-q"]);
+        git(&["config", "user.email", "t@example.com"]);
+        git(&["config", "user.name", "test"]);
+        git(&["add", "zero/intents/complete/319-old.md"]);
+        git(&["commit", "-q", "-m", "archive 319"]);
+        git(&["rm", "-q", "zero/intents/complete/319-old.md"]);
+        git(&["commit", "-q", "-m", "drop 319"]);
+        fs::create_dir_all(intents.join("open")).unwrap();
+        fs::write(intents.join("open/302-live.md"), "").unwrap();
+        let n = next_number(&intents, "open");
+        let _ = fs::remove_dir_all(&root);
+        assert_eq!(n, 320, "open/302 plus git history 319");
+    }
 }

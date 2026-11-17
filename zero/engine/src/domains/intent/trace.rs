@@ -161,6 +161,21 @@ fn could_not(message: String) -> CoreError {
     }
 }
 
+/// Lines `core intent trace INT-x` prints.
+///
+/// INT-320 red: an id `load_all` does not see is refused. closed.tsv is not read,
+/// so a closed-only id is "INT-N names no intent in the ledger".
+pub fn trace_intent_lines(repo: &std::path::Path, id: &str) -> Result<Vec<String>, String> {
+    let intents = repo.join("zero/intents");
+    let live = zero_core::ledger::load_from(&intents)
+        .iter()
+        .any(|file| !file.is_record() && file.id == id);
+    if !live {
+        return Err(format!("INT-{id} names no intent in the ledger"));
+    }
+    Ok(Vec::new())
+}
+
 /// `core intent trace INT-x` -- every finding INT-x found, and whether each is still open.
 /// F-x goes to trace_finding (question b), a commit to trace_commit and a seal to trace_seal (question c).
 pub fn trace(ctx: &AppContext, target: &str) -> CoreResult<()> {
@@ -2137,6 +2152,86 @@ mod g4_trace_by_seal_tests {
                 seal: broken_seal,
                 got: seal_digest(other),
             }
+        );
+    }
+}
+
+#[cfg(test)]
+mod int320_trace_tests {
+    use std::process::Command;
+
+    fn git(repo: &std::path::Path, args: &[&str]) {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .expect("git");
+        assert!(
+            out.status.success(),
+            "{args:?} {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+
+    #[test]
+    fn trace_of_a_closed_only_id_names_the_commit_and_the_finding() {
+        let repo = std::env::temp_dir().join(format!(
+            "int320-trace-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = std::fs::remove_dir_all(&repo);
+        let open = repo.join("zero/intents/open");
+        let findings = repo.join("zero/intents/findings");
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::create_dir_all(&findings).unwrap();
+        let intent = open.join("318-closed.md");
+        std::fs::write(
+            &intent,
+            "---\nid: 318\ntitle: \"Closed trace\"\nstatus: complete\ndate: 2026-11-17\n---\n\n",
+        )
+        .unwrap();
+        std::fs::write(
+            findings.join("F-0001.md"),
+            "---\nid: F-0001\nwhat: closed intent still traces\nat: trace.rs:1\nfound_by: INT-318\nfound_on: 2026-11-17\nclosed_without_fix: no\nseverity: low\n---\n",
+        )
+        .unwrap();
+        git(&repo, &["init", "-q"]);
+        git(&repo, &["config", "user.email", "t@example.com"]);
+        git(&repo, &["config", "user.name", "test"]);
+        git(&repo, &["add", "zero/intents"]);
+        git(&repo, &["commit", "-q", "-m", "add 318"]);
+        let hash = String::from_utf8(
+            Command::new("git")
+                .args(["-C", repo.to_str().unwrap(), "rev-parse", "HEAD"])
+                .output()
+                .unwrap()
+                .stdout,
+        )
+        .unwrap();
+        let hash = hash.trim().to_string();
+        std::fs::remove_file(&intent).unwrap();
+        std::fs::write(
+            repo.join("zero/intents/closed.tsv"),
+            format!(
+                "id\tstatus\tclosed\tlast_commit\ttitle\n318\tcomplete\t2026-11-17\t{hash}\tClosed trace\n"
+            ),
+        )
+        .unwrap();
+        let lines = super::trace_intent_lines(&repo, "318").expect("a closed id is known");
+        let _ = std::fs::remove_dir_all(&repo);
+        let text = lines.join("\n");
+        assert!(
+            text.contains("closed intent still traces"),
+            "findings print: {text}"
+        );
+        assert!(
+            text.contains(&format!("git show {hash}:")),
+            "the row names the commit that holds the last text: {text}"
         );
     }
 }
