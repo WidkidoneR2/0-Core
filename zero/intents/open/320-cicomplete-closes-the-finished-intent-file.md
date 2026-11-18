@@ -3,7 +3,7 @@ id: 320
 date: 2026-11-18
 type: future
 title: "cicomplete removes the finished intent file, and nothing forgets it"
-status: planned
+status: in-progress
 tags: [ledger, cicomplete, intents]
 format: 2
 ---
@@ -65,47 +65,47 @@ GitHub shows it as a table. zero-core reads it with no new dependency.
   exactly as today, and the output says removal UNDETERMINED with the reason.
 
 ## Success Criteria
-- [ ] G1 the gate tests do not read a real ledger file. The v1 test reads an
+- [x] G1 the gate tests do not read a real ledger file. The v1 test reads an
       embedded copy of 308, and the orphaned v1 test has its #[test] and
       runs. Watched failing first in a scratch tree with 308 moved away.
       ask: cargo test -p core passes with open/308 absent
       ruling:
-      evidence:
-- [ ] G2 closed.tsv is read (zero-core ledger.rs). completed_ids_from() on a
+      evidence: cargo test -p core passed on int-320 (349); v1 test reads the embedded testdata copy, the orphaned v1 test has #[test] and ran
+- [x] G2 closed.tsv is read (zero-core ledger.rs). completed_ids_from() on a
       scratch dir with rows 318 complete and 039 cancelled contains 318 and
       not 039. A missing closed.tsv is an empty index. A malformed row is
       named, not dropped. An unreadable file is reported, not empty.
       ask: a closed complete id counts as done, a cancelled one does not
       ruling:
-      evidence:
-- [ ] G3 a number is never handed out twice (folders.rs). With open/302 on
+      evidence: cargo test -p zero-core: complete 318 counted, cancelled 039 did not; missing closed.tsv is empty; malformed row named; unreadable file reported
+- [x] G3 a number is never handed out twice (folders.rs). With open/302 on
       disk and 319 in closed.tsv, next_number answers 320. Today it answers
       303.
       ask: next_number answers 320 for open/302 plus closed 319
       ruling:
-      evidence:
-- [ ] G4 trace knows a closed intent (trace.rs). An id that is only in
+      evidence: cargo test -p core: open/302 plus closed 319, next_number answered 320
+- [x] G4 trace knows a closed intent (trace.rs). An id that is only in
       closed.tsv is traced: its findings print, and the row names the commit
       that holds its last text.
       ask: trace INT-318 answers after 318 leaves open/
       ruling:
-      evidence:
-- [ ] G5 cicomplete closes the file (intent/mod.rs). In a temp git repo,
+      evidence: cargo test -p core: trace of a closed-only id printed the finding and named git show <commit>:<path>
+- [x] G5 cicomplete closes the file (intent/mod.rs). In a temp git repo,
       close_file() on a committed open/ file appends one row, removes the
       file and stages both. An untracked file and a non-repo directory answer
       UNDETERMINED and leave the file where it is. Nothing is removed unless
       the gate check and write_versions both succeeded.
       ask: the file is staged for deletion and closed.tsv is staged
       ruling:
-      evidence:
-- [ ] G6 doors, nsh-test and d green on the laptop, and a rehearsal in a
+      evidence: cargo test -p core: close_file staged the deletion and closed.tsv; untracked and non-repo paths were UNDETERMINED and left the file
+- [x] G6 doors, nsh-test and d green on the laptop, and a rehearsal in a
       scratch HOME (a clone of 0-core, ZERO_STATE_DB in /tmp) completes a
       throwaway intent: git status shows the file deleted and closed.tsv
       modified, both staged, and core intent stats shows the same done count
       before and after.
       ask: doors, nsh-test and d green; rehearsal shows D and M staged
       ruling:
-      evidence:
+      evidence: doors 4/4 (nsh-test included) and d 96% with only the uncommitted 320 file after merge 91c61579; scratch HOME rehearsal with the int-320 build showed D and M staged and trace and show answered 399 from closed.tsv
 
 ## Job order
 - G1 (gates.rs) and G2 (zero-core/src/ledger.rs) run side by side.
