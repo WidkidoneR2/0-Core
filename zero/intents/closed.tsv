@@ -1,1 +1,2 @@
 id	status	closed	last_commit	title
+320	complete	2026-11-18	44392ce061d9e7dc1d8469a1ff52662e72280a60	cicomplete removes the finished intent file, and nothing forgets it
