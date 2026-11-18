@@ -440,8 +440,7 @@ pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
     let found: Vec<&Intent> = intents.iter().filter(|i| i.id == id).collect();
 
     if found.is_empty() {
-        println!("  {} Intent {} not found", "✗".bright_red(), id);
-        return Ok(());
+        return show_closed(ctx, id);
     }
 
     let intent = found[0];
@@ -471,6 +470,44 @@ pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
     if parts.len() >= 3 {
         println!("{}", parts[2].trim());
     }
+    Ok(())
+}
+
+/// An id that is only in closed.tsv. Prints the row and where its last text lives.
+fn show_closed(ctx: &AppContext, id: &str) -> CoreResult<()> {
+    match zero_core::ledger::read_closed(&intents_dir(ctx)) {
+        Ok(index) => {
+            if let Some(row) = index
+                .rows
+                .iter()
+                .find(|row| trace::same_intent_id(&row.id, id))
+            {
+                println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+                println!(
+                    "{} {} — {}",
+                    "📋".bold(),
+                    row.id.bright_cyan(),
+                    row.title.bright_white().bold()
+                );
+                println!(
+                    "  Status: {}  Closed: {}",
+                    row.status.bright_green(),
+                    row.closed.dimmed()
+                );
+                println!(
+                    "  read the old text: {}",
+                    trace::closed_text_command(Path::new(&ctx.core_root), &row.last_commit, id)
+                );
+                println!("{}", "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed());
+                return Ok(());
+            }
+        }
+        Err(err) => {
+            println!("  {} closed.tsv could not be read: {err}", "✗".bright_red());
+            return Ok(());
+        }
+    }
+    println!("  {} Intent {} not found", "✗".bright_red(), id);
     Ok(())
 }
 
@@ -1997,12 +2034,181 @@ fn release_commit_message(id: &str, versions: &[String]) -> String {
     format!("INT-{id}: complete; {list}\n\nIntent: INT-{id}\nRelease: {list}\n")
 }
 
+/// The commit message cicomplete suggests. When the intent file was removed, the subject says so.
+fn completion_commit_message(id: &str, versions: &[String], removed: Option<&str>) -> String {
+    if versions.is_empty() {
+        return match removed {
+            Some(path) => format!("INT-{id}: complete; removed {path}\n\nIntent: INT-{id}\n"),
+            None => String::new(),
+        };
+    }
+    let mut msg = release_commit_message(id, versions);
+    if let Some(path) = removed {
+        if let Some(nl) = msg.find('\n') {
+            msg.insert_str(nl, &format!("; removed {path}"));
+        }
+    }
+    msg
+}
+
+/// What `close_file` did. Staged means the intent file is gone from the index and
+/// closed.tsv is staged. Undetermined means nothing was staged and the file is still there.
+#[derive(Debug, PartialEq, Eq)]
+pub enum CloseOutcome {
+    Staged {
+        last_commit: String,
+        rel_path: String,
+    },
+    Undetermined {
+        reason: String,
+    },
+}
+
+/// Append one closed.tsv row, `git rm` the intent file and stage closed.tsv.
+///
+/// The row's commit is the last one that still has the file, so `git show <commit>:<path>`
+/// reads it after the removal commit. `-f` is required because cicomplete has already
+/// rewritten the working tree copy. An untracked file, a directory that is not a git
+/// repository, or a missing git answers UNDETERMINED and leaves the file where it is.
+pub fn close_file(
+    repo: &Path,
+    rel_path: &str,
+    id: &str,
+    status: &str,
+    title: &str,
+    closed_on: &str,
+) -> CloseOutcome {
+    close_file_with("git", repo, rel_path, id, status, title, closed_on)
+}
+
+fn close_file_with(
+    git: &str,
+    repo: &Path,
+    rel_path: &str,
+    id: &str,
+    status: &str,
+    title: &str,
+    closed_on: &str,
+) -> CloseOutcome {
+    match git_output(git, repo, &["rev-parse", "--is-inside-work-tree"]) {
+        Err(reason) => return CloseOutcome::Undetermined { reason },
+        Ok(out) if !out.status.success() => {
+            let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
+            return CloseOutcome::Undetermined {
+                reason: format!("not a git repository: {err}"),
+            };
+        }
+        Ok(_) => {}
+    }
+    let tracked = match git_output(git, repo, &["ls-files", "--error-unmatch", "--", rel_path]) {
+        Err(reason) => return CloseOutcome::Undetermined { reason },
+        Ok(out) => out,
+    };
+    if !tracked.status.success() {
+        return CloseOutcome::Undetermined {
+            reason: format!("{rel_path} is untracked"),
+        };
+    }
+    let logged = match git_output(git, repo, &["log", "-1", "--format=%H", "--", rel_path]) {
+        Err(reason) => return CloseOutcome::Undetermined { reason },
+        Ok(out) if !out.status.success() => {
+            return CloseOutcome::Undetermined {
+                reason: format!(
+                    "git log failed: {}",
+                    String::from_utf8_lossy(&out.stderr).trim()
+                ),
+            };
+        }
+        Ok(out) => out,
+    };
+    let last_commit = String::from_utf8_lossy(&logged.stdout).trim().to_string();
+    if last_commit.is_empty() {
+        return CloseOutcome::Undetermined {
+            reason: format!("no commit has {rel_path}"),
+        };
+    }
+    let tsv_rel = "zero/intents/closed.tsv";
+    let tsv = repo.join(tsv_rel);
+    if let Some(parent) = tsv.parent() {
+        if let Err(err) = fs::create_dir_all(parent) {
+            return CloseOutcome::Undetermined {
+                reason: format!("could not create {}: {err}", parent.display()),
+            };
+        }
+    }
+    let title = title.replace(['\t', '\n', '\r'], " ");
+    let row = format!("{id}\t{status}\t{closed_on}\t{last_commit}\t{title}\n");
+    let existing = match fs::read_to_string(&tsv) {
+        Ok(text) => text,
+        Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
+        Err(err) => {
+            return CloseOutcome::Undetermined {
+                reason: format!("closed.tsv could not be read: {err}"),
+            };
+        }
+    };
+    let mut body = existing;
+    if body.is_empty() {
+        body.push_str("id\tstatus\tclosed\tlast_commit\ttitle\n");
+    } else if !body.ends_with('\n') {
+        body.push('\n');
+    }
+    body.push_str(&row);
+    if let Err(err) = fs::write(&tsv, body) {
+        return CloseOutcome::Undetermined {
+            reason: format!("closed.tsv could not be written: {err}"),
+        };
+    }
+    if let Err(reason) = git_ok(git, repo, &["add", "--", tsv_rel]) {
+        return CloseOutcome::Undetermined { reason };
+    }
+    if let Err(reason) = git_ok(git, repo, &["rm", "-f", "--", rel_path]) {
+        return CloseOutcome::Undetermined { reason };
+    }
+    CloseOutcome::Staged {
+        last_commit,
+        rel_path: rel_path.to_string(),
+    }
+}
+
+fn git_output(git: &str, repo: &Path, args: &[&str]) -> Result<std::process::Output, String> {
+    std::process::Command::new(git)
+        .arg("-C")
+        .arg(repo)
+        .args(args)
+        .output()
+        .map_err(|err| format!("git could not run: {err}"))
+}
+
+fn git_ok(git: &str, repo: &Path, args: &[&str]) -> Result<(), String> {
+    let out = git_output(git, repo, args)?;
+    if out.status.success() {
+        return Ok(());
+    }
+    Err(format!(
+        "git {} failed: {}",
+        args.first().copied().unwrap_or(""),
+        String::from_utf8_lossy(&out.stderr).trim()
+    ))
+}
+
+fn repo_relative(repo: &Path, path: &Path) -> Option<String> {
+    let repo = repo.canonicalize().ok()?;
+    let path = path.canonicalize().ok()?;
+    let rel = path.strip_prefix(&repo).ok()?;
+    Some(rel.to_string_lossy().replace('\\', "/"))
+}
+
 /// INT-271: write every planned bump through the one owner, then sync Cargo.lock for it. Returns
 /// the Versions receipt for the intent. A write that fails stops the close: the caller does not
 /// move the intent, and the message names what was written and how to finish.
-fn write_versions(ctx: &AppContext, id: &str, plans: &[VersionPlan]) -> CoreResult<String> {
+fn write_versions(
+    ctx: &AppContext,
+    id: &str,
+    plans: &[VersionPlan],
+) -> CoreResult<(String, Vec<String>)> {
     if plans.is_empty() {
-        return Ok(String::new());
+        return Ok((String::new(), Vec::new()));
     }
     let mut receipt = String::from("\n## Versions\n");
     let mut written: Vec<String> = Vec::new();
@@ -2127,15 +2333,7 @@ fn write_versions(ctx: &AppContext, id: &str, plans: &[VersionPlan]) -> CoreResu
             }
         }
     }
-    if !written.is_empty() {
-        println!();
-        println!(
-            "  {} cicomplete does not commit. Suggested commit message:",
-            "\u{1f4dd}".normal()
-        );
-        print!("{}", release_commit_message(id, &written));
-    }
-    Ok(receipt)
+    Ok((receipt, written))
 }
 
 /// INT-292: one crate the close bumped, as it must now read in the registry, Cargo.lock and the
@@ -2772,24 +2970,34 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
     println!("  {} Auto-checkpointing before completion...", "→".dimmed());
     crate::domains::checkpoint::auto(ctx, &format!("intent-{}-complete", id))?;
     // INT-271: write every planned bump. A failure stops here and the intent is not moved.
-    let receipt = write_versions(ctx, id, &planned)?;
+    // INT-320: close_file runs only after this succeeds.
+    let (receipt, written) = write_versions(ctx, id, &planned)?;
 
-    // Move the file the gate check read to complete/: one search, never two.
-    let found_path = Some(gate_file);
-
-    if let Some(src_path) = found_path {
-        // Update status in frontmatter
-        let content = fs::read_to_string(&src_path).map_err(crate::errors::CoreError::Io)?;
-        let updated = set_frontmatter_status(
-            &content,
-            &["planned", "future", "in-progress", "deferred"],
+    // The gate check read this file. Status is written first, so a close that cannot
+    // remove it leaves status complete exactly as before.
+    let content = fs::read_to_string(&gate_file).map_err(crate::errors::CoreError::Io)?;
+    let updated = set_frontmatter_status(
+        &content,
+        &["planned", "future", "in-progress", "deferred"],
+        "complete",
+    );
+    // INT-271: the Versions receipt rides in the same write as the status.
+    let updated = updated + &receipt;
+    fs::write(&gate_file, updated).map_err(crate::errors::CoreError::Io)?;
+    let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+    let outcome = match repo_relative(Path::new(&ctx.core_root), &gate_file) {
+        Some(rel) => close_file(
+            Path::new(&ctx.core_root),
+            &rel,
+            &intent.id,
             "complete",
-        );
-        // INT-271: the Versions receipt rides in the same write as the status.
-        // INT-313 stage 3: the file stays where it is.
-        let updated = updated + &receipt;
-        fs::write(&src_path, updated).map_err(crate::errors::CoreError::Io)?;
-    }
+            &intent.title,
+            &today,
+        ),
+        None => CloseOutcome::Undetermined {
+            reason: "the intent file is not inside the repository".to_string(),
+        },
+    };
 
     // INT-251 v23: emit to unified event bus. INT-271: after the move, so a close that stopped
     // on a failed bump never announces a completion.
@@ -2814,10 +3022,43 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
     println!("  {} {}", "ID:    ".dimmed(), intent.id.bright_white());
     println!("  {} {}", "Title: ".dimmed(), intent.title.bright_white());
     println!("  {} → {}", "State: ".dimmed(), "complete".bright_green());
-    println!(
-        "  {} Status is complete. The file stays in open/. Older finished intents: git log --diff-filter=D -- zero/intents",
-        "📁".dimmed()
-    );
+    match &outcome {
+        CloseOutcome::Staged {
+            last_commit,
+            rel_path,
+        } => {
+            println!(
+                "  {} removed {} and staged closed.tsv",
+                "📁".dimmed(),
+                rel_path
+            );
+            println!(
+                "  {} read the old text: git show {}:{}",
+                "📁".dimmed(),
+                last_commit,
+                rel_path
+            );
+        }
+        CloseOutcome::Undetermined { reason } => {
+            println!("  {} removal UNDETERMINED: {}", "📁".dimmed(), reason);
+            println!(
+                "  {} Status is complete. The file stays in open/. Older finished intents: git log --diff-filter=D -- zero/intents",
+                "📁".dimmed()
+            );
+        }
+    }
+    let removed = match &outcome {
+        CloseOutcome::Staged { rel_path, .. } => Some(rel_path.as_str()),
+        CloseOutcome::Undetermined { .. } => None,
+    };
+    if !written.is_empty() || removed.is_some() {
+        println!();
+        println!(
+            "  {} cicomplete does not commit. Suggested commit message:",
+            "\u{1f4dd}".normal()
+        );
+        print!("{}", completion_commit_message(id, &written, removed));
+    }
     println!("{}", "━".repeat(50).dimmed());
 
     // INT-247 Phase 4: show newly unblocked intents + simple retrospective
@@ -5799,5 +6040,251 @@ mod read_open_tests {
         let _ = std::fs::remove_dir_all(&dir);
         assert_eq!(rows.len(), 1);
         assert_eq!(rows[0].gates.gates.len(), 2, "read_gates is attached");
+    }
+}
+
+#[cfg(test)]
+mod int320_close_tests {
+    use super::{close_file, close_file_with, completion_commit_message, CloseOutcome};
+    use std::path::Path;
+    use std::process::Command;
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "int320-close-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn git(repo: &Path, args: &[&str]) {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .expect("git");
+        assert!(
+            out.status.success(),
+            "{args:?} {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+
+    fn repo(name: &str) -> std::path::PathBuf {
+        let dir = scratch(name);
+        git(&dir, &["init", "-q"]);
+        git(&dir, &["config", "user.email", "t@example.com"]);
+        git(&dir, &["config", "user.name", "test"]);
+        dir
+    }
+
+    fn write_intent(repo: &Path) -> String {
+        let rel = "zero/intents/open/318-one.md".to_string();
+        let path = repo.join(&rel);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &path,
+            "---\nid: 318\ntitle: \"One\"\nstatus: in-progress\ndate: 2026-11-17\n---\n\n",
+        )
+        .unwrap();
+        rel
+    }
+
+    #[test]
+    fn a_committed_open_file_is_removed_and_closed_tsv_is_staged() {
+        let repo = repo("staged");
+        let rel = write_intent(&repo);
+        git(&repo, &["add", &rel]);
+        git(&repo, &["commit", "-q", "-m", "add 318"]);
+        let head = String::from_utf8(
+            Command::new("git")
+                .args(["-C", repo.to_str().unwrap(), "rev-parse", "HEAD"])
+                .output()
+                .unwrap()
+                .stdout,
+        )
+        .unwrap();
+        let head = head.trim().to_string();
+        let outcome = close_file(&repo, &rel, "318", "complete", "One", "2026-11-18");
+        let file = repo.join(&rel);
+        match outcome {
+            CloseOutcome::Staged {
+                last_commit,
+                rel_path,
+            } => {
+                assert_eq!(last_commit, head);
+                assert_eq!(rel_path, rel);
+                assert!(!file.exists(), "the intent file is removed");
+                let staged = Command::new("git")
+                    .args([
+                        "-C",
+                        repo.to_str().unwrap(),
+                        "diff",
+                        "--cached",
+                        "--name-status",
+                    ])
+                    .output()
+                    .unwrap();
+                let text = String::from_utf8_lossy(&staged.stdout).to_string();
+                assert!(
+                    text.lines().any(|l| l.starts_with("D") && l.contains(&rel)),
+                    "the file is staged for deletion: {text}"
+                );
+                assert!(
+                    text.contains("zero/intents/closed.tsv"),
+                    "closed.tsv is staged: {text}"
+                );
+                let tsv = std::fs::read_to_string(repo.join("zero/intents/closed.tsv")).unwrap();
+                assert!(tsv.starts_with("id\t"), "{tsv}");
+                assert!(
+                    tsv.contains(&format!("318\tcomplete\t2026-11-18\t{head}\tOne")),
+                    "{tsv}"
+                );
+            }
+            CloseOutcome::Undetermined { reason } => {
+                panic!("expected the file staged for deletion, got UNDETERMINED: {reason}")
+            }
+        }
+        let _ = std::fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn an_untracked_file_is_undetermined_and_stays() {
+        let repo = repo("untracked");
+        let rel = write_intent(&repo);
+        let outcome = close_file(&repo, &rel, "318", "complete", "One", "2026-11-18");
+        let file = repo.join(&rel);
+        match outcome {
+            CloseOutcome::Undetermined { reason } => {
+                assert!(
+                    reason.contains("untracked"),
+                    "the reason must say the file is untracked: {reason}"
+                );
+            }
+            CloseOutcome::Staged { .. } => panic!("an untracked file must not be removed"),
+        }
+        assert!(file.exists(), "the file stays");
+        assert!(
+            !repo.join("zero/intents/closed.tsv").exists(),
+            "nothing was written"
+        );
+        let staged = Command::new("git")
+            .args([
+                "-C",
+                repo.to_str().unwrap(),
+                "diff",
+                "--cached",
+                "--name-only",
+            ])
+            .output()
+            .unwrap();
+        assert!(
+            staged.stdout.is_empty(),
+            "nothing is staged: {}",
+            String::from_utf8_lossy(&staged.stdout)
+        );
+        let _ = std::fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn a_non_repo_directory_is_undetermined_and_the_file_stays() {
+        let dir = scratch("norepo");
+        let rel = write_intent(&dir);
+        let outcome = close_file(&dir, &rel, "318", "complete", "One", "2026-11-18");
+        match outcome {
+            CloseOutcome::Undetermined { reason } => {
+                assert!(
+                    reason.contains("not a git"),
+                    "the reason must say this is not a git repository: {reason}"
+                );
+            }
+            CloseOutcome::Staged { .. } => panic!("a non-repo directory must not remove the file"),
+        }
+        assert!(dir.join(&rel).exists(), "the file stays");
+        assert!(!dir.join("zero/intents/closed.tsv").exists());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn git_missing_is_undetermined_and_the_file_stays() {
+        let repo = repo("nogit");
+        let rel = write_intent(&repo);
+        git(&repo, &["add", &rel]);
+        git(&repo, &["commit", "-q", "-m", "add 318"]);
+        let outcome = close_file_with(
+            "/nonexistent/git-binary",
+            &repo,
+            &rel,
+            "318",
+            "complete",
+            "One",
+            "2026-11-18",
+        );
+        match outcome {
+            CloseOutcome::Undetermined { reason } => {
+                assert!(
+                    reason.contains("could not run"),
+                    "a missing git is reported: {reason}"
+                );
+            }
+            CloseOutcome::Staged { .. } => panic!("a missing git must not remove the file"),
+        }
+        assert!(repo.join(&rel).exists(), "the file stays");
+        assert!(!repo.join("zero/intents/closed.tsv").exists());
+        let _ = std::fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn the_suggested_commit_message_says_the_file_was_removed() {
+        let msg = completion_commit_message(
+            "320",
+            &["core 5.2.0".to_string()],
+            Some("zero/intents/open/320-x.md"),
+        );
+        assert!(
+            msg.contains("removed"),
+            "the suggested commit message must say the file was removed: {msg}"
+        );
+        assert!(msg.contains("zero/intents/open/320-x.md"), "{msg}");
+    }
+
+    #[test]
+    fn close_file_runs_only_after_the_gate_check_and_write_versions() {
+        let src = include_str!("mod.rs");
+        let start = src.find("pub fn complete_intent").expect("complete_intent");
+        let body = &src[start..];
+        let end = body[1..]
+            .find("\npub fn ")
+            .map(|i| i + 1)
+            .unwrap_or(body.len());
+        let body = &body[..end];
+        assert!(
+            body.contains("check_completion"),
+            "the gate check is in complete_intent"
+        );
+        assert!(
+            body.contains("write_versions"),
+            "write_versions is in complete_intent"
+        );
+        let gate = body.find("check_completion").unwrap();
+        let versions = body.find("write_versions").unwrap();
+        let close = body
+            .find("close_file(")
+            .expect("complete_intent never calls close_file");
+        assert!(
+            gate < versions,
+            "the gate check must come before write_versions"
+        );
+        assert!(
+            versions < close,
+            "close_file must run only after write_versions succeeded"
+        );
     }
 }

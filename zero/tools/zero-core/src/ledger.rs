@@ -40,17 +40,162 @@ pub fn live() -> Vec<IntentFile> {
 }
 
 /// Completed intent ids. The live shelf contributes files whose status is complete.
-/// Git contributes every id that ever lived in `zero/intents/complete/`. If git
-/// cannot answer, only the live shelf is returned.
+/// `closed.tsv` contributes rows whose status is complete. Git contributes every id
+/// that ever lived in `zero/intents/complete/`. If git cannot answer, that archive is
+/// skipped. A missing closed.tsv adds nothing. An unreadable one is reported and adds
+/// nothing, which is not the same as a file that was read and was empty.
 pub fn completed_ids() -> std::collections::HashSet<String> {
     let mut ids: std::collections::HashSet<String> = with_status("complete")
         .into_iter()
         .map(|file| file.id)
         .collect();
+    match completed_ids_from(&crate::paths::intents_dir()) {
+        Ok(closed) => {
+            for warning in &closed.warnings {
+                eprintln!("closed.tsv: {warning}");
+            }
+            ids.extend(closed.ids);
+        }
+        Err(err) => eprintln!("closed.tsv: {err}"),
+    }
     if let Some(archived) = git_ids_in(&["complete"]) {
         ids.extend(archived);
     }
     ids
+}
+
+/// One row of `zero/intents/closed.tsv`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ClosedRow {
+    pub id: String,
+    pub status: String,
+    pub closed: String,
+    pub last_commit: String,
+    pub title: String,
+}
+
+/// Rows read from closed.tsv, plus one warning per malformed row.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ClosedIndex {
+    pub rows: Vec<ClosedRow>,
+    pub warnings: Vec<String>,
+}
+
+/// Complete ids from closed.tsv, plus the warnings for rows that were not rows.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct ClosedIds {
+    pub ids: std::collections::HashSet<String>,
+    pub warnings: Vec<String>,
+}
+
+/// Read `closed.tsv` in `dir` (the intents directory).
+///
+/// A missing file is an empty index. An unreadable file is an error naming the path.
+/// A header line whose first field is `id` is skipped. A malformed row is named in
+/// `warnings` and is not a row; the rows around it are kept.
+pub fn read_closed(dir: &Path) -> Result<ClosedIndex, String> {
+    let path = dir.join("closed.tsv");
+    let text = match fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(ClosedIndex::default());
+        }
+        Err(e) => {
+            return Err(format!(
+                "closed.tsv at {} could not be read: {e}",
+                path.display()
+            ));
+        }
+    };
+    Ok(parse_closed(&text))
+}
+
+fn parse_closed(text: &str) -> ClosedIndex {
+    let mut index = ClosedIndex::default();
+    for (n, raw) in text.lines().enumerate() {
+        let line = raw.trim_end_matches('\r');
+        if line.trim().is_empty() {
+            continue;
+        }
+        let first = line.split('\t').next().unwrap_or("").trim();
+        if first == "id" {
+            continue;
+        }
+        match parse_closed_row(line) {
+            Ok(row) => index.rows.push(row),
+            Err(why) => index
+                .warnings
+                .push(format!("line {}: {why}: {line}", n + 1)),
+        }
+    }
+    index
+}
+
+fn parse_closed_row(line: &str) -> Result<ClosedRow, String> {
+    let parts: Vec<&str> = line.split('\t').collect();
+    if parts.len() != 5 {
+        return Err(format!(
+            "expected 5 tab-separated fields, found {}",
+            parts.len()
+        ));
+    }
+    let id = parts[0].trim();
+    let status = parts[1].trim();
+    let closed = parts[2].trim();
+    let last_commit = parts[3].trim();
+    let title = parts[4].trim();
+    if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(format!("id {id:?} is not digits"));
+    }
+    if status != "complete" && status != "cancelled" {
+        return Err(format!("status {status:?} is not complete or cancelled"));
+    }
+    if !is_closed_date(closed) {
+        return Err(format!("closed date {closed:?} is not YYYY-MM-DD"));
+    }
+    if last_commit.is_empty() || last_commit.chars().any(char::is_whitespace) {
+        return Err("last_commit is empty".to_string());
+    }
+    if title.is_empty() {
+        return Err("title is empty".to_string());
+    }
+    Ok(ClosedRow {
+        id: id.to_string(),
+        status: status.to_string(),
+        closed: closed.to_string(),
+        last_commit: last_commit.to_string(),
+        title: title.to_string(),
+    })
+}
+
+fn is_closed_date(value: &str) -> bool {
+    let bytes = value.as_bytes();
+    if bytes.len() != 10 || bytes[4] != b'-' || bytes[7] != b'-' {
+        return false;
+    }
+    let digits = |slice: &[u8]| slice.iter().all(|c| c.is_ascii_digit());
+    if !digits(&bytes[..4]) || !digits(&bytes[5..7]) || !digits(&bytes[8..]) {
+        return false;
+    }
+    let month: u32 = value[5..7].parse().unwrap_or(0);
+    let day: u32 = value[8..].parse().unwrap_or(0);
+    (1..=12).contains(&month) && (1..=31).contains(&day)
+}
+
+/// Ids in closed.tsv whose status is complete. Cancelled rows are not ids.
+/// Missing file: an empty index. Unreadable: Err. Malformed rows stay in `warnings`.
+pub fn completed_ids_from(dir: &Path) -> Result<ClosedIds, String> {
+    let index = read_closed(dir)?;
+    let mut ids = std::collections::HashSet::new();
+    for row in index.rows {
+        if row.status == "complete" {
+            ids.insert(row.id);
+        }
+    }
+    Ok(ClosedIds {
+        ids,
+        warnings: index.warnings,
+    })
 }
 
 /// Ids git has stored under `zero/intents/<folder>/` for one of `folders`.
@@ -241,5 +386,82 @@ mod tests {
             id_under("zero/intents/decisions/137-x.md", &["complete"]),
             None
         );
+    }
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir =
+            std::env::temp_dir().join(format!("ledger-closed-{}-{}", std::process::id(), name));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    #[test]
+    fn a_closed_complete_id_counts_and_a_cancelled_one_does_not() {
+        let dir = scratch("counts");
+        fs::write(
+            dir.join("closed.tsv"),
+            "id\tstatus\tclosed\tlast_commit\ttitle\n318\tcomplete\t2026-11-17\tabc1234\tfinished\n039\tcancelled\t2026-11-01\tdef5678\tdropped\n",
+        )
+        .unwrap();
+        let got = completed_ids_from(&dir).expect("closed.tsv should be read");
+        let _ = fs::remove_dir_all(&dir);
+        assert!(
+            got.ids.contains("318"),
+            "a complete closed id counts as done: {:?}",
+            got.ids
+        );
+        assert!(
+            !got.ids.contains("039"),
+            "a cancelled closed id does not count: {:?}",
+            got.ids
+        );
+    }
+
+    #[test]
+    fn a_missing_closed_tsv_is_an_empty_index() {
+        let dir = scratch("missing");
+        let got =
+            completed_ids_from(&dir).expect("a missing closed.tsv is an empty index, not an error");
+        let _ = fs::remove_dir_all(&dir);
+        assert!(got.ids.is_empty(), "{:?}", got.ids);
+        assert!(got.warnings.is_empty(), "{:?}", got.warnings);
+    }
+
+    #[test]
+    fn a_malformed_closed_row_is_named_and_not_dropped() {
+        let dir = scratch("malformed");
+        fs::write(
+            dir.join("closed.tsv"),
+            "id\tstatus\tclosed\tlast_commit\ttitle\n318\tcomplete\t2026-11-17\tabc1234\tkept\nbad\tbanana\tnot-a-date\t\tbroken\n",
+        )
+        .unwrap();
+        let got = completed_ids_from(&dir)
+            .expect("a malformed row is named, not a failure of the whole file");
+        let _ = fs::remove_dir_all(&dir);
+        assert!(got.ids.contains("318"), "a good row is kept: {:?}", got.ids);
+        assert!(
+            got.warnings.iter().any(|w| w.contains("banana")),
+            "a malformed row is named: {:?}",
+            got.warnings
+        );
+    }
+
+    #[test]
+    fn an_unreadable_closed_tsv_is_reported() {
+        let dir = scratch("unreadable");
+        fs::create_dir(dir.join("closed.tsv")).unwrap();
+        let result = completed_ids_from(&dir);
+        let _ = fs::remove_dir_all(&dir);
+        match result {
+            Err(err) => assert!(
+                err.contains("could not be read"),
+                "an unreadable closed.tsv must be reported, not treated as empty: {err}"
+            ),
+            Ok(got) => panic!(
+                "an unreadable closed.tsv was treated as an empty index: {:?}",
+                got.ids
+            ),
+        }
     }
 }
