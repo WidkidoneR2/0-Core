@@ -16,6 +16,8 @@ pub mod findings;
 pub mod findings_tui;
 pub mod folders;
 pub mod gates;
+/// INT-330: `core intent list --json` and `show --json`.
+pub mod ledger_json;
 pub mod trace;
 /// INT-307: the findings screen's rows, sort, filter, and color.
 pub mod view;
