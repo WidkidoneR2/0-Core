@@ -55,7 +55,7 @@ pub enum Refusal {
         section_found: bool,
     },
     OpenGates(Vec<String>),
-    /// A done format 2 gate whose `evidence:` field is empty.
+    /// A done format 2 (or later) gate whose `evidence:` field is empty.
     MissingEvidence(Vec<String>),
     StrayOpen(Vec<String>),
 }
@@ -209,18 +209,28 @@ fn gate_tail(lines: &[&str], at: usize) -> GateTail {
     }
 }
 
-fn is_format_2(content: &str) -> bool {
-    content
-        .split("---")
-        .nth(1)
-        .map(|fm| {
-            fm.lines().any(|line| {
-                line.trim()
-                    .strip_prefix("format:")
-                    .is_some_and(|v| v.trim() == "2")
-            })
+/// Format 2 or higher: a done gate needs a non-empty `evidence:` field.
+/// A missing number, or a number below 2, is format 1 and does not.
+fn evidence_is_required(content: &str) -> bool {
+    content.split("---").nth(1).is_some_and(|fm| {
+        fm.lines().any(|line| {
+            let Some(value) = line.trim().strip_prefix("format:") else {
+                return false;
+            };
+            canonical_format(value.trim()).is_some_and(|n| n >= 2)
         })
-        .unwrap_or(false)
+    })
+}
+
+/// Digits only, and not `02`. `format: 2` stays 2. A leading zero is not 2.
+fn canonical_format(value: &str) -> Option<u32> {
+    if value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    if value.len() > 1 && value.starts_with('0') {
+        return None;
+    }
+    value.parse().ok()
 }
 
 /// Read the gates out of an intent file. Only the Success Criteria section holds gates.
@@ -334,7 +344,7 @@ pub fn check_completion(content: &str) -> Result<(), Refusal> {
     if !open.is_empty() {
         return Err(Refusal::OpenGates(open));
     }
-    if is_format_2(content) {
+    if evidence_is_required(content) {
         let bare: Vec<String> = report
             .gates
             .iter()
