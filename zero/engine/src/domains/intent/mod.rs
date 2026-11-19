@@ -6200,6 +6200,128 @@ mod format2_note_tests {
     }
 }
 
+/// INT-329 G2. `validate_issues` on a temp ledger, never the live one.
+#[cfg(test)]
+mod format3_limits_tests {
+    fn ledger(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "core-int329-{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("0-core/zero/intents/open")).unwrap();
+        dir
+    }
+
+    fn body(format: &str, between: &str) -> String {
+        format!(
+            "---\nid: 901\ntitle: \"t\"\nstatus: planned\ndate: 2026-11-19\nformat: {format}\n---\n\n\
+## Vision\nA goal.\n\n\
+## The Problem\nA problem.\n\n\
+## The Solution\nAn approach.\n\n\
+{between}\
+## Success Criteria\n- [ ] G1 stays open.\n      ask: q\n      ruling:\n      evidence:\n"
+        )
+    }
+
+    const FULL: &str = "\
+## Limits\n\
+- In scope: the check\n\
+- Out of scope: the rest\n\
+- How deep: one file\n\
+- Stop and ask: a second file\n\
+- Done means: the gates\n\
+- Must not change: format 1 and format 2\n\n";
+
+    fn verdict(tag: &str, format: &str, between: &str) -> (Vec<String>, Vec<String>) {
+        let dir = ledger(tag);
+        std::fs::write(
+            dir.join("0-core/zero/intents/open/901-t.md"),
+            body(format, between),
+        )
+        .unwrap();
+        let (_count, issues, notes) =
+            super::status_is_not_the_folder_tests::with_home(&dir, super::validate_issues);
+        let _ = std::fs::remove_dir_all(&dir);
+        (issues, notes)
+    }
+
+    #[test]
+    fn format_3_requires_limits_and_format_4_is_unknown() {
+        let mut failures = Vec::new();
+
+        let (issues, _) = verdict("nolimits", "3", "");
+        if !issues.iter().any(|i| i.contains("## Limits")) {
+            failures.push(format!(
+                "format 3 with no ## Limits was not an issue: {issues:?}"
+            ));
+        }
+
+        let (issues, _) = verdict("full", "3", FULL);
+        if !issues.is_empty() {
+            failures.push(format!(
+                "format 3 with the five labels was not clean: {issues:?}"
+            ));
+        }
+
+        let partial = "\
+## Limits\n\
+- In scope: the check\n\
+- Out of scope: the rest\n\
+- How deep: one file\n\
+- Done means: the gates\n\n";
+        let (issues, _) = verdict("partial", "3", partial);
+        if !issues.iter().any(|i| i.contains("Stop and ask")) {
+            failures.push(format!(
+                "a missing Stop and ask label was not named: {issues:?}"
+            ));
+        }
+        if issues.iter().any(|i| {
+            i.contains("In scope")
+                || i.contains("Out of scope")
+                || i.contains("How deep")
+                || i.contains("Done means")
+        }) {
+            failures.push(format!("a filled label was named missing: {issues:?}"));
+        }
+
+        let empty_stop = "\
+## Limits\n\
+- In scope: the check\n\
+- Out of scope: the rest\n\
+- How deep: one file\n\
+- Stop and ask:\n\
+- Done means: the gates\n\n";
+        let (issues, _) = verdict("empty", "3", empty_stop);
+        if !issues.iter().any(|i| i.contains("Stop and ask")) {
+            failures.push(format!(
+                "Stop and ask with no text after the colon was not named: {issues:?}"
+            ));
+        }
+
+        let (issues, notes) = verdict("v2", "2", "");
+        if !issues.is_empty() {
+            failures.push(format!("format 2 with no Limits was not clean: {issues:?}"));
+        }
+        if notes.iter().any(|n| n.contains("Limits")) {
+            failures.push(format!("format 2 noted Limits: {notes:?}"));
+        }
+
+        let (issues, _) = verdict("v4", "4", FULL);
+        if !issues.iter().any(|i| i.contains("unknown format 4")) {
+            failures.push(format!(
+                "format 4 was not an unknown-format issue: {issues:?}"
+            ));
+        }
+
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
+    }
+}
+
 #[cfg(test)]
 mod add_and_note_tests {
     use super::{add_with, note};

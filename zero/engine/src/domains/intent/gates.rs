@@ -817,6 +817,25 @@ mod tests {
         );
     }
 
+    /// INT-329 G1. Format 3 keeps the format 2 evidence rule. Format 2 still
+    /// refuses an empty receipt. Format 1 still completes without one.
+    #[test]
+    fn a_format_3_ticked_gate_with_empty_evidence_is_refused() {
+        let v3 = "---\nformat: 3\n---\n## Success Criteria\n- [x] G1 done\n      evidence:\n";
+        assert_eq!(
+            check_completion(v3),
+            Err(Refusal::MissingEvidence(vec!["G1 done".to_string()])),
+            "a format 3 ticked gate with empty evidence is refused"
+        );
+        let v2 = "---\nformat: 2\n---\n## Success Criteria\n- [x] G1 done\n      evidence:\n";
+        assert!(
+            matches!(check_completion(v2), Err(Refusal::MissingEvidence(_))),
+            "format 2 still refuses an empty evidence field"
+        );
+        let v1 = "---\n---\n## Success Criteria\n- [x] G1 done\n";
+        assert_eq!(check_completion(v1), Ok(()), "format 1 is unchanged");
+    }
+
     #[test]
     fn a_real_v1_intent_on_disk_still_completes() {
         let content = include_str!(
