@@ -5666,8 +5666,29 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
     } else {
         format!("{}\n\n## Gate Check\n{}\n", updated.trim_end(), stamp)
     };
-    // INT-313 stage 3: the file stays where it is. No cancelled/ directory is created.
+    let title = content
+        .split("---")
+        .nth(1)
+        .unwrap_or("")
+        .lines()
+        .find_map(|line| line.strip_prefix("title:"))
+        .map(|value| value.trim().trim_matches('"').to_string())
+        .unwrap_or_default();
+    // INT-321: the same close as cicomplete. An undetermined close leaves the file.
     std::fs::write(&path, stamped)?;
+    let outcome = match repo_relative(Path::new(&ctx.core_root), &path) {
+        Some(rel) => close_file(
+            Path::new(&ctx.core_root),
+            &rel,
+            id,
+            "cancelled",
+            &title,
+            &today,
+        ),
+        None => CloseOutcome::Undetermined {
+            reason: "the intent file is not inside the repository".to_string(),
+        },
+    };
     // Clear focus if the cancelled intent was the focused one.
     if let Some(state) = read_focus() {
         if state.id == id {
@@ -5678,8 +5699,31 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
     println!("  Intent:  INT-{}", id);
     println!("  Reason:  {}", reason);
     println!("  Date:    {}", today);
-    println!("  Status:  cancelled. The file stays in open/.");
-    println!("  Older cancelled intents: git log --diff-filter=D -- zero/intents");
+    match &outcome {
+        CloseOutcome::Staged {
+            last_commit,
+            rel_path,
+        } => {
+            println!(
+                "  {} removed {} and staged closed.tsv",
+                "📁".dimmed(),
+                rel_path
+            );
+            println!(
+                "  {} read the old text: git show {}:{}",
+                "📁".dimmed(),
+                last_commit,
+                rel_path
+            );
+        }
+        CloseOutcome::Undetermined { reason } => {
+            println!("  {} removal UNDETERMINED: {}", "📁".dimmed(), reason);
+            println!(
+                "  {} Status is cancelled. The file stays in open/. Older cancelled intents: git log --diff-filter=D -- zero/intents",
+                "📁".dimmed()
+            );
+        }
+    }
     // INT-066 criterion 8: warn about active intents that still depend on this one.
     let dependents: Vec<String> = load_all(ctx)
         .iter()
