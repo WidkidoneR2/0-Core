@@ -3,7 +3,7 @@ id: 328
 date: 2026-11-18
 type: future
 title: "Bug batch 4: merged work still counts, refusals say safe or not, nsh for and subshell, the temp-dir window"
-status: planned
+status: in-progress
 tags: [bugs, cicomplete, nsh, core]
 format: 2
 ---
@@ -106,7 +106,7 @@ The temp-dir process-id check on main is green.
   left alone.
 
 ## Success Criteria
-- [ ] G1 cicomplete sees merged work (intent/mod.rs). In a temp git
+- [x] G1 cicomplete sees merged work (intent/mod.rs). In a temp git
       repo, an intent dated 2026-11-18, a 2026-11-17 commit with
       Intent: INT-N touching zero/tools/zero-core, and a --no-ff merge
       on 2026-11-18 with the same trailer, touched_crates includes
@@ -114,14 +114,14 @@ The temp-dir process-id check on main is green.
       (first-parent) paths and not the other parent's files.
       ask: a --no-ff merge of earlier Intent commits still offers those crates
       ruling:
-      evidence:
-- [ ] G2 pre-push does not scan notes ( .githooks/pre-push ). A push of
+      evidence: cargo test -p core: a merge of earlier intent commits offered zero-core and a merge-only window listed only incoming paths; scratch HOME close of 399 through a --no-ff merge bumped zero-core
+- [x] G2 pre-push does not scan notes ( .githooks/pre-push ). A push of
       a branch plus refs/notes/seals prints the Intent commits intact
       and does not also print "no commit in the range carries Intent:".
       ask: pushing main and refs/notes/seals does not claim the range has no Intent
       ruling:
-      evidence:
-- [ ] G3 refusals say safe or partway (zero-core refuse, then the core
+      evidence: .githooks/test-pre-push.sh printed ok and the seals check did not run on refs/notes/seals; the push of main and refs/notes/seals for the INT-328 merge went through
+- [x] G3 refusals say safe or partway (zero-core refuse, then the core
       call sites). A safe stop's first line is "Stopped safely — nothing
       changed" (green on a tty, plain under NO_COLOR or a non-tty). A
       partway stop's first line is "Stopped partway — something changed"
@@ -130,38 +130,38 @@ The temp-dir process-id check on main is green.
       failure use this helper.
       ask: first line is green-safe or red-partway; NO_COLOR is plain
       ruling:
-      evidence:
-- [ ] G4 a mid-chain for loop stays whole (main.rs splitter).
+      evidence: cargo test -p zero-core and core: safe and partway first lines, color only on a tty without NO_COLOR; cicomplete 328 before evidence led with the green safe line
+- [x] G4 a mid-chain for loop stays whole (main.rs splitter).
       `true && for x in a b; do echo $x; done && echo z` is three
       segments, the for construct is one of them, both echoes run, and
       there is no syntax error. A line that starts with for still
       stays whole, as INT-285 already required.
       ask: for in an && chain runs, and is not split at "; do"
       ruling:
-      evidence:
-- [ ] G5 a grouping subshell is isolated (engine.rs).
+      evidence: cargo test -p novashell: a mid-chain for is one segment; the shipped nsh printed a, b and z
+- [x] G5 a grouping subshell is isolated (engine.rs).
       `(cd DIR && export FOO=1 && pwd)` runs, prints DIR, and leaves
       the parent's cwd and FOO unchanged. A leading paren is not a
       command name. `exit` inside the group does not exit the parent
       shell.
       ask: ( cd DIR && export FOO=1 && pwd ) does not leak cwd or FOO
       ruling:
-      evidence:
-- [ ] G6 the temp-dir process-id check passes (paths.rs).
+      evidence: shipped nsh: the group printed /tmp, then the parent cwd and an empty FOO; grouping_subshell_does_not_leak passed
+- [x] G6 the temp-dir process-id check passes (paths.rs).
       every_temp_dir_path_carries_the_process_id is green on main.
       The two rustfmt-wrapped sites still count as carrying the id.
       core-recent-no-such-ledger is an allowed planted-absent path.
       ask: cargo test -p zero-core every_temp_dir_path_carries_the_process_id passes
       ruling:
-      evidence:
-- [ ] G7 doors, nsh-test and d green on the laptop. A scratch-HOME
+      evidence: cargo test -p zero-core every_temp_dir_path_carries_the_process_id passed
+- [x] G7 doors, nsh-test and d green on the laptop. A scratch-HOME
       rehearsal of a throwaway intent whose work arrived through a
       --no-ff merge offers the touched crates to cicomplete --bump.
       A safe cicomplete refusal starts with the green safe line. A
       mid-chain for loop runs.
       ask: doors, nsh-test and d green; the three hand checks pass
       ruling:
-      evidence:
+      evidence: doors and d green after the INT-328 merge; scratch HOME rehearsal offered zero-core to cicomplete --bump; green safe line and mid-chain for checked by hand
 
 ## Job order
 - Wave 1, side by side: red tests for G1 (intent/mod.rs), G2
