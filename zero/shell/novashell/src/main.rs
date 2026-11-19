@@ -293,18 +293,48 @@ pub(crate) fn is_repl_state_command(line: &str) -> bool {
 /// this only decides what to do about it. Teaching `split_logical` the same rules would be a
 /// second owner of a rule that already has a bug history.
 pub(crate) fn split_into_segments(line: &str) -> Vec<(String, Option<bool>)> {
-    split_semicolons_marked(line)
-        .into_iter()
-        .flat_map(|(seg, atomic)| {
-            if atomic {
-                // No operator: an atomic construct is one segment that always runs, and its
-                // internal `&&` belongs to sh, not to the shell's own chain logic.
-                vec![(seg, None)]
-            } else {
-                split_logical(&seg)
+    let mut out: Vec<(String, Option<bool>)> = Vec::new();
+    for (seg, atomic) in split_semicolons_marked(line) {
+        if atomic {
+            // Internal `&&` belongs to the construct, not to the shell's chain.
+            // A chain operator that follows the construct is applied below, when
+            // the next piece starts with `&&` or `||`.
+            out.push((seg, None));
+            continue;
+        }
+        let (lead, rest) = leading_operator(&seg);
+        if let Some(op) = lead {
+            if let Some(prev) = out.last_mut() {
+                if prev.1.is_none() {
+                    prev.1 = Some(op);
+                }
             }
-        })
-        .collect()
+        }
+        let rest = rest.trim();
+        if rest.is_empty() {
+            continue;
+        }
+        out.extend(split_logical(rest));
+    }
+    if out.is_empty() {
+        let t = line.trim();
+        if !t.is_empty() {
+            out.push((t.to_string(), None));
+        }
+    }
+    out
+}
+
+/// An `&&` or `||` left in front of a piece when a construct was lifted out of a chain.
+fn leading_operator(seg: &str) -> (Option<bool>, &str) {
+    let t = seg.trim_start();
+    if let Some(rest) = t.strip_prefix("&&") {
+        (Some(true), rest)
+    } else if let Some(rest) = t.strip_prefix("||") {
+        (Some(false), rest)
+    } else {
+        (None, seg)
+    }
 }
 
 pub(crate) fn split_semicolons_marked(line: &str) -> Vec<(String, bool)> {
@@ -342,6 +372,11 @@ do",
         // skip `split_logical`, which knows nothing about `then`/`fi`/`done`.
         return vec![(trimmed.to_string(), true)];
     }
+    // INT-328: the same constructs, and a grouping `( ... )`, are atomic anywhere
+    // in the line, not only when the line starts with them. Quote-aware.
+    if line_has_compound(line) {
+        return split_around_compounds(line);
+    }
     let mut segments = vec![];
     let mut current = String::new();
     let mut in_quote = false;
@@ -370,6 +405,230 @@ do",
     let seg = current.trim().to_string();
     if !seg.is_empty() {
         segments.push((seg, false));
+    }
+    if segments.is_empty() {
+        segments.push((line.trim().to_string(), false));
+    }
+    segments
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum RegionCloser {
+    Done,
+    Fi,
+    Paren,
+}
+
+fn word_at(chars: &[char], i: usize) -> Option<&'static str> {
+    const WORDS: &[&str] = &["for", "while", "until", "if", "done", "fi"];
+    for w in WORDS {
+        let wc: Vec<char> = w.chars().collect();
+        if i + wc.len() > chars.len() || chars[i..i + wc.len()] != wc[..] {
+            continue;
+        }
+        if i + wc.len() < chars.len() {
+            let c = chars[i + wc.len()];
+            if c.is_ascii_alphanumeric() || c == '_' {
+                continue;
+            }
+        }
+        return Some(w);
+    }
+    None
+}
+
+fn word_start(chars: &[char], i: usize) -> bool {
+    i == 0 || {
+        let p = chars[i - 1];
+        !(p.is_ascii_alphanumeric() || p == '_')
+    }
+}
+
+fn command_position(chars: &[char], i: usize) -> bool {
+    if !word_start(chars, i) {
+        return false;
+    }
+    let mut j = i;
+    while j > 0 && chars[j - 1].is_whitespace() {
+        j -= 1;
+    }
+    j == 0 || matches!(chars[j - 1], ';' | '&' | '|' | '(')
+}
+
+/// A for/while/until/if at a command position, or a grouping `(`, outside quotes.
+fn line_has_compound(line: &str) -> bool {
+    let chars: Vec<char> = line.chars().collect();
+    let mut in_quote = false;
+    let mut quote = ' ';
+    let mut i = 0;
+    while i < chars.len() {
+        let ch = chars[i];
+        if !in_quote && (ch == '"' || ch == '\'') {
+            in_quote = true;
+            quote = ch;
+            i += 1;
+            continue;
+        }
+        if in_quote && ch == quote {
+            in_quote = false;
+            i += 1;
+            continue;
+        }
+        if in_quote {
+            i += 1;
+            continue;
+        }
+        if ch == '$' && i + 1 < chars.len() && chars[i + 1] == '(' {
+            i += 2;
+            continue;
+        }
+        if ch == '(' {
+            return true;
+        }
+        if command_position(&chars, i) {
+            if let Some(w) = word_at(&chars, i) {
+                if matches!(w, "for" | "while" | "until" | "if") {
+                    return true;
+                }
+            }
+        }
+        i += 1;
+    }
+    false
+}
+
+fn push_marked(segments: &mut Vec<(String, bool)>, current: &mut String, atomic: bool) {
+    let seg = current.trim().to_string();
+    if !seg.is_empty() {
+        segments.push((seg, atomic));
+    }
+    current.clear();
+}
+
+/// Split on `;` outside quotes, and lift for/while/until/if and `( ... )` out as
+/// atomic pieces so a later `&&` split cannot cut them.
+fn split_around_compounds(line: &str) -> Vec<(String, bool)> {
+    let chars: Vec<char> = line.chars().collect();
+    let mut segments = Vec::new();
+    let mut current = String::new();
+    let mut in_quote = false;
+    let mut quote = ' ';
+    let mut stack: Vec<RegionCloser> = Vec::new();
+    let mut i = 0;
+    while i < chars.len() {
+        let ch = chars[i];
+        if !in_quote && (ch == '"' || ch == '\'') {
+            in_quote = true;
+            quote = ch;
+            current.push(ch);
+            i += 1;
+            continue;
+        }
+        if in_quote && ch == quote {
+            in_quote = false;
+            current.push(ch);
+            i += 1;
+            continue;
+        }
+        if in_quote {
+            current.push(ch);
+            i += 1;
+            continue;
+        }
+        if ch == '$' && i + 1 < chars.len() && chars[i + 1] == '(' {
+            current.push('$');
+            current.push('(');
+            i += 2;
+            let mut depth = 1i32;
+            while i < chars.len() && depth > 0 {
+                let c = chars[i];
+                current.push(c);
+                if c == '(' {
+                    depth += 1;
+                } else if c == ')' {
+                    depth -= 1;
+                }
+                i += 1;
+            }
+            continue;
+        }
+        if stack.is_empty() && ch == ';' {
+            push_marked(&mut segments, &mut current, false);
+            i += 1;
+            continue;
+        }
+        if stack.is_empty() && ch == '(' {
+            push_marked(&mut segments, &mut current, false);
+            current.push('(');
+            stack.push(RegionCloser::Paren);
+            i += 1;
+            continue;
+        }
+        if stack.is_empty() && command_position(&chars, i) {
+            if let Some(w) = word_at(&chars, i) {
+                if matches!(w, "for" | "while" | "until" | "if") {
+                    push_marked(&mut segments, &mut current, false);
+                    let n = w.chars().count();
+                    for _ in 0..n {
+                        current.push(chars[i]);
+                        i += 1;
+                    }
+                    stack.push(if w == "if" {
+                        RegionCloser::Fi
+                    } else {
+                        RegionCloser::Done
+                    });
+                    continue;
+                }
+            }
+        }
+        if !stack.is_empty() && word_start(&chars, i) {
+            if let Some(w) = word_at(&chars, i) {
+                match w {
+                    "for" | "while" | "until" if command_position(&chars, i) => {
+                        stack.push(RegionCloser::Done);
+                    }
+                    "if" if command_position(&chars, i) => stack.push(RegionCloser::Fi),
+                    "done" if stack.last() == Some(&RegionCloser::Done) => {
+                        stack.pop();
+                    }
+                    "fi" if stack.last() == Some(&RegionCloser::Fi) => {
+                        stack.pop();
+                    }
+                    _ => {}
+                }
+                let finished = stack.is_empty();
+                let n = w.chars().count();
+                for _ in 0..n {
+                    current.push(chars[i]);
+                    i += 1;
+                }
+                if finished {
+                    push_marked(&mut segments, &mut current, true);
+                }
+                continue;
+            }
+        }
+        if !stack.is_empty() && ch == '(' {
+            stack.push(RegionCloser::Paren);
+            current.push(ch);
+            i += 1;
+            continue;
+        }
+        if !stack.is_empty() && ch == ')' && stack.last() == Some(&RegionCloser::Paren) {
+            stack.pop();
+            current.push(ch);
+            i += 1;
+            if stack.is_empty() {
+                push_marked(&mut segments, &mut current, true);
+            }
+            continue;
+        }
+        current.push(ch);
+        i += 1;
+    }
+    if !current.trim().is_empty() {
+        push_marked(&mut segments, &mut current, !stack.is_empty());
     }
     if segments.is_empty() {
         segments.push((line.trim().to_string(), false));
@@ -1463,7 +1722,7 @@ fn keep_launch_cwd() -> bool {
 /// The engine is the eventual owner. It is not the owner yet because four main.rs free
 /// functions -- split_into_segments, detect_redirect, expand_vars and
 /// friday_next_cmd_hint -- would have to cross the crate boundary in the same change.
-fn run_input(
+pub(crate) fn run_input(
     mut engine: &mut crate::engine::Engine,
     line: &str,
     mut job_table: &mut jobs::JobTable,
@@ -4238,6 +4497,41 @@ mod int328_split {
             s.contains("for x in a b") && s.contains("; do") && s.contains("done")
         });
         assert!(whole, "the for construct was split: {segs:?}");
+        assert!(
+            segs.iter().any(|s| s == "true"),
+            "the command before the for was lost: {segs:?}"
+        );
+        assert!(
+            segs.iter().any(|s| s == "echo z"),
+            "the command after the for was lost: {segs:?}"
+        );
+    }
+
+    #[test]
+    fn a_grouping_is_one_segment() {
+        let line = "(cd DIR && export FOO=1 && pwd)";
+        let segs: Vec<String> = split_into_segments(line)
+            .into_iter()
+            .map(|(s, _)| s)
+            .collect();
+        assert_eq!(segs, vec![line.to_string()]);
+    }
+
+    #[test]
+    fn a_mid_chain_while_and_if_stay_whole() {
+        for line in [
+            "true && while false; do echo a; done && echo z",
+            "true && if true; then echo a; fi && echo z",
+            "true && until false; do echo a; done && echo z",
+        ] {
+            let segs: Vec<String> = split_into_segments(line)
+                .into_iter()
+                .map(|(s, _)| s)
+                .collect();
+            assert_eq!(segs.len(), 3, "{line} -> {segs:?}");
+            assert!(segs.iter().any(|s| s == "true"), "{segs:?}");
+            assert!(segs.iter().any(|s| s == "echo z"), "{segs:?}");
+        }
     }
 
     #[test]
