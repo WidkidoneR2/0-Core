@@ -3794,7 +3794,8 @@ pub fn target_in(
 }
 
 /// Files one intent under `base`. With a seed, the template's Problem and first criterion are the
-/// seed's words; without one the file is exactly what it always was.
+/// seed's words. Without one, the file is the format 3 skeleton: Limits between The Solution and
+/// Success Criteria, and no evidence-convention comment.
 pub fn create_in(
     base: &std::path::Path,
     category: &str,
@@ -3823,19 +3824,17 @@ pub fn create_in(
         |s| s.gate.as_str(),
     );
     let content = format!(
-        "---\nid: {:03}\ndate: {}\ntype: {}\ntitle: \"{}\"\nstatus: {}\ntags: {}\nformat: 2\n---\n\n\
+        "---\nid: {:03}\ndate: {}\ntype: {}\ntitle: \"{}\"\nstatus: {}\ntags: {}\nformat: 3\n---\n\n\
 ## Vision\n[Describe the goal and desired outcome]\n\n\
 ## The Problem\n{}\n\n\
 ## The Solution\n[High-level approach]\n\n\
-## Success Criteria\n{}\n\n\
-<!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.\n\
-     When you tick a gate, put the proof in an HTML comment on the line after it: a commit\n\
-     hash, a file:line, a log or artifact path, or \"demonstrated: what + how\". Prose counts.\n\
-     FORWARD-ONLY (never retrofit old intents -- busywork, no payoff).\n\
-     SOFT (a discipline, not gate-police; nothing enforces this).\n\
-     LIGHT (trivial self-evident gates need no artifact).\n\
-     Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.\n\
-     See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->\n",
+## Limits\n\
+- In scope:\n\
+- Out of scope:\n\
+- How deep:\n\
+- Stop and ask:\n\
+- Done means:\n\n\
+## Success Criteria\n{}\n\n",
         id, date, type_tag, title, status, tags_str, problem, criteria
     );
 
