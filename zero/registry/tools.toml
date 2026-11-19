@@ -5,7 +5,7 @@
 
 [[tool]]
 name = "core"
-version = "5.1.2"
+version = "5.1.3"
 category = "core"
 description = "Main engine — 15 domains, capability model"
 expected_usage = "high"
@@ -51,7 +51,7 @@ deployable = true
 retired = false
 [[tool]]
 name = "nsh"
-version = "6.0.1"
+version = "6.1.0"
 category = "shell"
 description = "NovaShell -- the structured shell of Project 0. Package: novashell."
 expected_usage = "high"
@@ -295,7 +295,7 @@ retired = false
 
 [[tool]]
 name = "zero-core"
-version = "1.2.0"
+version = "1.3.0"
 category = "core"
 description = "Shared library crate -- Wayland, theme, glyph, canvas primitives (lib, not a binary)"
 expected_usage = "medium"

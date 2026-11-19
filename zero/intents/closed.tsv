@@ -1,2 +1,3 @@
 id	status	closed	last_commit	title
 320	complete	2026-11-18	44392ce061d9e7dc1d8469a1ff52662e72280a60	cicomplete removes the finished intent file, and nothing forgets it
+328	complete	2026-11-18	6a9123fd794c19eca88b879381e364232e63de0c	Bug batch 4: merged work still counts, refusals say safe or not, nsh for and subshell, the temp-dir window
