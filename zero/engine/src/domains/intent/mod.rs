@@ -2039,7 +2039,7 @@ mod f0049_f0050_tests {
                 .expect("row");
         let crates = vec![zero_core::registry::Crate {
             package: "zero-core".to_string(),
-            dir: "zero/tools/zero-core".to_string(),
+            dir: format!("{}/zero-core", zero_core::paths::TOOLS_PARENT),
         }];
         zero_core::registry::match_rows(&rows, &crates).expect("workspace")
     }
@@ -2093,7 +2093,7 @@ mod f0049_f0050_tests {
         );
         commit_file(
             &d,
-            "zero/tools/zero-core/src/lib.rs",
+            &format!("{}/zero-core/src/lib.rs", zero_core::paths::TOOLS_PARENT),
             "fn x() {}\n",
             "INT-328: zero-core\n\nIntent: INT-328",
             "2026-11-17T13:50:00",
@@ -2131,7 +2131,7 @@ mod f0049_f0050_tests {
         );
         commit_file(
             &d,
-            "zero/tools/zero-core/src/lib.rs",
+            &format!("{}/zero-core/src/lib.rs", zero_core::paths::TOOLS_PARENT),
             "fn x() {}\n",
             "INT-328: work\n\nIntent: INT-328",
             "2026-11-17T13:46:00",
@@ -2205,7 +2205,7 @@ mod f0049_f0050_tests {
         );
         commit_file(
             &d,
-            "zero/tools/zero-core/src/new.rs",
+            &format!("{}/zero-core/src/new.rs", zero_core::paths::TOOLS_PARENT),
             "new\n",
             "INT-267: closed",
             "2026-10-03T12:00:00",
