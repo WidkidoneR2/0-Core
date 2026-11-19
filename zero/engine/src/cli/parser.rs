@@ -697,7 +697,7 @@ pub enum IntentCommands {
         commit: Option<String>,
     },
     New {
-        /// Category (directory): future, decisions, experiments, philosophy, incidents
+        /// Category: open is the only lifecycle shelf. Record shelves are decisions, experiments, philosophy and incidents
         category: String,
         /// Template: feature, fix, arch, study, future, decision, incident, experiment, philosophy
         template: String,
@@ -791,7 +791,7 @@ pub enum IntentCommands {
         /// Reason for deferral
         reason: String,
     },
-    /// Cancel an intent overtaken by reality (records reason, moves to cancelled/)
+    /// Cancel an intent overtaken by reality (records the reason, closes it into closed.tsv and removes the file)
     Cancel {
         /// Intent ID
         id: String,
