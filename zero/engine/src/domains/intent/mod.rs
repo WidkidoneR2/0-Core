@@ -6807,3 +6807,203 @@ mod int320_close_tests {
         );
     }
 }
+
+#[cfg(test)]
+mod cancel_closes_like_complete_tests {
+    use super::cancel_intent;
+    use std::path::Path;
+    use std::process::Command;
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "int321-cancel-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn git(repo: &Path, args: &[&str]) {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .expect("git");
+        assert!(
+            out.status.success(),
+            "{args:?} {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+
+    fn repo(name: &str) -> std::path::PathBuf {
+        let dir = scratch(name);
+        git(&dir, &["init", "-q"]);
+        git(&dir, &["config", "user.email", "t@example.com"]);
+        git(&dir, &["config", "user.name", "test"]);
+        dir
+    }
+
+    fn write_open(repo: &Path, name: &str, id: &str, title: &str) -> std::path::PathBuf {
+        let path = repo.join(format!("zero/intents/open/{name}"));
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &path,
+            format!(
+                "---\nid: {id}\ntitle: \"{title}\"\nstatus: planned\ndate: 2026-11-19\n---\n\n"
+            ),
+        )
+        .unwrap();
+        path
+    }
+
+    fn ctx(repo: &Path) -> crate::app::context::AppContext {
+        crate::app::context::AppContext {
+            runtime: crate::runtime::Runtime {
+                root: repo.to_path_buf(),
+                logs: repo.join("logs"),
+                cache: repo.join("cache"),
+                snapshots: repo.join("snapshots"),
+                locks: repo.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: repo.display().to_string(),
+            core_root: repo.display().to_string(),
+            source_root: repo.join("zero").display().to_string(),
+        }
+    }
+
+    fn with_scratch_state<T>(repo: &Path, f: impl FnOnce() -> T) -> T {
+        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prev_state = std::env::var("ZERO_STATE_DIR").ok();
+        let prev_xdg = std::env::var("XDG_STATE_HOME").ok();
+        let state = repo.join("state");
+        std::fs::create_dir_all(&state).unwrap();
+        unsafe {
+            std::env::set_var("ZERO_STATE_DIR", &state);
+            std::env::set_var("XDG_STATE_HOME", &state);
+        }
+        let out = f();
+        match prev_state {
+            Some(v) => unsafe { std::env::set_var("ZERO_STATE_DIR", v) },
+            None => unsafe { std::env::remove_var("ZERO_STATE_DIR") },
+        }
+        match prev_xdg {
+            Some(v) => unsafe { std::env::set_var("XDG_STATE_HOME", v) },
+            None => unsafe { std::env::remove_var("XDG_STATE_HOME") },
+        }
+        out
+    }
+
+    fn head(repo: &Path) -> String {
+        let out = Command::new("git")
+            .args(["-C", repo.to_str().unwrap(), "rev-parse", "HEAD"])
+            .output()
+            .unwrap();
+        String::from_utf8(out.stdout).unwrap().trim().to_string()
+    }
+
+    fn cancel_body() -> &'static str {
+        let src = include_str!("mod.rs");
+        let start = src.find("pub fn cancel_intent").expect("cancel_intent");
+        let body = &src[start..];
+        let end = body[1..]
+            .find("\npub fn ")
+            .map(|i| i + 1)
+            .unwrap_or(body.len());
+        &body[..end]
+    }
+
+    #[test]
+    fn cancel_writes_a_cancelled_row_and_stages_the_removal() {
+        let repo = repo("staged");
+        let path = write_open(&repo, "181-one.md", "181", "One");
+        let rel = "zero/intents/open/181-one.md";
+        git(&repo, &["add", rel]);
+        git(&repo, &["commit", "-q", "-m", "add 181"]);
+        let sha = head(&repo);
+        let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+        with_scratch_state(&repo, || {
+            cancel_intent(&ctx(&repo), "181", "the inquire wizard").expect("cancel");
+        });
+        let tsv = std::fs::read_to_string(repo.join("zero/intents/closed.tsv")).unwrap_or_default();
+        assert!(
+            tsv.contains(&format!("181\tcancelled\t{today}\t{sha}\tOne")),
+            "cancel must write a cancelled closed.tsv row with the last commit, same as complete. got: {tsv:?}"
+        );
+        assert!(
+            !path.exists(),
+            "cancel must remove the open file, same as complete"
+        );
+        let staged = Command::new("git")
+            .args([
+                "-C",
+                repo.to_str().unwrap(),
+                "diff",
+                "--cached",
+                "--name-status",
+            ])
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&staged.stdout).to_string();
+        assert!(
+            text.lines().any(|l| l.starts_with('D') && l.contains(rel)),
+            "the removal is staged: {text}"
+        );
+        assert!(
+            text.contains("zero/intents/closed.tsv"),
+            "closed.tsv is staged: {text}"
+        );
+        let _ = std::fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn cancel_of_an_untracked_file_is_undetermined() {
+        let repo = repo("untracked");
+        let path = write_open(&repo, "187-one.md", "187", "One");
+        git(&repo, &["commit", "-q", "--allow-empty", "-m", "init"]);
+        with_scratch_state(&repo, || {
+            cancel_intent(&ctx(&repo), "187", "not a felt need").expect("cancel");
+        });
+        assert!(
+            path.exists(),
+            "when the last commit is unknown the file stays"
+        );
+        assert!(
+            !repo.join("zero/intents/closed.tsv").exists(),
+            "an unknown last commit writes no closed.tsv row"
+        );
+        let staged = Command::new("git")
+            .args([
+                "-C",
+                repo.to_str().unwrap(),
+                "diff",
+                "--cached",
+                "--name-only",
+            ])
+            .output()
+            .unwrap();
+        assert!(
+            staged.stdout.is_empty(),
+            "nothing is staged: {}",
+            String::from_utf8_lossy(&staged.stdout)
+        );
+        let body = cancel_body();
+        assert!(
+            body.contains("close_file("),
+            "cancel must reuse close_file, the same helper cicomplete uses"
+        );
+        assert!(
+            body.contains("UNDETERMINED"),
+            "cancel must report UNDETERMINED when the last commit is unknown, same as cicomplete"
+        );
+        let _ = std::fs::remove_dir_all(&repo);
+    }
+}
