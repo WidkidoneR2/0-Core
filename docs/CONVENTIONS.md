@@ -66,6 +66,12 @@ four numbered reasons. A gate can be closed by deciding NOT to do the thing. Tha
 
 ---
 
+## Intent format 3 (INT-329)
+
+Format 2 keeps the sections Vision, The Problem, The Solution and Success Criteria, and the indented gate fields `ask:`, `ruling:` and `evidence:`. A ticked gate whose `evidence:` is empty does not complete, and every later format keeps that rule. Format 3 also requires `## Limits`: the bullets In scope, Out of scope, How deep, Stop and ask and Done means each start at the beginning of a line and have text after the colon, and a wrapped line is indented. `core intent new` writes that skeleton. The evidence section above is the format 1 discipline, and a file with no format number or a number below 2 is still judged that way. A number above 3 is refused. Finished intents are rows in zero/intents/closed.tsv.
+
+---
+
 ## Failure output (INT-199)
 
 **A safe abort and a crash must not look the same. Lead with what did NOT happen.**

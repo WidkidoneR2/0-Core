@@ -607,6 +607,31 @@ fn archived_intent_ids() -> Option<std::collections::HashSet<String>> {
     Some(ids)
 }
 
+/// The first `format:` value in frontmatter, as a whole number.
+///
+/// Missing, blank, or not a canonical integer is 0, which takes the format 1
+/// rules. `02` is not 2. A quoted `2` is 2, the same way the field reader
+/// strips quotes. Format 2 or higher keeps the format 2 rules. A number above
+/// 3 is unknown.
+pub(crate) fn format_version(fm: &str) -> u32 {
+    let Some(line) = fm.lines().find(|l| l.trim_start().starts_with("format:")) else {
+        return 0;
+    };
+    let value = line
+        .split_once(':')
+        .map(|(_, rest)| rest)
+        .unwrap_or("")
+        .trim()
+        .trim_matches('"');
+    if value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit()) {
+        return 0;
+    }
+    if value.len() > 1 && value.starts_with('0') {
+        return 0;
+    }
+    value.parse().unwrap_or(0)
+}
+
 /// The ONE validator. Context-free: reads `zero_core::paths::intents_dir()`, the same
 /// source doctor uses. Returns (intents_seen, issues). Callers decide how to present it.
 ///
@@ -738,15 +763,23 @@ pub fn validate_issues() -> (usize, Vec<String>, Vec<String>) {
                 }
                 *seen.entry((ns.to_string(), id)).or_insert(0) += 1;
             }
-            let format2 = field("format").as_deref() == Some("2");
+            let version = format_version(fm);
+            if version > 3 {
+                issues.push(format!("unknown format {version}: {folder}/{name}"));
+            }
             let shape = old_shape_notes(&content);
-            if format2 {
+            if version >= 2 {
                 for note in shape {
                     issues.push(format!("format 2: {note}: {folder}/{name}"));
                 }
             } else {
                 for note in shape {
                     notes.push(format!("{note}: {folder}/{name}"));
+                }
+            }
+            if version >= 3 {
+                for issue in limits_issues(&content) {
+                    issues.push(format!("format 3: {issue}: {folder}/{name}"));
                 }
             }
         }
@@ -844,6 +877,51 @@ pub fn old_shape_notes(content: &str) -> Vec<String> {
         }
     }
     notes
+}
+
+/// The five Limits labels. Each is a column-0 bullet with text after the colon.
+/// `- Must not change:` is allowed and not required. Wrap lines are indented,
+/// so they are not a substitute for text on the bullet line.
+const LIMIT_LABELS: [&str; 5] = [
+    "In scope",
+    "Out of scope",
+    "How deep",
+    "Stop and ask",
+    "Done means",
+];
+
+/// Format 3 and later. Empty when `## Limits` is present and every required
+/// label is filled. A missing heading is one issue. Each empty or absent
+/// label is named.
+pub fn limits_issues(content: &str) -> Vec<String> {
+    let lines: Vec<&str> = content.lines().collect();
+    let Some(start) = lines.iter().position(|line| {
+        let t = line.trim();
+        t == "## Limits" || t.starts_with("## Limits ")
+    }) else {
+        return vec!["missing section ## Limits".to_string()];
+    };
+    let mut body = Vec::new();
+    for line in &lines[start + 1..] {
+        if line.starts_with("## ") {
+            break;
+        }
+        body.push(*line);
+    }
+    let mut issues = Vec::new();
+    for label in LIMIT_LABELS {
+        let prefix = format!("- {label}:");
+        let filled = body.iter().any(|line| {
+            let Some(rest) = line.strip_prefix(prefix.as_str()) else {
+                return false;
+            };
+            !rest.trim().is_empty()
+        });
+        if !filled {
+            issues.push(format!("Limits missing \"{label}:\""));
+        }
+    }
+    issues
 }
 
 pub fn validate(_ctx: &AppContext) -> CoreResult<()> {
@@ -3716,7 +3794,8 @@ pub fn target_in(
 }
 
 /// Files one intent under `base`. With a seed, the template's Problem and first criterion are the
-/// seed's words; without one the file is exactly what it always was.
+/// seed's words. Without one, the file is the format 3 skeleton: Limits between The Solution and
+/// Success Criteria, and no evidence-convention comment.
 pub fn create_in(
     base: &std::path::Path,
     category: &str,
@@ -3745,19 +3824,17 @@ pub fn create_in(
         |s| s.gate.as_str(),
     );
     let content = format!(
-        "---\nid: {:03}\ndate: {}\ntype: {}\ntitle: \"{}\"\nstatus: {}\ntags: {}\nformat: 2\n---\n\n\
+        "---\nid: {:03}\ndate: {}\ntype: {}\ntitle: \"{}\"\nstatus: {}\ntags: {}\nformat: 3\n---\n\n\
 ## Vision\n[Describe the goal and desired outcome]\n\n\
 ## The Problem\n{}\n\n\
 ## The Solution\n[High-level approach]\n\n\
-## Success Criteria\n{}\n\n\
-<!-- INT-158 -- EVIDENCE CONVENTION. A ticked box is a promise. Evidence is the receipt.\n\
-     When you tick a gate, put the proof in an HTML comment on the line after it: a commit\n\
-     hash, a file:line, a log or artifact path, or \"demonstrated: what + how\". Prose counts.\n\
-     FORWARD-ONLY (never retrofit old intents -- busywork, no payoff).\n\
-     SOFT (a discipline, not gate-police; nothing enforces this).\n\
-     LIGHT (trivial self-evident gates need no artifact).\n\
-     Exemplars: INT-133 (the original), INT-161, INT-112, INT-061.\n\
-     See docs/CONVENTIONS.md. Delete this comment when the intent is written. -->\n",
+## Limits\n\
+- In scope:\n\
+- Out of scope:\n\
+- How deep:\n\
+- Stop and ask:\n\
+- Done means:\n\n\
+## Success Criteria\n{}\n\n",
         id, date, type_tag, title, status, tags_str, problem, criteria
     );
 
@@ -6197,6 +6274,128 @@ mod format2_note_tests {
             notes.iter().any(|n| n.contains("placeholder")),
             "the placeholder is listed: {notes:?}"
         );
+    }
+}
+
+/// INT-329 G2. `validate_issues` on a temp ledger, never the live one.
+#[cfg(test)]
+mod format3_limits_tests {
+    fn ledger(tag: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "core-int329-{tag}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap()
+                .as_nanos()
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("0-core/zero/intents/open")).unwrap();
+        dir
+    }
+
+    fn body(format: &str, between: &str) -> String {
+        format!(
+            "---\nid: 901\ntitle: \"t\"\nstatus: planned\ndate: 2026-11-19\nformat: {format}\n---\n\n\
+## Vision\nA goal.\n\n\
+## The Problem\nA problem.\n\n\
+## The Solution\nAn approach.\n\n\
+{between}\
+## Success Criteria\n- [ ] G1 stays open.\n      ask: q\n      ruling:\n      evidence:\n"
+        )
+    }
+
+    const FULL: &str = "\
+## Limits\n\
+- In scope: the check\n\
+- Out of scope: the rest\n\
+- How deep: one file\n\
+- Stop and ask: a second file\n\
+- Done means: the gates\n\
+- Must not change: format 1 and format 2\n\n";
+
+    fn verdict(tag: &str, format: &str, between: &str) -> (Vec<String>, Vec<String>) {
+        let dir = ledger(tag);
+        std::fs::write(
+            dir.join("0-core/zero/intents/open/901-t.md"),
+            body(format, between),
+        )
+        .unwrap();
+        let (_count, issues, notes) =
+            super::status_is_not_the_folder_tests::with_home(&dir, super::validate_issues);
+        let _ = std::fs::remove_dir_all(&dir);
+        (issues, notes)
+    }
+
+    #[test]
+    fn format_3_requires_limits_and_format_4_is_unknown() {
+        let mut failures = Vec::new();
+
+        let (issues, _) = verdict("nolimits", "3", "");
+        if !issues.iter().any(|i| i.contains("## Limits")) {
+            failures.push(format!(
+                "format 3 with no ## Limits was not an issue: {issues:?}"
+            ));
+        }
+
+        let (issues, _) = verdict("full", "3", FULL);
+        if !issues.is_empty() {
+            failures.push(format!(
+                "format 3 with the five labels was not clean: {issues:?}"
+            ));
+        }
+
+        let partial = "\
+## Limits\n\
+- In scope: the check\n\
+- Out of scope: the rest\n\
+- How deep: one file\n\
+- Done means: the gates\n\n";
+        let (issues, _) = verdict("partial", "3", partial);
+        if !issues.iter().any(|i| i.contains("Stop and ask")) {
+            failures.push(format!(
+                "a missing Stop and ask label was not named: {issues:?}"
+            ));
+        }
+        if issues.iter().any(|i| {
+            i.contains("In scope")
+                || i.contains("Out of scope")
+                || i.contains("How deep")
+                || i.contains("Done means")
+        }) {
+            failures.push(format!("a filled label was named missing: {issues:?}"));
+        }
+
+        let empty_stop = "\
+## Limits\n\
+- In scope: the check\n\
+- Out of scope: the rest\n\
+- How deep: one file\n\
+- Stop and ask:\n\
+- Done means: the gates\n\n";
+        let (issues, _) = verdict("empty", "3", empty_stop);
+        if !issues.iter().any(|i| i.contains("Stop and ask")) {
+            failures.push(format!(
+                "Stop and ask with no text after the colon was not named: {issues:?}"
+            ));
+        }
+
+        let (issues, notes) = verdict("v2", "2", "");
+        if !issues.is_empty() {
+            failures.push(format!("format 2 with no Limits was not clean: {issues:?}"));
+        }
+        if notes.iter().any(|n| n.contains("Limits")) {
+            failures.push(format!("format 2 noted Limits: {notes:?}"));
+        }
+
+        let (issues, _) = verdict("v4", "4", FULL);
+        if !issues.iter().any(|i| i.contains("unknown format 4")) {
+            failures.push(format!(
+                "format 4 was not an unknown-format issue: {issues:?}"
+            ));
+        }
+
+        assert!(failures.is_empty(), "{}", failures.join("\n"));
     }
 }
 

@@ -2524,10 +2524,27 @@ mod bug_tests {
         assert!(
             plain.contains("## The Problem\n[What problem does this solve?]\n\n## The Solution")
         );
-        assert!(plain.contains("format: 2\n"));
-        assert!(plain.contains(
-            "## Success Criteria\n- [ ] ...\n      ask:\n      ruling:\n      evidence:\n\n<!-- INT-158"
-        ));
+        assert!(
+            plain.contains("format: 3\n"),
+            "a new intent is format 3:\n{plain}"
+        );
+        assert!(
+            !plain.contains("INT-158"),
+            "a new intent has no INT-158 comment:\n{plain}"
+        );
+        let skeleton = "\
+## The Solution\n[High-level approach]\n\n\
+## Limits\n\
+- In scope:\n\
+- Out of scope:\n\
+- How deep:\n\
+- Stop and ask:\n\
+- Done means:\n\n\
+## Success Criteria\n- [ ] ...\n      ask:\n      ruling:\n      evidence:\n";
+        assert!(
+            plain.contains(skeleton),
+            "the five Limits labels sit between The Solution and Success Criteria:\n{plain}"
+        );
         let seed = Seed {
             problem: "P".to_string(),
             gate: "- [ ] G".to_string(),
