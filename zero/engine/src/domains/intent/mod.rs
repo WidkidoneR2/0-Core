@@ -2217,6 +2217,42 @@ mod f0049_f0050_tests {
             "current generation missing: {subs:?}"
         );
     }
+
+    /// INT-328 G3: the lines cicomplete and write_versions print, plain (no tty).
+    #[test]
+    fn a_safe_stop_and_a_partway_stop_say_which() {
+        let safe = zero_core::refuse::format_stop(
+            &zero_core::refuse::Stop {
+                safe: true,
+                reason: "zero-docs is not on PATH, so the tools index cannot be refreshed",
+                changed: &[],
+                finish: "cicomplete 328",
+            },
+            false,
+        );
+        let part = zero_core::refuse::format_stop(
+            &zero_core::refuse::Stop {
+                safe: false,
+                reason: "bump failed for zero-core: its registry row was not set",
+                changed: &["zero-core 1.3.0"],
+                finish: "bump-versions zero-core minor",
+            },
+            false,
+        );
+        assert_eq!(
+            safe,
+            "Stopped safely — nothing changed\n\
+             zero-docs is not on PATH, so the tools index cannot be refreshed\n\
+             cicomplete 328\n"
+        );
+        assert_eq!(
+            part,
+            "Stopped partway — something changed\n\
+             bump failed for zero-core: its registry row was not set\n\
+             zero-core 1.3.0\n\
+             bump-versions zero-core minor\n"
+        );
+    }
 }
 
 /// INT-271: every version decision, made and checked before the first write. A --bump decides
@@ -2463,6 +2499,17 @@ fn repo_relative(repo: &Path, path: &Path) -> Option<String> {
     Some(rel.to_string_lossy().replace('\\', "/"))
 }
 
+/// INT-328: a close that stops says whether anything changed, then the reason and
+/// the one command that finishes it.
+fn stop_close(safe: bool, reason: &str, changed: &[&str], finish: &str) {
+    zero_core::refuse::print_stop(&zero_core::refuse::Stop {
+        safe,
+        reason,
+        changed,
+        finish,
+    });
+}
+
 /// INT-271: write every planned bump through the one owner, then sync Cargo.lock for it. Returns
 /// the Versions receipt for the intent. A write that fails stops the close: the caller does not
 /// move the intent, and the message names what was written and how to finish.
@@ -2484,8 +2531,13 @@ fn write_versions(
         match find_in(&std::env::var("PATH").unwrap_or_default(), "zero-docs") {
             Some(found) => Some(found),
             None => {
-                eprintln!("  refused before any write: zero-docs is not on PATH, so the tools index cannot be refreshed");
-                eprintln!("  nothing was bumped and the intent was not moved");
+                let finish = format!("cicomplete {id}");
+                stop_close(
+                    true,
+                    "zero-docs is not on PATH, so the tools index cannot be refreshed",
+                    &[],
+                    &finish,
+                );
                 return Err(crate::errors::CoreError::Reported(
                     "zero-docs is not on PATH".to_string(),
                 ));
@@ -2497,8 +2549,8 @@ fn write_versions(
     // INT-287 G3: every planned row is checked before the first write, so a row the writer
     // cannot set refuses the close with no Cargo.toml bumped.
     if let Err(e) = rows_writable(&registry, plans) {
-        eprintln!("  refused before any write: {}", e);
-        eprintln!("  nothing was bumped and the intent was not moved");
+        let finish = format!("cicomplete {id}");
+        stop_close(true, &e, &[], &finish);
         return Err(crate::errors::CoreError::Reported(e));
     }
     println!();
@@ -2554,18 +2606,16 @@ fn write_versions(
                             .map(|l| format!("bump-versions {} {}", q.tool, l.as_str()))
                     })
                     .collect();
-                let before = if written.is_empty() {
-                    "nothing".to_string()
+                let changed: Vec<&str> = written.iter().map(String::as_str).collect();
+                let finish = if rest.len() == 1 {
+                    rest[0].clone()
+                } else if rest.is_empty() {
+                    format!("cicomplete {id}")
                 } else {
-                    written.join(", ")
+                    rest.join("; ")
                 };
-                eprintln!("  bump failed for {}: {}", p.tool, e);
-                eprintln!("  written before it: {}", before);
-                eprintln!(
-                    "  the intent was not moved. Finish with: {}; then rerun cicomplete {} and answer skip for crates already bumped",
-                    rest.join("; "),
-                    id
-                );
+                let reason = format!("bump failed for {}: {}", p.tool, e);
+                stop_close(changed.is_empty(), &reason, &changed, &finish);
                 return Err(crate::errors::CoreError::Reported(format!(
                     "bump failed for {}",
                     p.tool
@@ -2585,12 +2635,9 @@ fn write_versions(
                 "\u{2713}".green()
             ),
             Err(why) => {
-                eprintln!("  bump written but the docs do not agree: {}", why);
-                eprintln!("  written: {}", written.join(", "));
-                eprintln!(
-                    "  the intent was not moved. Finish with: zero-docs readme-index, then zero-docs check; then rerun cicomplete {} and answer skip for crates already bumped",
-                    id
-                );
+                let changed: Vec<&str> = written.iter().map(String::as_str).collect();
+                let reason = format!("bump written but the docs do not agree: {why}");
+                stop_close(changed.is_empty(), &reason, &changed, "zero-docs readme-index");
                 return Err(crate::errors::CoreError::Reported(
                     "the tools index does not match the bump".to_string(),
                 ));
@@ -3195,8 +3242,8 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
                 id,
                 folders::ACTIVE.join(", ")
             );
-            eprintln!("  refused: {}", msg);
-            eprintln!("  nothing was written and the intent was not moved");
+            let finish = format!("cicomplete {id}");
+            stop_close(true, &msg, &[], &finish);
             return Err(crate::errors::CoreError::Reported(msg));
         }
     };
@@ -3204,6 +3251,9 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
         let path = &gate_file;
         let file_content = std::fs::read_to_string(path).unwrap_or_default();
         if let Err(refusal) = gates::check_completion(&file_content) {
+            let msg = gates::summary(&refusal);
+            let finish = format!("cicomplete {id}");
+            stop_close(true, &msg, &[], &finish);
             let today = chrono::Utc::now().format("%Y-%m-%d").to_string();
             println!();
             for (n, line) in gates::explain(&refusal, &today).iter().enumerate() {
@@ -3213,9 +3263,6 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
                     println!("  {}", line);
                 }
             }
-            let msg = gates::summary(&refusal);
-            eprintln!("  refused: {}", msg);
-            eprintln!("  nothing was written and the intent was not moved");
             return Err(crate::errors::CoreError::Reported(msg));
         }
     }
@@ -3224,8 +3271,8 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
     let planned = match decide_versions(ctx, id, flags) {
         Ok(p) => p,
         Err(msg) => {
-            eprintln!("  refused: {}", msg);
-            eprintln!("  nothing was written and the intent was not moved");
+            let finish = format!("cicomplete {id}");
+            stop_close(true, &msg, &[], &finish);
             return Err(crate::errors::CoreError::Reported(msg));
         }
     };
