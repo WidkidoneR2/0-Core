@@ -332,10 +332,13 @@ pub enum IntentCommand {
         complete: bool,
         all: bool,
         cancelled: bool,
+        json: bool,
     },
     Show {
         id: String,
+        json: bool,
     },
+    Panel,
     Search {
         term: String,
     },
