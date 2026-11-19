@@ -1226,7 +1226,7 @@ mod tests {
     /// no longer matches any site fails too: an exception cannot outlive its site.
     #[test]
     fn every_temp_dir_path_carries_the_process_id() {
-        const ALLOWED: [(&str, &str, &str); 2] = [
+        const ALLOWED: [(&str, &str, &str); 3] = [
             (
                 "shell/novashell/src/main.rs",
                 "nsh-cwd.tmp",
@@ -1235,6 +1235,11 @@ mod tests {
             (
                 "shell/novashell/src/commands/guards.rs",
                 "int267-no-such-directory",
+                "planted as absent, never created",
+            ),
+            (
+                "engine/src/domains/intent/mod.rs",
+                "core-recent-no-such-ledger",
                 "planted as absent, never created",
             ),
         ];
@@ -1271,7 +1276,7 @@ mod tests {
         );
         let needle = concat!("temp_dir", "()");
         let mut bare = Vec::new();
-        let mut used = [false; 2];
+        let mut used = [false; 3];
         for f in &files {
             let rel = f.strip_prefix(&zero).unwrap().to_string_lossy().to_string();
             let text = std::fs::read_to_string(f).unwrap_or_default();
@@ -1281,16 +1286,34 @@ mod tests {
                 if t.starts_with("//") || !t.contains(needle) {
                     continue;
                 }
-                // The statement may run onto the next two lines, but never past the start of
-                // another item, so a neighbour's process id cannot vouch for this path.
+                // Read to the end of the statement (the line that closes the
+                // temp_dir() expression with `;`), not a fixed two lines: rustfmt
+                // wraps format! so process::id() can sit further down. When the
+                // call itself already ends on this line, the path is often built
+                // on the next statement, so that statement is included too.
+                // Stop at the next item, so a later function cannot vouch.
                 let mut window = String::from(t);
-                for next in lines.iter().skip(i + 1).take(2) {
-                    let n = next.trim_start();
-                    if n.starts_with("fn ") || n.starts_with("pub fn ") || n.starts_with("#[") {
-                        break;
+                let mut closed = if t.trim_end().ends_with(';') { 1 } else { 0 };
+                let through = if closed == 1 { 2 } else { 1 };
+                if closed < through {
+                    for next in lines.iter().skip(i + 1) {
+                        let n = next.trim_start();
+                        if n.starts_with("fn ") || n.starts_with("pub fn ") || n.starts_with("#[")
+                        {
+                            break;
+                        }
+                        if n.starts_with("//") {
+                            continue;
+                        }
+                        window.push(' ');
+                        window.push_str(n);
+                        if n.trim_end().ends_with(';') {
+                            closed += 1;
+                            if closed >= through {
+                                break;
+                            }
+                        }
                     }
-                    window.push(' ');
-                    window.push_str(n);
                 }
                 if window.contains("process::id") {
                     continue;
