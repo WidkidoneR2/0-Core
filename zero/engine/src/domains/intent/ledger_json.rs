@@ -3,7 +3,10 @@
 //! Reads the open rows, their gates, closed.tsv, the completed-id set and
 //! dep_state. Writes nothing. A value that could not be read is null.
 
+use serde::Serialize;
+use std::collections::HashSet;
 use std::path::Path;
+use std::process::Command;
 
 /// JSON for `core intent list --json`, plus the warnings that belong on stderr.
 pub struct Built {
@@ -11,16 +14,414 @@ pub struct Built {
     pub warnings: Vec<String>,
 }
 
+/// The live ledger. Tests use [`build_at`] so they never read this checkout.
+pub fn build() -> Built {
+    build_at(
+        &zero_core::paths::intents_dir(),
+        &zero_core::paths::core_dir(),
+    )
+}
+
 /// The ledger under `dir`, with git answers from `repo`.
-///
-/// The body is filled in after the red tests. Until then it returns an empty
-/// object so the tests compile and fail.
 pub fn build_at(dir: &Path, repo: &Path) -> Built {
-    let _ = (dir, repo);
-    Built {
-        value: serde_json::json!({}),
-        warnings: Vec::new(),
+    let mut warnings = Vec::new();
+    warnings.extend(unreadable_warnings(dir));
+
+    let mut unread = Vec::new();
+    let mut live = Vec::new();
+    for file in zero_core::ledger::load_from(dir) {
+        if let Some(intent) = super::parse_intent(&file.path, &file.folder) {
+            if file.is_record() {
+                continue;
+            }
+            live.push(Row {
+                intent,
+                content: file.content,
+            });
+        } else if !super::is_index_frontmatter(&file.content) {
+            let filename = file
+                .path
+                .file_name()
+                .map(|name| name.to_string_lossy().to_string())
+                .unwrap_or_default();
+            unread.push(format!("{}/{}", file.folder, filename));
+        }
     }
+    unread.sort();
+    warnings.extend(unread_warnings(&unread));
+
+    let intents: Vec<super::Intent> = live.iter().map(|row| row.intent.clone()).collect();
+    let mut rows: Vec<IntentJson> = live
+        .iter()
+        .filter(|row| row.intent.status != "complete")
+        .map(|row| intent_json(row, &intents))
+        .collect();
+    rows.sort_by(|a, b| {
+        status_rank(&a.status)
+            .cmp(&status_rank(&b.status))
+            .then_with(|| num_id(&a.id).cmp(&num_id(&b.id)))
+            .then_with(|| a.id.cmp(&b.id))
+    });
+
+    let mut done_ids: HashSet<String> = HashSet::new();
+    let mut cancelled_ids: HashSet<String> = HashSet::new();
+    for row in &live {
+        if row.intent.status == "complete" {
+            done_ids.insert(row.intent.id.clone());
+        } else if row.intent.status == "cancelled" {
+            cancelled_ids.insert(row.intent.id.clone());
+        }
+    }
+
+    let (recent_closed, last_close) = match zero_core::ledger::read_closed(dir) {
+        Ok(index) => {
+            for warning in index.warnings {
+                warnings.push(format!("closed.tsv: {warning}"));
+            }
+            for row in &index.rows {
+                if row.status == "complete" {
+                    done_ids.insert(row.id.clone());
+                } else if row.status == "cancelled" {
+                    cancelled_ids.insert(row.id.clone());
+                }
+            }
+            let recent = recent_closed_rows(&index.rows);
+            let last = recent.first().map(|row| LastClose {
+                id: row.id.clone(),
+                status: row.status.clone(),
+                closed: row.closed.clone(),
+                last_commit: row.last_commit.clone(),
+                title: row.title.clone(),
+            });
+            let recent = recent
+                .into_iter()
+                .map(|row| RecentClosed {
+                    id: row.id,
+                    status: row.status,
+                    closed: row.closed,
+                    title: row.title,
+                })
+                .collect();
+            (recent, last)
+        }
+        Err(err) => {
+            warnings.push(format!("closed.tsv: {err}"));
+            (Vec::new(), None)
+        }
+    };
+
+    if let Some(archived) = archived_complete_ids(repo) {
+        done_ids.extend(archived);
+    }
+
+    let in_progress = live
+        .iter()
+        .filter(|row| row.intent.status == "in-progress")
+        .count() as u64;
+    let planned = live
+        .iter()
+        .filter(|row| row.intent.status == "planned")
+        .count() as u64;
+    let blocked = rows
+        .iter()
+        .filter(|row| row.status == "planned" && row.blocked)
+        .count() as u64;
+    let done = done_ids.len() as u64;
+    let (clean, pushed) = tree_answers(repo);
+    let ledger = LedgerJson {
+        schema: 1,
+        counts: Counts {
+            total: done + in_progress + planned,
+            done,
+            in_progress,
+            planned,
+            blocked,
+            cancelled: cancelled_ids.len() as u64,
+        },
+        intents: rows,
+        recent_closed,
+        last_close,
+        tree: Tree { clean, pushed },
+    };
+    let value = serde_json::to_value(&ledger).unwrap_or(serde_json::Value::Null);
+    Built { value, warnings }
+}
+
+struct Row {
+    intent: super::Intent,
+    content: String,
+}
+
+fn intent_json(row: &Row, intents: &[super::Intent]) -> IntentJson {
+    let report = super::gates::read_gates(&row.content);
+    let done = report
+        .gates
+        .iter()
+        .filter(|gate| gate.state == super::gates::GateState::Done)
+        .count() as u64;
+    let blocked = row.intent.status == "planned"
+        && row
+            .intent
+            .depends_on
+            .iter()
+            .any(|dep| super::dep_state(intents, dep) == super::DepState::Blocked);
+    IntentJson {
+        id: row.intent.id.clone(),
+        title: row.intent.title.clone(),
+        status: row.intent.status.clone(),
+        blocked,
+        vision: vision_sentence(&row.content),
+        gates: Gates {
+            done,
+            total: report.gates.len() as u64,
+        },
+        format: super::format_version(frontmatter(&row.content)),
+        depends_on: row.intent.depends_on.clone(),
+        file: format!("{}/{}", row.intent.folder, row.intent.filename),
+    }
+}
+
+fn status_rank(status: &str) -> u8 {
+    match status {
+        "in-progress" => 0,
+        "planned" => 1,
+        "deferred" => 2,
+        "cancelled" => 3,
+        _ => 4,
+    }
+}
+
+fn num_id(id: &str) -> u32 {
+    id.parse().unwrap_or(0)
+}
+
+fn frontmatter(content: &str) -> &str {
+    if content.starts_with("---") {
+        content.split("---").nth(1).unwrap_or("")
+    } else {
+        ""
+    }
+}
+
+fn vision_sentence(content: &str) -> String {
+    let mut in_vision = false;
+    let mut body = String::new();
+    for line in content.lines() {
+        let trimmed = line.trim();
+        if trimmed.starts_with("## ") {
+            if in_vision {
+                break;
+            }
+            let heading = trimmed[3..].trim().to_ascii_lowercase();
+            in_vision = heading == "vision" || heading.starts_with("vision ");
+            continue;
+        }
+        if in_vision {
+            body.push_str(trimmed);
+            body.push(' ');
+        }
+    }
+    let flat = body.split_whitespace().collect::<Vec<_>>().join(" ");
+    if flat.is_empty() {
+        return String::new();
+    }
+    match flat.find('.') {
+        Some(at) => flat[..=at].to_string(),
+        None => flat,
+    }
+}
+
+fn recent_closed_rows(rows: &[zero_core::ledger::ClosedRow]) -> Vec<zero_core::ledger::ClosedRow> {
+    let start = rows.len().saturating_sub(5);
+    let mut recent: Vec<_> = rows[start..].to_vec();
+    recent.reverse();
+    recent
+}
+
+fn unread_warnings(names: &[String]) -> Vec<String> {
+    if names.is_empty() {
+        return Vec::new();
+    }
+    vec![
+        format!(
+            "  ⚠ {} intent file(s) could not be read: {}",
+            names.len(),
+            names.join(", ")
+        ),
+        "    run core intent validate for the reason".to_string(),
+    ]
+}
+
+fn unreadable_warnings(dir: &Path) -> Vec<String> {
+    let mut names = Vec::new();
+    for folder in zero_core::ledger::LIFECYCLE
+        .iter()
+        .chain(zero_core::ledger::RECORDS.iter())
+    {
+        let Ok(entries) = std::fs::read_dir(dir.join(folder)) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|ext| ext.to_str()) != Some("md") {
+                continue;
+            }
+            let name = entry.file_name().to_string_lossy().to_string();
+            if name == "README.md" {
+                continue;
+            }
+            if let Err(err) = std::fs::read_to_string(&path) {
+                names.push(format!("{folder}/{name}: {err}"));
+            }
+        }
+    }
+    names.sort();
+    if names.is_empty() {
+        return Vec::new();
+    }
+    vec![format!(
+        "  ⚠ {} intent file(s) could not be read: {}",
+        names.len(),
+        names.join(", ")
+    )]
+}
+
+/// Ids git has stored under `zero/intents/complete/`. None when git cannot answer,
+/// the same rule as `zero_core::ledger::completed_ids`, against a chosen repo so a
+/// test does not ask the live checkout.
+fn archived_complete_ids(repo: &Path) -> Option<HashSet<String>> {
+    let out = Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args([
+            "log",
+            "--all",
+            "--name-only",
+            "--format=",
+            "--",
+            "zero/intents",
+        ])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let text = String::from_utf8(out.stdout).ok()?;
+    let mut ids = HashSet::new();
+    for line in text.lines() {
+        if let Some(id) = complete_history_id(line) {
+            ids.insert(id);
+        }
+    }
+    Some(ids)
+}
+
+fn complete_history_id(path: &str) -> Option<String> {
+    let path = path.trim().trim_matches('"');
+    let mut parts = path.split('/');
+    if parts.next() != Some("zero") || parts.next() != Some("intents") {
+        return None;
+    }
+    let folder = parts.next()?;
+    let file = parts.next()?;
+    if parts.next().is_some() || folder != "complete" || !file.ends_with(".md") {
+        return None;
+    }
+    let stem = &file[..file.len() - 3];
+    let (num, rest) = stem.split_once('-')?;
+    if rest.is_empty() || num.is_empty() || !num.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    Some(num.to_string())
+}
+
+fn tree_answers(repo: &Path) -> (Option<bool>, Option<bool>) {
+    let clean = match Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["status", "--porcelain"])
+        .output()
+    {
+        Ok(out) if out.status.success() => String::from_utf8(out.stdout)
+            .ok()
+            .map(|text| text.lines().all(|line| line.trim().is_empty())),
+        _ => None,
+    };
+    let pushed = match Command::new("git")
+        .arg("-C")
+        .arg(repo)
+        .args(["rev-list", "--count", "origin/main..HEAD"])
+        .output()
+    {
+        Ok(out) if out.status.success() => String::from_utf8(out.stdout)
+            .ok()
+            .and_then(|text| text.trim().parse::<u64>().ok())
+            .map(|count| count == 0),
+        _ => None,
+    };
+    (clean, pushed)
+}
+
+#[derive(Serialize)]
+struct LedgerJson {
+    schema: u32,
+    counts: Counts,
+    intents: Vec<IntentJson>,
+    recent_closed: Vec<RecentClosed>,
+    last_close: Option<LastClose>,
+    tree: Tree,
+}
+
+#[derive(Serialize)]
+struct Counts {
+    total: u64,
+    done: u64,
+    in_progress: u64,
+    planned: u64,
+    blocked: u64,
+    cancelled: u64,
+}
+
+#[derive(Serialize)]
+struct IntentJson {
+    id: String,
+    title: String,
+    status: String,
+    blocked: bool,
+    vision: String,
+    gates: Gates,
+    format: u32,
+    depends_on: Vec<String>,
+    file: String,
+}
+
+#[derive(Serialize)]
+struct Gates {
+    done: u64,
+    total: u64,
+}
+
+#[derive(Serialize)]
+struct RecentClosed {
+    id: String,
+    status: String,
+    closed: String,
+    title: String,
+}
+
+#[derive(Serialize)]
+struct LastClose {
+    id: String,
+    status: String,
+    closed: String,
+    last_commit: String,
+    title: String,
+}
+
+#[derive(Serialize)]
+struct Tree {
+    clean: Option<bool>,
+    pushed: Option<bool>,
 }
 
 #[cfg(test)]
@@ -255,8 +656,8 @@ mod tests {
         assert_eq!(counts["planned"], 3);
         assert_eq!(counts["blocked"], 1);
         assert_eq!(
-            counts["cancelled"], 2,
-            "one live cancelled and one closed row"
+            counts["cancelled"], 3,
+            "two live cancelled intents and one closed row"
         );
         assert_eq!(
             counts["total"],

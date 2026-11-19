@@ -147,7 +147,7 @@ pub fn unread_intent_files() -> Vec<String> {
 
 /// True when the frontmatter between the first two `---` has a line that trims
 /// to `type: index`. The body is not consulted.
-fn is_index_frontmatter(content: &str) -> bool {
+pub(crate) fn is_index_frontmatter(content: &str) -> bool {
     content
         .split("---")
         .nth(1)
@@ -188,7 +188,7 @@ fn load_all(ctx: &AppContext) -> Vec<Intent> {
     read_open().into_iter().map(|row| row.intent).collect()
 }
 
-fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
+pub(crate) fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
     let content = fs::read_to_string(path).ok()?;
     let filename = path.file_name()?.to_string_lossy().to_string();
 
