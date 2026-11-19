@@ -17,3 +17,4 @@ id	status	closed	last_commit	title
 118	cancelled	2026-11-19	6abd63d69b357b472f6be9a5f662c49dbb9fdfb7	Friday engine resumption
 181	cancelled	2026-11-19	f0415b3eb015cd76e91b79fbfd078ea1b95a35d2	faelight-prompt: the forest's interactive layer (inquire) -- foundation + guided intent ledger
 187	cancelled	2026-11-19	f0415b3eb015cd76e91b79fbfd078ea1b95a35d2	evaluate gix vs git2 for faelight-git -- pure-Rust git, NOT a felt need yet
+026	cancelled	2026-11-19	f0415b3eb015cd76e91b79fbfd078ea1b95a35d2	Forest Observatory: searchable event timeline
