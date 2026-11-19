@@ -13,18 +13,44 @@ pub struct Stop<'a> {
     pub finish: &'a str,
 }
 
-/// The text of a stop. `color` wraps the first line in ANSI; the rest stays plain.
-/// The body is empty until the helper is implemented (INT-328 J9).
+/// The text of a stop. `color` wraps the first line in raw ANSI; the rest stays plain.
 pub fn format_stop(stop: &Stop<'_>, color: bool) -> String {
-    let _ = (stop, color);
-    String::new()
+    let head = if stop.safe {
+        "Stopped safely — nothing changed"
+    } else {
+        "Stopped partway — something changed"
+    };
+    let head = if color {
+        let code = if stop.safe { "32" } else { "31" };
+        format!("\u{1b}[{code}m{head}\u{1b}[0m")
+    } else {
+        head.to_string()
+    };
+    let mut out = String::new();
+    out.push_str(&head);
+    out.push('\n');
+    if !stop.reason.is_empty() {
+        out.push_str(stop.reason);
+        out.push('\n');
+    }
+    if !stop.safe {
+        for item in stop.changed {
+            if !item.is_empty() {
+                out.push_str(item);
+                out.push('\n');
+            }
+        }
+    }
+    if !stop.finish.is_empty() {
+        out.push_str(stop.finish);
+        out.push('\n');
+    }
+    out
 }
 
-/// Whether a stop may be colored: a tty, and `NO_COLOR` unset.
-/// Answers yes until the helper is implemented, so the plain-text tests stay red.
+/// Whether a stop may be colored: the stream is a tty, and `NO_COLOR` is unset.
 pub fn color_enabled(is_tty: bool) -> bool {
-    let _ = is_tty;
-    true
+    is_tty && std::env::var_os("NO_COLOR").is_none()
 }
 
 /// Print a stop on stderr. Color follows the real stderr and `NO_COLOR`.
