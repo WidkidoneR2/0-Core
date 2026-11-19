@@ -607,6 +607,31 @@ fn archived_intent_ids() -> Option<std::collections::HashSet<String>> {
     Some(ids)
 }
 
+/// The first `format:` value in frontmatter, as a whole number.
+///
+/// Missing, blank, or not a canonical integer is 0, which takes the format 1
+/// rules. `02` is not 2. A quoted `2` is 2, the same way the field reader
+/// strips quotes. Format 2 or higher keeps the format 2 rules. A number above
+/// 3 is unknown.
+pub(crate) fn format_version(fm: &str) -> u32 {
+    let Some(line) = fm.lines().find(|l| l.trim_start().starts_with("format:")) else {
+        return 0;
+    };
+    let value = line
+        .split_once(':')
+        .map(|(_, rest)| rest)
+        .unwrap_or("")
+        .trim()
+        .trim_matches('"');
+    if value.is_empty() || !value.bytes().all(|b| b.is_ascii_digit()) {
+        return 0;
+    }
+    if value.len() > 1 && value.starts_with('0') {
+        return 0;
+    }
+    value.parse().unwrap_or(0)
+}
+
 /// The ONE validator. Context-free: reads `zero_core::paths::intents_dir()`, the same
 /// source doctor uses. Returns (intents_seen, issues). Callers decide how to present it.
 ///
@@ -738,9 +763,12 @@ pub fn validate_issues() -> (usize, Vec<String>, Vec<String>) {
                 }
                 *seen.entry((ns.to_string(), id)).or_insert(0) += 1;
             }
-            let format2 = field("format").as_deref() == Some("2");
+            let version = format_version(fm);
+            if version > 3 {
+                issues.push(format!("unknown format {version}: {folder}/{name}"));
+            }
             let shape = old_shape_notes(&content);
-            if format2 {
+            if version >= 2 {
                 for note in shape {
                     issues.push(format!("format 2: {note}: {folder}/{name}"));
                 }
