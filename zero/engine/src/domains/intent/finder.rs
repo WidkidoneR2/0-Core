@@ -330,8 +330,14 @@ mod tests {
                 checked += 1;
             }
         }
+        // Finished intents leave open/ for closed.tsv, so a fixed floor goes stale.
+        // closed.tsv is what makes this directory the ledger rather than a small fixture.
         assert!(
-            checked > 40,
+            tree.join("closed.tsv").is_file(),
+            "closed.tsv is not beside the shelf: the tree is not the ledger"
+        );
+        assert!(
+            checked > 0,
             "only {checked} files checked: the tree is not the ledger"
         );
     }
