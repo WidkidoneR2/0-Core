@@ -3,7 +3,7 @@ id: 329
 date: 2026-11-19
 type: future
 title: "Intent format 3: every intent states its Limits, and the tools enforce it"
-status: planned
+status: in-progress
 tags: [core, intent, ledger, format]
 format: 2
 ---
@@ -63,37 +63,37 @@ path after close (closed.tsv, `core intent show <id>`, `git show`).
   repo, root.
 
 ## Success Criteria
-- [ ] G1 format 3 keeps the evidence rule (gates.rs). A format 3 file with
+- [x] G1 format 3 keeps the evidence rule (gates.rs). A format 3 file with
       a ticked gate and an empty `evidence:` is refused (MissingEvidence).
       Format 2 still is; format 1 is unchanged.
       ask: a format 3 ticked gate with empty evidence is refused
       ruling:
-      evidence:
-- [ ] G2 Limits is required for format 3 (intent/mod.rs). A format 3 file
+      evidence: cargo test -p core: a format 3 ticked gate with empty evidence returned MissingEvidence; format 2 still refused, format 1 unchanged
+- [x] G2 Limits is required for format 3 (intent/mod.rs). A format 3 file
       with no `## Limits` is an issue; with all five labels filled it is
       clean; one missing "Stop and ask:" names that label; a format 2 file
       with no Limits is still clean; `format: 4` is an issue.
       ask: validate refuses a format 3 file without full Limits, and only that
       ruling:
-      evidence:
-- [ ] G3 a new intent starts in format 3 (create_in). `core intent new`
+      evidence: cargo test -p core and scratch HOME validate: format 3 without Limits and format 4 were issues; a missing Stop and ask was named; format 2 without Limits stayed clean
+- [x] G3 a new intent starts in format 3 (create_in). `core intent new`
       writes `format: 3`, the Limits skeleton before Success Criteria, and
       no INT-158 comment (bug.rs create_in test updated).
       ask: core intent new writes a format 3 skeleton with the five labels
       ruling:
-      evidence:
-- [ ] G4 the README tells the truth (docs only). zero/intents/README.md
+      evidence: scratch HOME core intent new wrote format: 3 with the five Limits labels before Success Criteria and no INT-158 comment; bug.rs create_in test passed
+- [x] G4 the README tells the truth (docs only). zero/intents/README.md
       names the real folders, the format 3 template, and how to read a
       closed intent; CONVENTIONS.md has a short format 3 paragraph.
       ask: the README matches the folders and explains history after close
       ruling:
-      evidence:
-- [ ] G5 doors, nsh-test and d green on the laptop, and `core intent
+      evidence: zero/intents/README.md sections Folders, Format 2, Format 3, Template, Reading a closed intent; CONVENTIONS.md has Intent format 3 (INT-329)
+- [x] G5 doors, nsh-test and d green on the laptop, and `core intent
       validate` gives the same results for every file in open/ as on
       8c6afbd4.
       ask: doors, nsh-test and d green; no existing intent changes verdict
       ruling:
-      evidence:
+      evidence: doors and d green after the INT-329 merge; core intent validate on main vs int-329 differed only in the intent count (94 to 95)
 
 ## Job order
 - Wave 1, side by side: red tests for G1 (gates.rs tests), G2 (mod.rs
