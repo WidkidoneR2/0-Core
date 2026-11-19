@@ -127,6 +127,10 @@ pub struct Engine {
     /// The before-run rules from config.fsh. All five `cfg` uses in the loop were `before_rules`,
     /// so the engine takes the rules and the loop stops needing the config at all.
     before_rules: Vec<BeforeRunRule>,
+
+    /// How many grouping `( ... )` subshells are already running. One nested group is
+    /// allowed. Deeper than that is left for a follow-up (INT-328).
+    group_depth: u8,
 }
 
 impl Engine {
@@ -137,6 +141,7 @@ impl Engine {
             db: Rc::new(db),
             core_root,
             before_rules,
+            group_depth: 0,
         }
     }
 
@@ -1750,6 +1755,9 @@ impl Engine {
     /// before anything touches it; alias expansion sits deliberately BELOW them, so moving either
     /// would change what they catch.
     pub fn try_shell_construct(&mut self, line: &str) -> Option<SegmentOutcome> {
+        if let Some(outcome) = self.try_grouping(line) {
+            return Some(outcome);
+        }
         let shell_construct_word = crate::commands::command_word(line);
         let shell_construct = matches!(
             shell_construct_word.as_str(),
@@ -1767,6 +1775,37 @@ impl Engine {
             return Some(SegmentOutcome::Next);
         }
         None
+    }
+
+    /// A grouping `( ... )` runs in this engine against a saved cwd and environment.
+    /// Both are restored afterwards, including when the group fails. `exit` inside
+    /// the group does not leave the parent shell. One nested group is run; a deeper
+    /// one is not (INT-328).
+    fn try_grouping(&mut self, line: &str) -> Option<SegmentOutcome> {
+        let inner = strip_one_group(line)?;
+        if self.group_depth >= 2 {
+            return None;
+        }
+        if inner.is_empty() {
+            self.set_last_exit(Some(0));
+            return Some(SegmentOutcome::Next);
+        }
+        let saved_cwd = std::env::current_dir().ok();
+        let saved_vars = self.shell_vars.clone();
+        let saved_env: Vec<(String, String)> = std::env::vars().collect();
+        self.group_depth += 1;
+        let mut jobs = crate::jobs::JobTable::new();
+        let mut shown = std::collections::HashSet::new();
+        let mut last_intent = None;
+        let _outcome = crate::run_input(self, inner, &mut jobs, &mut shown, &mut last_intent, 0);
+        self.group_depth = self.group_depth.saturating_sub(1);
+        self.shell_vars = saved_vars;
+        restore_process_env(&saved_env);
+        if let Some(dir) = saved_cwd {
+            let _ = crate::cwd::chdir(&dir);
+        }
+        // ExitShell from the group stays here. The parent keeps going.
+        Some(SegmentOutcome::Next)
     }
 
     /// Expand aliases in a line, unless the cat bypass applies.
@@ -2288,4 +2327,73 @@ pub fn execute_and_record(
         let _ = std::fs::remove_file(&yazi_cwd_file);
     }
     SegmentOutcome::Next
+}
+
+/// The inside of a grouping `( ... )` whose closing paren ends the segment.
+/// `$(...)` is not a grouping. Quotes hide parens.
+fn strip_one_group(line: &str) -> Option<&str> {
+    let t = line.trim();
+    let b = t.as_bytes();
+    if b.first() != Some(&b'(') {
+        return None;
+    }
+    let mut depth = 0i32;
+    let mut in_quote = false;
+    let mut quote = b' ';
+    let mut end = None;
+    let mut i = 0;
+    while i < b.len() {
+        let c = b[i];
+        if !in_quote && (c == b'"' || c == b'\'') {
+            in_quote = true;
+            quote = c;
+            i += 1;
+            continue;
+        }
+        if in_quote && c == quote {
+            in_quote = false;
+            i += 1;
+            continue;
+        }
+        if in_quote {
+            i += 1;
+            continue;
+        }
+        if c == b'(' {
+            depth += 1;
+        } else if c == b')' {
+            depth -= 1;
+            if depth == 0 {
+                end = Some(i);
+                break;
+            }
+        }
+        i += 1;
+    }
+    let end = end?;
+    if end != b.len() - 1 {
+        return None;
+    }
+    Some(t[1..end].trim())
+}
+
+/// Put the process environment back to `saved`, including names the group added.
+fn restore_process_env(saved: &[(String, String)]) {
+    let keep: HashMap<&str, &str> = saved.iter().map(|(k, v)| (k.as_str(), v.as_str())).collect();
+    let now: Vec<String> = std::env::vars().map(|(k, _)| k).collect();
+    for key in now {
+        match keep.get(key.as_str()) {
+            Some(value) => {
+                if std::env::var(&key).ok().as_deref() != Some(*value) {
+                    std::env::set_var(&key, value);
+                }
+            }
+            None => std::env::remove_var(&key),
+        }
+    }
+    for (key, value) in saved {
+        if std::env::var(key).ok().as_deref() != Some(value.as_str()) {
+            std::env::set_var(key, value);
+        }
+    }
 }
