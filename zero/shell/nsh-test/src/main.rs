@@ -730,6 +730,40 @@ fn all_tests() -> Vec<TestResult> {
     results.push(test("and_operator", Category::Regression, || {
         expect_contains(&run_fsh("echo a && echo b")?, "b")
     }));
+    // INT-328 G5: a grouping ( ... ) runs, and cwd and the exported name stay inside it.
+    results.push(test(
+        "grouping_subshell_does_not_leak",
+        Category::Regression,
+        || {
+            let dir = std::env::temp_dir().join(format!(
+                "nsh-group-{}",
+                std::process::id()
+            ));
+            std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+            let parent = std::env::current_dir().map_err(|e| e.to_string())?;
+            let input = format!(
+                "(cd {} && export NSH_GROUP_FOO_328=1 && pwd); pwd; echo MARKER=$NSH_GROUP_FOO_328; (exit 9); echo STILL",
+                dir.display()
+            );
+            let out = run_fsh(&input)?;
+            let _ = std::fs::remove_dir_all(&dir);
+            let dir_s = dir.display().to_string();
+            let parent_s = parent.display().to_string();
+            if !out.contains(&dir_s) {
+                return Err(format!("pwd inside the group did not print {dir_s}: {out}"));
+            }
+            if !out.contains(&parent_s) {
+                return Err(format!("parent cwd changed or was not printed: {out}"));
+            }
+            if out.contains("MARKER=1") || !out.lines().any(|l| l == "MARKER=") {
+                return Err(format!("FOO leaked to the parent: {out}"));
+            }
+            if !out.lines().any(|l| l == "STILL") {
+                return Err(format!("exit inside the group left the parent: {out}"));
+            }
+            Ok(())
+        },
+    ));
     results.push(test("and_chain_nsh_builtin", Category::Regression, || {
         // The chain must run BOTH sides, in order. This expected "3.0.0" -- core's version when it
         // was written -- and kept passing after core moved on only because core version printed an

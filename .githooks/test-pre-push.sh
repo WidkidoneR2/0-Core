@@ -32,6 +32,8 @@ zeros=0000000000000000000000000000000000000000
 local_sha=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 remote_sha=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 newb=cccccccccccccccccccccccccccccccccccccccc
+notes_local=dddddddddddddddddddddddddddddddddddddddd
+notes_remote=eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee
 seen="$tmp/seen"
 ran="$tmp/ran"
 calls="$tmp/calls"
@@ -42,6 +44,7 @@ calls="$tmp/calls"
         "refs/heads/main $local_sha refs/heads/main $remote_sha" \
         "refs/heads/topic $newb refs/heads/topic $zeros" \
         "refs/heads/old $zeros refs/heads/old $remote_sha" \
+        "refs/notes/seals $notes_local refs/notes/seals $notes_remote" \
         | env GATE_SEEN="$seen" GATE_RAN="$ran" CALLS="$calls" \
             "$hook"
 )
@@ -62,6 +65,12 @@ have=$(cat "$calls")
 if [[ "$have" != "$want" ]]; then
     echo "REFUSE: the seal check did not see the saved refs" >&2
     printf 'got:\n%s\nwant:\n%s\n' "$have" "$want" >&2
+    exit 1
+fi
+notes_call="intent seals check ${notes_remote}..${notes_local}"
+if printf '%s\n' "$have" | grep -F -x -q "$notes_call"; then
+    echo "REFUSE: seals check ran on refs/notes/seals" >&2
+    printf 'got:\n%s\n' "$have" >&2
     exit 1
 fi
 echo "ok refs survive a gate that reads stdin"

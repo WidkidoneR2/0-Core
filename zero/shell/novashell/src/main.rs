@@ -4221,3 +4221,32 @@ mod int315 {
         );
     }
 }
+
+#[cfg(test)]
+mod int328_split {
+    use super::split_into_segments;
+
+    #[test]
+    fn a_mid_chain_for_is_one_segment() {
+        let line = "true && for x in a b; do echo $x; done && echo z";
+        let segs: Vec<String> = split_into_segments(line)
+            .into_iter()
+            .map(|(s, _)| s)
+            .collect();
+        assert_eq!(segs.len(), 3, "segments: {segs:?}");
+        let whole = segs.iter().any(|s| {
+            s.contains("for x in a b") && s.contains("; do") && s.contains("done")
+        });
+        assert!(whole, "the for construct was split: {segs:?}");
+    }
+
+    #[test]
+    fn a_line_that_starts_with_for_stays_one_segment() {
+        let line = "for x in a; do echo $x; done";
+        let segs: Vec<String> = split_into_segments(line)
+            .into_iter()
+            .map(|(s, _)| s)
+            .collect();
+        assert_eq!(segs, vec![line.to_string()]);
+    }
+}

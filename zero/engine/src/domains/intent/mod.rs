@@ -1953,6 +1953,176 @@ mod f0049_f0050_tests {
             );
         }
     }
+
+    fn init_repo() -> PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "int328-{}-{}",
+            std::process::id(),
+            N.fetch_add(1, Ordering::SeqCst)
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        git(&dir, &["init", "-q", "-b", "main"], "2026-11-16T12:00:00");
+        git(
+            &dir,
+            &["config", "user.email", "t@example.com"],
+            "2026-11-16T12:00:00",
+        );
+        git(&dir, &["config", "user.name", "t"], "2026-11-16T12:00:00");
+        dir
+    }
+
+    fn commit_file(dir: &Path, rel: &str, body: &str, msg: &str, date: &str) {
+        let path = dir.join(rel);
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent).unwrap();
+        }
+        std::fs::write(&path, body).unwrap();
+        git(dir, &["add", "--", rel], date);
+        git(dir, &["commit", "-q", "-m", msg], date);
+    }
+
+    fn zero_core_ws() -> zero_core::registry::Workspace {
+        let rows = zero_core::registry::parse(
+            "[[tool]]\nname = \"zero-core\"\nversion = \"1.2.0\"\n",
+        )
+        .expect("row");
+        let crates = vec![zero_core::registry::Crate {
+            package: "zero-core".to_string(),
+            dir: "zero/tools/zero-core".to_string(),
+        }];
+        zero_core::registry::match_rows(&rows, &crates).expect("workspace")
+    }
+
+    /// Paths and crate names `intent_git_log` + `crates_touched` see for one intent.
+    fn offered(dir: &Path, id: &str, started: &str) -> (Vec<String>, Vec<String>) {
+        let out = intent_git_log(
+            dir.to_str().unwrap(),
+            id,
+            started,
+            &["--name-only", "--format="],
+        )
+        .unwrap();
+        assert!(
+            out.status.success(),
+            "git log: {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+        let text = String::from_utf8_lossy(&out.stdout).to_string();
+        let paths: Vec<String> = text
+            .lines()
+            .filter(|l| !l.is_empty())
+            .map(str::to_string)
+            .collect();
+        let refs: Vec<&str> = paths.iter().map(String::as_str).collect();
+        let tools = crates_touched(&refs, &zero_core_ws())
+            .unwrap()
+            .into_iter()
+            .map(|c| c.tool)
+            .collect();
+        (paths, tools)
+    }
+
+    /// INT-328 G1: a --no-ff merge of earlier Intent commits still offers those crates.
+    /// The intent is dated 2026-11-18. The work that touched zero-core is 2026-11-17.
+    #[test]
+    fn a_merge_of_earlier_intent_commits_still_offers_zero_core() {
+        let d = init_repo();
+        commit_file(&d, "base.txt", "base\n", "base", "2026-11-16T12:00:00");
+        git(
+            &d,
+            &["checkout", "-q", "-b", "topic"],
+            "2026-11-17T12:00:00",
+        );
+        commit_file(
+            &d,
+            "zero/intents/open/328-bug-batch.md",
+            "---\nid: 328\ndate: 2026-11-18\nstatus: planned\n---\n",
+            "INT-328: work\n\nIntent: INT-328",
+            "2026-11-17T13:46:00",
+        );
+        commit_file(
+            &d,
+            "zero/tools/zero-core/src/lib.rs",
+            "fn x() {}\n",
+            "INT-328: zero-core\n\nIntent: INT-328",
+            "2026-11-17T13:50:00",
+        );
+        git(&d, &["checkout", "-q", "main"], "2026-11-18T12:00:00");
+        git(
+            &d,
+            &[
+                "merge",
+                "--no-ff",
+                "topic",
+                "-m",
+                "INT-328: merge\n\nIntent: INT-328",
+            ],
+            "2026-11-18T17:34:00",
+        );
+        let (paths, tools) = offered(&d, "328", "2026-11-18");
+        let _ = std::fs::remove_dir_all(&d);
+        assert!(
+            tools.iter().any(|t| t == "zero-core"),
+            "touched: {tools:?} paths: {paths:?}"
+        );
+    }
+
+    /// INT-328 G1: only the merge is inside `--since`. Incoming (first-parent) paths
+    /// are listed. The other parent's files are not.
+    #[test]
+    fn a_merge_only_window_lists_the_incoming_side_not_the_other_parent() {
+        let d = init_repo();
+        commit_file(&d, "base.txt", "base\n", "base", "2026-11-16T12:00:00");
+        git(
+            &d,
+            &["checkout", "-q", "-b", "topic"],
+            "2026-11-17T12:00:00",
+        );
+        commit_file(
+            &d,
+            "zero/tools/zero-core/src/lib.rs",
+            "fn x() {}\n",
+            "INT-328: work\n\nIntent: INT-328",
+            "2026-11-17T13:46:00",
+        );
+        git(&d, &["checkout", "-q", "main"], "2026-11-18T12:00:00");
+        commit_file(
+            &d,
+            "README.md",
+            "other parent\n",
+            "INT-327: readme",
+            "2026-11-18T15:00:00",
+        );
+        commit_file(
+            &d,
+            "zero/intents/open/328-bug-batch.md",
+            "---\nid: 328\ndate: 2026-11-18\nstatus: planned\n---\n",
+            "add the intent file",
+            "2026-11-18T16:00:00",
+        );
+        git(
+            &d,
+            &[
+                "merge",
+                "--no-ff",
+                "topic",
+                "-m",
+                "INT-328: merge\n\nIntent: INT-328",
+            ],
+            "2026-11-18T17:34:00",
+        );
+        let (paths, tools) = offered(&d, "328", "2026-11-18");
+        let _ = std::fs::remove_dir_all(&d);
+        assert!(
+            tools.iter().any(|t| t == "zero-core"),
+            "touched: {tools:?} paths: {paths:?}"
+        );
+        assert!(
+            paths.iter().all(|p| !p.contains("README")),
+            "other parent leaked: {paths:?}"
+        );
+    }
 }
 
 /// INT-271: every version decision, made and checked before the first write. A --bump decides
