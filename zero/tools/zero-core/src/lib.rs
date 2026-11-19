@@ -16,6 +16,7 @@ pub mod fingerprint;
 pub mod glyph;
 pub mod ledger;
 pub mod paths;
+pub mod refuse;
 #[cfg(feature = "registry")]
 pub mod registry;
 #[cfg(feature = "db")]

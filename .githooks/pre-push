@@ -38,6 +38,11 @@ check_pushed_refs() {
         if [[ "$local_sha" == "$zeros" ]]; then
             continue
         fi
+        # INT-328: notes commits carry no Intent trailer. A combined push of a
+        # branch and refs/notes/seals must not claim the range has no Intent.
+        if [[ "$local_ref" == refs/notes/* || "$remote_ref" == refs/notes/* ]]; then
+            continue
+        fi
         if [[ "$remote_sha" == "$zeros" ]]; then
             "$core" intent seals check "$local_sha" --not --remotes
         else
