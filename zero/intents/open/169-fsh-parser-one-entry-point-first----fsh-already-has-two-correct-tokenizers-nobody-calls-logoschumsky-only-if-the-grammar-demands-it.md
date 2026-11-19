@@ -3,7 +3,7 @@ id: 169
 date: 2026-07-16
 type: arch
 title: "fsh spine: logos lexer + handwritten recursive-descent parser -> AST. The parse/plan/execute rebuild"
-status: planned
+status: in-progress
 tags: [fsh, parser, ast, logos, lexer, recursive-descent, spine, phase3, 171]
 ---
 

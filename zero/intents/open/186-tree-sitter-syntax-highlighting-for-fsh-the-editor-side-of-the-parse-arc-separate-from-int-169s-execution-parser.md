@@ -3,7 +3,7 @@ id: 186
 date: 2026-07-21
 type: arch
 title: "tree-sitter syntax highlighting for fsh -- the editor-side of the parse arc, separate from INT-169's execution parser"
-status: planned
+status: in-progress
 tags: [fsh, tree-sitter, highlighting, syntax, 169, intelligence-arc]
 ---
 
