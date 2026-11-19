@@ -22,11 +22,51 @@ pub fn build() -> Built {
     )
 }
 
-/// The ledger under `dir`, with git answers from `repo`.
-pub fn build_at(dir: &Path, repo: &Path) -> Built {
-    let mut warnings = Vec::new();
-    warnings.extend(unreadable_warnings(dir));
+/// One intent from `show <id> --json`, or [`Shown::Unknown`] when the id is not open and not closed.
+pub enum Shown {
+    Value(serde_json::Value),
+    Unknown,
+}
 
+/// Open id: the list object plus `gates_list`. Closed id: the closed.tsv row,
+/// `"closed": true`, and the git show command. Unknown: nothing to print.
+pub fn show_at(dir: &Path, repo: &Path, id: &str) -> Shown {
+    let (live, _) = load_live(dir);
+    let intents: Vec<super::Intent> = live.iter().map(|row| row.intent.clone()).collect();
+    if let Some(row) = live.iter().find(|row| row.intent.id == id) {
+        let mut value =
+            serde_json::to_value(intent_json(row, &intents)).unwrap_or(serde_json::Value::Null);
+        let gates = gate_json(&row.content);
+        if let Some(obj) = value.as_object_mut() {
+            obj.insert(
+                "gates_list".to_string(),
+                serde_json::to_value(&gates).unwrap_or(serde_json::Value::Null),
+            );
+        }
+        return Shown::Value(value);
+    }
+    if let Ok(index) = zero_core::ledger::read_closed(dir) {
+        if let Some(row) = index
+            .rows
+            .iter()
+            .find(|row| super::trace::same_intent_id(&row.id, id))
+        {
+            let shown = ShowClosed {
+                id: row.id.clone(),
+                status: row.status.clone(),
+                closed: true,
+                closed_on: row.closed.clone(),
+                last_commit: row.last_commit.clone(),
+                title: row.title.clone(),
+                git_show: super::trace::closed_text_command(repo, &row.last_commit, &row.id),
+            };
+            return Shown::Value(serde_json::to_value(&shown).unwrap_or(serde_json::Value::Null));
+        }
+    }
+    Shown::Unknown
+}
+
+fn load_live(dir: &Path) -> (Vec<Row>, Vec<String>) {
     let mut unread = Vec::new();
     let mut live = Vec::new();
     for file in zero_core::ledger::load_from(dir) {
@@ -48,6 +88,32 @@ pub fn build_at(dir: &Path, repo: &Path) -> Built {
         }
     }
     unread.sort();
+    (live, unread)
+}
+
+fn gate_json(content: &str) -> Vec<GateJson> {
+    super::gates::read_gates(content)
+        .gates
+        .into_iter()
+        .map(|gate| GateJson {
+            label: gate.id.unwrap_or_default(),
+            state: match gate.state {
+                super::gates::GateState::Open => "open",
+                super::gates::GateState::Done => "done",
+                super::gates::GateState::Deferred => "deferred",
+            }
+            .to_string(),
+            text: gate.text,
+        })
+        .collect()
+}
+
+/// The ledger under `dir`, with git answers from `repo`.
+pub fn build_at(dir: &Path, repo: &Path) -> Built {
+    let mut warnings = Vec::new();
+    warnings.extend(unreadable_warnings(dir));
+
+    let (live, unread) = load_live(dir);
     warnings.extend(unread_warnings(&unread));
 
     let intents: Vec<super::Intent> = live.iter().map(|row| row.intent.clone()).collect();
@@ -424,9 +490,27 @@ struct Tree {
     pushed: Option<bool>,
 }
 
+#[derive(Serialize)]
+struct GateJson {
+    label: String,
+    state: String,
+    text: String,
+}
+
+#[derive(Serialize)]
+struct ShowClosed {
+    id: String,
+    status: String,
+    closed: bool,
+    closed_on: String,
+    last_commit: String,
+    title: String,
+    git_show: String,
+}
+
 #[cfg(test)]
 mod tests {
-    use super::build_at;
+    use super::{build_at, show_at, Shown};
     use serde_json::Value;
     use std::collections::BTreeSet;
     use std::fs;
@@ -844,5 +928,79 @@ mod tests {
             key_paths(&fixture),
             "fixture keys are not the keys list --json produces"
         );
+    }
+
+    /// INT-330 G2. An open id carries gates_list. A closed id has "closed": true
+    /// and the git show command. An unknown id is not a document.
+    #[test]
+    fn show_json_answers_an_open_id_a_closed_id_and_an_unknown_id() {
+        let dir = scratch("show");
+        let repo = dir.0.join("repo");
+        let intents = repo.join("zero/intents");
+        fs::create_dir_all(intents.join("open")).unwrap();
+        fs::write(
+            intents.join("open/8-gone.md"),
+            intent("8", "complete", "Gone", "format: 1\n", "old text\n"),
+        )
+        .unwrap();
+        git(&repo, &["init", "-q"]);
+        git(&repo, &["add", "zero/intents/open/8-gone.md"]);
+        git(&repo, &["commit", "-q", "-m", "close 8"]);
+        let hash = String::from_utf8(
+            Command::new("git")
+                .arg("-C")
+                .arg(&repo)
+                .args(["rev-parse", "HEAD"])
+                .output()
+                .unwrap()
+                .stdout,
+        )
+        .unwrap();
+        let hash = hash.trim().to_string();
+        fs::remove_file(intents.join("open/8-gone.md")).unwrap();
+        fs::write(
+            intents.join("closed.tsv"),
+            closed_row("8", "complete", "2026-11-19", &hash, "Gone"),
+        )
+        .unwrap();
+        write_intent(
+            &intents,
+            "9-open.md",
+            &intent(
+                "9",
+                "planned",
+                "Open",
+                "format: 3\ndepends_on: []\n",
+                "## Vision\nStill open.\n\n## Success Criteria\n- [ ] G1 the open gate\n- [x] G2 the done gate\n      evidence: shown\n",
+            ),
+        );
+
+        match show_at(&intents, &repo, "9") {
+            Shown::Value(value) => {
+                assert_eq!(value["id"], "9");
+                assert_eq!(value["vision"], "Still open.");
+                let gates = value["gates_list"].as_array().expect("gates_list");
+                assert_eq!(gates[0]["label"], "G1");
+                assert_eq!(gates[0]["state"], "open");
+                assert!(gates[0]["text"].as_str().unwrap().contains("open gate"));
+                assert_eq!(gates[1]["label"], "G2");
+                assert_eq!(gates[1]["state"], "done");
+            }
+            Shown::Unknown => panic!("open id 9 was unknown"),
+        }
+
+        match show_at(&intents, &repo, "8") {
+            Shown::Value(value) => {
+                assert_eq!(value["closed"], true);
+                assert_eq!(value["closed_on"], "2026-11-19");
+                assert_eq!(value["id"], "8");
+                let cmd = value["git_show"].as_str().unwrap();
+                assert!(cmd.starts_with("git show "), "{cmd}");
+                assert!(cmd.contains(&hash), "{cmd}");
+            }
+            Shown::Unknown => panic!("closed id 8 was unknown"),
+        }
+
+        assert!(matches!(show_at(&intents, &repo, "404"), Shown::Unknown));
     }
 }

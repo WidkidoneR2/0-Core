@@ -733,9 +733,15 @@ pub enum IntentCommands {
         all: bool,
         #[arg(long)]
         cancelled: bool,
+        /// Print schema 1 JSON and nothing else. Warnings stay on stderr.
+        #[arg(long)]
+        json: bool,
     },
     Show {
         id: String,
+        /// Print one intent as JSON and nothing else.
+        #[arg(long)]
+        json: bool,
     },
     Search {
         term: String,
@@ -827,6 +833,8 @@ pub enum IntentCommands {
         #[arg(long)]
         severity: Option<String>,
     },
+    /// Open the ledger panel. Stops safely when quickshell is not on PATH.
+    Panel,
 }
 
 #[derive(Subcommand)]
@@ -1859,6 +1867,50 @@ pub enum DbCommands {
         /// Jump directly to this table
         table: Option<String>,
     },
+}
+
+#[cfg(test)]
+mod intent_json_cli_tests {
+    use super::{Cli, Commands, IntentCommands};
+    use clap::Parser;
+
+    /// INT-330. `--json` reaches list and show, and `panel` is its own command.
+    #[test]
+    fn list_and_show_take_json_and_panel_is_a_command() {
+        let list = Cli::try_parse_from(["core", "intent", "list", "--json"]).expect("list --json");
+        let list_json = matches!(
+            list.command,
+            Commands::Intent {
+                command: IntentCommands::List { json: true, .. }
+            }
+        );
+        assert!(list_json, "list --json did not set the flag");
+        let show =
+            Cli::try_parse_from(["core", "intent", "show", "330", "--json"]).expect("show --json");
+        let show_json = matches!(
+            show.command,
+            Commands::Intent {
+                command: IntentCommands::Show { json: true, .. }
+            }
+        );
+        assert!(show_json, "show --json did not set the flag");
+        let plain = Cli::try_parse_from(["core", "intent", "list"]).expect("list");
+        let plain_off = matches!(
+            plain.command,
+            Commands::Intent {
+                command: IntentCommands::List { json: false, .. }
+            }
+        );
+        assert!(plain_off, "list without --json must keep json false");
+        let panel = Cli::try_parse_from(["core", "intent", "panel"]).expect("panel");
+        let is_panel = matches!(
+            panel.command,
+            Commands::Intent {
+                command: IntentCommands::Panel
+            }
+        );
+        assert!(is_panel, "intent panel was not the panel command");
+    }
 }
 
 /// INT-269 -- the fingerprint verbs. show never writes; record is the one writer.

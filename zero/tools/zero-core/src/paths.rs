@@ -463,6 +463,12 @@ pub fn intents_dir() -> PathBuf {
     source_dir().join("intents")
 }
 
+/// Quickshell panels. `core intent panel` starts the ledger panel from
+/// [`panels_dir`]`/ledger`.
+pub fn panels_dir() -> PathBuf {
+    source_dir().join("panels")
+}
+
 pub fn docs_dir() -> PathBuf {
     core_dir().join("docs")
 }
