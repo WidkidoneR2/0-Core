@@ -777,6 +777,11 @@ pub fn validate_issues() -> (usize, Vec<String>, Vec<String>) {
                     notes.push(format!("{note}: {folder}/{name}"));
                 }
             }
+            if version >= 3 {
+                for issue in limits_issues(&content) {
+                    issues.push(format!("format 3: {issue}: {folder}/{name}"));
+                }
+            }
         }
     }
 
@@ -872,6 +877,51 @@ pub fn old_shape_notes(content: &str) -> Vec<String> {
         }
     }
     notes
+}
+
+/// The five Limits labels. Each is a column-0 bullet with text after the colon.
+/// `- Must not change:` is allowed and not required. Wrap lines are indented,
+/// so they are not a substitute for text on the bullet line.
+const LIMIT_LABELS: [&str; 5] = [
+    "In scope",
+    "Out of scope",
+    "How deep",
+    "Stop and ask",
+    "Done means",
+];
+
+/// Format 3 and later. Empty when `## Limits` is present and every required
+/// label is filled. A missing heading is one issue. Each empty or absent
+/// label is named.
+pub fn limits_issues(content: &str) -> Vec<String> {
+    let lines: Vec<&str> = content.lines().collect();
+    let Some(start) = lines.iter().position(|line| {
+        let t = line.trim();
+        t == "## Limits" || t.starts_with("## Limits ")
+    }) else {
+        return vec!["missing section ## Limits".to_string()];
+    };
+    let mut body = Vec::new();
+    for line in &lines[start + 1..] {
+        if line.starts_with("## ") {
+            break;
+        }
+        body.push(*line);
+    }
+    let mut issues = Vec::new();
+    for label in LIMIT_LABELS {
+        let prefix = format!("- {label}:");
+        let filled = body.iter().any(|line| {
+            let Some(rest) = line.strip_prefix(prefix.as_str()) else {
+                return false;
+            };
+            !rest.trim().is_empty()
+        });
+        if !filled {
+            issues.push(format!("Limits missing \"{label}:\""));
+        }
+    }
+    issues
 }
 
 pub fn validate(_ctx: &AppContext) -> CoreResult<()> {
