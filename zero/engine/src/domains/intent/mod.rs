@@ -1351,22 +1351,68 @@ fn intent_log_args(id: &str, started: &str) -> Result<Vec<String>, String> {
     ])
 }
 
-/// F-0049, F-0050: `git log` for one intent. `shape` is what the caller wants printed.
+/// F-0049, F-0050, INT-328: `git log` for one intent. `shape` is what the caller wants printed.
+///
+/// `--diff-merges=first-parent` lists a merge's incoming paths and not the other
+/// parent's. The `--since` window is the earlier of the frontmatter date and the
+/// day the current intent file was added, still floored by a previous generation.
 fn intent_git_log(
     core_root: &str,
     id: &str,
     started: &str,
     shape: &[&str],
 ) -> Result<std::process::Output, String> {
-    let select = intent_log_args(id, started)?;
+    let started = effective_since(core_root, id, started);
+    let select = intent_log_args(id, &started)?;
     std::process::Command::new("git")
         .arg("-C")
         .arg(core_root)
         .arg("log")
+        .arg("--diff-merges=first-parent")
         .args(shape)
         .args(&select)
         .output()
         .map_err(|e| format!("git log could not run: {}", e))
+}
+
+/// The day the window opens: the earlier of the frontmatter `date:` and the
+/// author date of the latest commit that added `zero/intents/open/{id}-*.md`.
+///
+/// The latest addition is this generation. An earlier addition is a previous
+/// generation of the same id (the file was deleted and added again, F-0050 /
+/// INT-267) and is not used, so the window does not reach back through it.
+/// No such file: the frontmatter date stands, which is the F-0050 floor.
+fn effective_since(core_root: &str, id: &str, frontmatter: &str) -> String {
+    match intent_file_added(core_root, id) {
+        Some(added) if added.as_str() < frontmatter => added,
+        _ => frontmatter.to_string(),
+    }
+}
+
+/// Author date (YYYY-MM-DD) of the latest commit that added the current
+/// generation's `zero/intents/open/{id}-*.md`. None when no such add exists.
+fn intent_file_added(core_root: &str, id: &str) -> Option<String> {
+    let spec = format!(":(glob)zero/intents/open/{id}-*.md");
+    let out = std::process::Command::new("git")
+        .arg("-C")
+        .arg(core_root)
+        .args(["log", "--diff-filter=A", "--format=%aI", "--"])
+        .arg(&spec)
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    String::from_utf8_lossy(&out.stdout).lines().find_map(|line| {
+        let date = line.get(0..10)?;
+        let b = date.as_bytes();
+        if b.len() == 10 && b[4] == b'-' && b[7] == b'-' && b.iter().all(|c| c.is_ascii_digit() || *c == b'-')
+        {
+            Some(date.to_string())
+        } else {
+            None
+        }
+    })
 }
 
 /// F-0050: the day an intent was written, from its own frontmatter.
@@ -2121,6 +2167,54 @@ mod f0049_f0050_tests {
         assert!(
             paths.iter().all(|p| !p.contains("README")),
             "other parent leaked: {paths:?}"
+        );
+    }
+
+    /// F-0050 floor: a previous generation that added and then removed its file
+    /// stays out. The window uses the current file's addition, not the older one.
+    #[test]
+    fn a_previous_generation_of_the_same_id_stays_out() {
+        let d = init_repo();
+        commit_file(
+            &d,
+            "zero/intents/open/267-old.md",
+            "old\n",
+            "INT-267: the old one",
+            "2026-05-02T12:00:00",
+        );
+        git(
+            &d,
+            &["rm", "-q", "--", "zero/intents/open/267-old.md"],
+            "2026-07-30T12:00:00",
+        );
+        git(
+            &d,
+            &["commit", "-q", "-m", "INT-267: the old one again"],
+            "2026-07-30T12:00:00",
+        );
+        commit_file(
+            &d,
+            "zero/intents/open/267-new.md",
+            "---\ndate: 2026-09-28\n---\n",
+            "INT-267: the new one",
+            "2026-09-28T09:00:00",
+        );
+        commit_file(
+            &d,
+            "zero/tools/zero-core/src/new.rs",
+            "new\n",
+            "INT-267: closed",
+            "2026-10-03T12:00:00",
+        );
+        let subs = subjects(&d, "267", "2026-09-28");
+        let _ = std::fs::remove_dir_all(&d);
+        assert!(
+            !subs.iter().any(|s| s.contains("old")),
+            "previous generation leaked: {subs:?}"
+        );
+        assert!(
+            subs.iter().any(|s| s.contains("the new one")),
+            "current generation missing: {subs:?}"
         );
     }
 }
