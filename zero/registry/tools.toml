@@ -5,7 +5,7 @@
 
 [[tool]]
 name = "core"
-version = "5.2.0"
+version = "5.2.1"
 category = "core"
 description = "Main engine — 15 domains, capability model"
 expected_usage = "high"
