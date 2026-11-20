@@ -2325,4 +2325,46 @@ mod int320_trace_tests {
             "the row names the commit that holds the last text: {text}"
         );
     }
+
+    #[test]
+    fn trace_of_a_closed_cancel_prints_the_reason() {
+        let repo = std::env::temp_dir().join(format!(
+            "int321-trace-reason-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = std::fs::remove_dir_all(&repo);
+        std::fs::create_dir_all(repo.join("zero/intents")).unwrap();
+        git(&repo, &["init", "-q"]);
+        git(&repo, &["config", "user.email", "t@example.com"]);
+        git(&repo, &["config", "user.name", "test"]);
+        git(&repo, &["commit", "-q", "--allow-empty", "-m", "init"]);
+        let hash = String::from_utf8(
+            Command::new("git")
+                .args(["-C", repo.to_str().unwrap(), "rev-parse", "HEAD"])
+                .output()
+                .unwrap()
+                .stdout,
+        )
+        .unwrap();
+        let hash = hash.trim();
+        std::fs::write(
+            repo.join("zero/intents/closed.tsv"),
+            format!(
+                "id\tstatus\tclosed\tlast_commit\ttitle\treason\n026\tcancelled\t2026-11-19\t{hash}\tForest\tmerged into 167\n"
+            ),
+        )
+        .unwrap();
+        let lines = super::trace_intent_lines(&repo, "026")
+            .unwrap_or_else(|err| panic!("show and trace must name a closed cancel, got {err}"));
+        let _ = std::fs::remove_dir_all(&repo);
+        let text = lines.join("\n");
+        assert!(
+            text.contains("Reason: merged into 167"),
+            "trace must print the reason: {text}"
+        );
+    }
 }

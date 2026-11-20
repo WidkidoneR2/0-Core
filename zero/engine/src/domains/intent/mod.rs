@@ -6854,7 +6854,7 @@ mod int320_close_tests {
 
 #[cfg(test)]
 mod cancel_closes_like_complete_tests {
-    use super::cancel_intent;
+    use super::{cancel_intent, close_file};
     use std::path::Path;
     use std::process::Command;
 
@@ -7049,5 +7049,87 @@ mod cancel_closes_like_complete_tests {
             "cancel must report UNDETERMINED when the last commit is unknown, same as cicomplete"
         );
         let _ = std::fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn cancel_writes_the_reason_as_the_sixth_field() {
+        let repo = repo("reason");
+        let _path = write_open(&repo, "181-one.md", "181", "One");
+        let rel = "zero/intents/open/181-one.md";
+        git(&repo, &["add", rel]);
+        git(&repo, &["commit", "-q", "-m", "add 181"]);
+        let sha = head(&repo);
+        with_scratch_state(&repo, || {
+            cancel_intent(&ctx(&repo), "181", "kept\treason\nmore").expect("cancel");
+        });
+        let tsv = std::fs::read_to_string(repo.join("zero/intents/closed.tsv")).unwrap_or_default();
+        let row = tsv
+            .lines()
+            .find(|line| line.starts_with("181\t"))
+            .unwrap_or_else(|| panic!("cancel must write a row for 181: {tsv:?}"))
+            .to_string();
+        let fields: Vec<&str> = row.split('\t').collect();
+        assert_eq!(fields.len(), 6, "the reason is the sixth field: {row:?}");
+        assert_eq!(fields[0], "181");
+        assert_eq!(fields[1], "cancelled");
+        assert_eq!(fields[3], sha);
+        assert_eq!(fields[4], "One");
+        assert_eq!(
+            fields[5], "kept reason more",
+            "tabs and newlines in a reason become spaces: {row:?}"
+        );
+        let _ = std::fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn a_complete_row_stays_five_fields() {
+        let repo = repo("complete");
+        let rel = "zero/intents/open/320-one.md";
+        let path = repo.join(rel);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &path,
+            "---\nid: 320\ntitle: \"One\"\nstatus: in-progress\ndate: 2026-11-19\n---\n\n",
+        )
+        .unwrap();
+        git(&repo, &["add", rel]);
+        git(&repo, &["commit", "-q", "-m", "add 320"]);
+        let sha = head(&repo);
+        let outcome = close_file(&repo, rel, "320", "complete", "One", "2026-11-19");
+        match outcome {
+            super::CloseOutcome::Staged { .. } => {}
+            super::CloseOutcome::Undetermined { reason } => {
+                panic!("a committed file must close: {reason}")
+            }
+        }
+        let tsv = std::fs::read_to_string(repo.join("zero/intents/closed.tsv")).unwrap();
+        let row = tsv
+            .lines()
+            .find(|line| line.starts_with("320\t"))
+            .unwrap_or_else(|| panic!("cicomplete must write a row: {tsv}"))
+            .to_string();
+        let fields: Vec<&str> = row.split('\t').collect();
+        assert_eq!(
+            fields,
+            vec!["320", "complete", "2026-11-19", sha.as_str(), "One"],
+            "a complete row stays five fields, byte for byte: {row:?}"
+        );
+        let _ = std::fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn show_prints_the_reason() {
+        let src = include_str!("mod.rs");
+        let start = src.find("fn show_closed").expect("show_closed");
+        let body = &src[start..];
+        let end = body[1..]
+            .find("\npub fn ")
+            .map(|i| i + 1)
+            .unwrap_or(body.len());
+        let body = &body[..end];
+        assert!(
+            body.contains("Reason:"),
+            "show must print Reason: for a closed row that has one"
+        );
     }
 }

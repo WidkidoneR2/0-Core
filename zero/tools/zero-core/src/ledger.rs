@@ -72,6 +72,8 @@ pub struct ClosedRow {
     pub closed: String,
     pub last_commit: String,
     pub title: String,
+    /// The sixth column, when the row has one. Empty means it does not.
+    pub reason: Option<String>,
 }
 
 /// Rows read from closed.tsv, plus one warning per malformed row.
@@ -165,6 +167,7 @@ fn parse_closed_row(line: &str) -> Result<ClosedRow, String> {
         closed: closed.to_string(),
         last_commit: last_commit.to_string(),
         title: title.to_string(),
+        reason: None,
     })
 }
 
@@ -462,6 +465,87 @@ mod tests {
                 "an unreadable closed.tsv was treated as an empty index: {:?}",
                 got.ids
             ),
+        }
+    }
+
+    fn index_of(name: &str, text: &str) -> super::ClosedIndex {
+        let dir = scratch(name);
+        fs::write(dir.join("closed.tsv"), text).unwrap();
+        let got = super::read_closed(&dir).expect("closed.tsv should be read");
+        let _ = fs::remove_dir_all(&dir);
+        got
+    }
+
+    #[test]
+    fn five_fields_parse_and_a_sixth_is_the_reason() {
+        let five = index_of(
+            "five",
+            "id\tstatus\tclosed\tlast_commit\ttitle\n181\tcomplete\t2026-11-19\tabc1234\tTitle\n",
+        );
+        assert!(five.warnings.is_empty(), "{:?}", five.warnings);
+        assert_eq!(five.rows[0].reason, None, "five fields have no reason");
+
+        let headed = index_of(
+            "head6",
+            "id\tstatus\tclosed\tlast_commit\ttitle\treason\n181\tcomplete\t2026-11-19\tabc1234\tTitle\n",
+        );
+        assert!(headed.warnings.is_empty(), "{:?}", headed.warnings);
+        assert_eq!(headed.rows.len(), 1);
+        assert_eq!(headed.rows[0].reason, None);
+
+        let six = index_of(
+            "six",
+            "id\tstatus\tclosed\tlast_commit\ttitle\n181\tcancelled\t2026-11-19\tabc1234\tTitle\tkept\n",
+        );
+        let row = six
+            .rows
+            .iter()
+            .find(|row| row.id == "181")
+            .unwrap_or_else(|| {
+                panic!(
+                    "a 6-field row must parse and keep the reason: {:?}",
+                    six.warnings
+                )
+            });
+        assert_eq!(row.reason.as_deref(), Some("kept"));
+
+        let empty = index_of(
+            "empty6",
+            "id\tstatus\tclosed\tlast_commit\ttitle\n181\tcancelled\t2026-11-19\tabc1234\tTitle\t\n",
+        );
+        let row = empty
+            .rows
+            .iter()
+            .find(|row| row.id == "181")
+            .unwrap_or_else(|| {
+                panic!(
+                    "an empty sixth field is no reason, not a malformed row: {:?}",
+                    empty.warnings
+                )
+            });
+        assert_eq!(row.reason, None);
+
+        for (name, text) in [
+            (
+                "four",
+                "id\tstatus\tclosed\tlast_commit\ttitle\n181\tcomplete\t2026-11-19\tabc\n",
+            ),
+            (
+                "seven",
+                "id\tstatus\tclosed\tlast_commit\ttitle\n181\tcomplete\t2026-11-19\tabc\tTitle\treason\textra\n",
+            ),
+        ] {
+            let got = index_of(name, text);
+            assert!(
+                got.rows.is_empty(),
+                "{name} must not be a row: {:?}",
+                got.rows
+            );
+            assert!(
+                !got.warnings.is_empty(),
+                "{name} must be rejected: {:?}",
+                got.warnings
+            );
         }
     }
 }
