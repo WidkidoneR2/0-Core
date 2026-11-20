@@ -2357,7 +2357,7 @@ mod int320_trace_tests {
         std::fs::write(
             repo.join("zero/intents/closed.tsv"),
             format!(
-                "id\tstatus\tclosed\tlast_commit\ttitle\treason\n026\tcancelled\t2026-11-19\t{hash}\tForest\tmerged into 167\n"
+                "id\tstatus\tclosed\tlast_commit\ttitle\treason\n026\tcancelled\t2026-11-19\t{hash}\tObservatory\tmerged into 167\n"
             ),
         )
         .unwrap();
