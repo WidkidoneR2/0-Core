@@ -85,7 +85,7 @@ ruling is applied as its own small change.
 - [ ] G3 cancel closes too (intent/mod.rs). core intent cancel writes a
       cancelled row and stages the removal the way cicomplete does, with
       the same fallback when the last commit is unknown. Red test in a temp
-      git repo first.
+      git repo first. The reason is kept as a sixth closed.tsv column (Christian 2026-11-19).
       ask: cancel stages the removal and a cancelled row
       ruling:
       evidence:

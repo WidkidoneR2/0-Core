@@ -223,6 +223,9 @@ pub fn trace_intent_lines(repo: &std::path::Path, id: &str) -> Result<Vec<String
             "  closed {} {}  {}",
             row.status, row.closed, row.title
         ));
+        if let Some(reason) = &row.reason {
+            lines.push(format!("  Reason: {reason}"));
+        }
         lines.push(format!(
             "  last text: {}",
             closed_text_command(repo, &row.last_commit, id)

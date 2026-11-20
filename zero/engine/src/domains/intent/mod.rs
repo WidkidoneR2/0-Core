@@ -494,6 +494,9 @@ fn show_closed(ctx: &AppContext, id: &str) -> CoreResult<()> {
                     row.status.bright_green(),
                     row.closed.dimmed()
                 );
+                if let Some(reason) = &row.reason {
+                    println!("  Reason: {reason}");
+                }
                 println!(
                     "  read the old text: {}",
                     trace::closed_text_command(Path::new(&ctx.core_root), &row.last_commit, id)
@@ -2450,8 +2453,10 @@ pub enum CloseOutcome {
 ///
 /// The row's commit is the last one that still has the file, so `git show <commit>:<path>`
 /// reads it after the removal commit. `-f` is required because cicomplete has already
-/// rewritten the working tree copy. An untracked file, a directory that is not a git
-/// repository, or a missing git answers UNDETERMINED and leaves the file where it is.
+/// rewritten the working tree copy. `reason` None writes five fields. Some writes a
+/// sixth, with tabs and newlines turned into spaces. An untracked file, a directory
+/// that is not a git repository, or a missing git answers UNDETERMINED and leaves the
+/// file where it is.
 pub fn close_file(
     repo: &Path,
     rel_path: &str,
@@ -2459,8 +2464,9 @@ pub fn close_file(
     status: &str,
     title: &str,
     closed_on: &str,
+    reason: Option<&str>,
 ) -> CloseOutcome {
-    close_file_with("git", repo, rel_path, id, status, title, closed_on)
+    close_file_with("git", repo, rel_path, id, status, title, closed_on, reason)
 }
 
 fn close_file_with(
@@ -2471,6 +2477,7 @@ fn close_file_with(
     status: &str,
     title: &str,
     closed_on: &str,
+    reason: Option<&str>,
 ) -> CloseOutcome {
     match git_output(git, repo, &["rev-parse", "--is-inside-work-tree"]) {
         Err(reason) => return CloseOutcome::Undetermined { reason },
@@ -2519,7 +2526,13 @@ fn close_file_with(
         }
     }
     let title = title.replace(['\t', '\n', '\r'], " ");
-    let row = format!("{id}\t{status}\t{closed_on}\t{last_commit}\t{title}\n");
+    let mut row = format!("{id}\t{status}\t{closed_on}\t{last_commit}\t{title}");
+    if let Some(reason) = reason {
+        let reason = reason.replace(['\t', '\n', '\r'], " ");
+        row.push('\t');
+        row.push_str(&reason);
+    }
+    row.push('\n');
     let existing = match fs::read_to_string(&tsv) {
         Ok(text) => text,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
@@ -2531,7 +2544,7 @@ fn close_file_with(
     };
     let mut body = existing;
     if body.is_empty() {
-        body.push_str("id\tstatus\tclosed\tlast_commit\ttitle\n");
+        body.push_str("id\tstatus\tclosed\tlast_commit\ttitle\treason\n");
     } else if !body.ends_with('\n') {
         body.push('\n');
     }
@@ -3391,6 +3404,7 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
             "complete",
             &intent.title,
             &today,
+            None,
         ),
         None => CloseOutcome::Undetermined {
             reason: "the intent file is not inside the repository".to_string(),
@@ -5684,6 +5698,7 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
             "cancelled",
             &title,
             &today,
+            Some(reason),
         ),
         None => CloseOutcome::Undetermined {
             reason: "the intent file is not inside the repository".to_string(),
@@ -6675,7 +6690,7 @@ mod int320_close_tests {
         )
         .unwrap();
         let head = head.trim().to_string();
-        let outcome = close_file(&repo, &rel, "318", "complete", "One", "2026-11-18");
+        let outcome = close_file(&repo, &rel, "318", "complete", "One", "2026-11-18", None);
         let file = repo.join(&rel);
         match outcome {
             CloseOutcome::Staged {
@@ -6722,7 +6737,7 @@ mod int320_close_tests {
     fn an_untracked_file_is_undetermined_and_stays() {
         let repo = repo("untracked");
         let rel = write_intent(&repo);
-        let outcome = close_file(&repo, &rel, "318", "complete", "One", "2026-11-18");
+        let outcome = close_file(&repo, &rel, "318", "complete", "One", "2026-11-18", None);
         let file = repo.join(&rel);
         match outcome {
             CloseOutcome::Undetermined { reason } => {
@@ -6760,7 +6775,7 @@ mod int320_close_tests {
     fn a_non_repo_directory_is_undetermined_and_the_file_stays() {
         let dir = scratch("norepo");
         let rel = write_intent(&dir);
-        let outcome = close_file(&dir, &rel, "318", "complete", "One", "2026-11-18");
+        let outcome = close_file(&dir, &rel, "318", "complete", "One", "2026-11-18", None);
         match outcome {
             CloseOutcome::Undetermined { reason } => {
                 assert!(
@@ -6789,6 +6804,7 @@ mod int320_close_tests {
             "complete",
             "One",
             "2026-11-18",
+            None,
         );
         match outcome {
             CloseOutcome::Undetermined { reason } => {
@@ -7095,7 +7111,7 @@ mod cancel_closes_like_complete_tests {
         git(&repo, &["add", rel]);
         git(&repo, &["commit", "-q", "-m", "add 320"]);
         let sha = head(&repo);
-        let outcome = close_file(&repo, rel, "320", "complete", "One", "2026-11-19");
+        let outcome = close_file(&repo, rel, "320", "complete", "One", "2026-11-19", None);
         match outcome {
             super::CloseOutcome::Staged { .. } => {}
             super::CloseOutcome::Undetermined { reason } => {

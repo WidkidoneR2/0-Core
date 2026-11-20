@@ -93,8 +93,10 @@ pub struct ClosedIds {
 /// Read `closed.tsv` in `dir` (the intents directory).
 ///
 /// A missing file is an empty index. An unreadable file is an error naming the path.
-/// A header line whose first field is `id` is skipped. A malformed row is named in
-/// `warnings` and is not a row; the rows around it are kept.
+/// A header line whose first field is `id` is skipped: five columns, or six
+/// ending in `reason`. A row has five fields, or six when it records a reason.
+/// An empty sixth field is no reason. A malformed row is named in `warnings`
+/// and is not a row; the rows around it are kept.
 pub fn read_closed(dir: &Path) -> Result<ClosedIndex, String> {
     let path = dir.join("closed.tsv");
     let text = match fs::read_to_string(&path) {
@@ -135,9 +137,9 @@ fn parse_closed(text: &str) -> ClosedIndex {
 
 fn parse_closed_row(line: &str) -> Result<ClosedRow, String> {
     let parts: Vec<&str> = line.split('\t').collect();
-    if parts.len() != 5 {
+    if parts.len() != 5 && parts.len() != 6 {
         return Err(format!(
-            "expected 5 tab-separated fields, found {}",
+            "expected 5 or 6 tab-separated fields, found {}",
             parts.len()
         ));
     }
@@ -146,6 +148,16 @@ fn parse_closed_row(line: &str) -> Result<ClosedRow, String> {
     let closed = parts[2].trim();
     let last_commit = parts[3].trim();
     let title = parts[4].trim();
+    let reason = if parts.len() == 6 {
+        let reason = parts[5].trim();
+        if reason.is_empty() {
+            None
+        } else {
+            Some(reason.to_string())
+        }
+    } else {
+        None
+    };
     if id.is_empty() || !id.bytes().all(|b| b.is_ascii_digit()) {
         return Err(format!("id {id:?} is not digits"));
     }
@@ -167,7 +179,7 @@ fn parse_closed_row(line: &str) -> Result<ClosedRow, String> {
         closed: closed.to_string(),
         last_commit: last_commit.to_string(),
         title: title.to_string(),
-        reason: None,
+        reason,
     })
 }
 
