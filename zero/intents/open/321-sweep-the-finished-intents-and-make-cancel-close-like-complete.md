@@ -3,7 +3,7 @@ id: 321
 date: 2026-11-19
 type: future
 title: "Sweep the finished intents out of open/ and make cancel close like complete"
-status: planned
+status: in-progress
 tags: [ledger, intents, cleanup]
 format: 3
 ---
@@ -67,13 +67,13 @@ ruling is applied as its own small change.
   prompt path, anything outside the repo, root.
 
 ## Success Criteria
-- [ ] G1 the counts before. On the laptop: core intent validate count, the
+- [x] G1 the counts before. On the laptop: core intent validate count, the
       banner's planned, done and blocked, core intent trace INT-318, and the
       next number.
       ask: the before numbers are written into this gate
       ruling:
-      evidence:
-- [ ] G2 the sweep. One commit adds closed.tsv rows for the eleven
+      evidence: laptop main b4f5fa36 before the merge: validate 94 valid; banner 0 active, 39 planned, 246 finished, 2 blocked; trace INT-318 found 0 findings, 0 open; next number 331 (330 is the int-330 branch)
+- [x] G2 the sweep. One commit adds closed.tsv rows for the eleven
       complete files and 039 and 118 as cancelled, each with the last
       commit that touched it, and git rm's exactly those thirteen files.
       Afterwards validate passes with 13 fewer intents, done and blocked
@@ -81,29 +81,29 @@ ruling is applied as its own small change.
       unchanged, and core intent show 316 reads the closed row.
       ask: done and blocked unchanged; validate passes; files gone on GitHub
       ruling:
-      evidence:
-- [ ] G3 cancel closes too (intent/mod.rs). core intent cancel writes a
+      evidence: 1c0ed766 adds 13 closed.tsv rows (11 complete, 039 and 118 cancelled), each last_commit equal to git log -1 on main, and removes exactly those 13 files; after the merge validate 79 valid (94, minus 13 swept, minus 181, 187 and 026, plus 321); finished 246 and next number 331 unchanged; blocked 2 to 1 only by the 041 ruling; trace INT-318 and core intent show 316 read the closed row
+- [x] G3 cancel closes too (intent/mod.rs). core intent cancel writes a
       cancelled row and stages the removal the way cicomplete does, with
       the same fallback when the last commit is unknown. Red test in a temp
       git repo first. The reason is kept as a sixth closed.tsv column (Christian 2026-11-19).
       ask: cancel stages the removal and a cancelled row
       ruling:
-      evidence:
-- [ ] G4 the help text names only real folders (cli/parser.rs). The new and
+      evidence: 0952f26e red (both cancel tests failed), e186c309 green; cancel_intent calls close_file, the helper cicomplete uses; scratch HOME cancel staged D on the file and M on closed.tsv with a cancelled row; an untracked intent printed removal UNDETERMINED and stayed in open/; e5b44681 red, 5c091379 green: the cancel reason is a sixth closed.tsv column, complete rows stay five fields, show and trace print Reason; 593d8a39 records the reasons for 181, 187, 026, 039 and 118
+- [x] G4 the help text names only real folders (cli/parser.rs). The new and
       cancel help strings stop naming future and cancelled/.
       ask: the help names only folders that exist
       ruling:
-      evidence:
-- [ ] G5 the planned triage is ruled. Every planned intent has keep,
+      evidence: intent new help names open and the record shelves decisions, experiments, philosophy and incidents; intent cancel help says it closes into closed.tsv and removes the file; neither names future or cancelled/
+- [x] G5 the planned triage is ruled. Every planned intent has keep,
       cancel, merge or fix-status from Christian; each ruling is applied as
       its own small commit; anything unruled stays as it is.
       ask: every planned intent has a ruling or is left as it is
       ruling: Christian 2026-11-19: the triage table as written
-      evidence:
-- [ ] G6 doors and d green on the laptop.
+      evidence: dfd7220f cancels 181; 6ee38aff cancels 187; 2523df09 cancels 026 and 167 notes its scope; 335b5633 sets 169, 186, 191 and 231 in-progress; 13de0ca4 drops 041 depends_on 039; every other planned intent unchanged; AGENTS.md unchanged
+- [x] G6 doors and d green on the laptop.
       ask: doors and d are green
       ruling:
-      evidence:
+      evidence: doors first failed on one retired name in a test string, fixed in e514374a; then doors 4 passed 0 failed before the push, nsh-test 305/305; in the new nsh doors 4/4 and d 96% 27/28, the one warning the uncommitted 321 file
 
 ## Job order
 - Wave 1, side by side: the sweep (closed.tsv and deletions), the cancel
