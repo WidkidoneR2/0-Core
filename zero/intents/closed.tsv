@@ -1,4 +1,20 @@
-id	status	closed	last_commit	title
+id	status	closed	last_commit	title	reason
 320	complete	2026-11-18	44392ce061d9e7dc1d8469a1ff52662e72280a60	cicomplete removes the finished intent file, and nothing forgets it
 328	complete	2026-11-18	6a9123fd794c19eca88b879381e364232e63de0c	Bug batch 4: merged work still counts, refusals say safe or not, nsh for and subshell, the temp-dir window
 329	complete	2026-11-19	a2ef02c2ca9b5be97e0cc20a0568a7f7b93c633c	Intent format 3: every intent states its Limits, and the tools enforce it
+308	complete	2026-11-19	2caf56ec88e67f063de914958167ee74fd5cf9b5	Ledger commands for cistart, intent add, and the seal note
+309	complete	2026-11-19	0bef81a7a54c5e5b37c239165253627a0cd4d2c0	Gate fields and validate
+310	complete	2026-11-19	da5d08f3fa808547b85eaa849de8571f1a246904	One reader for Friday and the intent screen
+313	complete	2026-11-19	acda94711240a346135754b98b8bcff49898568e	The intent's state is its status line
+314	complete	2026-11-19	c425f2c04390b2fd55328239d5c4eae9a052d360	Friday tells the truth and reads the room
+315	complete	2026-11-19	c6a7a75496d6ed5127004e9b93fb78af67a5dc2a	Friday stands on ground truth
+316	complete	2026-11-19	a44be28394897f6d164a6c29b1f013b2ad48b3c9	Friday knows the machine
+317	complete	2026-11-19	1a4a4e08c5a3311ed6d608013247c36eaf0a0660	Bug batch 1: integrity proportion, validate exit, quiet busctl
+318	complete	2026-11-19	e068a3befb36f9468296630f456cb8c885d1a1d8	Bug batch 2: name dropped intents, honest gate footer, doctor history table
+319	complete	2026-11-19	63e2552ef5e6dbaf9d41016f1cd47066683e0b87	it: page and scroll both panes
+327	complete	2026-11-19	2d6da83c565a67f2cd19357cdc067dec90fc460d	README: the front door shows what Project 0 is
+039	cancelled	2026-11-19	7f5be3ce4ea2da542224b15efc16966a91936176	friday-daemon: persistent Friday process across sessions	Stale: a NixOS systemd daemon. Friday's memory already persists in state.db. Decision 147 keeps the bus in core.
+118	cancelled	2026-11-19	6abd63d69b357b472f6be9a5f662c49dbb9fdfb7	Friday engine resumption	Causal half is built (doctor emits health_check_failed; reasoning.rs tool_retirement_regression). Semantic memory is excluded as AI.
+181	cancelled	2026-11-19	f0415b3eb015cd76e91b79fbfd078ea1b95a35d2	faelight-prompt: the forest's interactive layer (inquire) -- foundation + guided intent ledger	the inquire wizard; core intent add exists
+187	cancelled	2026-11-19	f0415b3eb015cd76e91b79fbfd078ea1b95a35d2	evaluate gix vs git2 for faelight-git -- pure-Rust git, NOT a felt need yet	its own title says not a felt need
+026	cancelled	2026-11-19	f0415b3eb015cd76e91b79fbfd078ea1b95a35d2	Forest Observatory: searchable event timeline	merged into 167; its events and observatory scope lives in 167

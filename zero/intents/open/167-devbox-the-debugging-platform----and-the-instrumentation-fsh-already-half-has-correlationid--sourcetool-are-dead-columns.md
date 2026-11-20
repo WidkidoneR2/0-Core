@@ -17,6 +17,8 @@ tokenization -> parsing -> expansion -> execution -> exit status -- without swit
 A COLLECTION OF SMALL TOOLS, not one massive application. That is the design constraint, and it is
 the right one.
 
+INT-026's events and observatory scope now lives in this intent.
+
 ## Architecture (Christian's design, 2026-07-16 -- preserved verbatim in shape)
 
                       +----------------------+

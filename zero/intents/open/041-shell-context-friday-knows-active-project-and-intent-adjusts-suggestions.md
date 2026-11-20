@@ -4,7 +4,6 @@ date: 2026-06-08
 type: feature
 title: "shell-context: Friday knows active project and intent, adjusts suggestions"
 status: planned
-depends_on: [039]
 tags: [friday, shell-context, suggestions, intent-aware, prediction, rust, nixos]
 version: TBD
 ---

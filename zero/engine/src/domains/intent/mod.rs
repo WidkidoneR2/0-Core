@@ -494,6 +494,9 @@ fn show_closed(ctx: &AppContext, id: &str) -> CoreResult<()> {
                     row.status.bright_green(),
                     row.closed.dimmed()
                 );
+                if let Some(reason) = &row.reason {
+                    println!("  Reason: {reason}");
+                }
                 println!(
                     "  read the old text: {}",
                     trace::closed_text_command(Path::new(&ctx.core_root), &row.last_commit, id)
@@ -2450,8 +2453,10 @@ pub enum CloseOutcome {
 ///
 /// The row's commit is the last one that still has the file, so `git show <commit>:<path>`
 /// reads it after the removal commit. `-f` is required because cicomplete has already
-/// rewritten the working tree copy. An untracked file, a directory that is not a git
-/// repository, or a missing git answers UNDETERMINED and leaves the file where it is.
+/// rewritten the working tree copy. `reason` None writes five fields. Some writes a
+/// sixth, with tabs and newlines turned into spaces. An untracked file, a directory
+/// that is not a git repository, or a missing git answers UNDETERMINED and leaves the
+/// file where it is.
 pub fn close_file(
     repo: &Path,
     rel_path: &str,
@@ -2459,8 +2464,9 @@ pub fn close_file(
     status: &str,
     title: &str,
     closed_on: &str,
+    reason: Option<&str>,
 ) -> CloseOutcome {
-    close_file_with("git", repo, rel_path, id, status, title, closed_on)
+    close_file_with("git", repo, rel_path, id, status, title, closed_on, reason)
 }
 
 fn close_file_with(
@@ -2471,6 +2477,7 @@ fn close_file_with(
     status: &str,
     title: &str,
     closed_on: &str,
+    reason: Option<&str>,
 ) -> CloseOutcome {
     match git_output(git, repo, &["rev-parse", "--is-inside-work-tree"]) {
         Err(reason) => return CloseOutcome::Undetermined { reason },
@@ -2519,7 +2526,13 @@ fn close_file_with(
         }
     }
     let title = title.replace(['\t', '\n', '\r'], " ");
-    let row = format!("{id}\t{status}\t{closed_on}\t{last_commit}\t{title}\n");
+    let mut row = format!("{id}\t{status}\t{closed_on}\t{last_commit}\t{title}");
+    if let Some(reason) = reason {
+        let reason = reason.replace(['\t', '\n', '\r'], " ");
+        row.push('\t');
+        row.push_str(&reason);
+    }
+    row.push('\n');
     let existing = match fs::read_to_string(&tsv) {
         Ok(text) => text,
         Err(err) if err.kind() == std::io::ErrorKind::NotFound => String::new(),
@@ -2531,7 +2544,7 @@ fn close_file_with(
     };
     let mut body = existing;
     if body.is_empty() {
-        body.push_str("id\tstatus\tclosed\tlast_commit\ttitle\n");
+        body.push_str("id\tstatus\tclosed\tlast_commit\ttitle\treason\n");
     } else if !body.ends_with('\n') {
         body.push('\n');
     }
@@ -3391,6 +3404,7 @@ pub fn complete_intent(ctx: &AppContext, id: &str, flags: &BumpFlags) -> CoreRes
             "complete",
             &intent.title,
             &today,
+            None,
         ),
         None => CloseOutcome::Undetermined {
             reason: "the intent file is not inside the repository".to_string(),
@@ -5666,8 +5680,30 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
     } else {
         format!("{}\n\n## Gate Check\n{}\n", updated.trim_end(), stamp)
     };
-    // INT-313 stage 3: the file stays where it is. No cancelled/ directory is created.
+    let title = content
+        .split("---")
+        .nth(1)
+        .unwrap_or("")
+        .lines()
+        .find_map(|line| line.strip_prefix("title:"))
+        .map(|value| value.trim().trim_matches('"').to_string())
+        .unwrap_or_default();
+    // INT-321: the same close as cicomplete. An undetermined close leaves the file.
     std::fs::write(&path, stamped)?;
+    let outcome = match repo_relative(Path::new(&ctx.core_root), &path) {
+        Some(rel) => close_file(
+            Path::new(&ctx.core_root),
+            &rel,
+            id,
+            "cancelled",
+            &title,
+            &today,
+            Some(reason),
+        ),
+        None => CloseOutcome::Undetermined {
+            reason: "the intent file is not inside the repository".to_string(),
+        },
+    };
     // Clear focus if the cancelled intent was the focused one.
     if let Some(state) = read_focus() {
         if state.id == id {
@@ -5678,8 +5714,31 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
     println!("  Intent:  INT-{}", id);
     println!("  Reason:  {}", reason);
     println!("  Date:    {}", today);
-    println!("  Status:  cancelled. The file stays in open/.");
-    println!("  Older cancelled intents: git log --diff-filter=D -- zero/intents");
+    match &outcome {
+        CloseOutcome::Staged {
+            last_commit,
+            rel_path,
+        } => {
+            println!(
+                "  {} removed {} and staged closed.tsv",
+                "📁".dimmed(),
+                rel_path
+            );
+            println!(
+                "  {} read the old text: git show {}:{}",
+                "📁".dimmed(),
+                last_commit,
+                rel_path
+            );
+        }
+        CloseOutcome::Undetermined { reason } => {
+            println!("  {} removal UNDETERMINED: {}", "📁".dimmed(), reason);
+            println!(
+                "  {} Status is cancelled. The file stays in open/. Older cancelled intents: git log --diff-filter=D -- zero/intents",
+                "📁".dimmed()
+            );
+        }
+    }
     // INT-066 criterion 8: warn about active intents that still depend on this one.
     let dependents: Vec<String> = load_all(ctx)
         .iter()
@@ -6631,7 +6690,7 @@ mod int320_close_tests {
         )
         .unwrap();
         let head = head.trim().to_string();
-        let outcome = close_file(&repo, &rel, "318", "complete", "One", "2026-11-18");
+        let outcome = close_file(&repo, &rel, "318", "complete", "One", "2026-11-18", None);
         let file = repo.join(&rel);
         match outcome {
             CloseOutcome::Staged {
@@ -6678,7 +6737,7 @@ mod int320_close_tests {
     fn an_untracked_file_is_undetermined_and_stays() {
         let repo = repo("untracked");
         let rel = write_intent(&repo);
-        let outcome = close_file(&repo, &rel, "318", "complete", "One", "2026-11-18");
+        let outcome = close_file(&repo, &rel, "318", "complete", "One", "2026-11-18", None);
         let file = repo.join(&rel);
         match outcome {
             CloseOutcome::Undetermined { reason } => {
@@ -6716,7 +6775,7 @@ mod int320_close_tests {
     fn a_non_repo_directory_is_undetermined_and_the_file_stays() {
         let dir = scratch("norepo");
         let rel = write_intent(&dir);
-        let outcome = close_file(&dir, &rel, "318", "complete", "One", "2026-11-18");
+        let outcome = close_file(&dir, &rel, "318", "complete", "One", "2026-11-18", None);
         match outcome {
             CloseOutcome::Undetermined { reason } => {
                 assert!(
@@ -6745,6 +6804,7 @@ mod int320_close_tests {
             "complete",
             "One",
             "2026-11-18",
+            None,
         );
         match outcome {
             CloseOutcome::Undetermined { reason } => {
@@ -6804,6 +6864,288 @@ mod int320_close_tests {
         assert!(
             versions < close,
             "close_file must run only after write_versions succeeded"
+        );
+    }
+}
+
+#[cfg(test)]
+mod cancel_closes_like_complete_tests {
+    use super::{cancel_intent, close_file};
+    use std::path::Path;
+    use std::process::Command;
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "int321-cancel-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn git(repo: &Path, args: &[&str]) {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .expect("git");
+        assert!(
+            out.status.success(),
+            "{args:?} {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+
+    fn repo(name: &str) -> std::path::PathBuf {
+        let dir = scratch(name);
+        git(&dir, &["init", "-q"]);
+        git(&dir, &["config", "user.email", "t@example.com"]);
+        git(&dir, &["config", "user.name", "test"]);
+        dir
+    }
+
+    fn write_open(repo: &Path, name: &str, id: &str, title: &str) -> std::path::PathBuf {
+        let path = repo.join(format!("zero/intents/open/{name}"));
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &path,
+            format!(
+                "---\nid: {id}\ntitle: \"{title}\"\nstatus: planned\ndate: 2026-11-19\n---\n\n"
+            ),
+        )
+        .unwrap();
+        path
+    }
+
+    fn ctx(repo: &Path) -> crate::app::context::AppContext {
+        crate::app::context::AppContext {
+            runtime: crate::runtime::Runtime {
+                root: repo.to_path_buf(),
+                logs: repo.join("logs"),
+                cache: repo.join("cache"),
+                snapshots: repo.join("snapshots"),
+                locks: repo.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: repo.display().to_string(),
+            core_root: repo.display().to_string(),
+            source_root: repo.join("zero").display().to_string(),
+        }
+    }
+
+    fn with_scratch_state<T>(repo: &Path, f: impl FnOnce() -> T) -> T {
+        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prev_state = std::env::var("ZERO_STATE_DIR").ok();
+        let prev_xdg = std::env::var("XDG_STATE_HOME").ok();
+        let state = repo.join("state");
+        std::fs::create_dir_all(&state).unwrap();
+        unsafe {
+            std::env::set_var("ZERO_STATE_DIR", &state);
+            std::env::set_var("XDG_STATE_HOME", &state);
+        }
+        let out = f();
+        match prev_state {
+            Some(v) => unsafe { std::env::set_var("ZERO_STATE_DIR", v) },
+            None => unsafe { std::env::remove_var("ZERO_STATE_DIR") },
+        }
+        match prev_xdg {
+            Some(v) => unsafe { std::env::set_var("XDG_STATE_HOME", v) },
+            None => unsafe { std::env::remove_var("XDG_STATE_HOME") },
+        }
+        out
+    }
+
+    fn head(repo: &Path) -> String {
+        let out = Command::new("git")
+            .args(["-C", repo.to_str().unwrap(), "rev-parse", "HEAD"])
+            .output()
+            .unwrap();
+        String::from_utf8(out.stdout).unwrap().trim().to_string()
+    }
+
+    fn cancel_body() -> &'static str {
+        let src = include_str!("mod.rs");
+        let start = src.find("pub fn cancel_intent").expect("cancel_intent");
+        let body = &src[start..];
+        let end = body[1..]
+            .find("\npub fn ")
+            .map(|i| i + 1)
+            .unwrap_or(body.len());
+        &body[..end]
+    }
+
+    #[test]
+    fn cancel_writes_a_cancelled_row_and_stages_the_removal() {
+        let repo = repo("staged");
+        let path = write_open(&repo, "181-one.md", "181", "One");
+        let rel = "zero/intents/open/181-one.md";
+        git(&repo, &["add", rel]);
+        git(&repo, &["commit", "-q", "-m", "add 181"]);
+        let sha = head(&repo);
+        let today = chrono::Local::now().format("%Y-%m-%d").to_string();
+        with_scratch_state(&repo, || {
+            cancel_intent(&ctx(&repo), "181", "the inquire wizard").expect("cancel");
+        });
+        let tsv = std::fs::read_to_string(repo.join("zero/intents/closed.tsv")).unwrap_or_default();
+        assert!(
+            tsv.contains(&format!("181\tcancelled\t{today}\t{sha}\tOne")),
+            "cancel must write a cancelled closed.tsv row with the last commit, same as complete. got: {tsv:?}"
+        );
+        assert!(
+            !path.exists(),
+            "cancel must remove the open file, same as complete"
+        );
+        let staged = Command::new("git")
+            .args([
+                "-C",
+                repo.to_str().unwrap(),
+                "diff",
+                "--cached",
+                "--name-status",
+            ])
+            .output()
+            .unwrap();
+        let text = String::from_utf8_lossy(&staged.stdout).to_string();
+        assert!(
+            text.lines().any(|l| l.starts_with('D') && l.contains(rel)),
+            "the removal is staged: {text}"
+        );
+        assert!(
+            text.contains("zero/intents/closed.tsv"),
+            "closed.tsv is staged: {text}"
+        );
+        let _ = std::fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn cancel_of_an_untracked_file_is_undetermined() {
+        let repo = repo("untracked");
+        let path = write_open(&repo, "187-one.md", "187", "One");
+        git(&repo, &["commit", "-q", "--allow-empty", "-m", "init"]);
+        with_scratch_state(&repo, || {
+            cancel_intent(&ctx(&repo), "187", "not a felt need").expect("cancel");
+        });
+        assert!(
+            path.exists(),
+            "when the last commit is unknown the file stays"
+        );
+        assert!(
+            !repo.join("zero/intents/closed.tsv").exists(),
+            "an unknown last commit writes no closed.tsv row"
+        );
+        let staged = Command::new("git")
+            .args([
+                "-C",
+                repo.to_str().unwrap(),
+                "diff",
+                "--cached",
+                "--name-only",
+            ])
+            .output()
+            .unwrap();
+        assert!(
+            staged.stdout.is_empty(),
+            "nothing is staged: {}",
+            String::from_utf8_lossy(&staged.stdout)
+        );
+        let body = cancel_body();
+        assert!(
+            body.contains("close_file("),
+            "cancel must reuse close_file, the same helper cicomplete uses"
+        );
+        assert!(
+            body.contains("UNDETERMINED"),
+            "cancel must report UNDETERMINED when the last commit is unknown, same as cicomplete"
+        );
+        let _ = std::fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn cancel_writes_the_reason_as_the_sixth_field() {
+        let repo = repo("reason");
+        let _path = write_open(&repo, "181-one.md", "181", "One");
+        let rel = "zero/intents/open/181-one.md";
+        git(&repo, &["add", rel]);
+        git(&repo, &["commit", "-q", "-m", "add 181"]);
+        let sha = head(&repo);
+        with_scratch_state(&repo, || {
+            cancel_intent(&ctx(&repo), "181", "kept\treason\nmore").expect("cancel");
+        });
+        let tsv = std::fs::read_to_string(repo.join("zero/intents/closed.tsv")).unwrap_or_default();
+        let row = tsv
+            .lines()
+            .find(|line| line.starts_with("181\t"))
+            .unwrap_or_else(|| panic!("cancel must write a row for 181: {tsv:?}"))
+            .to_string();
+        let fields: Vec<&str> = row.split('\t').collect();
+        assert_eq!(fields.len(), 6, "the reason is the sixth field: {row:?}");
+        assert_eq!(fields[0], "181");
+        assert_eq!(fields[1], "cancelled");
+        assert_eq!(fields[3], sha);
+        assert_eq!(fields[4], "One");
+        assert_eq!(
+            fields[5], "kept reason more",
+            "tabs and newlines in a reason become spaces: {row:?}"
+        );
+        let _ = std::fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn a_complete_row_stays_five_fields() {
+        let repo = repo("complete");
+        let rel = "zero/intents/open/320-one.md";
+        let path = repo.join(rel);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &path,
+            "---\nid: 320\ntitle: \"One\"\nstatus: in-progress\ndate: 2026-11-19\n---\n\n",
+        )
+        .unwrap();
+        git(&repo, &["add", rel]);
+        git(&repo, &["commit", "-q", "-m", "add 320"]);
+        let sha = head(&repo);
+        let outcome = close_file(&repo, rel, "320", "complete", "One", "2026-11-19", None);
+        match outcome {
+            super::CloseOutcome::Staged { .. } => {}
+            super::CloseOutcome::Undetermined { reason } => {
+                panic!("a committed file must close: {reason}")
+            }
+        }
+        let tsv = std::fs::read_to_string(repo.join("zero/intents/closed.tsv")).unwrap();
+        let row = tsv
+            .lines()
+            .find(|line| line.starts_with("320\t"))
+            .unwrap_or_else(|| panic!("cicomplete must write a row: {tsv}"))
+            .to_string();
+        let fields: Vec<&str> = row.split('\t').collect();
+        assert_eq!(
+            fields,
+            vec!["320", "complete", "2026-11-19", sha.as_str(), "One"],
+            "a complete row stays five fields, byte for byte: {row:?}"
+        );
+        let _ = std::fs::remove_dir_all(&repo);
+    }
+
+    #[test]
+    fn show_prints_the_reason() {
+        let src = include_str!("mod.rs");
+        let start = src.find("fn show_closed").expect("show_closed");
+        let body = &src[start..];
+        let end = body[1..]
+            .find("\npub fn ")
+            .map(|i| i + 1)
+            .unwrap_or(body.len());
+        let body = &body[..end];
+        assert!(
+            body.contains("Reason:"),
+            "show must print Reason: for a closed row that has one"
         );
     }
 }
