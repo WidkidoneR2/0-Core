@@ -3105,10 +3105,7 @@ print('CLASS-DONE')"##;
                     seen.push(text);
                 }
                 let mut bad = Vec::new();
-                if seen
-                    .iter()
-                    .any(|t| versions.iter().any(|ver| t.contains(ver)))
-                {
+                if seen.iter().any(|t| t.contains("9.8.")) {
                     bad.push("states the release version");
                 }
                 if seen[0] != seen[1] {
