@@ -6,6 +6,8 @@ docs/CONVENTIONS.md holds the reasoning behind several of these rules. Read it; 
 
 A sentence in this file is either enforceable now, marked UNVERIFIED / CLOSED / BOARD, or it does not belong here.
 
+Christian can override any rule in this file.
+
 ## 0. Stop
 
 Read this before editing. If a step can lock the machine, stop and ask.
@@ -55,6 +57,7 @@ Promote a directory to critical the moment it carries boot, login, or disk setti
 
 - Secure Boot is not enforcing. MEASURED 2026-09-05: sbctl is not installed; /var/lib/sbctl does not exist. Do not describe the boot chain as signed until that has been demonstrated.
 - Secrets are never committed. Configs reference secrets; they do not embed them. Every commit is scanned by zero-gate's pre-commit hook: ripsecrets, then gitleaks with the repo's .gitleaks.toml, redacted. A scanner that is missing fails the commit.
+- Secrets and confidential information never leave this machine to the internet or to agents.
 - Before rebooting after a boot-chain change, verify signature state first.
 
 ### Fingerprint
@@ -195,14 +198,14 @@ DevBox (INT-167) is not a required step until it is the verifier. Until then it 
 
 Working shorthand: recon, solve, test, then rebuild.
 
-### Multi-AI roles
+### How we work
 
-Three parties work this repository. The roles are not interchangeable.
+Three parties work this repository. The roles are not interchangeable. The shape is a triangle: Eric sits between Christian and Cursor. Christian does not talk to Cursor directly. Together they work the problem and test for failures and passing results.
 
-- Christian decides everything and approves everything. He runs every command himself, in his own terminal. Nothing is applied without his explicit approval of that exact change.
-- Claude authors: recon, plans, patches, tests, and the evidence for each gate. Claude hands over the change and the commands; it does not apply them.
-- Jarvis reviews. Jarvis can flag a problem or block a proposal until the flag is answered. Jarvis never approves; only Christian does.
-- An item is requested only once Christian has approved it. A task on a review list, a finding, or a plan Claude proposed is a proposal until then, and Never make unrequested changes (section 2, Edit) applies to it.
+- Christian decides everything and approves everything. He runs every command on his laptop himself, in his own terminal, including doors, nsh-test, d, and ship. Nothing is applied without his explicit approval of that exact change. No gate passes without output from his laptop.
+- Eric (Grok Bot, Director of Operations) talks with Christian directly and through copy-and-paste: Eric hands him paste-ready command blocks, and Christian pastes the output back, so Eric sees every step. Eric talks with Cursor. Eric reviews. A reviewer may flag a problem or block a proposal until the flag is answered, and never approves; only Christian does.
+- Cursor cloud agents do most of the coding, on branches. They do not push to main. Eric reviews the branch; Christian merges and seals.
+- An item is requested only once Christian has approved it. A task on a review list, a finding, or a plan an agent proposed is a proposal until then, and Never make unrequested changes (section 2, Edit) applies to it.
 - One intent per approved item. A list of items is not an intent.
 
 UNVERIFIED: no tool records a flag, a block, or who reviewed what. They hold because Christian reads them before he approves.
@@ -217,6 +220,7 @@ A ticked box is a promise. Evidence is the receipt. Format — an HTML comment o
 ```
 
 A commit hash, a file:line, a log path, or demonstrated: <what and how>. The claim must be checkable.
+That HTML comment is the format 1 discipline. Format 2 and format 3 record the same kind of proof in the indented evidence: field under the gate; a ticked gate whose evidence: is empty does not complete. core intent new writes format 3. Reasoning: docs/CONVENTIONS.md (INT-158, INT-329).
 
 Hard: recon and cistart before code. Evidence on any gate that could pass by doing nothing. A gate you have only watched pass might be doing nothing — prove it by watching it fail first, then pass.
 
@@ -229,10 +233,11 @@ Forward-only: never retrofit old intents.
 A gate can be closed by declining the thing, with numbered reasons. That is still proof.
 
 Findings and commits point at each other by name. A problem found and not fixed is filed with core intent find, never left as prose in an intent. A commit carries Intent:, and Fixes: F-x when it closes a finding; a commit made from a reviewed plan also carries Seal:, with the plan text kept as a note under refs/notes/seals. core intent trace answers what is open, what fixed it, and which plan produced it. Reasoning: docs/CONVENTIONS.md (INT-266).
+Only a Fixes: trailer closes a finding; naming it in a subject line does not. Put the trailer on the commit that makes the fix, because the solved day is the day of the commit that carries it.
 
 ### Findings and the bug report
 
-core bug reads the F-NNNN findings in zero/intents/findings/ and answers what is open, how bad, how old, and how fast bugs get fixed. These seven rules govern it and anything else that counts bugs. Reasoning: zero/intents/in-progress/300-bug-report.md (INT-300).
+core bug reads the F-NNNN findings in zero/intents/findings/ and answers what is open, how bad, how old, and how fast bugs get fixed. These seven rules govern it and anything else that counts bugs. Reasoning: INT-300 (last text: git show 8ed64c72:zero/intents/complete/300-bug-report.md).
 
 1. Store decisions, derive facts. A finding file holds only what a person saw or decided: what, where, who found it, the day, the severity. Whether it is open or solved, and the day it was fixed, are read from git (Fixes: trailers), never stored.
 2. Unknown is a word, never a zero. A tool that cannot answer prints unknown and exits 3; a measured zero prints as 0; a finding with no severity is unrated, never low. Exit 0 is clean, 1 is findings or a refusal, 3 is could not answer.
@@ -243,6 +248,7 @@ core bug reads the F-NNNN findings in zero/intents/findings/ and answers what is
 7. Old data keeps working. A finding written before a field existed still reads; the missing field reads as unrated or unknown, and no record is rewritten to make it fit.
 
 Finding numbers only go up: the next number is the highest on disk plus one, a gap stays a gap, and a number is never reused.
+A finding that is not a defect, or is another program's behaviour, is closed without a fix through its closed_without_fix field, written by a reviewed plan with the reason and the evidence. core has no close command. A later Fixes: trailer still wins over a closure.
 
 ### Edit
 
@@ -274,6 +280,7 @@ Absolute path always. old and new stay Python string literals. The payload is a 
 - Rehearse unread behaviour on a mktemp copy first.
 - An intent section that claims a commit is pushed or a path is real checks that against git and disk before it is written.
 - Never make unrequested changes. Surface them.
+- These Edit and Transport rules are for a change Christian applies on the laptop by paste. A Cursor cloud agent writes on a branch; it does not apply on the laptop and does not push to main.
 
 Paste blocks for a human contain no bare --help. A payload is sent as the plain-source heredoc described under Transport.
 
@@ -369,6 +376,7 @@ Prefix the future. July commits say fsh because that is what it was called in Ju
 A skipped hook is stated in the next commit body.
 
 git add scope is a bug class. If the change touches a workspace dependency, add Cargo.lock deliberately.
+Agents never push to main. They may push a branch. Eric reviews the branch; Christian merges onto main and seals.
 
 ### Definition of done
 
