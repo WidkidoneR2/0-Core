@@ -2,6 +2,7 @@
   "schema": 1,
   "counts": {
     "total": 8,
+    "listed": 3,
     "done": 5,
     "in_progress": 1,
     "planned": 2,

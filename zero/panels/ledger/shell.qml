@@ -246,7 +246,7 @@ ShellRoot {
 
                         Repeater {
                             model: [
-                                { n: root.countText("total"), label: "Total", color: "white" },
+                                { n: root.countText("listed"), label: "Total", color: "white" },
                                 { n: root.countText("done"), label: "Done", color: root.doneColor },
                                 { n: root.countText("planned"), label: "Pending", color: root.plannedColor }
                             ]

@@ -198,6 +198,7 @@ pub fn build_at(dir: &Path, repo: &Path) -> Built {
         schema: 1,
         counts: Counts {
             total: done + in_progress + planned,
+            listed: in_progress + planned,
             done,
             in_progress,
             planned,
@@ -441,6 +442,8 @@ struct LedgerJson {
 #[derive(Serialize)]
 struct Counts {
     total: u64,
+    /// Open intents the text list counts: in progress plus planned.
+    listed: u64,
     done: u64,
     in_progress: u64,
     planned: u64,
@@ -628,6 +631,7 @@ mod tests {
         let counts = v.get("counts").unwrap();
         for key in [
             "total",
+            "listed",
             "done",
             "in_progress",
             "planned",
@@ -793,6 +797,91 @@ mod tests {
             built.warnings.iter().any(|w| w.contains("closed.tsv")),
             "a malformed closed.tsv row is a warning: {:?}",
             built.warnings
+        );
+    }
+
+    /// INT-330. The Total card counts the open intents the text list counts:
+    /// in progress plus planned. `counts.total` stays done plus those, so a
+    /// closed row does not move the card.
+    #[test]
+    fn the_total_card_counts_listed_open_intents() {
+        let dir = scratch("listed");
+        write_intent(
+            &dir.0,
+            "1-go.md",
+            &intent("1", "in-progress", "Go", "format: 3\n", ""),
+        );
+        write_intent(
+            &dir.0,
+            "2-next.md",
+            &intent("2", "planned", "Next", "format: 3\n", ""),
+        );
+        write_intent(
+            &dir.0,
+            "3-later.md",
+            &intent(
+                "3",
+                "planned",
+                "Later",
+                "format: 3\ndepends_on: [2]\n",
+                "",
+            ),
+        );
+        write_intent(
+            &dir.0,
+            "4-stopped.md",
+            &intent("4", "cancelled", "Stopped", "format: 1\n", ""),
+        );
+        let mut tsv = String::from("id\tstatus\tclosed\tlast_commit\ttitle\n");
+        tsv.push_str(&closed_row("8", "complete", "2026-01-01", "aaaa", "done one"));
+        tsv.push_str(&closed_row("9", "complete", "2026-01-02", "bbbb", "done two"));
+        fs::write(dir.0.join("closed.tsv"), tsv).unwrap();
+
+        let built = build_at(&dir.0, &dir.0.join("not-a-repo"));
+        let counts = &built.value["counts"];
+        let intents = built.value["intents"].as_array().unwrap();
+        let open = intents
+            .iter()
+            .filter(|row| {
+                let status = row["status"].as_str().unwrap_or("");
+                status == "in-progress" || status == "planned"
+            })
+            .count() as u64;
+        assert_eq!(counts["in_progress"], 1);
+        assert_eq!(counts["planned"], 2);
+        assert_eq!(open, 3, "a cancelled live row is not an open intent");
+        assert_eq!(
+            counts["listed"], open,
+            "listed is the open rows the text Total counts: {counts}"
+        );
+        assert!(
+            counts["done"].as_u64().unwrap_or(0) >= 2,
+            "closed completes stay in done: {counts}"
+        );
+        assert_ne!(
+            counts["total"], counts["listed"],
+            "closed rows stay in total and off the Total card: {counts}"
+        );
+        assert_eq!(
+            counts["total"].as_u64().unwrap(),
+            counts["done"].as_u64().unwrap() + counts["listed"].as_u64().unwrap()
+        );
+
+        let qml_path =
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../panels/ledger/shell.qml");
+        let qml = fs::read_to_string(&qml_path)
+            .unwrap_or_else(|e| panic!("cannot read {}: {e}", qml_path.display()));
+        let total_card = qml
+            .lines()
+            .find(|line| line.contains("label: \"Total\""))
+            .expect("the Total card");
+        assert!(
+            total_card.contains("countText(\"listed\")"),
+            "the Total card must show the listed count: {total_card}"
+        );
+        assert!(
+            !total_card.contains("countText(\"total\")"),
+            "the Total card must not read counts.total: {total_card}"
         );
     }
 
