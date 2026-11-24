@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "counts": {
+    "total": 8,
+    "listed": 3,
+    "done": 5,
+    "in_progress": 1,
+    "planned": 2,
+    "blocked": 1,
+    "cancelled": 1
+  },
+  "intents": [
+    {
+      "id": "003",
+      "title": "Review disk usage",
+      "status": "in-progress",
+      "blocked": false,
+      "vision": "Identify large directories.",
+      "gates": { "done": 2, "total": 4 },
+      "format": 3,
+      "depends_on": [],
+      "file": "open/003-review-disk-usage.md"
+    },
+    {
+      "id": "004",
+      "title": "Clean temporary files",
+      "status": "planned",
+      "blocked": false,
+      "vision": "Free unnecessary disk space.",
+      "gates": { "done": 0, "total": 3 },
+      "format": 3,
+      "depends_on": [],
+      "file": "open/004-clean-temporary-files.md"
+    },
+    {
+      "id": "005",
+      "title": "Check SSH configuration",
+      "status": "planned",
+      "blocked": true,
+      "vision": "Review remote access settings.",
+      "gates": { "done": 1, "total": 5 },
+      "format": 1,
+      "depends_on": ["009"],
+      "file": "open/005-check-ssh-configuration.md"
+    }
+  ],
+  "recent_closed": [
+    {
+      "id": "002",
+      "status": "complete",
+      "closed": "2026-11-18",
+      "title": "Back up home directory"
+    },
+    {
+      "id": "001",
+      "status": "complete",
+      "closed": "2026-11-17",
+      "title": "Update system packages"
+    },
+    {
+      "id": "006",
+      "status": "cancelled",
+      "closed": "2026-11-16",
+      "title": "Pin the panel to the screen edge"
+    },
+    {
+      "id": "007",
+      "status": "complete",
+      "closed": "2026-11-15",
+      "title": "Record the last close"
+    },
+    {
+      "id": "008",
+      "status": "complete",
+      "closed": "2026-11-14",
+      "title": "Name the open intents"
+    }
+  ],
+  "last_close": {
+    "id": "002",
+    "status": "complete",
+    "closed": "2026-11-18",
+    "last_commit": "a2ef02c2ca9b5be97e0cc20a0568a7f7b93c633c",
+    "title": "Back up home directory"
+  },
+  "tree": { "clean": true, "pushed": true }
+}

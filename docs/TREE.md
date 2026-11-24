@@ -23,6 +23,7 @@ This map describes the tree as it is. A move changes the tree and this map in th
 | `zero/schema/` | JSON schemas for policies, profiles, tools and zones |
 | `zero/policy/` | policy files: hooks and security |
 | `zero/scripts/` | fpatch (dev/), the devshell scripts, and doors |
+| `zero/panels/` | Quickshell panels. The ledger panel reads the ledger and does not write |
 | `docs/` | human documentation; nothing reads it at boot |
 | `labs/` | experiments, listed by nsh's experiment command; nothing here is wired into a host |
 | `assets/` | branding images and a font |

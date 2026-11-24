@@ -16,6 +16,10 @@ pub mod findings;
 pub mod findings_tui;
 pub mod folders;
 pub mod gates;
+/// INT-330: `core intent list --json` and `show --json`.
+pub mod ledger_json;
+/// INT-330: `core intent panel`.
+pub mod panel;
 pub mod trace;
 /// INT-307: the findings screen's rows, sort, filter, and color.
 pub mod view;
@@ -145,7 +149,7 @@ pub fn unread_intent_files() -> Vec<String> {
 
 /// True when the frontmatter between the first two `---` has a line that trims
 /// to `type: index`. The body is not consulted.
-fn is_index_frontmatter(content: &str) -> bool {
+pub(crate) fn is_index_frontmatter(content: &str) -> bool {
     content
         .split("---")
         .nth(1)
@@ -186,7 +190,7 @@ fn load_all(ctx: &AppContext) -> Vec<Intent> {
     read_open().into_iter().map(|row| row.intent).collect()
 }
 
-fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
+pub(crate) fn parse_intent(path: &Path, folder: &str) -> Option<Intent> {
     let content = fs::read_to_string(path).ok()?;
     let filename = path.file_name()?.to_string_lossy().to_string();
 
@@ -282,6 +286,7 @@ pub fn list(
     complete: bool,
     all: bool,
     cancelled: bool,
+    json: bool,
 ) -> CoreResult<()> {
     ctx.capabilities.require(
         "intent",
@@ -290,6 +295,20 @@ pub fn list(
             Capability::FilesystemWriteHome,
         ],
     )?;
+    if json {
+        let built = ledger_json::build();
+        for line in &built.warnings {
+            eprintln!("{line}");
+        }
+        let text = serde_json::to_string_pretty(&built.value).map_err(|err| {
+            crate::errors::CoreError::Domain {
+                domain: "intent".to_string(),
+                message: format!("intent list --json could not be encoded: {err}"),
+            }
+        })?;
+        println!("{text}");
+        return Ok(());
+    }
     let intents: Vec<Intent> = read_open().into_iter().map(|row| row.intent).collect();
 
     let filtered: Vec<&Intent> = intents
@@ -435,7 +454,10 @@ pub fn stats(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
+pub fn show(ctx: &AppContext, id: &str, json: bool) -> CoreResult<()> {
+    if json {
+        return show_json(id);
+    }
     let intents = load_all(ctx);
     let found: Vec<&Intent> = intents.iter().filter(|i| i.id == id).collect();
 
@@ -471,6 +493,28 @@ pub fn show(ctx: &AppContext, id: &str) -> CoreResult<()> {
         println!("{}", parts[2].trim());
     }
     Ok(())
+}
+
+fn show_json(id: &str) -> CoreResult<()> {
+    match ledger_json::show_at(
+        &zero_core::paths::intents_dir(),
+        &zero_core::paths::core_dir(),
+        id,
+    ) {
+        ledger_json::Shown::Value(value) => {
+            let text = serde_json::to_string_pretty(&value).map_err(|err| {
+                crate::errors::CoreError::Domain {
+                    domain: "intent".to_string(),
+                    message: format!("intent show --json could not be encoded: {err}"),
+                }
+            })?;
+            println!("{text}");
+            Ok(())
+        }
+        ledger_json::Shown::Unknown => Err(crate::errors::CoreError::Reported(format!(
+            "intent {id} not found"
+        ))),
+    }
 }
 
 /// An id that is only in closed.tsv. Prints the row and where its last text lives.
@@ -7147,5 +7191,50 @@ mod cancel_closes_like_complete_tests {
             body.contains("Reason:"),
             "show must print Reason: for a closed row that has one"
         );
+    }
+}
+
+/// INT-330. `--json` returns before any of the text banner is printed, so the
+/// text path stays the lines it already printed.
+#[cfg(test)]
+mod list_json_does_not_touch_the_text_path {
+    #[test]
+    fn json_returns_before_the_text_banner() {
+        let src = include_str!("mod.rs");
+        let start = src.find("pub fn list(").expect("list");
+        let body = &src[start..];
+        let end = body[1..]
+            .find("\npub fn ")
+            .map(|i| i + 1)
+            .unwrap_or(body.len());
+        let body = &body[..end];
+        let json_return = body.find("return Ok(())").expect("json return");
+        let banner = body.find("Intent Ledger").expect("text banner");
+        assert!(
+            json_return < banner,
+            "list --json must return before the text banner is printed"
+        );
+        assert!(
+            body.contains("PLANNED (next up)"),
+            "the planned heading is still the text path"
+        );
+        assert!(
+            body.contains("Total:"),
+            "the total line is still the text path"
+        );
+    }
+
+    #[test]
+    fn show_json_returns_before_the_text_banner() {
+        let src = include_str!("mod.rs");
+        let start = src.find("pub fn show(").expect("show");
+        let body = &src[start..];
+        let end = body[1..].find("\nfn ").map(|i| i + 1).unwrap_or(body.len());
+        let body = &body[..end];
+        let json_return = body.find("return show_json").expect("json return");
+        let banner = body
+            .find("Status:")
+            .expect("show still prints the status line");
+        assert!(json_return < banner, "{body}");
     }
 }
