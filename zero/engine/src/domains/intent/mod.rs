@@ -89,15 +89,46 @@ pub const CANCELLED_DEP_NOTE: &str =
     "depends on a cancelled intent -- the assumption behind this edge may no longer hold";
 
 /// Resolve one dependency id against the loaded intent set.
+///
+/// An id that is not open is read from closed.tsv: complete satisfies, and
+/// cancelled is questionable. An older complete that is only in
+/// `completed_ids()` (the git archive of `complete/`) still satisfies.
+/// Anything in none of those stays missing. A cancelled id that is only in
+/// git, and not in closed.tsv, stays missing: there is no second walker.
 pub fn dep_state(intents: &[Intent], dep_id: &str) -> DepState {
     match intents.iter().find(|i| i.id == dep_id) {
-        None => DepState::Missing,
         Some(dep) => match dep.status.as_str() {
             "complete" => DepState::Satisfied,
             "cancelled" => DepState::Questionable,
             _ => DepState::Blocked,
         },
+        None => dep_state_outside_open(dep_id),
     }
+}
+
+/// closed.tsv first, then completed_ids(). read_closed owns cancelled;
+/// completed_ids() does not.
+fn dep_state_outside_open(dep_id: &str) -> DepState {
+    if let Ok(index) = zero_core::ledger::read_closed(&zero_core::paths::intents_dir()) {
+        if let Some(row) = index
+            .rows
+            .iter()
+            .find(|row| trace::same_intent_id(&row.id, dep_id))
+        {
+            return match row.status.as_str() {
+                "complete" => DepState::Satisfied,
+                "cancelled" => DepState::Questionable,
+                _ => DepState::Missing,
+            };
+        }
+    }
+    if zero_core::ledger::completed_ids()
+        .iter()
+        .any(|id| trace::same_intent_id(id, dep_id))
+    {
+        return DepState::Satisfied;
+    }
+    DepState::Missing
 }
 
 /// INT-279 G10: the intents in progress, as INT-NNN, asked of the one loader that core intent
