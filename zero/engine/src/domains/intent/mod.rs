@@ -7238,3 +7238,373 @@ mod list_json_does_not_touch_the_text_path {
         assert!(json_return < banner, "{body}");
     }
 }
+
+/// INT-331 G1 and G2. A temp ledger, HOME held for the whole read.
+#[cfg(test)]
+mod int331_closed_deps_and_readonly_list {
+    use super::{list, start, CANCELLED_DEP_NOTE};
+    use crate::capabilities::Capability;
+    use std::io::Write;
+    use std::path::{Path, PathBuf};
+    use std::process::Command;
+
+    struct HoldEnv {
+        slots: Vec<(&'static str, Option<String>)>,
+    }
+
+    impl HoldEnv {
+        fn isolate(home: &Path) -> Self {
+            let keys = ["HOME", "ZERO_STATE_DIR", "ZERO_STATE_DB", "XDG_STATE_HOME"];
+            let slots = keys
+                .into_iter()
+                .map(|key| (key, std::env::var(key).ok()))
+                .collect();
+            let state = home.join("state");
+            std::fs::create_dir_all(&state).unwrap();
+            std::fs::create_dir_all(home.join("xdg")).unwrap();
+            unsafe {
+                std::env::set_var("HOME", home);
+                std::env::set_var("ZERO_STATE_DIR", &state);
+                std::env::set_var("ZERO_STATE_DB", state.join("state.db"));
+                std::env::set_var("XDG_STATE_HOME", home.join("xdg"));
+            }
+            Self { slots }
+        }
+    }
+
+    impl Drop for HoldEnv {
+        fn drop(&mut self) {
+            for (key, prev) in &self.slots {
+                unsafe {
+                    match prev {
+                        Some(value) => std::env::set_var(key, value),
+                        None => std::env::remove_var(key),
+                    }
+                }
+            }
+        }
+    }
+
+    fn scratch(tag: &str) -> PathBuf {
+        let n = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_nanos())
+            .unwrap_or(0);
+        let dir = std::env::temp_dir().join(format!("int331-{tag}-{}-{n}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("0-core/zero/intents/open")).unwrap();
+        dir
+    }
+
+    fn git(repo: &Path, args: &[&str]) {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args([
+                "-c",
+                "user.email=int331@example.com",
+                "-c",
+                "user.name=int331",
+                "-c",
+                "commit.gpgsign=false",
+                "-c",
+                "safe.directory=*",
+            ])
+            .args(args)
+            .output()
+            .expect("git");
+        assert!(
+            out.status.success(),
+            "{args:?}\n{}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+
+    fn planned(id: &str, title: &str, dep: Option<&str>) -> String {
+        let depends = match dep {
+            Some(dep) => format!("depends_on: [{dep}]\n"),
+            None => String::new(),
+        };
+        format!("---\nid: {id}\ntitle: \"{title}\"\nstatus: planned\ndate: 2026-11-24\n{depends}---\n\n")
+    }
+
+    fn ctx_at(
+        root: &Path,
+        caps: crate::capabilities::CapabilityContext,
+    ) -> crate::app::context::AppContext {
+        crate::app::context::AppContext {
+            runtime: crate::runtime::Runtime {
+                root: root.to_path_buf(),
+                logs: root.join("logs"),
+                cache: root.join("cache"),
+                snapshots: root.join("snapshots"),
+                locks: root.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: caps,
+            home: root.display().to_string(),
+            core_root: root.join("0-core").display().to_string(),
+            source_root: root.join("0-core/zero").display().to_string(),
+        }
+    }
+
+    /// stdout of `f` run on a fresh thread, so the test harness does not swallow println.
+    fn capture_stdout(f: impl FnOnce() + Send + 'static) -> String {
+        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+        let _cap = LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let mut fds = [0i32; 2];
+        assert_eq!(unsafe { libc::pipe(fds.as_mut_ptr()) }, 0, "pipe");
+        let saved = unsafe { libc::dup(libc::STDOUT_FILENO) };
+        assert!(saved >= 0, "dup stdout");
+        assert_eq!(
+            unsafe { libc::dup2(fds[1], libc::STDOUT_FILENO) },
+            libc::STDOUT_FILENO,
+            "redirect stdout"
+        );
+        struct Restore {
+            saved: i32,
+            write_end: i32,
+        }
+        impl Drop for Restore {
+            fn drop(&mut self) {
+                unsafe {
+                    if self.saved >= 0 {
+                        libc::dup2(self.saved, libc::STDOUT_FILENO);
+                        libc::close(self.saved);
+                        self.saved = -1;
+                    }
+                    if self.write_end >= 0 {
+                        libc::close(self.write_end);
+                        self.write_end = -1;
+                    }
+                }
+            }
+        }
+        let restore = Restore {
+            saved,
+            write_end: fds[1],
+        };
+        let joined = std::thread::spawn(f).join();
+        let _ = std::io::stdout().flush();
+        drop(restore);
+        let mut out = Vec::new();
+        let mut buf = [0u8; 8192];
+        loop {
+            let n = unsafe { libc::read(fds[0], buf.as_mut_ptr() as *mut libc::c_void, buf.len()) };
+            if n < 0 {
+                if std::io::Error::last_os_error().kind() == std::io::ErrorKind::Interrupted {
+                    continue;
+                }
+                break;
+            }
+            if n == 0 {
+                break;
+            }
+            out.extend_from_slice(&buf[..n as usize]);
+        }
+        unsafe { libc::close(fds[0]) };
+        match joined {
+            Ok(()) => String::from_utf8_lossy(&out).into_owned(),
+            Err(_) => panic!(
+                "the captured call panicked\nstdout:\n{}",
+                String::from_utf8_lossy(&out)
+            ),
+        }
+    }
+
+    /// INT-331 G1. closed.tsv complete is Satisfied, cancelled is Questionable
+    /// with the existing note, an unknown id stays Missing, and a complete id
+    /// that exists only in completed_ids() is Satisfied. start does not call
+    /// a finished dependency "names no intent".
+    #[test]
+    fn closed_dependency_states_and_start_notes() {
+        let home = scratch("deps");
+        let repo = home.join("0-core");
+        let intents = repo.join("zero/intents");
+        let open = intents.join("open");
+        let archived = intents.join("complete");
+        std::fs::create_dir_all(&archived).unwrap();
+        std::fs::write(
+            archived.join("405-archived.md"),
+            "---\nid: 405\ntitle: \"Archived\"\nstatus: complete\ndate: 2026-11-01\n---\n\n",
+        )
+        .unwrap();
+        git(&repo, &["init", "-q", "-b", "main"]);
+        git(&repo, &["add", "zero/intents/complete/405-archived.md"]);
+        git(&repo, &["commit", "-q", "-m", "archive 405"]);
+        std::fs::remove_file(archived.join("405-archived.md")).unwrap();
+        git(&repo, &["add", "-u"]);
+        git(&repo, &["commit", "-q", "-m", "drop 405"]);
+        std::fs::write(
+            open.join("400-needs-done.md"),
+            planned("400", "Needs done", Some("401")),
+        )
+        .unwrap();
+        std::fs::write(
+            open.join("403-needs-stopped.md"),
+            planned("403", "Needs stopped", Some("402")),
+        )
+        .unwrap();
+        let tsv = "\
+id\tstatus\tclosed\tlast_commit\ttitle
+401\tcomplete\t2026-11-01\tabc401\tDone dep
+402\tcancelled\t2026-11-02\tdef402\tStopped dep
+";
+        std::fs::write(intents.join("closed.tsv"), tsv).unwrap();
+        let names: Vec<String> = std::fs::read_dir(&open)
+            .unwrap()
+            .flatten()
+            .map(|e| e.file_name().to_string_lossy().into_owned())
+            .collect();
+        assert!(
+            names
+                .iter()
+                .all(|name| !name.starts_with("401") && !name.starts_with("402")),
+            "the closed ids are not files in open/: {names:?}"
+        );
+        assert!(
+            !archived.join("405-archived.md").exists(),
+            "405 lives in git, not on disk"
+        );
+
+        let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _env = HoldEnv::isolate(&home);
+        let ctx = ctx_at(
+            &home,
+            crate::capabilities::CapabilityContext::unprivileged(),
+        );
+        let loaded = super::load_all(&ctx);
+        assert!(
+            loaded
+                .iter()
+                .any(|i| i.id == "400" && i.depends_on == ["401"]),
+            "400 is open and depends on the closed complete id: {loaded:?}"
+        );
+        assert!(
+            loaded
+                .iter()
+                .all(|i| i.id != "401" && i.id != "402" && i.id != "405"),
+            "401, 402 and 405 are not open intents: {loaded:?}"
+        );
+        let completed = zero_core::ledger::completed_ids();
+        assert!(
+            completed.contains("405"),
+            "fixture: 405 is present only via completed_ids(), got {completed:?}"
+        );
+        assert!(
+            !completed.contains("402"),
+            "a cancelled row is not a completed id: {completed:?}"
+        );
+        assert_eq!(
+            super::dep_state(&loaded, "401"),
+            super::DepState::Satisfied,
+            "a complete row in closed.tsv satisfies"
+        );
+        assert_eq!(
+            super::dep_state(&loaded, "402"),
+            super::DepState::Questionable,
+            "a cancelled row is questionable, not missing"
+        );
+        assert_eq!(
+            super::dep_state(&loaded, "404"),
+            super::DepState::Missing,
+            "an id in neither open/ nor closed.tsv nor completed_ids stays missing"
+        );
+        assert_eq!(
+            super::dep_state(&loaded, "405"),
+            super::DepState::Satisfied,
+            "a complete id present only in completed_ids() satisfies"
+        );
+
+        let started = capture_stdout({
+            let ctx = ctx;
+            move || {
+                let _ = start(&ctx, "400");
+                let _ = std::io::stdout().flush();
+            }
+        });
+        assert!(
+            started.contains("Auto-checkpointing") || started.contains("Intent Started"),
+            "start ran far enough to print: {started}"
+        );
+        assert!(
+            !started.contains("names no intent"),
+            "a finished dependency must not read as names no intent: {started}"
+        );
+
+        let ctx = ctx_at(
+            &home,
+            crate::capabilities::CapabilityContext::unprivileged(),
+        );
+        let questioned = capture_stdout(move || {
+            let _ = start(&ctx, "403");
+            let _ = std::io::stdout().flush();
+        });
+        assert!(
+            questioned.contains(CANCELLED_DEP_NOTE),
+            "a cancelled dependency keeps the existing note: {questioned}"
+        );
+        assert!(
+            !questioned.contains("names no intent"),
+            "cancelled is not missing: {questioned}"
+        );
+        let _ = std::fs::remove_dir_all(&home);
+    }
+
+    /// INT-331 G2. list and list --json succeed with only FilesystemReadHome.
+    /// The text list still prints the ledger banner, the planned row and the total.
+    #[test]
+    fn list_and_list_json_need_only_read() {
+        let home = scratch("list");
+        let open = home.join("0-core/zero/intents/open");
+        std::fs::write(open.join("7-listed.md"), planned("7", "Listed", None)).unwrap();
+
+        let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _env = HoldEnv::isolate(&home);
+        let caps =
+            crate::capabilities::CapabilityContext::granting(&[Capability::FilesystemReadHome]);
+        assert!(
+            !caps.has(&Capability::FilesystemWriteHome),
+            "the fixture grants read and not write"
+        );
+        let ctx = ctx_at(&home, caps);
+        let text_result = list(&ctx, false, false, false, false, false, false);
+        assert!(
+            text_result.is_ok(),
+            "list with only read must succeed, got {text_result:?}"
+        );
+        let text = capture_stdout({
+            let ctx = ctx_at(
+                &home,
+                crate::capabilities::CapabilityContext::granting(&[Capability::FilesystemReadHome]),
+            );
+            move || {
+                list(&ctx, false, false, false, false, false, false).expect("list");
+                let _ = std::io::stdout().flush();
+            }
+        });
+        assert!(text.contains("Intent Ledger"), "{text}");
+        assert!(text.contains("PLANNED (next up)"), "{text}");
+        assert!(text.contains("Listed"), "{text}");
+        assert!(text.contains("Total: 1"), "{text}");
+        assert!(!text.trim_start().starts_with('{'), "{text}");
+
+        let ctx = ctx_at(
+            &home,
+            crate::capabilities::CapabilityContext::granting(&[Capability::FilesystemReadHome]),
+        );
+        let json_result = list(&ctx, false, false, false, false, false, true);
+        assert!(
+            json_result.is_ok(),
+            "list --json with only read must succeed, got {json_result:?}"
+        );
+        let json = capture_stdout(move || {
+            list(&ctx, false, false, false, false, false, true).expect("list --json");
+            let _ = std::io::stdout().flush();
+        });
+        assert!(!json.contains("Intent Ledger"), "{json}");
+        let value: serde_json::Value = serde_json::from_str(json.trim()).expect(&json);
+        assert_eq!(value["schema"], 1);
+        let _ = std::fs::remove_dir_all(&home);
+    }
+}

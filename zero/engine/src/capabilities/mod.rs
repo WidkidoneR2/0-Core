@@ -56,6 +56,26 @@ impl CapabilityContext {
         Self { granted, log_path }
     }
 
+    /// Test-only. Grants exactly `caps`, so a command can be run with read and
+    /// without write. The log stays in the temp dir; this does not touch the
+    /// live capability log.
+    #[cfg(test)]
+    pub(crate) fn granting(caps: &[Capability]) -> Self {
+        let mut granted = HashSet::new();
+        for cap in caps {
+            granted.insert(cap.clone());
+        }
+        let log_path = std::env::temp_dir().join(format!(
+            "core-cap-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        Self { granted, log_path }
+    }
+
     pub fn require(
         &self,
         domain: &str,
