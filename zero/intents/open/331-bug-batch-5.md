@@ -3,7 +3,7 @@ id: 331
 date: 2026-11-24
 type: future
 title: "Bug batch 5: closed dependencies count, list is read-only, version fixtures"
-status: planned
+status: in-progress
 tags: [bugs, ledger, core]
 depends_on: []
 format: 3
@@ -105,7 +105,7 @@ starts. Read against main 1d56ccb9, core 5.3.0.
   validation for other open intents.
 
 ## Success Criteria
-- [ ] G1 closed dependencies are found (intent/mod.rs, F-0119).
+- [x] G1 closed dependencies are found (intent/mod.rs, F-0119).
       In a temp ledger, closed.tsv has a complete id and a
       cancelled id and neither file is in open/. An open intent
       that depends on the complete id is Satisfied, and start
@@ -116,15 +116,15 @@ starts. Read against main 1d56ccb9, core 5.3.0.
       `completed_ids()` is Satisfied.
       ask: a finished dependency in closed.tsv does not read as names no intent
       ruling:
-      evidence:
-- [ ] G2 list is read-only (intent/mod.rs, F-0120). `core intent
+      evidence: red test commit 7285a8f2 failed before the fix (closed complete read as Missing); after 62a1b5b5 cargo test -p core 377 passed: closed.tsv complete is Satisfied, cancelled is Questionable, completed_ids only is Satisfied, unknown stays Missing; laptop cistart 331 printed no names-no-intent warning
+- [x] G2 list is read-only (intent/mod.rs, F-0120). `core intent
       list` and `list --json` succeed when only
       FilesystemReadHome is granted. Text stdout of list is
       unchanged for a given ledger.
       ask: list and list --json require only read access
       ruling:
-      evidence:
-- [ ] G3 the version-literal test is green (zero-core registry
+      evidence: red test failed with CapabilityDenied filesystem.write.home; after f8c477f3 list and list --json pass with only FilesystemReadHome (test-only CapabilityContext::granting), text lines unchanged, temp ledger byte-identical
+- [x] G3 the version-literal test is green (zero-core registry
       test and nsh-test fixtures, F-0121). `cargo test -p
       zero-core no_crate_hardcodes_a_version` passes. The
       nsh-test case `zero_docs_public_index_states_no_version`
@@ -132,11 +132,11 @@ starts. Read against main 1d56ccb9, core 5.3.0.
       versions or changes when only the version changes.
       ask: the scanner is green and the public-index fixtures still prove the rule
       ruling:
-      evidence:
-- [ ] G4 doors and d green on the laptop.
+      evidence: cargo test -p zero-core --features registry no_crate_hardcodes_a_version 1 passed on the laptop (was failing on 9.8.7 and 9.8.8 at nsh-test main.rs:3091); fixtures built with zd_ver in a3e0f8ab, the 9.8. prefix check kept in 75742aab; nsh-test door passed
+- [x] G4 doors and d green on the laptop.
       ask: doors and d are green
       ruling:
-      evidence:
+      evidence: doors 4/4 on int-331 and again before the push; d 96% with the only warning the uncommitted 331 file, 79 intents valid
 
 ## Job order
 - Wave 1, side by side: Job A writes red tests for G1 and G2 in
