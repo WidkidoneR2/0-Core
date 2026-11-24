@@ -3,7 +3,7 @@ id: 330
 date: 2026-11-19
 type: future
 title: "The intent ledger panel: core intent list --json and a Quickshell panel that reads it"
-status: planned
+status: in-progress
 tags: [ledger, intents, panel, quickshell, json]
 depends_on: [321]
 format: 3
@@ -131,28 +131,28 @@ failed #e07870, cancelled grey #98a0b0, live badge #58a860 text on #103020.
   root.
 
 ## Success Criteria
-- [ ] G1 list --json is a stable schema (intent/ledger_json.rs). Red tests
+- [x] G1 list --json is a stable schema (intent/ledger_json.rs). Red tests
       first in a temp ledger: the top-level keys and their types; counts
       equal the rows; a blocked row; a format 1 file with no Vision gives
       "vision": ""; an unreadable file still leaves stdout valid JSON with
       the warning on stderr; git unknown gives tree nulls.
       ask: list --json has the schema above and the tests pass
       ruling:
-      evidence:
-- [ ] G2 show --json for an open id, a closed id and an unknown id. The open
+      evidence: cargo test -p core 375 passed, including the list --json temp-ledger tests: schema 1 keys and types, counts equal the rows, a blocked row, empty vision on format 1, unreadable file keeps stdout JSON with the warning on stderr, git unknown gives tree nulls; laptop list --json after ship: listed 37, total 284, done 247, in_progress 4, planned 33, blocked 1, cancelled 5
+- [x] G2 show --json for an open id, a closed id and an unknown id. The open
       id has gates_list; the closed id has "closed": true and the git show
       command; the unknown id prints nothing and exits 1.
       ask: show --json answers all three cases
       ruling:
-      evidence:
-- [ ] G3 the panel renders from the fixture. zero/panels/ledger/shell.qml
+      evidence: laptop core intent show 330 --json has gates_list and status planned; show 321 --json has closed true, status complete and a git_show command; show 999 --json prints nothing and exits 1
+- [x] G3 the panel renders from the fixture. zero/panels/ledger/shell.qml
       reads fixture.json when LEDGER_FIXTURE is set, and a Rust test checks
       that fixture.json has the same keys list --json produces. The only
       Process in the QML is the core or fixture read.
       ask: the panel draws the fixture and the fixture matches the schema
       ruling:
-      evidence:
-- [ ] G4 the look matches the screenshots. Dark panel, live badge, the
+      evidence: LEDGER_FIXTURE=/home/christian/0-core/zero/panels/ledger/fixture.json core intent panel drew Total 3, Done 5, Pending 2, blocked row 005 and cancelled 006; cargo test fixture_json_has_the_keys_list_json_produces; the only Process in shell.qml is the core or fixture read
+- [x] G4 the look matches the screenshots. Dark panel, live badge, the
       total, done and pending cards (pending is planned only), rows with
       number, title, one-sentence vision, status word and gates (5/7), then
       the last five closed with cancelled in grey, and a footer with the last
@@ -161,26 +161,26 @@ failed #e07870, cancelled grey #98a0b0, live badge #58a860 text on #103020.
       ask: Christian compares a screenshot with ref-ledger.jpg and
       ref-register.jpg
       ruling:
-      evidence:
-- [ ] G5 the panel matches the ledger on the laptop. After Christian
+      evidence: laptop screenshot compared with the ledger look: dark panel, live badge, total done and pending cards, open rows with number title vision status and gates, last five closed with cancelled in grey, footer with last close and clean and pushed, a floating window with no Hyprland border, rounding 18 and the card edge to edge (rule in ~/.config/hypr/looknfeel.lua, margin 0 in 2e58b7ea)
+- [x] G5 the panel matches the ledger on the laptop. After Christian
       installs quickshell, the panel's planned plus in progress equals
       `core intent list` Total, and done, planned and blocked equal the
       banner.
       ask: the panel and the terminal give the same numbers
       ruling:
-      evidence:
-- [ ] G6 core intent panel opens it (intent/panel.rs). Red tests first with
+      evidence: live panel Done 247 and Pending 33 match the banner; planned 33 plus in progress 4 equals core intent list Total 37; one BLOCKED row, 167, matches the banner 1 blocked; the Total card showed 37 from counts.listed, matching the text Total as ruled
+- [x] G6 core intent panel opens it (intent/panel.rs). Red tests first with
       a fake PATH: quickshell missing gives a green safe stop that names
       `sudo pacman -S quickshell` and starts nothing; quickshell present
       starts it detached with -p and the panels path from zero_core::paths.
       ask: core intent panel opens the window, and refuses safely without
       quickshell
       ruling:
-      evidence:
-- [ ] G7 doors and d green on the laptop, with zero/panels/ in docs/TREE.md.
+      evidence: cargo test -p core: quickshell missing is a green safe stop naming sudo pacman -S quickshell and starts nothing; quickshell present starts detached with -p and zero/panels/ledger from paths.rs; laptop core intent panel opened the window
+- [x] G7 doors and d green on the laptop, with zero/panels/ in docs/TREE.md.
       ask: doors and d are green
       ruling:
-      evidence:
+      evidence: doors 4/4 before the push; on the branch doors 4/4 and d 96%; after the merge the nsh banner shows health 96% with the one uncommitted file, 330; docs/TREE.md has the zero/panels/ row
 
 ## Job order
 - Wave 1, side by side: the G1 red tests, fixture.json, the TREE.md row.
