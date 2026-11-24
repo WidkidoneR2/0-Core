@@ -128,6 +128,7 @@ mod tests {
     #[test]
     fn quickshell_present_starts_detached_with_the_panels_path() {
         let dir = scratch("present");
+        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let bin = dir.0.join("quickshell");
         fs::write(
             &bin,
