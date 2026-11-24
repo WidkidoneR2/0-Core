@@ -19,3 +19,4 @@ id	status	closed	last_commit	title	reason
 187	cancelled	2026-11-19	f0415b3eb015cd76e91b79fbfd078ea1b95a35d2	evaluate gix vs git2 for faelight-git -- pure-Rust git, NOT a felt need yet	its own title says not a felt need
 026	cancelled	2026-11-19	f0415b3eb015cd76e91b79fbfd078ea1b95a35d2	Forest Observatory: searchable event timeline	merged into 167; its events and observatory scope lives in 167
 321	complete	2026-11-19	3779b3b0f9a69745fed4739d01b8f554812c0bca	Sweep the finished intents out of open/ and make cancel close like complete
+330	complete	2026-11-24	f167b5d246ed2ca4438ef9af0c8e061b5ecfb14c	The intent ledger panel: core intent list --json and a Quickshell panel that reads it
