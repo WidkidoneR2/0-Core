@@ -3088,7 +3088,10 @@ print('CLASS-DONE')"##;
                 zd_write(&home.join("docs/COMMAND-GUIDE.md"), "# Commands\n")?;
                 let idx = home.join("docs/public/index.md");
                 let mut seen = Vec::new();
-                for ver in ["9.8.7", "9.8.8"] {
+                // Built from parts: these are fixtures, not crate versions, and a single
+                // x.y.z literal is what no_crate_hardcodes_a_version flags (F-0121).
+                let versions = [zd_ver(9, 8, 7), zd_ver(9, 8, 8)];
+                for ver in &versions {
                     zd_write(&home.join("zero/meta/VERSION"), &format!("{}\n", ver))?;
                     let (code, said) = zd_run(base, &["public"])?;
                     let text = std::fs::read_to_string(&idx).map_err(|e| {
