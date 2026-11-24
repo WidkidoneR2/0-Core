@@ -1,73 +1,82 @@
-# Project 0 orchestration, v1
+# Project 0 orchestration
 
-One front door. One job each. The ledger is the only memory that survives the chat.
+Christian decides everything and approves everything. Daily work is
+copy-and-paste between Christian and Eric, so Eric sees every step.
+Eric talks with Cursor. The intent ledger is the only memory that
+survives the chat.
 
-This playbook is written from INT-304. There is no external spec. v1 is done by
-hand: no tool, no download, no daemon, and nothing that runs unattended.
+This playbook replaces the INT-304 staffing that named Jarvis as
+conductor and Claude as backup. Claude was cancelled as a working
+agent on 2026-11-22. There is no orchestration daemon: no tool, no
+download, and nothing that runs unattended.
 
-## Philosophy
+## How we work
 
-Christian talks to one Conductor. The Conductor routes work. A specialist does
-the one job it was given. A handoff is a dated file in the repo, not a paste.
-The intent ledger stays the only source of truth. Prove the loop by hand before
-anyone automates it.
+The shape is a triangle. Eric sits between Christian and Cursor.
+Christian does not talk to Cursor directly. Together they work the
+problem and test for failures and passing results. The full rules
+are in AGENTS.md. This file states the same roles and the written
+handoff format.
 
-## Roles
-
-| Who | v1 job |
+| Who | Job |
 |---|---|
-| Christian | CEO. The only approver. Nothing is applied without his explicit approval of that exact change. |
-| Jarvis | Conductor. No new bot. Routes work and writes the Zero Digest. |
-| Cursor cloud agents | Coding. |
-| Claude | Backup. Jarvis and Cursor have point. |
-| Ledger, DevBox, Omarchy, Hub | Written here so the names exist. Not staffed in v1. |
+| Christian | Decides and approves everything. He can override any rule. He runs every command on his laptop, including doors, nsh-test, d, and ship. No gate passes without output from his laptop. He merges onto main and seals. |
+| Eric | Grok Bot, Director of Operations. The link between Christian and Cursor. Talks with Christian directly and through copy-and-paste: Eric hands him paste-ready command blocks, and Christian pastes the output back. Reviews. A reviewer may flag or block a proposal until the flag is answered, and never approves. |
+| Cursor cloud agents | Do most of the coding, on branches. They do not push to main. Eric reviews the branch; Christian merges and seals. |
 
-Ruled 2026-11-09 and recorded 2026-11-10: Jarvis and Cursor have point, and
-Claude takes the backseat. That supersedes the filed line "NovaShell / coding
-= Claude".
-
-## Twelve house rules
+## House rules
 
 1. Nothing is applied without Christian's explicit approval of that exact
-   change. (AGENTS.md, Multi-AI roles.)
+   change. (AGENTS.md, How we work.)
 2. An agent does not touch sudo, sudoers, or a password prompt, and does not
-   work around them. (AGENTS.md, Sudo.)
-3. An agent stops before the boot chain, disk layout, LUKS, or the greeter.
-   (AGENTS.md, Stop.)
-4. A step that needs root is written out for Christian to run, with the reason
-   it needs privilege. An agent does not run it. (AGENTS.md, Sudo.)
-5. Christian runs the push. An agent does not push unless he says so. He runs
-   every command himself. (AGENTS.md, Multi-AI roles.)
-6. Secrets are never committed. Do not weaken a scanner: a missing scanner
-   fails the commit, and a skipped hook is stated in the next commit body.
+   work around them. A step that needs root is written out for Christian to
+   run, with the reason it needs privilege. (AGENTS.md, Sudo.)
+3. An agent stops before the boot chain, disk layout, LUKS, or the greeter,
+   and before a broad process kill. (AGENTS.md, Stop.)
+4. Agents never push to main. They may push a branch. Eric reviews the
+   branch; Christian merges onto main and seals. Christian runs every
+   command on his laptop. (AGENTS.md, How we work, and Version control.)
+5. Secrets are never committed. Secrets and confidential information never
+   leave this machine to the internet or to agents. A missing scanner fails
+   the commit, and a skipped hook is stated in the next commit body.
    (AGENTS.md, Security, and Version control.)
-7. A change to AGENTS.md is a proposal until Christian asks for that edit.
-   (AGENTS.md, Edit: never make unrequested changes.)
-8. Destructive commands are his. Broad process kills stop and ask. An agent
-   does not run them. (AGENTS.md, Stop.)
-9. Every ship is followed by a reload, and the deployed artifact is what gets
-   checked. A green build is not deployed. (AGENTS.md, Intent lifecycle, and
-   Build and test.)
-10. A commit message carries no Co-authored-by trailer. This is not a sentence
-    in AGENTS.md. It is the rule these sealed commits already follow.
-11. cistart opens the intent before code. cicomplete closes it only once the
-    evidence exists, never to tidy the end of a session. (AGENTS.md, Intent
-    lifecycle.)
-12. Every commit that carries Intent: also carries Seal:, and the plan text is
-    kept as a note under refs/notes/seals with
-    `git notes --ref=seals add --no-stripspace -F`. The flag keeps the bytes.
-    (AGENTS.md, Evidence. The command form is the one INT-306 ruled.)
+6. A change to AGENTS.md or this playbook is a proposal until Christian
+   asks for that edit. (AGENTS.md, Edit.)
+7. Every ship is followed by a reload, and the deployed artifact is what
+   gets checked. A green build is not deployed. (AGENTS.md, Intent
+   lifecycle, and Build and test.)
+8. cistart opens the intent before work of consequence. cicomplete closes
+   it only once the evidence exists, never to tidy the end of a session.
+   (AGENTS.md, Intent lifecycle.)
+9. Every commit that carries Intent: also carries Seal:, and the plan text
+   is kept as a note under refs/notes/seals with
+   `git notes --ref=seals add --no-stripspace -F`. The flag keeps the bytes.
+   (AGENTS.md, Evidence. The command form is the one INT-306 ruled.)
+10. A commit message carries no Co-authored-by trailer. This is not a
+    sentence in AGENTS.md. It is the rule the sealed commits already follow.
 
-## Handoff schema
+## Ledger
 
-A handoff is one file. The writer fills every field. One line on what the field
-means, then the values v1 allows.
+Agents propose. Christian applies.
 
-- Agent. Who wrote this file. Jarvis, Cursor, Claude, or Christian.
-- Status. Where this file sits. open (the owner has not answered), answered
-  (a reply file exists), or closed (Christian has given an approval phrase).
+An agent may write a ProposedStatus. That is a proposal. Christian applies
+the status on the intent. An agent does not move, tick, or close an intent
+unless he has approved that exact change.
+
+## Handoffs
+
+Daily work is copy-and-paste. When a written handoff is used, it is one
+dated file in zero/handoffs/, named YYYY-MM-DD-<agent>.md. Nothing in that
+directory runs on its own: no timer, no daemon, and no tool reads it by
+itself. (zero/handoffs/README.md.)
+
+A handoff is one file. The writer fills every field.
+
+- Agent. Who wrote this file. eric, cursor, or christian.
+- Status. open (the owner has not answered), answered (a reply file
+  exists), or closed (Christian has approved it).
 - Intent. The ledger item. INT-nnn, or the exact words "no INT yet, propose one".
-- Owner. Who must act next. Jarvis, Cursor, Claude, or Christian.
+- Owner. Who must act next. eric, cursor, or christian.
 - NeedsHuman. Whether Christian has to act before anyone else moves. yes or no.
 - NeedsHumanReason. Why, when NeedsHuman is yes. The word none when it is no.
 - Summary. What this handoff is, in one or two sentences.
@@ -76,19 +85,10 @@ means, then the values v1 allows.
 - Files. Repo paths this handoff is about, or the word none.
 - Links. Other handoffs, intent ids, or commit ids, or the word none.
 
-One writer per file. A reply is a new file. Do not edit someone else's handoff.
+One writer per file. A reply is a new file. Do not edit someone else's
+handoff. Existing files keep the names they were written under.
 
-## Ledger rule
-
-Agents propose. Christian applies.
-
-An agent may write a ProposedStatus. That is a proposal. Christian applies the
-status on the intent. An agent does not move, tick, or close an intent unless
-he has approved that exact change.
-
-## Approval phrases
-
-Christian's answer is one of these. Anything else is not an answer yet.
+When a written handoff asks for a decision, these are the named phrases:
 
 - yes. He approves that exact proposal. The owner may apply it, and nothing beside it.
 - no. He refuses it. Nothing is applied.
@@ -96,15 +96,12 @@ Christian's answer is one of these. Anything else is not an answer yet.
 - split this. Break the proposal into smaller pieces and bring each one back.
 - ledger update. Write the outcome into the intent ledger. This phrase does not apply code.
 
-## The first-week loop
+Christian can also approve or refuse in the chat.
 
-Run by hand. Three files, in this order.
+## First-week files (history)
 
-1. The Conductor, Jarvis, writes a handoff that routes INT-311.
-2. The specialist, a Cursor cloud agent, writes the reply.
-3. The Zero Digest, written by Jarvis, blends the two handoffs with what the
-   ledger says about INT-311. It is a story, not a list of fields.
-
-The three files of the first-week loop are in the tree:
-zero/handoffs/2026-11-10-jarvis.md, zero/handoffs/2026-11-10-cursor.md, and
-zero/handoffs/2026-11-10-zero-digest.md.
+The INT-304 first-week loop was proved by hand in three files that remain
+in the tree: zero/handoffs/2026-11-10-jarvis.md,
+zero/handoffs/2026-11-10-cursor.md, and
+zero/handoffs/2026-11-10-zero-digest.md. They keep the names they were
+written under. They are not the live staffing.
