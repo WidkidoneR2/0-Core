@@ -176,7 +176,7 @@ ShellRoot {
 
         Rectangle {
             anchors.fill: parent
-            anchors.margins: 10
+            anchors.margins: 0
             radius: 18
             color: root.bg
             border.color: root.divider
