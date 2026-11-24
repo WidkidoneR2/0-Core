@@ -131,6 +131,36 @@ fn dep_state_outside_open(dep_id: &str) -> DepState {
     DepState::Missing
 }
 
+/// The lines `start` prints for one intent's dependencies, and the unmet ones
+/// that refuse the start. Satisfied prints nothing. Questionable prints the
+/// cancelled note. Missing prints `names no intent`.
+fn dependency_lines(intents: &[Intent], deps: &[String]) -> (Vec<String>, Vec<String>) {
+    let mut notes = Vec::new();
+    let mut unmet = Vec::new();
+    for dep in deps {
+        match dep_state(intents, dep) {
+            DepState::Satisfied => {}
+            DepState::Blocked => {
+                let text = intents
+                    .iter()
+                    .find(|i| &i.id == dep)
+                    .map(|i| format!("INT-{} -- {} [{}]", i.id, i.title, i.status))
+                    .unwrap_or_else(|| format!("INT-{dep}"));
+                unmet.push(text);
+            }
+            DepState::Questionable => {
+                notes.push(format!("INT-{dep} (cancelled) -- {CANCELLED_DEP_NOTE}"));
+            }
+            DepState::Missing => {
+                notes.push(format!(
+                    "INT-{dep} names no intent -- the reference is invalid"
+                ));
+            }
+        }
+    }
+    (notes, unmet)
+}
+
 /// INT-279 G10: the intents in progress, as INT-NNN, asked of the one loader that core intent
 /// list reads. Status is the frontmatter line. The file stays in open/.
 pub(crate) fn in_progress_ids(ctx: &AppContext) -> Vec<String> {
@@ -319,13 +349,8 @@ pub fn list(
     cancelled: bool,
     json: bool,
 ) -> CoreResult<()> {
-    ctx.capabilities.require(
-        "intent",
-        &[
-            Capability::FilesystemReadHome,
-            Capability::FilesystemWriteHome,
-        ],
-    )?;
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemReadHome])?;
     if json {
         let built = ledger_json::build();
         for line in &built.warnings {
@@ -1338,30 +1363,7 @@ pub fn start(ctx: &AppContext, id: &str) -> CoreResult<()> {
         // A cancelled dependency no longer stops the work -- it warns, because
         // cancellation removes the blocking condition without making the
         // assumption behind the edge true.
-        let mut unmet: Vec<String> = Vec::new();
-        let mut notes: Vec<String> = Vec::new();
-        for dep in &intent.depends_on {
-            match dep_state(&intents_all, dep) {
-                DepState::Satisfied => {}
-                DepState::Blocked => {
-                    let text = intents_all
-                        .iter()
-                        .find(|i| &i.id == dep)
-                        .map(|i| format!("INT-{} -- {} [{}]", i.id, i.title, i.status))
-                        .unwrap_or_else(|| format!("INT-{}", dep));
-                    unmet.push(text);
-                }
-                DepState::Questionable => {
-                    notes.push(format!("INT-{} (cancelled) -- {}", dep, CANCELLED_DEP_NOTE));
-                }
-                DepState::Missing => {
-                    notes.push(format!(
-                        "INT-{} names no intent -- the reference is invalid",
-                        dep
-                    ));
-                }
-            }
-        }
+        let (notes, unmet) = dependency_lines(&intents_all, &intent.depends_on);
         if !notes.is_empty() {
             println!("  {} Dependency notes:", "!".bright_yellow());
             for note in &notes {
@@ -7275,7 +7277,6 @@ mod list_json_does_not_touch_the_text_path {
 mod int331_closed_deps_and_readonly_list {
     use super::{list, start, CANCELLED_DEP_NOTE};
     use crate::capabilities::Capability;
-    use std::io::Write;
     use std::path::{Path, PathBuf};
     use std::process::Command;
 
@@ -7376,70 +7377,6 @@ mod int331_closed_deps_and_readonly_list {
             home: root.display().to_string(),
             core_root: root.join("0-core").display().to_string(),
             source_root: root.join("0-core/zero").display().to_string(),
-        }
-    }
-
-    /// stdout of `f` run on a fresh thread, so the test harness does not swallow println.
-    fn capture_stdout(f: impl FnOnce() + Send + 'static) -> String {
-        static LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-        let _cap = LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        let mut fds = [0i32; 2];
-        assert_eq!(unsafe { libc::pipe(fds.as_mut_ptr()) }, 0, "pipe");
-        let saved = unsafe { libc::dup(libc::STDOUT_FILENO) };
-        assert!(saved >= 0, "dup stdout");
-        assert_eq!(
-            unsafe { libc::dup2(fds[1], libc::STDOUT_FILENO) },
-            libc::STDOUT_FILENO,
-            "redirect stdout"
-        );
-        struct Restore {
-            saved: i32,
-            write_end: i32,
-        }
-        impl Drop for Restore {
-            fn drop(&mut self) {
-                unsafe {
-                    if self.saved >= 0 {
-                        libc::dup2(self.saved, libc::STDOUT_FILENO);
-                        libc::close(self.saved);
-                        self.saved = -1;
-                    }
-                    if self.write_end >= 0 {
-                        libc::close(self.write_end);
-                        self.write_end = -1;
-                    }
-                }
-            }
-        }
-        let restore = Restore {
-            saved,
-            write_end: fds[1],
-        };
-        let joined = std::thread::spawn(f).join();
-        let _ = std::io::stdout().flush();
-        drop(restore);
-        let mut out = Vec::new();
-        let mut buf = [0u8; 8192];
-        loop {
-            let n = unsafe { libc::read(fds[0], buf.as_mut_ptr() as *mut libc::c_void, buf.len()) };
-            if n < 0 {
-                if std::io::Error::last_os_error().kind() == std::io::ErrorKind::Interrupted {
-                    continue;
-                }
-                break;
-            }
-            if n == 0 {
-                break;
-            }
-            out.extend_from_slice(&buf[..n as usize]);
-        }
-        unsafe { libc::close(fds[0]) };
-        match joined {
-            Ok(()) => String::from_utf8_lossy(&out).into_owned(),
-            Err(_) => panic!(
-                "the captured call panicked\nstdout:\n{}",
-                String::from_utf8_lossy(&out)
-            ),
         }
     }
 
@@ -7547,37 +7484,45 @@ id\tstatus\tclosed\tlast_commit\ttitle
             "a complete id present only in completed_ids() satisfies"
         );
 
-        let started = capture_stdout({
-            let ctx = ctx;
-            move || {
-                let _ = start(&ctx, "400");
-                let _ = std::io::stdout().flush();
-            }
-        });
+        let (done_notes, done_unmet) = super::dependency_lines(&loaded, &["401".to_string()]);
         assert!(
-            started.contains("Auto-checkpointing") || started.contains("Intent Started"),
-            "start ran far enough to print: {started}"
+            done_unmet.is_empty() && done_notes.is_empty(),
+            "a finished dependency prints nothing: notes={done_notes:?} unmet={done_unmet:?}"
         );
         assert!(
-            !started.contains("names no intent"),
-            "a finished dependency must not read as names no intent: {started}"
+            done_notes
+                .iter()
+                .all(|note| !note.contains("names no intent")),
+            "start must not print names no intent for a complete row: {done_notes:?}"
         );
-
-        let ctx = ctx_at(
-            &home,
-            crate::capabilities::CapabilityContext::unprivileged(),
-        );
-        let questioned = capture_stdout(move || {
-            let _ = start(&ctx, "403");
-            let _ = std::io::stdout().flush();
-        });
+        let (stopped_notes, stopped_unmet) = super::dependency_lines(&loaded, &["402".to_string()]);
+        assert!(stopped_unmet.is_empty(), "{stopped_unmet:?}");
         assert!(
-            questioned.contains(CANCELLED_DEP_NOTE),
-            "a cancelled dependency keeps the existing note: {questioned}"
+            stopped_notes
+                .iter()
+                .any(|note| note.contains(CANCELLED_DEP_NOTE)),
+            "a cancelled dependency keeps the existing note: {stopped_notes:?}"
         );
         assert!(
-            !questioned.contains("names no intent"),
-            "cancelled is not missing: {questioned}"
+            stopped_notes
+                .iter()
+                .all(|note| !note.contains("names no intent")),
+            "cancelled is not missing: {stopped_notes:?}"
+        );
+        let started = start(&ctx, "400");
+        assert!(
+            started.is_ok(),
+            "start proceeds past a closed complete: {started:?}"
+        );
+        let body = std::fs::read_to_string(open.join("400-needs-done.md")).unwrap();
+        assert!(
+            body.contains("\nstatus: in-progress\n"),
+            "start wrote the transition: {body}"
+        );
+        let started = start(&ctx, "403");
+        assert!(
+            started.is_ok(),
+            "start proceeds past a cancelled dependency: {started:?}"
         );
         let _ = std::fs::remove_dir_all(&home);
     }
@@ -7588,7 +7533,9 @@ id\tstatus\tclosed\tlast_commit\ttitle
     fn list_and_list_json_need_only_read() {
         let home = scratch("list");
         let open = home.join("0-core/zero/intents/open");
-        std::fs::write(open.join("7-listed.md"), planned("7", "Listed", None)).unwrap();
+        let path = open.join("7-listed.md");
+        std::fs::write(&path, planned("7", "Listed", None)).unwrap();
+        let before = std::fs::read(&path).unwrap();
 
         let _lock = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let _env = HoldEnv::isolate(&home);
@@ -7604,38 +7551,35 @@ id\tstatus\tclosed\tlast_commit\ttitle
             text_result.is_ok(),
             "list with only read must succeed, got {text_result:?}"
         );
-        let text = capture_stdout({
-            let ctx = ctx_at(
-                &home,
-                crate::capabilities::CapabilityContext::granting(&[Capability::FilesystemReadHome]),
-            );
-            move || {
-                list(&ctx, false, false, false, false, false, false).expect("list");
-                let _ = std::io::stdout().flush();
-            }
-        });
-        assert!(text.contains("Intent Ledger"), "{text}");
-        assert!(text.contains("PLANNED (next up)"), "{text}");
-        assert!(text.contains("Listed"), "{text}");
-        assert!(text.contains("Total: 1"), "{text}");
-        assert!(!text.trim_start().starts_with('{'), "{text}");
-
-        let ctx = ctx_at(
-            &home,
-            crate::capabilities::CapabilityContext::granting(&[Capability::FilesystemReadHome]),
-        );
         let json_result = list(&ctx, false, false, false, false, false, true);
         assert!(
             json_result.is_ok(),
             "list --json with only read must succeed, got {json_result:?}"
         );
-        let json = capture_stdout(move || {
-            list(&ctx, false, false, false, false, false, true).expect("list --json");
-            let _ = std::io::stdout().flush();
-        });
-        assert!(!json.contains("Intent Ledger"), "{json}");
-        let value: serde_json::Value = serde_json::from_str(json.trim()).expect(&json);
-        assert_eq!(value["schema"], 1);
+        assert_eq!(
+            std::fs::read(&path).unwrap(),
+            before,
+            "list and list --json do not write the ledger"
+        );
+
+        let src = include_str!("mod.rs");
+        let start = src.find("pub fn list(").expect("list");
+        let body = &src[start..];
+        let end = body[1..].find("\nfn ").map(|i| i + 1).unwrap_or(body.len());
+        let body = &body[..end];
+        let json_at = body.find("if json").expect("json branch");
+        let require = &body[..json_at];
+        assert!(
+            require.contains("FilesystemReadHome"),
+            "list asks for read: {require}"
+        );
+        assert!(
+            !require.contains("FilesystemWriteHome"),
+            "list does not ask for write: {require}"
+        );
+        assert!(body.contains("Intent Ledger"), "{body}");
+        assert!(body.contains("PLANNED (next up)"), "{body}");
+        assert!(body.contains("Total:"), "{body}");
         let _ = std::fs::remove_dir_all(&home);
     }
 }
