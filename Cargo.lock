@@ -504,7 +504,7 @@ dependencies = [
 
 [[package]]
 name = "core"
-version = "5.3.1"
+version = "5.3.2"
 dependencies = [
  "anyhow",
  "chrono",
@@ -3624,7 +3624,7 @@ dependencies = [
 
 [[package]]
 name = "zero-core"
-version = "1.3.0"
+version = "1.3.1"
 dependencies = [
  "fontdue",
  "libc",
@@ -3653,7 +3653,7 @@ dependencies = [
 
 [[package]]
 name = "zero-deadwood"
-version = "1.1.0"
+version = "1.1.1"
 dependencies = [
  "clap",
  "colored",

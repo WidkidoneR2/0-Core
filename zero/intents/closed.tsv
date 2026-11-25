@@ -22,3 +22,4 @@ id	status	closed	last_commit	title	reason
 330	complete	2026-11-24	f167b5d246ed2ca4438ef9af0c8e061b5ecfb14c	The intent ledger panel: core intent list --json and a Quickshell panel that reads it
 331	complete	2026-11-24	f459e49548253d7b263d7854e19f8feab0cfce2f	Bug batch 5: closed dependencies count, list is read-only, version fixtures
 332	complete	2026-11-24	934605ad94b27a7cdc5e44f3cc39cfcdc6a2bb32	AGENTS.md and PLAYBOOK.md describe how we work now
+352	complete	2026-11-24	4b1cdfb8603f1a7f63c6b0ed239198e6a968256e	zero-deadwood knows every intent ever filed
