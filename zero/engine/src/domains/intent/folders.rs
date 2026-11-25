@@ -37,8 +37,9 @@ const GIT_LIFECYCLE: &[&str] = &[
 
 /// The ONE numberer. One plus the highest three-digit id in the directories that share the
 /// category's namespace: all of LIFECYCLE for a lifecycle directory, only its own otherwise.
-/// A lifecycle number also counts `closed.tsv` and, when git can answer about this shelf,
-/// every id git has stored under a lifecycle folder.
+/// A lifecycle number also counts `closed.tsv`, `historical-ids.tsv`, and, when git can
+/// answer about this shelf, every id git has stored under a lifecycle folder.
+/// 999 is reserved, so a highest of 998 returns 1000.
 pub fn next_number(base: &Path, category: &str) -> u32 {
     let scan: Vec<&str> = if LIFECYCLE.contains(&category) {
         LIFECYCLE.to_vec()
@@ -66,11 +67,29 @@ pub fn next_number(base: &Path, category: &str) -> u32 {
             }
             Err(err) => eprintln!("closed.tsv: {err}"),
         }
+        match zero_core::ledger::read_historical(base) {
+            Ok(index) => {
+                for warning in &index.warnings {
+                    eprintln!("historical-ids.tsv: {warning}");
+                }
+                for row in &index.rows {
+                    if let Some(n) = three_digit_prefix(&format!("{:03}", row.id)) {
+                        highest = highest.max(n);
+                    }
+                }
+            }
+            Err(err) => eprintln!("historical-ids.tsv: {err}"),
+        }
         if let Some(n) = highest_git_lifecycle_id(base) {
             highest = highest.max(n);
         }
     }
-    highest + 1
+    let next = highest + 1;
+    if next == 999 {
+        1000
+    } else {
+        next
+    }
 }
 
 fn three_digit_prefix(name: &str) -> Option<u32> {
@@ -353,5 +372,31 @@ mod tests {
         let n = next_number(&base, "open");
         let _ = fs::remove_dir_all(&base);
         assert_eq!(n, 352, "closed 332 plus historical 351, got {n}");
+    }
+
+    /// INT-352 G5. 999 is reserved. A highest id of 998 must not be handed out as 999.
+    #[test]
+    fn the_numberer_skips_999() {
+        let base = fixture("skip999", &["open/100-a.md"]);
+        fs::write(base.join("historical-ids.tsv"), "998\thighest\n").unwrap();
+        let n = next_number(&base, "open");
+        let _ = fs::remove_dir_all(&base);
+        assert_eq!(n, 1000, "998 is followed by 1000, got {n}");
+    }
+
+    /// INT-352 G5. An unreadable historical list is reported and is not an empty
+    /// success that hides closed.tsv. Same shape as an unreadable closed.tsv.
+    #[test]
+    fn an_unreadable_historical_list_leaves_closed_tsv_in_force() {
+        let base = fixture("histunreadable", &["open/100-a.md"]);
+        fs::write(
+            base.join("closed.tsv"),
+            "id\tstatus\tclosed\tlast_commit\ttitle\n332\tcomplete\t2026-11-24\tabc1234\tfinished\n",
+        )
+        .unwrap();
+        fs::create_dir(base.join("historical-ids.tsv")).unwrap();
+        let n = next_number(&base, "open");
+        let _ = fs::remove_dir_all(&base);
+        assert_eq!(n, 333, "closed 332 still counts, got {n}");
     }
 }
