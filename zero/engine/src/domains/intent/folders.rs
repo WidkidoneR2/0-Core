@@ -337,4 +337,21 @@ mod tests {
         let _ = fs::remove_dir_all(&root);
         assert_eq!(n, 320, "open/302 plus git history 319");
     }
+
+    /// INT-352 G5. closed.tsv stops at 332, no open file is higher, and the
+    /// historical list includes 351. The next open id is 352. A temp root, so
+    /// the git walk of ~/0-core cannot supply 351.
+    #[test]
+    fn a_historical_id_is_not_reissued() {
+        let base = fixture("hist351", &["open/100-a.md"]);
+        fs::write(
+            base.join("closed.tsv"),
+            "id\tstatus\tclosed\tlast_commit\ttitle\n332\tcomplete\t2026-11-24\tabc1234\tfinished\n",
+        )
+        .unwrap();
+        fs::write(base.join("historical-ids.tsv"), "351\tnixos-scripts\n").unwrap();
+        let n = next_number(&base, "open");
+        let _ = fs::remove_dir_all(&base);
+        assert_eq!(n, 352, "closed 332 plus historical 351, got {n}");
+    }
 }
