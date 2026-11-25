@@ -1643,4 +1643,45 @@ mod citation_check_tests {
             found[0].detail
         );
     }
+
+    /// INT-352 G1. closed.tsv has one complete row and one cancelled row. open/
+    /// holds only a higher uncited id, so the ledger is readable and the complete
+    /// id is a gap on today's check. Neither citation should be dangling: a closed
+    /// row is filed. The root is a temp directory, not ~/0-core, so git_ids_in
+    /// cannot supply the ids. Red until the check reads closed.tsv.
+    #[test]
+    fn a_complete_and_a_cancelled_closed_tsv_row_are_not_dangling() {
+        let root = citation_fixture("closedtsv", &["400-later.md"], "// INT-210\n// INT-220\n");
+        assert_ne!(
+            root.as_path(),
+            zero_core::paths::core_dir().as_path(),
+            "git_ids_in runs only when root is ~/0-core"
+        );
+        let mut closed = String::new();
+        closed.push_str("id\tstatus\tclosed\tlast_commit\ttitle\treason\n");
+        closed.push_str(
+            "210\tcomplete\t2026-11-24\t0123456789abcdef0123456789abcdef01234567\tfinished work\n",
+        );
+        closed.push_str(
+            "220\tcancelled\t2026-11-24\tfedcba9876543210fedcba9876543210fedcba98\tdropped\tdeclined\n",
+        );
+        std::fs::write(root.join("zero/intents/closed.tsv"), &closed).expect("closed.tsv");
+        let found = check_dangling_intent_citations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        let details: Vec<&str> = found.iter().map(|f| f.detail.as_str()).collect();
+        assert!(
+            details.iter().all(|d| !d.contains("not readable")),
+            "the fixture ledger is readable, so a miss is a dangling citation: {details:?}"
+        );
+        let dangling: Vec<&str> = details
+            .iter()
+            .copied()
+            .filter(|d| d.contains("INT-210") || d.contains("INT-220"))
+            .collect();
+        assert_eq!(
+            dangling,
+            Vec::<&str>::new(),
+            "neither a complete nor a cancelled closed.tsv id is dangling"
+        );
+    }
 }
