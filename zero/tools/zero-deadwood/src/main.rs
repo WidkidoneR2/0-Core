@@ -571,10 +571,14 @@ fn check_dangling_intent_citations(root: &Path) -> Vec<Finding> {
     }
 
     let mut out = Vec::new();
+    let mut reserved = false;
     for (num, places) in &cites {
-        let (kind, confidence) = if *num == 0 {
-            continue; // reserved placeholder -- reported in the summary line below, not as a finding
-        } else if *num > highest {
+        // INT-000 and INT-999 are reserved. They are not dangling findings.
+        if *num == 0 || *num == 999 {
+            reserved = true;
+            continue;
+        }
+        let (kind, confidence) = if *num > highest {
             ("forward", Confidence::Medium)
         } else {
             ("gap", Confidence::High)
@@ -588,6 +592,9 @@ fn check_dangling_intent_citations(root: &Path) -> Vec<Finding> {
             ),
             action: None,
         });
+    }
+    if reserved {
+        println!("  INT-000 and INT-999 are reserved");
     }
     out
 }
@@ -1835,6 +1842,30 @@ mod citation_check_tests {
             !found[0].detail.contains("no intent filed"),
             "an unreadable historical list is not a dangling citation: {}",
             found[0].detail
+        );
+    }
+
+    /// INT-352 G4. INT-999 is reserved, like INT-000. An unfiled number still flags.
+    /// No intent file is created for 999.
+    #[test]
+    fn int_999_is_reserved_and_an_unfiled_id_is_not() {
+        let root = citation_fixture(
+            "reserved999",
+            &["400-later.md"],
+            "// INT-000\n// INT-999\n// INT-250\n",
+        );
+        let found = check_dangling_intent_citations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        let details: Vec<&str> = found.iter().map(|f| f.detail.as_str()).collect();
+        assert!(
+            details
+                .iter()
+                .all(|d| !d.contains("INT-999") && !d.contains("INT-000")),
+            "reserved ids are not dangling: {details:?}"
+        );
+        assert!(
+            details.iter().any(|d| d.contains("INT-250")),
+            "an unfiled id is still dangling: {details:?}"
         );
     }
 }
