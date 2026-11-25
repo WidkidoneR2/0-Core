@@ -290,22 +290,54 @@ fn parse_historical(text: &str) -> HistoricalIndex {
     index
 }
 
-/// Intent id in a path under [`HISTORICAL_PREFIXES`].
+/// Lifecycle shelves an old intent file may sit in. `arch-era` is a parent of
+/// these shelves, not a shelf of its own.
+const HISTORICAL_LIFECYCLE: &[&str] = &[
+    "future",
+    "planned",
+    "in-progress",
+    "complete",
+    "cancelled",
+    "archive",
+    "open",
+    "deferred",
+    "active",
+];
+
+/// Intent id in a numbered intent file under [`HISTORICAL_PREFIXES`].
 ///
-/// `intents/complete/180-sway.md` is 180. `00-INDEX.md` and `999-fixture.md` are
-/// not historical ids. A path under `zero/intents/` is the live ledger, not this list.
+/// The file's directory is a lifecycle shelf (`future`, `planned`,
+/// `in-progress`, `complete`, `cancelled`, `archive`, `open`, `deferred`,
+/// `active`), including `arch-era/<shelf>`. The filename matches `^[0-9]{3}-`.
+/// Record shelves ([`RECORDS`]) are not intents. `000` and `999` are reserved.
+/// A path under `zero/intents/` is the live ledger, not this list.
 pub fn historical_id_from_path(path: &str) -> Option<u32> {
     let path = path.trim().trim_matches('"');
-    if !HISTORICAL_PREFIXES
+    let rest = HISTORICAL_PREFIXES
         .iter()
-        .any(|prefix| path.starts_with(prefix))
-    {
+        .find_map(|prefix| path.strip_prefix(prefix))?;
+    let parts: Vec<&str> = rest.split('/').collect();
+    if parts.len() < 2 {
         return None;
     }
-    let base = path.rsplit('/').next()?;
+    let base = parts[parts.len() - 1];
+    let dirs = &parts[..parts.len() - 1];
+    if dirs.iter().any(|dir| RECORDS.contains(dir)) {
+        return None;
+    }
+    let parent = *dirs.last()?;
+    if !HISTORICAL_LIFECYCLE.contains(&parent) {
+        return None;
+    }
+    if dirs.len() == 2 && dirs[0] != "arch-era" {
+        return None;
+    }
+    if dirs.len() > 2 {
+        return None;
+    }
     let stem = base.strip_suffix(".md")?;
-    let (num, rest) = stem.split_once('-')?;
-    if rest.is_empty() || num.is_empty() || !num.bytes().all(|b| b.is_ascii_digit()) {
+    let (num, slug) = stem.split_once('-')?;
+    if slug.is_empty() || num.len() != 3 || !num.bytes().all(|b| b.is_ascii_digit()) {
         return None;
     }
     let n = num.parse::<u32>().ok()?;
@@ -745,10 +777,78 @@ mod tests {
             super::historical_id_from_path("zero/intents/open/352-live.md"),
             None
         );
+        assert_eq!(
+            super::historical_id_from_path("intents/arch-era/complete/349-parity.md"),
+            Some(349)
+        );
+        assert_eq!(
+            super::historical_id_from_path("intents/decisions/043-paru.md"),
+            None
+        );
+        assert_eq!(
+            super::historical_id_from_path("intents/incidents/190-login.md"),
+            None
+        );
+        assert_eq!(
+            super::historical_id_from_path("intents/philosophy/002-tool.md"),
+            None
+        );
+        assert_eq!(
+            super::historical_id_from_path("intents/experiments/001-starship.md"),
+            None
+        );
+        assert_eq!(
+            super::historical_id_from_path(
+                "faelight/intents/incidents/2025-sudo-authentication-failure.md"
+            ),
+            None
+        );
+        assert_eq!(
+            super::historical_id_from_path("INTENT/064-rust-tools-improvements.md"),
+            None
+        );
     }
 
-    /// INT-352 G3. Every id git still names under the old prefixes is in the list.
-    /// Not a git checkout: print a note and skip. 000 and 999 are reserved.
+    /// INT-352. The checked-in list stays inside three-digit intent ids.
+    /// 000 and 999 are reserved. A year-sized incident number does not belong.
+    #[test]
+    fn historical_list_ids_do_not_exceed_999_or_use_000_or_999() {
+        let mut dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let root = loop {
+            if dir.join("zero/intents/historical-ids.tsv").is_file() {
+                break dir;
+            }
+            if !dir.pop() {
+                panic!("historical-ids.tsv is not in this source tree");
+            }
+        };
+        let listed = super::read_historical(&root.join("zero/intents"))
+            .expect("historical-ids.tsv should be readable");
+        assert!(
+            listed.warnings.is_empty(),
+            "historical-ids.tsv has warnings: {:?}",
+            listed.warnings
+        );
+        assert!(!listed.rows.is_empty(), "the historical list is empty");
+        for row in &listed.rows {
+            assert!(
+                (1..999).contains(&row.id),
+                "id {} is outside 001-998",
+                row.id
+            );
+        }
+        let ids: std::collections::BTreeSet<u32> = listed.rows.iter().map(|row| row.id).collect();
+        assert!(!ids.contains(&0));
+        assert!(!ids.contains(&999));
+        assert!(!ids.contains(&2025));
+        assert!(!ids.contains(&2026));
+        assert!(!ids.contains(&2027));
+        assert!(*ids.iter().next_back().unwrap() <= 351);
+    }
+
+    /// INT-352 G3. Every intent id git names in a lifecycle shelf is in the list.
+    /// Not a git checkout: print a note and skip. Record shelves are not intents.
+    /// 000 and 999 are reserved.
     #[test]
     fn historical_list_covers_every_old_prefix_id_git_names() {
         let mut dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));

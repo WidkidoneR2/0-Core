@@ -1,7 +1,9 @@
-# Historical intent ids filed before the June 2026 purge (c847e8b7).
+# Historical intent ids: numbered intent files in lifecycle shelves only.
 # git log --all --name-only --format= -- intents faelight/intents INTENT
-# One id, a tab, then the filename slug. A line starting with # is a comment.
+# The directory is future, planned, in-progress, complete, cancelled, archive, open, deferred, or active, including under arch-era/.
+# The filename matches ^[0-9]{3}-. decisions, incidents, philosophy, and experiments are not intents.
 # 000 and 999 are reserved and are not listed.
+# One id, a tab, then the filename slug. A line starting with # is a comment.
 # Non-ASCII marks in old filenames were replaced with ASCII.
 1	gpu-profiles--omega-drivers-legacy
 2	faelight-bar--custom-rust-wayland-bar
@@ -353,6 +355,3 @@
 349	faelight-forest-nixos-parity
 350	upgrade-rust-toolchain-to-1.93+-via-fenix-for-faelight-fm
 351	nixos-scripts-layer--lock-core,-unlock-core,-deploy,-core-protect
-2025	sudo-authentication-failure--pam-system-auth-broken-after-tool-audit
-2026	02-03-shutdown-broken-numbered-gravity
-2027	sudo-authentication-failure--pam-system-auth-broken-after-tool-audit
