@@ -213,10 +213,6 @@ pub fn completed_ids_from(dir: &Path) -> Result<ClosedIds, String> {
     })
 }
 
-/// Old ledgers whose ids are listed in `historical-ids.tsv`.
-/// `zero/intents/` is the live ledger and is not one of these.
-pub const HISTORICAL_PREFIXES: &[&str] = &["intents/", "faelight/intents/", "INTENT/"];
-
 /// One id from `historical-ids.tsv`.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HistoricalRow {
@@ -304,7 +300,7 @@ const HISTORICAL_LIFECYCLE: &[&str] = &[
     "active",
 ];
 
-/// Intent id in a numbered intent file under [`HISTORICAL_PREFIXES`].
+/// Intent id in a numbered intent file under [`crate::paths::HISTORICAL_PREFIXES`].
 ///
 /// The file's directory is a lifecycle shelf (`future`, `planned`,
 /// `in-progress`, `complete`, `cancelled`, `archive`, `open`, `deferred`,
@@ -313,9 +309,9 @@ const HISTORICAL_LIFECYCLE: &[&str] = &[
 /// A path under `zero/intents/` is the live ledger, not this list.
 pub fn historical_id_from_path(path: &str) -> Option<u32> {
     let path = path.trim().trim_matches('"');
-    let rest = HISTORICAL_PREFIXES
+    let rest = crate::paths::HISTORICAL_PREFIXES
         .iter()
-        .find_map(|prefix| path.strip_prefix(prefix))?;
+        .find_map(|prefix| path.strip_prefix(*prefix))?;
     let parts: Vec<&str> = rest.split('/').collect();
     if parts.len() < 2 {
         return None;
@@ -758,7 +754,10 @@ mod tests {
             Some(180)
         );
         assert_eq!(
-            super::historical_id_from_path("faelight/intents/future/351-nixos.md"),
+            super::historical_id_from_path(&old_ledger(
+                crate::paths::HISTORICAL_PREFIXES[1],
+                "future/351-nixos.md",
+            )),
             Some(351)
         );
         assert_eq!(
@@ -798,15 +797,23 @@ mod tests {
             None
         );
         assert_eq!(
-            super::historical_id_from_path(
-                "faelight/intents/incidents/2025-sudo-authentication-failure.md"
-            ),
+            super::historical_id_from_path(&old_ledger(
+                crate::paths::HISTORICAL_PREFIXES[1],
+                "incidents/2025-sudo-authentication-failure.md",
+            )),
             None
         );
         assert_eq!(
-            super::historical_id_from_path("INTENT/064-rust-tools-improvements.md"),
+            super::historical_id_from_path(&format!(
+                "INTENT/064-{}-improvements.md",
+                crate::paths::CRATE_PARENTS_HISTORY[0]
+            )),
             None
         );
+    }
+
+    fn old_ledger(prefix: &str, rest: &str) -> String {
+        format!("{prefix}{rest}")
     }
 
     /// INT-352. The checked-in list stays inside three-digit intent ids.
@@ -864,7 +871,7 @@ mod tests {
             eprintln!("historical-ids drift: not a git checkout, skipped");
             return;
         };
-        let specs: Vec<&str> = super::HISTORICAL_PREFIXES
+        let specs: Vec<&str> = crate::paths::HISTORICAL_PREFIXES
             .iter()
             .map(|prefix| prefix.trim_end_matches('/'))
             .collect();

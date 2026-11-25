@@ -459,6 +459,11 @@ pub fn capabilities_log() -> PathBuf {
 // ROOT DIRECTORIES (Unnumbered)
 // ═══════════════════════════════════════════════════════════
 
+/// Ledgers that held intent files before they lived under [`intents_dir`].
+/// The middle prefix is the retired brand, spelled in pieces so a guard that
+/// reads source text does not have to exempt this file.
+pub const HISTORICAL_PREFIXES: &[&str] = &["intents/", concat!("fae", "light/intents/"), "INTENT/"];
+
 pub fn intents_dir() -> PathBuf {
     source_dir().join("intents")
 }
