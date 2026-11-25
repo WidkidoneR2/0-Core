@@ -506,6 +506,36 @@ fn check_dangling_intent_citations(root: &Path) -> Vec<Finding> {
             }
         }
     }
+    // closed.tsv sits beside those directories, so the walk above skips it.
+    // read_closed is the reader. Complete and cancelled rows are both filed;
+    // completed_ids_from drops cancelled. A missing file adds no ids. An
+    // unreadable file or a malformed row is the same family as an unreadable
+    // ledger: name it, and do not report every citation as dangling.
+    let closed_unreadable = |why: &str| {
+        vec![Finding {
+            confidence: Confidence::High,
+            detail: format!("closed.tsv not readable -- citations cannot be checked: {why}"),
+            action: None,
+        }]
+    };
+    match zero_core::ledger::read_closed(&intents) {
+        Err(err) => return closed_unreadable(&err),
+        Ok(index) if !index.warnings.is_empty() => {
+            return closed_unreadable(&index.warnings.join("; "));
+        }
+        Ok(index) => {
+            for row in index.rows {
+                match row.id.parse::<u32>() {
+                    Ok(n) => {
+                        filed.insert(n);
+                    }
+                    Err(_) => {
+                        return closed_unreadable(&format!("id {} is not a u32", row.id));
+                    }
+                }
+            }
+        }
+    }
     if filed.is_empty() {
         // ⚠️ A CHECK THAT CANNOT SEE THE LEDGER MUST NOT REPORT EVERY CITATION AS DANGLING. That
         // would be the failure this whole family of checks exists to prevent: an unanswerable
@@ -1644,11 +1674,10 @@ mod citation_check_tests {
         );
     }
 
-    /// INT-352 G1. closed.tsv has one complete row and one cancelled row. open/
-    /// holds only a higher uncited id, so the ledger is readable and the complete
-    /// id is a gap on today's check. Neither citation should be dangling: a closed
-    /// row is filed. The root is a temp directory, not ~/0-core, so git_ids_in
-    /// cannot supply the ids. Red until the check reads closed.tsv.
+    /// INT-352 G1. closed.tsv has one complete row and one cancelled row, and
+    /// open/ holds only a higher uncited id. Both closed rows are filed, so
+    /// neither citation is dangling. The root is a temp directory, not ~/0-core,
+    /// so git_ids_in cannot supply the ids.
     #[test]
     fn a_complete_and_a_cancelled_closed_tsv_row_are_not_dangling() {
         let root = citation_fixture("closedtsv", &["400-later.md"], "// INT-210\n// INT-220\n");
@@ -1682,6 +1711,62 @@ mod citation_check_tests {
             dangling,
             Vec::<&str>::new(),
             "neither a complete nor a cancelled closed.tsv id is dangling"
+        );
+    }
+
+    /// INT-352 G2. A closed.tsv that cannot be read is one ledger finding.
+    /// It is not an empty id set, and the citation is not reported dangling.
+    #[test]
+    fn an_unreadable_closed_tsv_is_a_ledger_failure() {
+        let root = citation_fixture("closedunread", &["400-later.md"], "// INT-210\n");
+        std::fs::create_dir(root.join("zero/intents/closed.tsv")).expect("unreadable closed.tsv");
+        let found = check_dangling_intent_citations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(
+            found.len(),
+            1,
+            "one finding about closed.tsv, not a dangling citation: {:?}",
+            found.iter().map(|f| &f.detail).collect::<Vec<_>>()
+        );
+        assert!(
+            found[0].detail.contains("closed.tsv") && found[0].detail.contains("not readable"),
+            "it must name closed.tsv as not readable: {}",
+            found[0].detail
+        );
+        assert!(
+            !found[0].detail.contains("no intent filed"),
+            "an unreadable closed.tsv is not a dangling citation: {}",
+            found[0].detail
+        );
+    }
+
+    /// INT-352 G2. A malformed row is a ledger failure even when another row
+    /// would have parsed. The good id is not silently kept, and not treated as absent.
+    #[test]
+    fn a_malformed_closed_tsv_is_a_ledger_failure() {
+        let root = citation_fixture("closedbad", &["400-later.md"], "// INT-210\n");
+        let mut closed = String::new();
+        closed.push_str("id\tstatus\tclosed\tlast_commit\ttitle\n");
+        closed.push_str("210\tcomplete\t2026-11-24\tabc1234\tfinished\n");
+        closed.push_str("not a row\n");
+        std::fs::write(root.join("zero/intents/closed.tsv"), closed).expect("closed.tsv");
+        let found = check_dangling_intent_citations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(
+            found.len(),
+            1,
+            "one finding about closed.tsv, not a dangling citation: {:?}",
+            found.iter().map(|f| &f.detail).collect::<Vec<_>>()
+        );
+        assert!(
+            found[0].detail.contains("closed.tsv") && found[0].detail.contains("not readable"),
+            "it must name closed.tsv as not readable: {}",
+            found[0].detail
+        );
+        assert!(
+            !found[0].detail.contains("no intent filed"),
+            "a malformed closed.tsv is not a dangling citation: {}",
+            found[0].detail
         );
     }
 }
