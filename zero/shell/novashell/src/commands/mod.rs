@@ -534,9 +534,8 @@ mod escape_tokenize_tests {
         assert_eq!(got, vec!["echo".to_string(), "a\"b".to_string()]);
     }
 
-    // INT-353 G1. Red on the code as it stands: an empty quoted word is
-    // dropped, and a backslash inside double quotes is removed before any
-    // next character, including n.
+    // INT-353. An empty quoted word stays, and \n inside double quotes keeps
+    // the backslash: n is not one of $ ` " \ or newline.
     #[test]
     fn printf_double_quoted_format_keeps_backslash_n_and_the_empty_argument() {
         let got = super::tokenize("printf \"[%s]\\n\" \"\"");
@@ -596,6 +595,73 @@ mod escape_tokenize_tests {
         let got = super::tokenize("echo \"a\\\\b\"");
         assert_eq!(got, vec!["echo".to_string(), "a\\b".to_string()]);
     }
+
+    // INT-353 G3. Inside double quotes a backslash escapes only $ ` " \ and
+    // newline. Newline is a line continuation: both characters are removed.
+    #[test]
+    fn double_quotes_backslash_dollar_drops_the_backslash() {
+        let got = super::tokenize("\"\\$\"");
+        assert_eq!(got, vec!["$".to_string()]);
+    }
+
+    #[test]
+    fn double_quotes_backslash_backtick_drops_the_backslash() {
+        let got = super::tokenize("\"\\`\"");
+        assert_eq!(got, vec!["`".to_string()]);
+    }
+
+    #[test]
+    fn double_quotes_backslash_quote_keeps_a_literal_quote() {
+        let got = super::tokenize("\"\\\"\"");
+        assert_eq!(got, vec!["\"".to_string()]);
+    }
+
+    #[test]
+    fn double_quotes_backslash_backslash_keeps_one_backslash() {
+        let got = super::tokenize("\"\\\\\"");
+        assert_eq!(got, vec!["\\".to_string()]);
+    }
+
+    #[test]
+    fn double_quotes_backslash_newline_is_removed() {
+        let got = super::tokenize("\"a\\\nb\"");
+        assert_eq!(got, vec!["ab".to_string()]);
+        // The continuation is the whole word: the quotes opened it, so an
+        // empty word remains one empty token.
+        let only = super::tokenize("\"\\\n\"");
+        assert_eq!(only, vec!["".to_string()]);
+    }
+
+    #[test]
+    fn double_quotes_backslash_before_other_keeps_both() {
+        let got = super::tokenize("\"a\\tb\"");
+        assert_eq!(got, vec!["a\\tb".to_string()]);
+    }
+
+    // A backslash with no following character is not one of the five escapes,
+    // so it stays. "x\" at end of input is the other shape: the backslash
+    // escapes the quote, the quote does not close, and the word is x".
+    #[test]
+    fn double_quotes_trailing_backslash_is_kept_when_nothing_follows() {
+        let got = super::tokenize("\"x\\");
+        assert_eq!(got, vec!["x\\".to_string()]);
+        let escaped_closer = super::tokenize("\"x\\\"");
+        assert_eq!(escaped_closer, vec!["x\"".to_string()]);
+    }
+
+    #[test]
+    fn single_quotes_keep_a_backslash_literal() {
+        let got = super::tokenize("'a\\tb'");
+        assert_eq!(got, vec!["a\\tb".to_string()]);
+        let dollar = super::tokenize("'\\$'");
+        assert_eq!(dollar, vec!["\\$".to_string()]);
+    }
+
+    #[test]
+    fn unquoted_backslash_stays_literal() {
+        let got = super::tokenize("echo a\\b");
+        assert_eq!(got, vec!["echo".to_string(), "a\\b".to_string()]);
+    }
 }
 
 pub fn tokenize(s: &str) -> Vec<String> {
@@ -607,8 +673,7 @@ pub fn tokenize(s: &str) -> Vec<String> {
     // INT-353 G2. A word has started when a quote opens or a character is
     // pushed. An unquoted space, and the end of the input, push that word
     // even when it is empty, then the flag resets. An empty quote inside a
-    // word (a""b) never sees a space, so it stays one word. The backslash
-    // rule below is unchanged (G3).
+    // word (a""b) never sees a space, so it stays one word.
     let mut started = false;
     for ch in s.chars() {
         match ch {
@@ -617,19 +682,23 @@ pub fn tokenize(s: &str) -> Vec<String> {
                 quote_char = ch;
                 started = true;
             }
-            // A BACKSLASH INSIDE QUOTES ESCAPES THE NEXT CHARACTER, and this arm must come
-            // before the close-quote arm below or an escaped quote ends the region. Without
-            // it, echo of a double-quoted string containing an escaped quote saw a closing
-            // delimiter where a literal was meant. The spine lexer got this on 2026-08-21;
-            // this is the door that actually executes until the spine flip.
-            //
-            // Single quotes escape NOTHING, per POSIX, so the guard checks quote_char.
-            // The escaped character is taken LITERALLY and the flag cleared immediately,
-            // so it can never leak past one character.
+            // A BACKSLASH INSIDE DOUBLE QUOTES is handled here, and this arm must
+            // come before the close-quote arm or an escaped quote ends the region.
+            // INT-353 G3, POSIX: it escapes only $ ` " \ and newline. Newline is
+            // removed with the backslash (a line continuation). Any other
+            // character keeps both the backslash and itself. Single quotes never
+            // set this flag, so a backslash there stays literal. An unquoted
+            // backslash is not an escape either: the default arm keeps it.
             c if escaped => {
                 escaped = false;
-                current.push(c);
-                started = true;
+                if c == '$' || c == '`' || c == '"' || c == '\\' {
+                    current.push(c);
+                    started = true;
+                } else if c != '\n' {
+                    current.push('\\');
+                    current.push(c);
+                    started = true;
+                }
             }
             c if in_quote && quote_char == '"' && c == '\\' && !escaped => {
                 escaped = true;
@@ -649,6 +718,12 @@ pub fn tokenize(s: &str) -> Vec<String> {
                 started = true;
             }
         }
+    }
+    // A backslash at the end of a double-quoted word has no next character, so
+    // it is not one of the five escapes. Keep it.
+    if escaped {
+        current.push('\\');
+        started = true;
     }
     if started {
         tokens.push(current);
