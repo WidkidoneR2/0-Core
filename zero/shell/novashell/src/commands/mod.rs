@@ -604,11 +604,18 @@ pub fn tokenize(s: &str) -> Vec<String> {
     let mut in_quote = false;
     let mut quote_char = ' ';
     let mut escaped = false;
+    // INT-353 G2. A word has started when a quote opens or a character is
+    // pushed. An unquoted space, and the end of the input, push that word
+    // even when it is empty, then the flag resets. An empty quote inside a
+    // word (a""b) never sees a space, so it stays one word. The backslash
+    // rule below is unchanged (G3).
+    let mut started = false;
     for ch in s.chars() {
         match ch {
             '"' | '\'' if !in_quote => {
                 in_quote = true;
                 quote_char = ch;
+                started = true;
             }
             // A BACKSLASH INSIDE QUOTES ESCAPES THE NEXT CHARACTER, and this arm must come
             // before the close-quote arm below or an escaped quote ends the region. Without
@@ -622,6 +629,7 @@ pub fn tokenize(s: &str) -> Vec<String> {
             c if escaped => {
                 escaped = false;
                 current.push(c);
+                started = true;
             }
             c if in_quote && quote_char == '"' && c == '\\' && !escaped => {
                 escaped = true;
@@ -630,15 +638,19 @@ pub fn tokenize(s: &str) -> Vec<String> {
                 in_quote = false;
             }
             ' ' if !in_quote => {
-                if !current.is_empty() {
+                if started {
                     tokens.push(current.clone());
                     current.clear();
+                    started = false;
                 }
             }
-            c => current.push(c),
+            c => {
+                current.push(c);
+                started = true;
+            }
         }
     }
-    if !current.is_empty() {
+    if started {
         tokens.push(current);
     }
     tokens
