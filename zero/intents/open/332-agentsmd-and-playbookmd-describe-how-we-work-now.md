@@ -3,7 +3,7 @@ id: 332
 date: 2026-11-24
 type: future
 title: "AGENTS.md and PLAYBOOK.md describe how we work now"
-status: planned
+status: in-progress
 tags: [docs, agents]
 depends_on: []
 format: 3
@@ -64,14 +64,14 @@ stay where they are history. No code and no version bump.
   or confidential value.
 
 ## Success Criteria
-- [ ] G1 AGENTS.md describes how we work now, includes the
+- [x] G1 AGENTS.md describes how we work now, includes the
       INT-302 findings-close sentences, and includes the approved
       improvements A to G. Claude and Jarvis are not named as
       working agents.
       ask: AGENTS.md matches the approved draft
       ruling:
-      evidence:
-- [ ] G2 PLAYBOOK.md and zero/handoffs/README.md match the same
+      evidence: 3b2cdc90 AGENTS.md matches the approved draft byte for byte, including the INT-302 findings-close sentences and improvements A to G; no Claude or Jarvis hit in AGENTS.md
+- [x] G2 PLAYBOOK.md and zero/handoffs/README.md match the same
       triangle. The playbook no longer staffs Jarvis as
       conductor or Claude as backup. The handoffs README lists
       current writers as eric, cursor, or christian, and says
@@ -80,8 +80,8 @@ stay where they are history. No code and no version bump.
       zero/handoffs/ (the 2026-11-10 files are history and stay).
       ask: PLAYBOOK.md and the handoffs README match the triangle, with no Jarvis or Claude as a current writer
       ruling:
-      evidence:
-- [ ] G3 no Claude or Jarvis as a working agent in live workflow
+      evidence: 8e3efedd PLAYBOOK.md and zero/handoffs/README.md match the approved drafts; writers are eric, cursor, or christian; 2026-11-10 files untouched; docs/TREE.md (35e2c361, 53cad79e) was a fourth file, approved by Christian before it was changed
+- [x] G3 no Claude or Jarvis as a working agent in live workflow
       docs. Proof: `git grep -i -e claude -e jarvis` on
       AGENTS.md, zero/orchestration/PLAYBOOK.md, and
       zero/handoffs/README.md after the change, with the output
@@ -101,11 +101,11 @@ stay where they are history. No code and no version bump.
       Jarvis as a working agent or current writer is a failure.
       ask: live workflow docs do not name Claude or Jarvis as a working agent
       ruling:
-      evidence:
-- [ ] G4 doors and d green on the laptop.
+      evidence: git grep -i -e claude -e jarvis on the three docs gave 3 hits, all in PLAYBOOK.md and all allowed: lines 8 and 9 record the cancelled INT-304 staffing, line 104 is the path zero/handoffs/2026-11-10-jarvis.md; no live assignment
+- [x] G4 doors and d green on the laptop.
       ask: doors and d are green
       ruling:
-      evidence:
+      evidence: doors 4/4 on int-332; core intent validate 79 valid; d 96% after the merge with the only warning the uncommitted 332 file
 
 ## Versions
 - Docs only. No crate bump.
