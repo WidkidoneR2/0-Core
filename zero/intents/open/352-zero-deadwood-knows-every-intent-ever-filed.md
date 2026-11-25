@@ -3,7 +3,7 @@ id: 352
 date: 2026-11-24
 type: future
 title: "zero-deadwood knows every intent ever filed"
-status: planned
+status: in-progress
 tags: [ledger, deadwood, citations]
 depends_on: []
 format: 3
@@ -148,7 +148,7 @@ doors and d are green.
   confidential value.
 
 ## Success Criteria
-- [ ] G1 red first: closed.tsv rows are flagged today
+- [x] G1 red first: closed.tsv rows are flagged today
       (zero-deadwood citation tests). In a temp ledger,
       closed.tsv has a complete id and a cancelled id, neither
       file is in open/, and a .rs file cites both numbers.
@@ -158,31 +158,31 @@ doors and d are green.
       as it stands.
       ask: a closed.tsv row with no open file is reported dangling before the fix
       ruling:
-      evidence:
-- [ ] G2 the check reads closed.tsv and treats complete and
+      evidence: a6411689 citation_check_tests::a_complete_and_a_cancelled_closed_tsv_row_are_not_dangling was red on the old code (9 pass, 1 fail)
+- [x] G2 the check reads closed.tsv and treats complete and
       cancelled ids as filed. It calls `read_closed`, not a
       second parser, and not `completed_ids_from` alone. An
       unreadable closed.tsv is named as unreadable, not treated
       as empty of ids. The G1 fixture then reports neither id.
       ask: a complete or cancelled closed.tsv row is filed, and the G1 test is green
       ruling:
-      evidence:
-- [ ] G3 historical ids are filed. The checked-in list plus its
+      evidence: 9ea8e9aa check calls read_closed; complete and cancelled rows are filed; unreadable or malformed closed.tsv is a ledger failure; G1 test green, zero-deadwood 15/15 on the laptop
+- [x] G3 historical ids are filed. The checked-in list plus its
       drift test are in the tree. The dangling check reads that
       list. After this gate, `zero-deadwood` on the laptop no
       longer flags INT-180, 322, 326, 333, 334, 341, 342, or
       346.
       ask: the pre-purge ids are in the filed set, and those eight numbers are not flagged
       ruling:
-      evidence:
-- [ ] G4 INT-999 is reserved like INT-000. A cite of INT-999
+      evidence: d58dd618 zero/intents/historical-ids.tsv, intent files only (350 ids, 1 to 351), drift test historical_list_covers_every_old_prefix_id_git_names green; 1b5e561b moved HISTORICAL_PREFIXES into zero_core::paths; laptop citations clean, none of the eight flagged
+- [x] G4 INT-999 is reserved like INT-000. A cite of INT-999
       produces no dangling finding. A cite of a genuinely
       unfiled number still does. No intent file is created for
       999.
       ask: INT-999 is reserved and does not appear as a dangling citation
       ruling:
-      evidence:
-- [ ] G5 next_number does not hand out a historically used id.
+      evidence: 7d49adab int_999_is_reserved_and_an_unfiled_id_is_not green; laptop prints INT-000 and INT-999 are reserved; no 999 intent file
+- [x] G5 next_number does not hand out a historically used id.
       It uses the same filed set as the check (open/,
       closed.tsv, git ids under zero/intents/, and the
       historical list). A fixture whose closed.tsv highest id
@@ -190,13 +190,13 @@ doors and d are green.
       352 for category open, not 333.
       ask: core intent add would not offer 333 on this tree after the fix
       ruling:
-      evidence:
-- [ ] G6 `zero-deadwood` on the laptop reports 0 dangling
+      evidence: be8abe97 red, cea16001 fix; a_historical_id_is_not_reissued and the_numberer_skips_999 green; next id on this tree is 353; core 380/380 on the laptop
+- [x] G6 `zero-deadwood` on the laptop reports 0 dangling
       citations, or lists each remaining flag with a reason
       written in the evidence. doors and d are green.
       ask: zero-deadwood is clean or explained, and doors and d are green
       ruling:
-      evidence:
+      evidence: laptop on 1b5e561b: zero-deadwood --only citations clean; doors 4/4 with nsh-test 305/305; d 96% after the merge, only warning the uncommitted 352 file
 
 ## Job order
 - Job 1: G1 red tests in zero-deadwood citation_check_tests.
