@@ -533,6 +533,69 @@ mod escape_tokenize_tests {
         let got = super::tokenize("echo \"a\\\"b\"");
         assert_eq!(got, vec!["echo".to_string(), "a\"b".to_string()]);
     }
+
+    // INT-353 G1. Red on the code as it stands: an empty quoted word is
+    // dropped, and a backslash inside double quotes is removed before any
+    // next character, including n.
+    #[test]
+    fn printf_double_quoted_format_keeps_backslash_n_and_the_empty_argument() {
+        let got = super::tokenize("printf \"[%s]\\n\" \"\"");
+        assert_eq!(
+            got,
+            vec![
+                "printf".to_string(),
+                "[%s]\\n".to_string(),
+                "".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn printf_single_quoted_format_keeps_the_empty_argument() {
+        let got = super::tokenize("printf '<%s>\\n' \"\"");
+        assert_eq!(
+            got,
+            vec![
+                "printf".to_string(),
+                "<%s>\\n".to_string(),
+                "".to_string(),
+            ]
+        );
+    }
+
+    #[test]
+    fn echo_empty_single_quotes_keeps_the_empty_argument() {
+        let got = super::tokenize("echo '' x");
+        assert_eq!(
+            got,
+            vec!["echo".to_string(), "".to_string(), "x".to_string()]
+        );
+    }
+
+    // INT-353 G1 guards. Green today and must stay green.
+    #[test]
+    fn empty_quotes_inside_a_word_are_not_a_separate_word() {
+        let got = super::tokenize("a\"\"b");
+        assert_eq!(got, vec!["ab".to_string()]);
+    }
+
+    #[test]
+    fn escaped_quote_inside_double_quotes_stays_a_literal_quote() {
+        let got = super::tokenize("echo \"a\\\"b\"");
+        assert_eq!(got, vec!["echo".to_string(), "a\"b".to_string()]);
+    }
+
+    #[test]
+    fn escaped_dollar_inside_double_quotes_keeps_the_dollar() {
+        let got = super::tokenize("echo \"\\$HOME\"");
+        assert_eq!(got, vec!["echo".to_string(), "$HOME".to_string()]);
+    }
+
+    #[test]
+    fn escaped_backslash_inside_double_quotes_keeps_one_backslash() {
+        let got = super::tokenize("echo \"a\\\\b\"");
+        assert_eq!(got, vec!["echo".to_string(), "a\\b".to_string()]);
+    }
 }
 
 pub fn tokenize(s: &str) -> Vec<String> {
