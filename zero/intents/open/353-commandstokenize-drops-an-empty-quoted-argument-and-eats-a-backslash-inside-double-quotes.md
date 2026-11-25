@@ -3,7 +3,7 @@ id: 353
 date: 2026-11-24
 type: future
 title: "commands::tokenize drops an empty quoted argument and eats a backslash inside double quotes"
-status: planned
+status: in-progress
 tags: [fsh, nsh, tokenizer, quoting, spine, audit]
 depends_on: []
 format: 3
@@ -134,33 +134,33 @@ G5 is the laptop proof.
   any secret or confidential value.
 
 ## Success Criteria
-- [ ] G1 red first: the five laptop rows are read in full
+- [x] G1 red first: the five laptop rows are read in full
       (state.db shell_history), and the G1 tokenize tests are
       in the tree and red on the code as it stands.
       ask: tokenize drops an empty quoted word and eats a backslash before n
       ruling:
-      evidence:
-- [ ] G2 an empty quoted word is one empty argument. The
+      evidence: laptop state.db read in full, one stored row matched (id 254243, the INT-320 rehearsal printf); d9d5e8c4 three tokenize tests red on the old code
+- [x] G2 an empty quoted word is one empty argument. The
       empty-word tests are green; `a""b` is still one word.
       ask: "" and '' each produce one empty token
       ruling:
-      evidence:
-- [ ] G3 a backslash inside double quotes escapes only
+      evidence: 0c92a776 empty-word tests green, a""b still one word; laptop novashell 298/298
+- [x] G3 a backslash inside double quotes escapes only
       $ ` " \ and newline. The backslash tests are green,
       including the existing escaped-quote test.
       ask: "[%s]\n" stays [%s]\n and "a\"b" stays a"b
       ruling:
-      evidence:
-- [ ] G4 a scratch state.db holding the G1 rows and
+      evidence: ebf3c58a tokenize 17/17 incl. the escaped-quote test; results matched bash case by case on the Cursor VM
+- [x] G4 a scratch state.db holding the G1 rows and
       `echo "" x` gives Equivalent for every row in
       `spine migrate`, and no `argv: word count` shape.
       ask: the audit no longer reports the empty-argument rows
       ruling:
-      evidence:
-- [ ] G5 laptop: `spine migrate` from the working tree build
+      evidence: Cursor VM scratch ZERO_STATE_DB, 6 rows incl. both printf shapes and echo "" x: int-353 6/6 Equivalent, main f0e63bfe 2 argv word count rows
+- [x] G5 laptop: `spine migrate` from the working tree build
       shows no `argv: word count` rows; `NSH_SPINE=0 nsh -c
       'echo "[a\nb]" "" x'` prints the same as bash; nsh-test
       (with the new conformance case), doors and d are green.
       ask: the laptop agrees with bash, and doors and d are green
       ruling:
-      evidence:
+      evidence: laptop on 5877d86c: spine migrate 98.7 percent, no argv word count shape; NSH_SPINE=0 echo equals bash byte for byte; a8e1272f doors 4/4 with nsh-test 306/306; d 96 percent after merge, only warning the uncommitted 353 file
