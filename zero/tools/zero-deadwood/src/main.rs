@@ -506,22 +506,24 @@ fn check_dangling_intent_citations(root: &Path) -> Vec<Finding> {
             }
         }
     }
-    // closed.tsv sits beside those directories, so the walk above skips it.
-    // read_closed is the reader. Complete and cancelled rows are both filed;
-    // completed_ids_from drops cancelled. A missing file adds no ids. An
-    // unreadable file or a malformed row is the same family as an unreadable
-    // ledger: name it, and do not report every citation as dangling.
-    let closed_unreadable = |why: &str| {
+    // closed.tsv and historical-ids.tsv sit beside those directories, so the
+    // walk above skips them. Both are read on every root, including a temp tree.
+    // read_closed is the closed.tsv reader. Complete and cancelled rows are both
+    // filed; completed_ids_from drops cancelled. read_historical is the pre-purge
+    // list. A missing file adds no ids. An unreadable file or a malformed row is
+    // the same family as an unreadable ledger: name it, and do not report every
+    // citation as dangling.
+    let unreadable = |name: &str, why: &str| {
         vec![Finding {
             confidence: Confidence::High,
-            detail: format!("closed.tsv not readable -- citations cannot be checked: {why}"),
+            detail: format!("{name} not readable -- citations cannot be checked: {why}"),
             action: None,
         }]
     };
     match zero_core::ledger::read_closed(&intents) {
-        Err(err) => return closed_unreadable(&err),
+        Err(err) => return unreadable("closed.tsv", &err),
         Ok(index) if !index.warnings.is_empty() => {
-            return closed_unreadable(&index.warnings.join("; "));
+            return unreadable("closed.tsv", &index.warnings.join("; "));
         }
         Ok(index) => {
             for row in index.rows {
@@ -530,9 +532,20 @@ fn check_dangling_intent_citations(root: &Path) -> Vec<Finding> {
                         filed.insert(n);
                     }
                     Err(_) => {
-                        return closed_unreadable(&format!("id {} is not a u32", row.id));
+                        return unreadable("closed.tsv", &format!("id {} is not a u32", row.id));
                     }
                 }
+            }
+        }
+    }
+    match zero_core::ledger::read_historical(&intents) {
+        Err(err) => return unreadable("historical-ids.tsv", &err),
+        Ok(index) if !index.warnings.is_empty() => {
+            return unreadable("historical-ids.tsv", &index.warnings.join("; "));
+        }
+        Ok(index) => {
+            for row in index.rows {
+                filed.insert(row.id);
             }
         }
     }
@@ -1766,6 +1779,61 @@ mod citation_check_tests {
         assert!(
             !found[0].detail.contains("no intent filed"),
             "a malformed closed.tsv is not a dangling citation: {}",
+            found[0].detail
+        );
+    }
+
+    /// INT-352 G3. A historical id is filed from the list, on a temp root.
+    /// git_ids_in does not run, and there is no open file for the id.
+    #[test]
+    fn a_historical_id_is_not_dangling() {
+        let root = citation_fixture("historical", &["400-later.md"], "// INT-180\n");
+        assert_ne!(
+            root.as_path(),
+            zero_core::paths::core_dir().as_path(),
+            "git_ids_in runs only when root is ~/0-core"
+        );
+        std::fs::write(
+            root.join("zero/intents/historical-ids.tsv"),
+            "# comment\n180\tsway-removal\n",
+        )
+        .expect("historical-ids.tsv");
+        let found = check_dangling_intent_citations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        let details: Vec<&str> = found.iter().map(|f| f.detail.as_str()).collect();
+        assert!(
+            details.iter().all(|d| !d.contains("not readable")),
+            "the fixture list is readable: {details:?}"
+        );
+        assert!(
+            details.iter().all(|d| !d.contains("INT-180")),
+            "a historical id is not dangling: {details:?}"
+        );
+    }
+
+    /// INT-352 G3. An unreadable historical list is one ledger finding.
+    #[test]
+    fn an_unreadable_historical_list_is_a_ledger_failure() {
+        let root = citation_fixture("histunread", &["400-later.md"], "// INT-180\n");
+        std::fs::create_dir(root.join("zero/intents/historical-ids.tsv"))
+            .expect("unreadable historical-ids.tsv");
+        let found = check_dangling_intent_citations(&root);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(
+            found.len(),
+            1,
+            "one finding about the list, not a dangling citation: {:?}",
+            found.iter().map(|f| &f.detail).collect::<Vec<_>>()
+        );
+        assert!(
+            found[0].detail.contains("historical-ids.tsv")
+                && found[0].detail.contains("not readable"),
+            "it must name the list as not readable: {}",
+            found[0].detail
+        );
+        assert!(
+            !found[0].detail.contains("no intent filed"),
+            "an unreadable historical list is not a dangling citation: {}",
             found[0].detail
         );
     }

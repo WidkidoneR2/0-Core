@@ -213,6 +213,109 @@ pub fn completed_ids_from(dir: &Path) -> Result<ClosedIds, String> {
     })
 }
 
+/// Old ledgers whose ids are listed in `historical-ids.tsv`.
+/// `zero/intents/` is the live ledger and is not one of these.
+pub const HISTORICAL_PREFIXES: &[&str] = &["intents/", "faelight/intents/", "INTENT/"];
+
+/// One id from `historical-ids.tsv`.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HistoricalRow {
+    pub id: u32,
+    pub title: String,
+}
+
+/// Rows read from `historical-ids.tsv`, plus one warning per malformed line.
+#[derive(Debug, Clone, PartialEq, Eq, Default)]
+pub struct HistoricalIndex {
+    pub rows: Vec<HistoricalRow>,
+    pub warnings: Vec<String>,
+}
+
+/// Read `historical-ids.tsv` in `dir` (the intents directory).
+///
+/// A missing file is an empty index. An unreadable file is an error naming the path.
+/// A line that is empty or starts with `#` is a comment. A row is an id, or an id,
+/// a tab, and a title. A duplicate id keeps the first row. `000` and `999` are not
+/// special here: this reader returns the rows that are written.
+pub fn read_historical(dir: &Path) -> Result<HistoricalIndex, String> {
+    let path = dir.join("historical-ids.tsv");
+    let text = match fs::read_to_string(&path) {
+        Ok(text) => text,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => {
+            return Ok(HistoricalIndex::default());
+        }
+        Err(e) => {
+            return Err(format!(
+                "historical-ids.tsv at {} could not be read: {e}",
+                path.display()
+            ));
+        }
+    };
+    Ok(parse_historical(&text))
+}
+
+fn parse_historical(text: &str) -> HistoricalIndex {
+    let mut index = HistoricalIndex::default();
+    let mut seen = std::collections::BTreeSet::new();
+    for (n, raw) in text.lines().enumerate() {
+        let line = raw.trim_end_matches('\r').trim();
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        let (id_str, title) = match line.split_once('\t') {
+            Some((id, title)) => (id.trim(), title.trim()),
+            None => (line, ""),
+        };
+        if id_str.is_empty() || !id_str.bytes().all(|b| b.is_ascii_digit()) {
+            index.warnings.push(format!(
+                "line {}: id {id_str:?} is not digits: {line}",
+                n + 1
+            ));
+            continue;
+        }
+        let Ok(id) = id_str.parse::<u32>() else {
+            index
+                .warnings
+                .push(format!("line {}: id {id_str} is not a u32: {line}", n + 1));
+            continue;
+        };
+        if !seen.insert(id) {
+            continue;
+        }
+        index.rows.push(HistoricalRow {
+            id,
+            title: title.to_string(),
+        });
+    }
+    index
+}
+
+/// Intent id in a path under [`HISTORICAL_PREFIXES`].
+///
+/// `intents/complete/180-sway.md` is 180. `00-INDEX.md` and `999-fixture.md` are
+/// not historical ids. A path under `zero/intents/` is the live ledger, not this list.
+pub fn historical_id_from_path(path: &str) -> Option<u32> {
+    let path = path.trim().trim_matches('"');
+    if !HISTORICAL_PREFIXES
+        .iter()
+        .any(|prefix| path.starts_with(prefix))
+    {
+        return None;
+    }
+    let base = path.rsplit('/').next()?;
+    let stem = base.strip_suffix(".md")?;
+    let (num, rest) = stem.split_once('-')?;
+    if rest.is_empty() || num.is_empty() || !num.bytes().all(|b| b.is_ascii_digit()) {
+        return None;
+    }
+    let n = num.parse::<u32>().ok()?;
+    if n == 0 || n == 999 {
+        None
+    } else {
+        Some(n)
+    }
+}
+
 /// Ids git has stored under `zero/intents/<folder>/` for one of `folders`.
 /// None when git cannot answer, so the caller does not invent an empty archive.
 pub fn git_ids_in(folders: &[&str]) -> Option<std::collections::HashSet<String>> {
@@ -559,5 +662,161 @@ mod tests {
                 got.warnings
             );
         }
+    }
+
+    #[test]
+    fn a_missing_historical_list_is_empty() {
+        let dir = scratch("hist-missing");
+        let got = super::read_historical(&dir).expect("missing list is empty");
+        let _ = fs::remove_dir_all(&dir);
+        assert!(got.rows.is_empty(), "{:?}", got.rows);
+        assert!(got.warnings.is_empty(), "{:?}", got.warnings);
+    }
+
+    #[test]
+    fn historical_rows_keep_the_id_and_skip_comments() {
+        let dir = scratch("hist-rows");
+        fs::write(
+            dir.join("historical-ids.tsv"),
+            "# comment\n\n180\tsway-removal\n180\tduplicate\n075\thybrid\n",
+        )
+        .unwrap();
+        let got = super::read_historical(&dir).expect("list should be read");
+        let _ = fs::remove_dir_all(&dir);
+        assert!(got.warnings.is_empty(), "{:?}", got.warnings);
+        assert_eq!(got.rows.len(), 2, "a duplicate id keeps the first row");
+        assert_eq!(got.rows[0].id, 180);
+        assert_eq!(got.rows[0].title, "sway-removal");
+        assert_eq!(got.rows[1].id, 75);
+    }
+
+    #[test]
+    fn a_malformed_historical_line_is_named() {
+        let dir = scratch("hist-bad");
+        fs::write(dir.join("historical-ids.tsv"), "180\tsway\nnot-an-id\n").unwrap();
+        let got = super::read_historical(&dir).expect("a bad line is a warning, not an error");
+        let _ = fs::remove_dir_all(&dir);
+        assert_eq!(got.rows.len(), 1);
+        assert!(
+            got.warnings.iter().any(|w| w.contains("not-an-id")),
+            "{:?}",
+            got.warnings
+        );
+    }
+
+    #[test]
+    fn an_unreadable_historical_list_is_reported() {
+        let dir = scratch("hist-unreadable");
+        fs::create_dir(dir.join("historical-ids.tsv")).unwrap();
+        let result = super::read_historical(&dir);
+        let _ = fs::remove_dir_all(&dir);
+        match result {
+            Err(err) => assert!(
+                err.contains("could not be read"),
+                "an unreadable historical list must be reported: {err}"
+            ),
+            Ok(got) => panic!("an unreadable list was treated as empty: {got:?}"),
+        }
+    }
+
+    #[test]
+    fn legacy_paths_name_an_id_and_the_live_ledger_does_not() {
+        assert_eq!(
+            super::historical_id_from_path("intents/complete/180-sway-removal.md"),
+            Some(180)
+        );
+        assert_eq!(
+            super::historical_id_from_path("faelight/intents/future/351-nixos.md"),
+            Some(351)
+        );
+        assert_eq!(
+            super::historical_id_from_path("INTENT/future/075-hybrid-bar-dmenu.md"),
+            Some(75)
+        );
+        assert_eq!(
+            super::historical_id_from_path("intents/incidents/00-INDEX.md"),
+            None
+        );
+        assert_eq!(
+            super::historical_id_from_path("intents/complete/999-fixture.md"),
+            None
+        );
+        assert_eq!(
+            super::historical_id_from_path("zero/intents/open/352-live.md"),
+            None
+        );
+    }
+
+    /// INT-352 G3. Every id git still names under the old prefixes is in the list.
+    /// Not a git checkout: print a note and skip. 000 and 999 are reserved.
+    #[test]
+    fn historical_list_covers_every_old_prefix_id_git_names() {
+        let mut dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        let root = loop {
+            if dir.join(".git").exists() {
+                break Some(dir.clone());
+            }
+            if !dir.pop() {
+                break None;
+            }
+        };
+        let Some(root) = root else {
+            eprintln!("historical-ids drift: not a git checkout, skipped");
+            return;
+        };
+        let specs: Vec<&str> = super::HISTORICAL_PREFIXES
+            .iter()
+            .map(|prefix| prefix.trim_end_matches('/'))
+            .collect();
+        let mut args = vec![
+            "-C",
+            root.to_str().expect("repo path is utf-8"),
+            "log",
+            "--all",
+            "--name-only",
+            "--format=",
+            "--",
+        ];
+        args.extend(specs);
+        let output = match std::process::Command::new("git").args(&args).output() {
+            Ok(output) => output,
+            Err(err) => {
+                eprintln!("historical-ids drift: git could not be started ({err}), skipped");
+                return;
+            }
+        };
+        assert!(
+            output.status.success(),
+            "git log failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let text = String::from_utf8(output.stdout).expect("git log is utf-8");
+        let mut git_ids = std::collections::BTreeSet::new();
+        for line in text.lines() {
+            if let Some(id) = super::historical_id_from_path(line) {
+                git_ids.insert(id);
+            }
+        }
+        let listed = super::read_historical(&root.join("zero/intents"))
+            .expect("historical-ids.tsv should be readable");
+        assert!(
+            listed.warnings.is_empty(),
+            "historical-ids.tsv has warnings: {:?}",
+            listed.warnings
+        );
+        let have: std::collections::BTreeSet<u32> = listed.rows.iter().map(|row| row.id).collect();
+        let missing: Vec<u32> = git_ids.difference(&have).copied().collect();
+        assert!(
+            missing.is_empty(),
+            "historical-ids.tsv lacks ids git names under the old prefixes: {missing:?}"
+        );
+        for id in [
+            180, 322, 326, 333, 334, 341, 342, 346, 347, 348, 349, 350, 351,
+        ] {
+            assert!(have.contains(&id), "list lacks {id}");
+            assert!(git_ids.contains(&id), "git did not name {id}");
+        }
+        assert!(!have.contains(&0));
+        assert!(!have.contains(&999));
     }
 }
