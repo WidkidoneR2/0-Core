@@ -7509,9 +7509,10 @@ const CONFORMANCE_CASES: &[ConformCase] = &[
     ("echo \"a > b\"", None),
     ("echo \"a|b\"", None),
     // INT-353. An empty quoted argument is one argument, and a backslash
-    // inside double quotes stays before n. ConformCase is a line and an
-    // optional divergence, so this case cannot set NSH_SPINE.
-    ("printf '[%s]\\n' \"a\\nb\" \"\" x", None),
+    // inside double quotes stays before n. ConformCase cannot set NSH_SPINE.
+    // The wrapper is <> : a line that starts with [ is dropped as the [n/N]
+    // progress display before the comparison, so [%s] never reaches it.
+    ("printf '<%s>\\n' \"a\\nb\" \"\" x", None),
     // --- THE DECLARED DIVERGENCES. Matching bash here would be the regression. ---
     // ⭐ THESE TWO WERE THE ONLY DECLARED DIVERGENCES, AND THEY ARE GONE (2026-08-07). fsh used to
     // read any digit-initial or `=`-initial redirect target as a comparison, so that
