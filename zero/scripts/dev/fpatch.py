@@ -362,10 +362,17 @@ def _h16(text):
 
 
 def _same_file(a, b):
-    """True when two different path strings name one file."""
+    """True when two different path strings name one file.
+
+    A path that cannot be stat'd is not a match. The per-file read still
+    reports that path the way it did before this guard.
+    """
     if os.path.realpath(a) == os.path.realpath(b):
         return True
-    sa, sb = os.stat(a), os.stat(b)
+    try:
+        sa, sb = os.stat(a), os.stat(b)
+    except OSError:
+        return False
     return (sa.st_dev, sa.st_ino) == (sb.st_dev, sb.st_ino)
 
 
