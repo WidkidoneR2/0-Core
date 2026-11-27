@@ -168,6 +168,55 @@ impl Parser {
                     | OperatorKind::RedirectIn
                     | OperatorKind::RedirectDup),
                 ) => {
+                    // INT-354: `on EVENT => ACTION`. The lexer has no `=>` token, so the stream
+                    // is Word("=") then RedirectOut. When the command word is unquoted `on` and
+                    // that `=` ends where `>` starts, the two characters are one word `=>` and
+                    // there is no redirect. This is only RedirectOut, and only that shape:
+                    // `echo a => b`, `a=>b`, `>=` and `echo test > 0.5` stay redirects.
+                    //
+                    // Before the fd pop and before any target is consumed, so a hit never takes
+                    // the next word (`notify`) as a redirect target.
+                    if op == OperatorKind::RedirectOut {
+                        let op_span = tok.span;
+                        let on_command = words.first().is_some_and(|w| {
+                            matches!(
+                                w.node.parts.as_slice(),
+                                [WordPart::Literal {
+                                    text,
+                                    quoted: QuoteContext::Unquoted
+                                }] if text == "on"
+                            )
+                        });
+                        let adjacent_eq = words.last().is_some_and(|w| {
+                            w.span.end == op_span.start
+                                && matches!(
+                                    w.node.parts.as_slice(),
+                                    [WordPart::Literal {
+                                        text,
+                                        quoted: QuoteContext::Unquoted
+                                    }] if text == "="
+                                )
+                        });
+                        if on_command && adjacent_eq {
+                            let prev = words.pop().expect("checked just above");
+                            let arrow_span = Span::new(prev.span.start, op_span.end);
+                            self.advance().expect("peek was Some");
+                            words.push(Spanned::new(
+                                arrow_span,
+                                Word {
+                                    parts: vec![WordPart::Literal {
+                                        text: "=>".to_string(),
+                                        quoted: QuoteContext::Unquoted,
+                                    }],
+                                },
+                            ));
+                            cmd_span = Some(match cmd_span {
+                                None => arrow_span,
+                                Some(s) => s.merge(arrow_span),
+                            });
+                            continue;
+                        }
+                    }
                     // ⚠️ THE fd TRAP, NOW A BINDING RATHER THAN A REFUSAL -- and the danger it was
                     // guarding against is still here. The lexer does not make `2>` one token; it
                     // yields Word("2") then the operator. Consuming blindly reads
