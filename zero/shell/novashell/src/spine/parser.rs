@@ -1019,6 +1019,116 @@ mod tests {
         );
     }
 
+    /// The literal text of each command word, and the quote context of its one part.
+    /// A word that is not a single literal is a different shape than these cases claim.
+    fn literal_words(cmd: &Command) -> Vec<(String, QuoteContext)> {
+        cmd.words
+            .iter()
+            .map(|w| match w.node.parts.as_slice() {
+                [WordPart::Literal { text, quoted }] => (text.clone(), *quoted),
+                other => panic!("expected one literal part, got {other:?}"),
+            })
+            .collect()
+    }
+
+    /// The single stdout Write redirect, as one unexpanded file-target literal.
+    fn write_file_target(cmd: &Command) -> (String, QuoteContext) {
+        assert_eq!(cmd.redirects.len(), 1, "one redirect");
+        let r = &cmd.redirects[0].node;
+        assert_eq!(r.op, RedirectOp::Write);
+        assert_eq!(r.fd, None, "no explicit descriptor");
+        match &r.target {
+            RedirectTarget::File(w) => match w.parts.as_slice() {
+                [WordPart::Literal { text, quoted }] => (text.clone(), *quoted),
+                other => panic!("expected one literal file target, got {other:?}"),
+            },
+            RedirectTarget::Stream(n) => panic!("expected a file target, got stream {n}"),
+        }
+    }
+
+    /// INT-354. `on EVENT => ACTION` is words, including one word `=>`, and no
+    /// redirect. Red on the parser as it stands: `>` is still a Write whose
+    /// target is `notify`, and `=>` is not a word.
+    #[test]
+    fn on_arrow_is_words_not_a_redirect() {
+        let node = parse("on git_commit => notify \"commit detected\"").expect_complete("parses");
+        let cmd = as_command(node);
+        assert!(
+            cmd.redirects.is_empty(),
+            "on EVENT => ACTION builds no redirect, got {:?}",
+            cmd.redirects
+        );
+        assert_eq!(
+            literal_words(&cmd),
+            vec![
+                ("on".to_string(), QuoteContext::Unquoted),
+                ("git_commit".to_string(), QuoteContext::Unquoted),
+                ("=>".to_string(), QuoteContext::Unquoted),
+                ("notify".to_string(), QuoteContext::Unquoted),
+                ("commit detected".to_string(), QuoteContext::Double),
+            ]
+        );
+    }
+
+    /// INT-354 guard. A spaced `=>` that is not an `on` trigger stays a redirect.
+    /// The leftover `=` is still a word. Green on the parser as it stands.
+    #[test]
+    fn echo_spaced_fat_arrow_stays_a_redirect() {
+        let node = parse("echo a => b").expect_complete("parses");
+        let cmd = as_command(node);
+        assert_eq!(
+            literal_words(&cmd),
+            vec![
+                ("echo".to_string(), QuoteContext::Unquoted),
+                ("a".to_string(), QuoteContext::Unquoted),
+                ("=".to_string(), QuoteContext::Unquoted),
+            ]
+        );
+        assert_eq!(
+            write_file_target(&cmd),
+            ("b".to_string(), QuoteContext::Unquoted)
+        );
+    }
+
+    /// INT-354 guard. `a=>b` keeps `=` inside the previous word, so it is not the
+    /// spaced `=>` form. Green on the parser as it stands.
+    #[test]
+    fn echo_stuck_fat_arrow_stays_a_redirect() {
+        let node = parse("echo a=>b").expect_complete("parses");
+        let cmd = as_command(node);
+        assert_eq!(
+            literal_words(&cmd),
+            vec![
+                ("echo".to_string(), QuoteContext::Unquoted),
+                ("a=".to_string(), QuoteContext::Unquoted),
+            ]
+        );
+        assert_eq!(
+            write_file_target(&cmd),
+            ("b".to_string(), QuoteContext::Unquoted)
+        );
+    }
+
+    /// INT-354 guard. `>=` is a Write whose target is the word `=`, and `x` stays
+    /// an argument. Green on the parser as it stands.
+    #[test]
+    fn echo_ge_stays_a_redirect_to_equals() {
+        let node = parse("echo test >= x").expect_complete("parses");
+        let cmd = as_command(node);
+        assert_eq!(
+            literal_words(&cmd),
+            vec![
+                ("echo".to_string(), QuoteContext::Unquoted),
+                ("test".to_string(), QuoteContext::Unquoted),
+                ("x".to_string(), QuoteContext::Unquoted),
+            ]
+        );
+        assert_eq!(
+            write_file_target(&cmd),
+            ("=".to_string(), QuoteContext::Unquoted)
+        );
+    }
+
     /// CONTRACT: a refusal points at the exact source that caused it.
     ///
     /// ⚠️ THE PHASE MOVED, NOT THE CONTRACT. This used to check a PARSE refusal, but the parser
