@@ -3,7 +3,7 @@ id: 356
 date: 2026-11-27
 type: future
 title: "fpatch rollback on a failed rename and a same-file guard"
-status: planned
+status: in-progress
 tags: [fpatch, safety, dev]
 depends_on: []
 format: 3
@@ -99,7 +99,7 @@ doors, and d are green.
   two scripts above.
 
 ## Success Criteria
-- [ ] G1 red first: three new tests in test_fpatch.py fail
+- [x] G1 red first: three new tests in test_fpatch.py fail
       on unmodified fpatch.py. (a) a two-file plan, a.txt
       mode 0755 alpha to ALPHA and b.txt beta to BETA,
       with only the second os.replace call raising
@@ -113,18 +113,18 @@ doors, and d are green.
       are unchanged, and they still share an inode. The
       existing 22 tests stay green.
       ask: the three new tests fail on today's fpatch.py, and the existing 22 pass
-      ruling:
-      evidence:
-- [ ] G2 fixes in fpatch.py only. All new tests and all
+      ruling: confirmed on int-356 c750f4c6
+      evidence: c750f4c6 -- 22 existing passed, 3 new tests failed as expected, none errored
+- [x] G2 fixes in fpatch.py only. All new tests and all
       22 existing tests pass: python3 -m unittest -v
       test_fpatch exits 0. Two edits on the same path
       string still chain. The Seal matches sha256 of the
       uncolored plan text, first 16 hex.
       ask: the new tests and the existing 22 pass, and the Seal still matches the plan text
-      ruling:
-      evidence:
-- [ ] G3 laptop: python3 -m unittest -v test_fpatch,
+      ruling: confirmed on laptop bbaa823b
+      evidence: 41f70cd2 and bbaa823b -- fpatch.py only, 25 of 25 pass, same-path chain kept, Seal unchanged for a plan with no same-file pair
+- [x] G3 laptop: python3 -m unittest -v test_fpatch,
       doors, and d are green.
       ask: the laptop suite, doors, and d are green
-      ruling:
-      evidence:
+      ruling: confirmed on laptop
+      evidence: 25 of 25 test_fpatch in 0.006s, doors 4 of 4, d 96 pct with only cistart uncommitted
