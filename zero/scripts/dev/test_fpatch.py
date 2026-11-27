@@ -230,5 +230,58 @@ class OldFormStillWorks(Base):
         self.assertEqual(self.rd(p), "fn a() {}\n")
 
 
+class Int355Guards(Base):
+    def test_whole_line_diff_does_not_mark_next_line_or_blank_add(self):
+        import hashlib
+        p = self.mk("prev.txt", "keep\ndrop\nstay\n")
+        code, out, _ = self.call(fpatch.patch, p, "drop\n", "DROP\n", dry=True)
+        self.assertIsNone(code)
+        self.assertEqual(self.rd(p), "keep\ndrop\nstay\n")
+        self.assertIn("lines 2..2", out)
+        self.assertNotIn("lines 2..3", out)
+        self.assertNotIn(">> 3: stay", out)
+        blank = [line for line in out.splitlines() if line.strip() == "++"]
+        self.assertEqual(blank, [])
+        plan = fpatch.Plan().patch(p, "drop\n", "DROP\n")
+        seal = out.rstrip("\n").split("Seal: ")[-1]
+        digest = hashlib.sha256(plan.text().encode()).hexdigest()[:16]
+        self.assertEqual(seal, digest)
+        code, out, _ = self.call(fpatch.patch, p, "drop\n", "DROP\n")
+        self.assertIsNone(code)
+        self.assertEqual(self.rd(p), "keep\nDROP\nstay\n")
+        self.assertIn("verified on disk", out)
+
+    def test_relative_path_refused_by_patch(self):
+        p = self.mk("rel.txt", "alpha\n")
+        cwd = os.getcwd()
+        os.chdir(self.dir)
+        try:
+            code, _, _ = self.call(fpatch.patch, "rel.txt", "alpha", "BETA")
+        finally:
+            os.chdir(cwd)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.rd(p), "alpha\n")
+
+    def test_relative_path_refused_by_patch_between(self):
+        original = "START\nold\nEND\n"
+        p = self.mk("rel.txt", original)
+        cwd = os.getcwd()
+        os.chdir(self.dir)
+        try:
+            code, _, _ = self.call(
+                fpatch.patch_between, "rel.txt", "START", "END", ["START", "new"]
+            )
+        finally:
+            os.chdir(cwd)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.rd(p), original)
+
+    def test_patch_between_refuses_empty_start_marker(self):
+        p = self.mk("one.txt", "hello")
+        code, _, _ = self.call(fpatch.patch_between, p, "", None, ["PWNED"])
+        self.assertEqual(code, 1)
+        self.assertEqual(self.rd(p), "hello")
+
+
 if __name__ == "__main__":
     unittest.main()
