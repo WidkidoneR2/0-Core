@@ -283,5 +283,57 @@ class Int355Guards(Base):
         self.assertEqual(self.rd(p), "hello")
 
 
+class Int356Guards(Base):
+    def test_failed_second_rename_restores_preimage_and_mode(self):
+        pre_a = "alpha\n"
+        pre_b = "beta\n"
+        a = self.mk("a.txt", pre_a)
+        b = self.mk("b.txt", pre_b)
+        os.chmod(a, 0o755)
+        plan = fpatch.Plan().patch(a, "alpha", "ALPHA").patch(b, "beta", "BETA")
+        seal = plan._build()[4]
+        real_replace = os.replace
+        calls = {"n": 0}
+
+        def second_dies(src, dst):
+            calls["n"] += 1
+            if calls["n"] >= 2:
+                raise OSError("injected")
+            return real_replace(src, dst)
+
+        with mock.patch.object(os, "replace", second_dies):
+            code, _, _ = self.call(plan.apply, seal)
+        self.assertEqual(code, 2)
+        self.assertEqual(self.rd(a), pre_a)
+        self.assertEqual(os.stat(a).st_mode & 0o777, 0o755)
+        self.assertEqual(self.rd(b), pre_b)
+        self.assertEqual(sorted(os.listdir(self.dir)), ["a.txt", "b.txt"])
+
+    def test_symlink_and_real_path_are_refused(self):
+        original = "one\ntwo\n"
+        real = self.mk("real.txt", original)
+        link = os.path.join(self.dir, "link.txt")
+        os.symlink("real.txt", link)
+        plan = fpatch.Plan().patch(real, "one", "ONE").patch(link, "two", "TWO")
+        code, _, _ = self.call(plan.show)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.rd(real), original)
+        self.assertTrue(os.path.islink(link))
+
+    def test_two_hard_links_are_refused(self):
+        original = "one\ntwo\n"
+        x = self.mk("x.txt", original)
+        y = os.path.join(self.dir, "y.txt")
+        os.link(x, y)
+        ino = os.stat(x).st_ino
+        plan = fpatch.Plan().patch(x, "one", "ONE").patch(y, "two", "TWO")
+        code, _, _ = self.call(plan.show)
+        self.assertEqual(code, 1)
+        self.assertEqual(self.rd(x), original)
+        self.assertEqual(self.rd(y), original)
+        self.assertEqual(os.stat(x).st_ino, ino)
+        self.assertEqual(os.stat(y).st_ino, ino)
+
+
 if __name__ == "__main__":
     unittest.main()
