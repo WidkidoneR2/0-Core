@@ -264,24 +264,34 @@ def _compute_patch(path, text, old, new, count, context, result):
             result=result,
         )
     # Every site is shown, not just the first.
+    # A trailing newline ends the last line. It is not another line, and it is
+    # not a blank line added on the green side. The bytes below are still replace().
+    if len(old) > 0 and old.endswith("\n"):
+        span = old[:-1].count("\n")
+    else:
+        span = old.count("\n")
+    display_new = new[:-1] if new.endswith("\n") else new
+    green = [] if display_new == "" else display_new.split("\n")
     shown, pos = [], 0
     for _ in range(n):
         i = text.index(old, pos)
         pos = i + len(old)
         first = text.count("\n", 0, i)
-        last = first + old.count("\n")
+        last = first + span
         shown.append((None, f"--- {path}: replacing lines {first + 1}..{last + 1} ---"))
         for j in range(max(0, first - context), min(len(lines), last + context + 1)):
             if first <= j <= last:
                 shown.append(("red", f">> {j + 1}: {lines[j]}"))
             else:
                 shown.append((None, f"   {j + 1}: {lines[j]}"))
-        for nl in new.split("\n"):
+        for nl in green:
             shown.append(("green", f"++ {nl}"))
     return text.replace(old, new), shown, f"{n} replaced"
 
 
 def _compute_between(path, text, start_marker, end_marker, new_lines, context, result):
+    if not start_marker:
+        _refuse(path, "The start marker is empty, so it matches everywhere.", result=result)
     if isinstance(new_lines, str):
         _refuse(path, "new_lines must be a list of lines, not one string.",
                 recovery=["Pass text.split(chr(10)) instead of text."], result=result)
@@ -346,6 +356,20 @@ def _h16(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
+def _absolute(path):
+    """Refuse a relative path before any read or write. The contract is an absolute path."""
+    path = str(path)
+    if not os.path.isabs(path):
+        _refuse(
+            path,
+            "The path is not absolute.",
+            causes=["A relative path follows the current directory."],
+            recovery=["Pass the absolute path."],
+            result=f"No changes written to {path}",
+        )
+    return path
+
+
 class Plan:
     """A list of edits that is checked whole, shown whole, and written whole."""
 
@@ -356,11 +380,13 @@ class Plan:
         return ", ".join(dict.fromkeys(e[1] for e in self._edits)) or "<empty plan>"
 
     def patch(self, path, old, new, count=1, context=2):
-        self._edits.append(("patch", str(path), old, new, count, context))
+        path = _absolute(path)
+        self._edits.append(("patch", path, old, new, count, context))
         return self
 
     def between(self, path, start_marker, end_marker, new_lines, context=2):
-        self._edits.append(("between", str(path), start_marker, end_marker, new_lines, context))
+        path = _absolute(path)
+        self._edits.append(("between", path, start_marker, end_marker, new_lines, context))
         return self
 
     def _build(self):
