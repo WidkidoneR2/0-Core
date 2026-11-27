@@ -25,3 +25,4 @@ id	status	closed	last_commit	title	reason
 352	complete	2026-11-24	4b1cdfb8603f1a7f63c6b0ed239198e6a968256e	zero-deadwood knows every intent ever filed
 353	complete	2026-11-24	25102e9dd8848440d930a46432fe2f9a114eef3c	commands::tokenize drops an empty quoted argument and eats a backslash inside double quotes
 354	complete	2026-11-27	8ba4588193f007bc5a3b453bc6f55c2dcb0589c8	the spine parser treats => in on EVENT => ACTION as a redirect
+355	complete	2026-11-27	fefcf6cf272b897b02fb22af3fd4e68019ecb740	fpatch review diff, absolute paths, and empty marker guards
