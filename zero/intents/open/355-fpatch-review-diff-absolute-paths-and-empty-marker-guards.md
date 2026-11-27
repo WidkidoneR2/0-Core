@@ -3,7 +3,7 @@ id: 355
 date: 2026-11-27
 type: future
 title: "fpatch review diff, absolute paths, and empty marker guards"
-status: planned
+status: in-progress
 tags: [fpatch, safety, dev]
 depends_on: []
 format: 3
@@ -91,7 +91,7 @@ doors, and d are green.
   behaviour, and any file outside the two scripts above.
 
 ## Success Criteria
-- [ ] G1 red first: four new tests in test_fpatch.py fail
+- [x] G1 red first: four new tests in test_fpatch.py fail
       on unmodified fpatch.py. (a) whole-line diff of
       keep\ndrop\nstay\n, dry-run drop\n to DROP\n, does
       not mark >> 3: stay, has no blank ++ line, and the
@@ -101,19 +101,19 @@ doors, and d are green.
       start marker is refused with exit 1 and nothing
       written. The existing 18 tests stay green.
       ask: the four new tests fail on today's fpatch.py, and the existing 18 pass
-      ruling:
-      evidence:
-- [ ] G2 fixes in fpatch.py only. All new tests and all
+      ruling: confirmed on int-355 b7543438
+      evidence: b7543438 -- 18 existing passed, 4 new tests failed as expected
+- [x] G2 fixes in fpatch.py only. All new tests and all
       18 existing tests pass: python3 -m unittest -v
       test_fpatch exits 0. An anchor without a trailing
       newline still paints only its own line. The Seal
       matches sha256 of the uncolored plan text, first
       16 hex.
       ask: the new tests and the existing 18 pass, and the Seal still matches the plan text
-      ruling:
-      evidence:
-- [ ] G3 laptop: python3 -m unittest -v test_fpatch,
+      ruling: confirmed on laptop 69051cb4
+      evidence: 69051cb4 -- fpatch.py only, 22 of 22 unittest pass, Seal matches plan text
+- [x] G3 laptop: python3 -m unittest -v test_fpatch,
       doors, and d are green.
       ask: the laptop suite, doors, and d are green
-      ruling:
-      evidence:
+      ruling: confirmed on laptop
+      evidence: 22 of 22 test_fpatch in 0.006s, doors 4 of 4, d 96 pct with only cistart uncommitted
