@@ -197,6 +197,11 @@ def _unlink(path):
         pass
 
 
+# The apply loop calls os.replace, so a test can fail one rename. Restore calls
+# this same function as it was at import, so that patch cannot also block the way back.
+_replace = os.replace
+
+
 def _stage(target, text):
     """Write text to a temp file beside target, mode bits kept, fsynced. Returns its path."""
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(target), prefix="." + os.path.basename(target) + ".fpatch-")
@@ -356,6 +361,52 @@ def _h16(text):
     return hashlib.sha256(text.encode("utf-8")).hexdigest()[:16]
 
 
+def _same_file(a, b):
+    """True when two different path strings name one file."""
+    if os.path.realpath(a) == os.path.realpath(b):
+        return True
+    sa, sb = os.stat(a), os.stat(b)
+    return (sa.st_dev, sa.st_ino) == (sb.st_dev, sb.st_ino)
+
+
+def _refuse_same_file(paths):
+    """Exit 1 before any write when two path strings are one file. The same string may repeat."""
+    seen = []
+    for path in paths:
+        for earlier in seen:
+            if earlier == path:
+                continue
+            if _same_file(earlier, path):
+                _refuse(
+                    path,
+                    "Two paths are the same file.",
+                    detail=[earlier, path],
+                    causes=["One path is a symlink to the other, or they are hard links."],
+                    recovery=["Edit one path. Two edits on that same path string still chain."],
+                    result="No changes written to any file",
+                )
+        if path not in seen:
+            seen.append(path)
+
+
+def _restore_preimage(target, text, mode):
+    """Put target back to text and mode. True only when the read-back matches."""
+    tmp = None
+    try:
+        tmp = _stage(target, text)
+        os.chmod(tmp, mode & 0o7777)
+        _replace(tmp, target)
+        tmp = None
+        if _read(target) != text:
+            return False
+        os.chmod(target, mode & 0o7777)
+        return (os.stat(target).st_mode & 0o7777) == (mode & 0o7777)
+    except Exception:
+        if tmp:
+            _unlink(tmp)
+        return False
+
+
 def _absolute(path):
     """Refuse a relative path before any read or write. The contract is an absolute path."""
     path = str(path)
@@ -392,6 +443,7 @@ class Plan:
     def _build(self):
         if not self._edits:
             _refuse("<empty plan>", "The plan has no edits.", result="No changes written to any file")
+        _refuse_same_file([e[1] for e in self._edits])
         files, shown, summary = {}, [], []
         total = len(self._edits)
         for k, e in enumerate(self._edits, 1):
@@ -482,6 +534,9 @@ def _plan_apply(plan, seal, require_seal=True):
         for t in staged.values():
             _unlink(t)
         raise
+    preimage = {}
+    for p in changed:
+        preimage[p] = (files[p][0], os.stat(targets[p]).st_mode & 0o7777)
     landed = []
     try:
         for p in changed:
@@ -491,8 +546,24 @@ def _plan_apply(plan, seal, require_seal=True):
         for p in changed:
             if p not in landed:
                 _unlink(staged[p])
-        rest = [p for p in changed if p not in landed]
-        raise RuntimeError(f"rename failed. Written: {landed or 'none'}. Not written: {rest}. ({exc})") from exc
+        restored, failed = [], []
+        for p in landed:
+            text, mode = preimage[p]
+            if _restore_preimage(targets[p], text, mode):
+                restored.append(p)
+            else:
+                failed.append(p)
+        not_written = [p for p in changed if p not in landed]
+        msg = (
+            "rename failed. "
+            f"Restored: {', '.join(restored) if restored else 'none'}. "
+            f"NOT restored: {', '.join(failed) if failed else 'none'}. "
+            f"Not written: {', '.join(not_written) if not_written else 'none'}. "
+            f"({exc})"
+        )
+        if failed:
+            msg += " " + " ".join(f"Restore it with git checkout -- {p}" for p in failed)
+        raise RuntimeError(msg) from exc
     for p in changed:
         got = _read(targets[p])
         if got != files[p][1]:
