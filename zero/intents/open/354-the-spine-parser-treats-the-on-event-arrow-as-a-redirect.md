@@ -3,7 +3,7 @@ id: 354
 date: 2026-11-25
 type: future
 title: "the spine parser treats => in on EVENT => ACTION as a redirect"
-status: planned
+status: in-progress
 tags: [fsh, nsh, spine, parser, triggers]
 depends_on: []
 format: 3
@@ -172,33 +172,33 @@ and d.
   confidential value.
 
 ## Success Criteria
-- [ ] G1 red first: the four parser tests are in the tree.
+- [x] G1 red first: the four parser tests are in the tree.
       `on_arrow_is_words_not_a_redirect` is red on the
       code as it stands; the three echo guards are green.
       ask: on EVENT => ACTION is parsed as a redirect today, and the echo guards already pass
-      ruling:
-      evidence:
-- [ ] G2 the carve-out in the RedirectOut arm. The four
+      ruling: confirmed on int-354 8c118a17
+      evidence: 8c118a17 -- 301 passed, 1 expected fail on_arrow_is_words_not_a_redirect, 3 echo guards green
+- [x] G2 the carve-out in the RedirectOut arm. The four
       G1 tests are green. `echo test > 0.5` and the
       existing ComparisonNotRedirect tests stay green.
       ask: on EVENT => ACTION keeps => as a word, and echo redirects are unchanged
-      ruling:
-      evidence:
-- [ ] G3 a scratch state.db holding the on line and
+      ruling: confirmed on laptop 80dee7e5
+      evidence: 80dee7e5 -- parser.rs only, 302 of 302 novashell tests pass
+- [x] G3 a scratch state.db holding the on line and
       `echo a => b` gives Equivalent for the on row after
       the fix; before the fix that row is
       `io: spine redirects, legacy does not`; the echo
       row is unchanged.
       ask: the audit agrees on the on row, and the echo row did not move
-      ruling:
-      evidence:
-- [ ] G4 an ordinary nsh-test case, not a CONFORMANCE_CASE,
+      ruling: confirmed on scratch db and laptop
+      evidence: scratch db 50fdbf0f vs c20f4d11 moved on row to Equivalent and kept echo unchanged; laptop Unexpected 87 to 85
+- [x] G4 an ordinary nsh-test case, not a CONFORMANCE_CASE,
       runs the on line in a scratch dir, exits 0, prints
       `Trigger added`, and creates no `notify` file.
       ask: the default shell adds the trigger and does not redirect to notify
-      ruling:
-      evidence:
-- [ ] G5 laptop: in a scratch dir,
+      ruling: confirmed in nsh-test c20f4d11
+      evidence: c20f4d11 -- ordinary Regression case passed in laptop doors
+- [x] G5 laptop: in a scratch dir,
       `nsh -c 'on git_commit => notify "commit detected"'`
       prints `Trigger added`, exits 0, and creates no
       `notify` file; `echo a => b`, `echo a=>b`,
@@ -206,8 +206,8 @@ and d.
       redirects and match bash; `NSH_SPINE=0` still adds
       the trigger; nsh-test, doors and d are green.
       ask: the laptop agrees, and doors and d are green
-      ruling:
-      evidence:
+      ruling: confirmed on laptop
+      evidence: G5 scratch 6 of 6 pass, doors 4 of 4, d 96 pct with only cistart uncommitted
 
 ## Job order
 Jobs run on branch int-354 only. Agents never push to main.
