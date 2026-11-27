@@ -6112,6 +6112,55 @@ print('CLASS-DONE')"##;
             ))
         }
     }));
+    // INT-354: `on EVENT => ACTION` adds a trigger. Not a CONFORMANCE_CASE -- bash has
+    // no `on` builtin, and that harness drops lines starting with `[`, `x ` or the
+    // cross mark, so a usage line can disappear from the comparison. Scratch directory,
+    // HOME, ZERO_STATE_DIR and ZERO_STATE_DB, so the live database is never opened.
+    results.push(test(
+        "on_fat_arrow_adds_a_trigger_and_does_not_redirect",
+        Category::Regression,
+        || {
+            let dir = std::env::temp_dir().join(format!("nsh-on-arrow-{}", std::process::id()));
+            let _ = std::fs::remove_dir_all(&dir);
+            std::fs::create_dir_all(&dir).map_err(|e| format!("scratch {}: {e}", dir.display()))?;
+            let db = dir.join("state.db");
+            let dir_s = dir.display().to_string();
+            let db_s = db.display().to_string();
+            let result = (|| -> Result<(), String> {
+                let out = fsh_command(&[
+                    ("NSH_KEEP_CWD", "1"),
+                    ("ZERO_STATE_DB", db_s.as_str()),
+                    ("ZERO_STATE_DIR", dir_s.as_str()),
+                    ("HOME", dir_s.as_str()),
+                ])
+                .current_dir(&dir)
+                .arg("-c")
+                .arg("on git_commit => notify \"commit detected\"")
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .output()
+                .map_err(|e| format!("cannot run nsh: {e}"))?;
+                expect_exit(out.status.code(), 0)?;
+                let stdout = String::from_utf8_lossy(&out.stdout);
+                if !stdout.contains("Trigger added") {
+                    return Err(format!(
+                        "stdout did not contain \"Trigger added\": {stdout:?}\nstderr: {}",
+                        String::from_utf8_lossy(&out.stderr)
+                    ));
+                }
+                let notify = dir.join("notify");
+                if notify.exists() {
+                    return Err(format!(
+                        "created {} -- the on-trigger must not redirect",
+                        notify.display()
+                    ));
+                }
+                Ok(())
+            })();
+            let _ = std::fs::remove_dir_all(&dir);
+            result
+        },
+    ));
     // ── INT-200 CONFORMANCE: what bash actually does, versus what fsh does.
     //
     // ⚠️ MIGRATED FROM `spine conform` (2026-08-03), and the reason is the finding that prompted
