@@ -27,6 +27,9 @@ pub enum Category {
     Intent,
     Registry,
     Database,
+    // INT-358 G3: the docs check was the only constructor. The variant stays
+    // because the sort test still proposes one, and as_str still names it.
+    #[allow(dead_code)]
     Documentation,
     Shell,
     Temporal,
@@ -1053,7 +1056,7 @@ fn print_retired_history(ctx: &AppContext) {
 }
 
 // ── Check Suite ───────────────────────────────────────────────────────────────
-// Deterministic order: Intent → Registry → Jarvis → Autostart → DB → Docs → Shell → Temporal
+// Deterministic order: Intent → Registry → Jarvis → Autostart → DB → Shell → Temporal
 
 pub fn build_check_suite() -> Vec<Box<dyn IntegrityCheck>> {
     vec![
@@ -1068,8 +1071,6 @@ pub fn build_check_suite() -> Vec<Box<dyn IntegrityCheck>> {
         // Phase 5: Database
         Box::new(checks::DbWalModeCheck),
         Box::new(checks::DbIntegrityCheck),
-        // Phase 6: Documentation
-        Box::new(checks::DocsCountConsistencyCheck),
         // Phase 7: Shell
         Box::new(checks::ShellStaleReferenceCheck),
         // Phase 8: Temporal
@@ -1526,68 +1527,6 @@ pub mod checks {
                     ),
                     5,
                 ));
-            }
-            issues
-        }
-    }
-
-    // ── Documentation Checks ──────────────────────────────────────────────────
-
-    pub struct DocsCountConsistencyCheck;
-    impl IntegrityCheck for DocsCountConsistencyCheck {
-        fn name(&self) -> &'static str {
-            "docs_count_consistency"
-        }
-        fn category(&self) -> Category {
-            Category::Documentation
-        }
-        fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
-            let mut issues = vec![];
-            let readme_path = ctx.core_root.join("README.md");
-            let registry_path = ctx.ctx.fpath("registry/tools.toml");
-
-            // Count tools in registry
-            let registry_tools: usize = std::fs::read_to_string(&registry_path)
-                .map(|r| {
-                    r.lines()
-                        .filter(|l| l.trim().starts_with("name = \""))
-                        .count()
-                })
-                .unwrap_or(0);
-
-            // Count tools mentioned in README -- only match specific patterns
-            if let Ok(readme) = std::fs::read_to_string(&readme_path) {
-                for line in readme.lines() {
-                    // Only match lines like "50 tools" or "tools: 50" or "**50 tools**"
-                    let lower = line.to_lowercase();
-                    let is_tool_count_line = (lower.contains("tools deployed")
-                        || lower.contains("tools installed")
-                        || lower.contains("key tools")
-                        || lower.contains("· tools:"))
-                        && !lower.contains("install")
-                        && !lower.contains("pipeline");
-                    if is_tool_count_line {
-                        if let Some(n) = line.split_whitespace().find_map(|w| {
-                            w.trim_matches(|c: char| !c.is_ascii_digit())
-                                .parse::<usize>()
-                                .ok()
-                        }) {
-                            if n != registry_tools && (n as i64 - registry_tools as i64).abs() > 2 {
-                                issues.push(IntegrityIssue::propose(
-                                    Category::Documentation,
-                                    "docs_count_consistency",
-                                    &format!(
-                                        "README shows {} tools but registry has {}",
-                                        n, registry_tools
-                                    ),
-                                    FixAction::SyncDocs,
-                                    1,
-                                ));
-                                break;
-                            }
-                        }
-                    }
-                }
             }
             issues
         }
