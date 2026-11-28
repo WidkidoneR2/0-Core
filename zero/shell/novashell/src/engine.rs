@@ -1759,10 +1759,14 @@ impl Engine {
             return Some(outcome);
         }
         let shell_construct_word = crate::commands::command_word(line);
-        let shell_construct = matches!(
-            shell_construct_word.as_str(),
-            "for" | "while" | "until" | "if" | "case"
-        );
+        // INT-363: a `( )` group with a redirect, a pipe or `&`, or after `time` or a pipe, is
+        // a construct nsh does not parse, so sh gets it whole.
+        let sh_only_group = crate::line_has_sh_only_group(line);
+        let shell_construct = sh_only_group
+            || matches!(
+                shell_construct_word.as_str(),
+                "for" | "while" | "until" | "if" | "case"
+            );
         if shell_construct {
             let status = std::process::Command::new("sh")
                 .arg("-c")
@@ -2398,5 +2402,48 @@ fn restore_process_env(saved: &[(String, String)]) {
         if std::env::var(key).ok().as_deref() != Some(value.as_str()) {
             std::env::set_var(key, value);
         }
+    }
+}
+
+#[cfg(test)]
+mod int363_handoff_tests {
+    use super::Engine;
+    use crate::db::StateDb;
+
+    fn engine() -> Engine {
+        let db = StateDb::open_in_memory().expect("in-memory db");
+        Engine::new(db, "/tmp".to_string(), Vec::new())
+    }
+
+    #[test]
+    fn int363_a_group_with_a_redirect_or_pipe_is_run_by_sh() {
+        let mut e = engine();
+        let dir = std::env::temp_dir().join(format!("nsh-int363-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).expect("scratch dir");
+        let out = dir.join("g.txt");
+        let line = format!("(echo hi; echo yo) > {}", out.display());
+        assert!(e.try_shell_construct(&line).is_some());
+        assert_eq!(std::fs::read_to_string(&out).unwrap(), "hi\nyo\n");
+        assert_eq!(e.last_exit(), Some(0));
+        let line = format!("(exit 3) > {}", out.display());
+        assert!(e.try_shell_construct(&line).is_some());
+        assert_eq!(e.last_exit(), Some(3));
+        assert!(e
+            .try_shell_construct("(echo a; echo b) | grep -q b")
+            .is_some());
+        assert_eq!(e.last_exit(), Some(0));
+        assert!(e
+            .try_shell_construct("echo x | (cat; echo y) | grep -q y")
+            .is_some());
+        assert_eq!(e.last_exit(), Some(0));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn int363_a_plain_command_is_not_taken_by_the_handoff() {
+        let mut e = engine();
+        assert!(e.try_shell_construct("echo plain").is_none());
+        assert!(e.try_shell_construct("echo \"(x) > f\"").is_none());
     }
 }
