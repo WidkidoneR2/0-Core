@@ -10,7 +10,7 @@ Project 0's tool ecosystem: 17 active tools (plus 0 retired), each a purpose-bui
 
 | Tool | Version | Description |
 |------|---------|-------------|
-| [`core`](../engine/) | 5.3.2 | The single Rust engine at the heart of Project 0 -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary. |
+| [`core`](../engine/) | 5.4.0 | The single Rust engine at the heart of Project 0 -- health, intent ledger, integrity, prediction, and Friday the reasoning layer, in one binary. |
 | [`zero-daemon`](./zero-daemon/) | 5.0.0 | Background daemon for Project 0 operations |
 
 ## Development
