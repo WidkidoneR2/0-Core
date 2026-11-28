@@ -1246,7 +1246,7 @@ pub mod checks {
                         continue;
                     }
                     if let Ok(content) = std::fs::read_to_string(&path) {
-                        if content.contains("status: in-progress") {
+                        if frontmatter_status(&content) == "status: in-progress" {
                             in_progress.push(
                                 path.file_name()
                                     .unwrap_or_default()
