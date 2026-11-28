@@ -203,6 +203,10 @@ impl MigrationAudit {
             R::Refused(Ref::FdRedirect { .. }) => {
                 "refused: redirect with explicit fd (2>, 1>>) -- left to legacy".to_string()
             }
+            R::Refused(Ref::CompoundCommand { .. }) => {
+                "refused: compound command (for, while, until, if, case, ( )) -- sh owns it"
+                    .to_string()
+            }
             R::Refused(Ref::UnsupportedOperator { kind, .. }) => {
                 format!("refused: operator {kind:?}")
             }

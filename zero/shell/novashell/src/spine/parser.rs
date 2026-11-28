@@ -36,6 +36,9 @@ pub enum Refusal {
     /// `where cpu > 0.5` is a comparison, not a redirect. A deliberate divergence from bash, which
     /// would create a file named `0.5`.
     ComparisonNotRedirect { span: Span },
+    /// INT-357: a compound command (`for`, `while`, `until`, `if`, `case`, or a `( )` group) at
+    /// command position. The spine has no grammar for these; sh or the grouping handler owns them.
+    CompoundCommand { keyword: &'static str, span: Span },
 }
 
 /// ⭐ INT-169 G2: THE ROUTER CONTRACT, EXPRESSED AS A TYPE.
@@ -112,6 +115,8 @@ pub enum ParseError {
     /// A redirect with no target after it. Legacy already reports this well (INT-245's bare-redirect
     /// guard), so the spine declines rather than inventing a second message for the same mistake.
     MissingRedirectTarget { kind: OperatorKind, span: Span },
+    /// INT-357: see Refusal::CompoundCommand.
+    CompoundCommand { keyword: &'static str, span: Span },
     // grows as the grammar does: UnexpectedToken(Span), Unterminated(Span), ...
 }
 
@@ -417,6 +422,16 @@ impl Parser {
                                 Some(s) => s.merge(wspan),
                             });
                             continue;
+                        }
+                    }
+                    // INT-357: a compound command keyword at command position is refused, not
+                    // parsed as a program name followed by a `;` Sequence.
+                    if words.is_empty() && assignments.is_empty() {
+                        if let Some(keyword) = compound_keyword(&parts) {
+                            return Err(ParseError::CompoundCommand {
+                                keyword,
+                                span: wspan,
+                            });
                         }
                     }
                     words.push(Spanned::new(wspan, Word { parts }));
@@ -778,6 +793,9 @@ pub fn parse(source: &str) -> ParseResult {
         Err(ParseError::ComparisonNotRedirect { span }) => {
             ParseResult::Refused(Refusal::ComparisonNotRedirect { span })
         }
+        Err(ParseError::CompoundCommand { keyword, span }) => {
+            ParseResult::Refused(Refusal::CompoundCommand { keyword, span })
+        }
         // ⚠️ NoCommand IS NOT "the caller passed an empty string" -- a proptest disproved that with
         // a one-character counter-example, `&`. See the variant's own doc. It is malformed shell:
         // the grammar wanted a command and the input has none, so it surfaces rather than routing.
@@ -802,6 +820,28 @@ impl ParseResult {
     }
     pub(crate) fn is_complete(&self) -> bool {
         matches!(self, ParseResult::Complete(_))
+    }
+}
+
+/// INT-357: the compound-command opener this first word is, if any. Only an unquoted literal
+/// counts: `"for"` is an ordinary word in bash too.
+fn compound_keyword(parts: &[WordPart]) -> Option<&'static str> {
+    match parts.first() {
+        Some(WordPart::Literal {
+            text,
+            quoted: QuoteContext::Unquoted,
+        }) => {
+            if text.starts_with('(') {
+                return Some("(");
+            }
+            if parts.len() != 1 {
+                return None;
+            }
+            ["for", "while", "until", "if", "case"]
+                .into_iter()
+                .find(|k| text == k)
+        }
+        _ => None,
     }
 }
 

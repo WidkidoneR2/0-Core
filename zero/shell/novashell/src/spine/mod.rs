@@ -178,6 +178,12 @@ fn diagnose_parse(e: &parser::ParseError) -> crate::diagnostic::Diagnostic {
             "a target starting with a digit or `=` is a comparison, so `where cpu > 0.5` works",
         )
         .with_code("nsh::spine::comparison_not_redirect"),
+        ParseError::CompoundCommand { keyword, span } => {
+            Diagnostic::error(format!("compound command `{keyword}`"))
+                .with_label(span.start, span.end, "this word")
+                .with_help("valid shell -- sh or the grouping handler owns this construct")
+                .with_code("nsh::spine::compound_command")
+        }
         ParseError::MissingRedirectTarget { kind, span } => {
             Diagnostic::error(format!("no target after {:?}", kind))
                 .with_label(
