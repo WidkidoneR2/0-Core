@@ -181,16 +181,156 @@ pub struct FixReport {
     pub lines: Vec<FixLine>,
 }
 
-/// Stub. G4 and G5 fill this in. No scan, no write.
+/// Whether a stored fix can be carried out, refused, or only done by hand.
+enum Preflight {
+    Apply,
+    Refuse(String),
+    Hand(String),
+}
+
+/// The change a stored proposal would make, decided from the same data apply uses.
+fn preview_stored(ctx: &AppContext, action_type: &str, action_data: &str) -> (Vec<String>, Preflight) {
+    match action_type {
+        "UpdateRegistryVersion" => preview_version(ctx, action_data),
+        "MoveFile" => preview_move(action_data),
+        _ => (
+            vec![action_data.to_string()],
+            Preflight::Hand(format!(
+                "has no stored {action_type} fix to carry out; apply it by hand"
+            )),
+        ),
+    }
+}
+
+fn preview_version(ctx: &AppContext, action_data: &str) -> (Vec<String>, Preflight) {
+    let Some((tool, version)) = action_data.split_once('\t') else {
+        return (
+            vec![],
+            Preflight::Refuse(format!(
+                "{action_data:?} is not a tool and a version"
+            )),
+        );
+    };
+    let path = ctx.fpath("registry/tools.toml");
+    let text = match std::fs::read_to_string(&path) {
+        Ok(t) => t,
+        Err(e) => return (vec![], Preflight::Refuse(e.to_string())),
+    };
+    let new_text = match zero_core::registry::set_version(&text, tool, version) {
+        Ok(t) => t,
+        Err(e) => return (vec![], Preflight::Refuse(e)),
+    };
+    let Some((n, old_line, new_line)) = first_changed_line(&text, &new_text) else {
+        return (
+            vec![],
+            Preflight::Refuse(format!("setting {tool} to {version} changes no line")),
+        );
+    };
+    (
+        vec![
+            format!("zero/registry/tools.toml:{n}"),
+            format!("- {old_line}"),
+            format!("+ {new_line}"),
+        ],
+        Preflight::Apply,
+    )
+}
+
+fn first_changed_line(old: &str, new: &str) -> Option<(usize, String, String)> {
+    old.lines()
+        .zip(new.lines())
+        .enumerate()
+        .find(|(_, (a, b))| a != b)
+        .map(|(i, (a, b))| (i + 1, a.to_string(), b.to_string()))
+}
+
+fn preview_move(action_data: &str) -> (Vec<String>, Preflight) {
+    let Some((from, to)) = action_data.split_once('\t') else {
+        return (
+            vec![],
+            Preflight::Refuse(format!("{action_data:?} is not a from and a to")),
+        );
+    };
+    let shown = vec![format!("move {from} -> {to}")];
+    if !std::path::Path::new(from).exists() {
+        return (
+            shown,
+            Preflight::Refuse(format!("names {from}, which is not there")),
+        );
+    }
+    if std::path::Path::new(to).exists() {
+        return (shown, Preflight::Refuse(format!("would overwrite {to}")));
+    }
+    (shown, Preflight::Apply)
+}
+
+fn pending_match_id(
+    ctx: &AppContext,
+    check: &str,
+    subject: &Option<String>,
+    data: &str,
+) -> Option<i64> {
+    ctx.runtime
+        .db
+        .query_row(
+            &format!(
+                "SELECT id FROM pending_fixes
+                 WHERE check_name = ?1 AND subject IS ?2 AND action_data = ?3 AND {}
+                 ORDER BY id LIMIT 1",
+                PENDING
+            ),
+            rusqlite::params![check, subject, data],
+            |r| r.get(0),
+        )
+        .ok()
+}
+
+fn line_from_issue(ctx: &AppContext, issue: &IntegrityIssue) -> FixLine {
+    let (action_type, action_data) = stored_action(issue);
+    let subject = issue.fix.as_ref().and_then(fix_subject);
+    let (change, preflight) = preview_stored(ctx, action_type, &action_data);
+    let verdict = match preflight {
+        Preflight::Apply => FixVerdict::WouldApply,
+        Preflight::Refuse(why) => FixVerdict::Refused(why),
+        Preflight::Hand(why) => FixVerdict::NeedsHand(why),
+    };
+    FixLine {
+        id: pending_match_id(ctx, issue.check, &subject, &action_data),
+        category: issue.category.as_str().to_string(),
+        check: issue.check.to_string(),
+        description: issue.description.clone(),
+        change,
+        verdict,
+    }
+}
+
+/// Preview when dry_run is true. The apply path is filled in by G5.
 pub fn fix_run(
-    _ctx: &AppContext,
-    _checks: &[Box<dyn IntegrityCheck>],
+    ctx: &AppContext,
+    checks: &[Box<dyn IntegrityCheck>],
     dry_run: bool,
 ) -> FixReport {
+    if !dry_run {
+        return FixReport {
+            dry_run,
+            auto_fixed: 0,
+            lines: vec![],
+        };
+    }
+    let ictx = IntegrityContext::new(ctx);
+    let mut lines = Vec::new();
+    for check in checks {
+        for issue in check.run(&ictx) {
+            if issue.severity != Severity::Propose || issue.fix.is_none() {
+                continue;
+            }
+            lines.push(line_from_issue(ctx, &issue));
+        }
+    }
     FixReport {
         dry_run,
         auto_fixed: 0,
-        lines: vec![],
+        lines,
     }
 }
 
@@ -381,7 +521,9 @@ pub fn frontmatter_status(content: &str) -> String {
         .to_string()
 }
 
-fn persist_proposal(ctx: &IntegrityContext, issue: &IntegrityIssue) {
+/// The action type and stored data persist_proposal writes. One mapping, so a
+/// preview describes the same bytes apply carries out.
+fn stored_action(issue: &IntegrityIssue) -> (&'static str, String) {
     let action_type = match &issue.fix {
         Some(FixAction::MoveFile { .. }) => "MoveFile",
         Some(FixAction::UpdateRegistryVersion { .. }) => "UpdateRegistryVersion",
@@ -390,7 +532,11 @@ fn persist_proposal(ctx: &IntegrityContext, issue: &IntegrityIssue) {
         Some(FixAction::UpdateFile { .. }) => "UpdateFile",
         _ => "Unknown",
     };
-    let action_data = fix_data(issue);
+    (action_type, fix_data(issue))
+}
+
+fn persist_proposal(ctx: &IntegrityContext, issue: &IntegrityIssue) {
+    let (action_type, action_data) = stored_action(issue);
     let subject = issue.fix.as_ref().and_then(fix_subject);
     // INT-275: the same check, subject and fix already pending is the same proposal. A new fix
     // for the same identity is a new row; the reconcile retires the older one as superseded.
