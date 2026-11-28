@@ -7562,6 +7562,12 @@ const CONFORMANCE_CASES: &[ConformCase] = &[
     // The wrapper is <> : a line that starts with [ is dropped as the [n/N]
     // progress display before the comparison, so [%s] never reaches it.
     ("printf '<%s>\\n' \"a\\nb\" \"\" x", None),
+    // --- compound commands (INT-357). The spine refuses these at parse; sh or the grouping
+    // handler runs them. Output must still match bash.
+    ("for x in a b; do echo item-$x; done", None),
+    ("if true; then echo if-taken; fi", None),
+    ("printf 'p\\nq\\n' | while read f; do echo got-$f; done", None),
+    ("(echo grp-a; echo grp-b)", None),
     // --- THE DECLARED DIVERGENCES. Matching bash here would be the regression. ---
     // ⭐ THESE TWO WERE THE ONLY DECLARED DIVERGENCES, AND THEY ARE GONE (2026-08-07). fsh used to
     // read any digit-initial or `=`-initial redirect target as a comparison, so that
