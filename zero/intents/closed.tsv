@@ -30,3 +30,4 @@ id	status	closed	last_commit	title	reason
 357	complete	2026-11-27	8051db33ca680c3e4dd03315a377850eb666872c	the spine refuses compound commands instead of parsing them as a sequence
 186	cancelled	2026-11-27	335b5633afa42c7be96aace8a6368e65212846be	tree-sitter syntax highlighting for fsh -- the editor-side of the parse arc, separate from INT-169's execution parser	ruled spans, not tree-sitter, for highlighting (2026-09-14); highlighting follow-ups live with the line-editor work
 358	complete	2026-11-27	c5f5e0d970d6147198e3c0e48fbb2fce9aad5df7	core integrity fix previews, applies and verifies instead of listing
+359	complete	2026-11-27	813572e121d6415c17da17804e3f660b27c99270	core intent park returns an open in-progress intent to planned
