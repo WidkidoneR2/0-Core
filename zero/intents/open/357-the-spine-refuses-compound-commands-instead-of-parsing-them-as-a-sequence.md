@@ -133,15 +133,15 @@ The refusal also fires inside `$( )`, because the parser
 parses a substitution body. On the box
 `x=$(for i in 1 2; do echo $i; done)` moved from
 `bare assignment` to `compound command`. Both route to
-legacy, so the shell oun runs it the same way.
+legacy, so the shell runs it the same way.
 
 G3 is the audit proof on a scratch ZERO_STATE_DB with no
 laptop state. Ten rows: the eight compound rows from G1's
 shapes (for, while, until, if, piped while, two groups, and
 `echo a && (echo b; echo c)`) plus `echo a; echo b` and
 `echo hi`. Measured on the box, before (main 0a7807a4):
-Equivalent 4, Feature gaps 8, `8 sequence` under
-Declined at lowering and "x not yet ruled. THE 1 ARE THE BLOCKER".
+Equivalent 4, Feature gaps 8, `8 sequence` under Declined
+at lowering, and "8 not yet ruled. THE 8 ARE THE BLOCKER".
 After (prototype): Equivalent 4, Feature gaps 0, no
 sequence row, `8 compound command` under Refused at parse,
 "0 not yet ruled", and "Every remaining kind is ruled
@@ -178,7 +178,7 @@ G5 is the laptop proof.
   escaped `;`; `case` lines, which the splitter cuts at
   `;;`; a ( ) group followed by a redirect, a pipe or `&`
   (measured: `(echo hi) > f`, `(echo a; echo b) | wc -l`
-  and `(echo hi) &` differ from bash today); `time`( )`;
+  and `(echo hi) &` differ from bash today); `time ( )`;
   `"for" x` reaching sh through command_word; lexer.rs;
   RULED_DELIBERATE; the labels in spine/audit.rs
   (`spine audit` counts any non-operator refusal as
@@ -227,7 +227,7 @@ G5 is the laptop proof.
       evidence:
 - [ ] G4 four CONFORMANCE_CASES for for, if, piped while
       and a ( ) group are in nsh-test and match bash.
-      ask: the default shell still ouns compound commands the way bash does
+      ask: the default shell still runs compound commands the way bash does
       ruling:
       evidence:
 - [ ] G5 laptop: cargo test -p novashell int357_ passes;
