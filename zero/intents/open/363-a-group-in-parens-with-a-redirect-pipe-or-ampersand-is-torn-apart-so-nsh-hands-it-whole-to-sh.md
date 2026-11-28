@@ -3,7 +3,7 @@ id: 363
 date: 2026-11-28
 type: future
 title: "a ( ) group with a redirect, pipe or & is torn apart, so nsh hands it whole to sh"
-status: planned
+status: in-progress
 tags: [nsh, splitter, subshell, sh]
 depends_on: []
 format: 3
@@ -320,38 +320,38 @@ nothing on the changed lines.
   outside the repo, and any secret or confidential value.
 
 ## Success Criteria
-- [ ] G1 red first: three int363_ tests are in a new
+- [x] G1 red first: three int363_ tests are in a new
       mod int363_split at the end of main.rs. The two
       piece tests fail on their assertions (none errors)
       and int363_plain_groups_quotes_and_substitutions_
       are_unchanged passes. The 313 existing tests stay
       green.
       ask: today the splitter cuts a group from its redirect, pipe, & and time, and nothing tests it
-      ruling:
-      evidence:
-- [ ] G2 the splitter rule in split_around_compounds with
+      ruling: confirmed on int-363 dffb90d6
+      evidence: dffb90d6 -- mod int363_split at the end of main.rs, same lines as the box prototype; 2 piece tests red on assert_eq, plain test passes, novashell 314 passed 2 failed both int363_
+- [x] G2 the splitter rule in split_around_compounds with
       line_has_sh_only_group. The three G1 tests and
       int363_which_lines_need_sh_for_a_group pass and
       cargo test -p novashell is 317 passed.
       ask: a group with a redirect, pipe, & or time stays one piece, and everything else splits as before
-      ruling:
-      evidence:
-- [ ] G3 try_shell_construct hands such a piece to sh. The
+      ruling: confirmed on int-363 69982d53
+      evidence: 69982d53 -- main.rs only, scan_compounds marks the piece and line_has_sh_only_group asks it; int363_ 4 passed, novashell 317 of 317, rustfmt clean
+- [x] G3 try_shell_construct hands such a piece to sh. The
       two engine tests pass, `nsh -c '(echo hi) > f'`
       writes f with hi, and cargo test -p novashell is 319
       passed.
       ask: nsh runs the piece the way bash does, with sh's exit status
-      ruling:
-      evidence:
-- [ ] G4 the notice: command_words_in, sh_handoff_notice
+      ruling: confirmed on int-363 9fba8070
+      evidence: 9fba8070 -- engine.rs only, try_shell_construct sends the piece to sh -c; 2 engine tests pass, nsh -c writes hi to the file and (echo a; echo b) piped to wc -l prints 2 as bash does; novashell 319 of 319
+- [x] G4 the notice: command_words_in, sh_handoff_notice
       and the one-line note. The four notice tests pass,
       cargo test -p novashell is 323 passed, and
       `(gs; ll; intents) > /dev/null` prints the note
       once, then sh's errors.
       ask: an nsh-only word inside such a piece is named instead of failing silently
-      ruling:
-      evidence:
-- [ ] G5 box proof: the 88 probe lines run as nsh -c and
+      ruling: confirmed on int-363 1efe6d2d
+      evidence: 1efe6d2d -- command_words_in and sh_handoff_notice; (gs; ll; intents) to /dev/null printed one note naming gs, ll and intents, then sh errors; novashell 323 of 323, build has no warning
+- [x] G5 box proof: the 88 probe lines run as nsh -c and
       bash -c on a main build and on the int-363 build,
       with sh as dash and with sh as bash. No line that
       matched bash on main stops matching. With sh as
@@ -359,21 +359,21 @@ nothing on the changed lines.
       as dash, 46 do. Every line that still differs is
       explained in the intent or the notes.
       ask: the fixed lines match bash and nothing that matched before moved
-      ruling:
-      evidence:
-- [ ] G6 four CONFORMANCE_CASES for a group with a
+      ruling: confirmed on VM
+      evidence: 88 probe lines, main 20 same 68 differ; int-363 sh as bash 72 same, 52 fixed; sh as dash 66 same, 46 fixed; 0 regressed in both; the 16 that still differ are the ones named out of scope
+- [x] G6 four CONFORMANCE_CASES for a group with a
       redirect, a pipe, a pipe into a group and a group
       with a redirect then `&&` are in nsh-test.
       ask: the laptop suite holds these four lines to bash from now on
-      ruling:
-      evidence:
-- [ ] G7 laptop: cargo test -p novashell int363_ passes
+      ruling: confirmed on int-363 e3631334
+      evidence: e3631334 -- nsh-test main.rs CONFORMANCE_CASES only, 4 cases; all 4 differ from bash on main and match bash on int-363; build clean
+- [x] G7 laptop: cargo test -p novashell int363_ passes
       (10 tests); the four new conform_ cases pass in
       doors' nsh-test run; `ls -l /bin/sh` is recorded;
       doors and d are green.
       ask: the laptop agrees, and nsh-test, doors and d are green
-      ruling:
-      evidence:
+      ruling: confirmed on laptop
+      evidence: int363_ 10 passed, novashell 323 of 323, bin/sh is bash, tree clean, doors 4 of 4 with nsh-test 145.0s; merge, 6 seals intact, d 96 pct with only the cistart status line uncommitted, Integrity 100 pct
 
 ## Job order
 Jobs run on branch int-363 only. Agents never push to
