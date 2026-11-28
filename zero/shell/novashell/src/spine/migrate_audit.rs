@@ -143,6 +143,11 @@ pub struct MigrationReport {
     /// are about to work on. Measured 2026-09-02: 43 of 59 unexpected were one shape, and the
     /// flat example list mixed all 59 -- so the largest group could only be sampled by chance.
     pub unexpected_examples_by_shape: std::collections::BTreeMap<String, Vec<String>>,
+
+    /// Up to a few source lines under each Declined-at-lowering and Refused-at-parse
+    /// kind. Keyed by the label the stage table prints (the part after `unlowerable: `
+    /// or `refused: `). Counts stay in `declined_by_reason`.
+    pub stage_examples_by_kind: std::collections::BTreeMap<String, Vec<String>>,
 }
 
 /// Accumulator. Feed it observations; it classifies each and tallies.
@@ -224,6 +229,15 @@ impl MigrationAudit {
             // The caller only reaches here when the spine did NOT produce a plan.
             R::Complete(_) => "complete (unreachable here)".to_string(),
         };
+        if let Some(kind) = reason.strip_prefix("refused: ") {
+            push_example(
+                self.report
+                    .stage_examples_by_kind
+                    .entry(kind.to_string())
+                    .or_default(),
+                source,
+            );
+        }
         *self.report.declined_by_reason.entry(reason).or_insert(0) += 1;
     }
 
@@ -250,6 +264,13 @@ impl MigrationAudit {
                     .declined_by_reason
                     .entry(format!("unlowerable: {kind}"))
                     .or_insert(0) += 1;
+                push_example(
+                    self.report
+                        .stage_examples_by_kind
+                        .entry(kind.to_string())
+                        .or_default(),
+                    obs.source,
+                );
                 return;
             }
             Err(LowerError::MissingCapability { kind: _, span: _ }) => {
@@ -424,6 +445,15 @@ impl MigrationReport {
                 for (reason, count) in hits {
                     let shown = reason.strip_prefix(prefix).unwrap_or(reason);
                     out.push_str(&format!("  {count:>7}  {shown}\n"));
+                    // Same placement as the Unexpected by-shape examples: under the
+                    // kind, three lines, the label column. Counts and wording stay put.
+                    if prefix == "refused: " || prefix == "unlowerable: " {
+                        if let Some(examples) = self.stage_examples_by_kind.get(shown) {
+                            for ex in examples.iter().take(3) {
+                                out.push_str(&format!("           {ex}\n"));
+                            }
+                        }
+                    }
                 }
                 out.push('\n');
             };
@@ -644,5 +674,31 @@ mod tests {
         assert_eq!(r.safe_improvement, 1);
         assert_eq!(r.feature_gap, 1);
         assert_eq!(r.unexpected, 0);
+    }
+
+    #[test]
+    fn int357_declined_sequence_row_shows_its_source() {
+        let mut audit = MigrationAudit::new();
+        audit.observe(AuditObservation {
+            source: "echo a; echo b",
+            legacy: plan(&["echo", "a"]),
+            spine: Err(LowerError::UnsupportedConstruct {
+                kind: "sequence",
+                span: super::super::ast::Span::new(0, 1),
+            }),
+        });
+        let rendered = audit.finish().render();
+        let stage = rendered
+            .split("Declined at lowering")
+            .nth(1)
+            .unwrap_or("");
+        let block = stage.split("\n\n").next().unwrap_or("");
+        assert!(
+            block.contains("sequence") && block.contains("echo a; echo b"),
+            "the sequence kind row must list its source line:\n{block}\n---\n{rendered}"
+        );
+        let seq_at = block.find("sequence").expect("sequence kind");
+        let src_at = block.find("echo a; echo b").expect("source");
+        assert!(src_at > seq_at, "example must sit under the sequence row:\n{block}");
     }
 }
