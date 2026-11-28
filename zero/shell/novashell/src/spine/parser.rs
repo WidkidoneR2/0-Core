@@ -1268,6 +1268,55 @@ mod tests {
         );
     }
 
+    // INT-357: a compound command at command position is REFUSED, not parsed as a program named
+    // `for` (or `(cd`) followed by a `;` Sequence that lowering then declines as "sequence".
+    // Asserted through Debug so these compile before the variant exists; G1 is red, not errored.
+    fn assert_compound_refusal(line: &str, keyword: &str) {
+        let r = parse(line);
+        assert!(
+            matches!(r, ParseResult::Refused(_)),
+            "{line:?} must be Refused, got {r:?}"
+        );
+        let dbg = format!("{r:?}");
+        assert!(
+            dbg.contains("CompoundCommand") && dbg.contains(&format!("keyword: {keyword:?}")),
+            "{line:?} must be refused as compound command {keyword:?}, got {dbg}"
+        );
+    }
+
+    #[test]
+    fn int357_compound_keywords_are_refused() {
+        assert_compound_refusal("for x in a b; do echo $x; done", "for");
+        assert_compound_refusal("while true; do echo x; done", "while");
+        assert_compound_refusal("until false; do echo x; done", "until");
+        assert_compound_refusal("if true; then echo y; fi", "if");
+        assert_compound_refusal("case x in a) echo a;; esac", "case");
+    }
+
+    #[test]
+    fn int357_piped_while_is_refused() {
+        assert_compound_refusal("ls | while read f; do echo $f; done", "while");
+    }
+
+    #[test]
+    fn int357_paren_group_is_refused() {
+        assert_compound_refusal("(cd /tmp && ls)", "(");
+        assert_compound_refusal("(echo b; echo c)", "(");
+        assert_compound_refusal("(echo hi)", "(");
+    }
+
+    #[test]
+    fn int357_non_opener_keywords_still_parse() {
+        // Quoted, an argument, or a longer word: an ordinary word, as in bash.
+        assert!(matches!(parse("\"for\" x"), ParseResult::Complete(_)));
+        assert!(matches!(parse("fortune"), ParseResult::Complete(_)));
+        assert!(matches!(parse("echo if then fi"), ParseResult::Complete(_)));
+        let seq = parse("echo for; echo if").expect_complete("a plain sequence still parses");
+        assert!(matches!(seq.node, AstNode::Sequence(_)), "got {:?}", seq.node);
+        let seq = parse("echo a; echo b").expect_complete("a plain sequence still parses");
+        assert!(matches!(seq.node, AstNode::Sequence(_)), "got {:?}", seq.node);
+    }
+
     #[test]
     fn bare_operator_is_invalid_not_refused() {
         // ⭐ THE REGRESSION TEST FOR THE DISTINCTION, and proptest found the input. A refusal means
