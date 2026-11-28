@@ -7568,6 +7568,12 @@ const CONFORMANCE_CASES: &[ConformCase] = &[
     ("if true; then echo if-taken; fi", None),
     ("printf 'p\\nq\\n' | while read f; do echo got-$f; done", None),
     ("(echo grp-a; echo grp-b)", None),
+    // --- the splitter (INT-361). A backslash takes the next character literally, and a
+    // case ... esac stays whole, so neither is cut at a semicolon. Red before the fix.
+    ("echo esc-a\\;b", None),
+    ("echo \"q\\\"x; echo leak\"", None),
+    ("case k in k) echo case-k;; esac", None),
+    ("echo f > /tmp/nsh_conform_f.txt; find /tmp/nsh_conform_f.txt -exec echo found {} \\;", None),
     // --- THE DECLARED DIVERGENCES. Matching bash here would be the regression. ---
     // ⭐ THESE TWO WERE THE ONLY DECLARED DIVERGENCES, AND THEY ARE GONE (2026-08-07). fsh used to
     // read any digit-initial or `=`-initial redirect target as a comparison, so that
