@@ -3,7 +3,7 @@ id: 358
 date: 2026-11-27
 type: future
 title: "core integrity fix previews, applies and verifies instead of listing"
-status: planned
+status: in-progress
 tags: [core, integrity, doctor, proposals]
 depends_on: []
 format: 3
@@ -305,7 +305,7 @@ G7 is the laptop proof.
   outside the repo, and any secret or confidential value.
 
 ## Success Criteria
-- [ ] G1 red first: the six int358_ tests and the seams
+- [x] G1 red first: the six int358_ tests and the seams
       (pending_count, FixVerdict, FixLine, FixReport and
       the empty fix_run) are in integrity/mod.rs and
       cli/parser.rs. All six fail on their assertions, none
@@ -313,44 +313,44 @@ G7 is the laptop proof.
       the sixth already pass. The 380 existing tests stay
       green.
       ask: today status counts a retired row, fix writes nothing, and the README line reads as 100 tools
-      ruling:
-      evidence:
-- [ ] G2 pending_count uses PENDING and cmd_status calls
+      ruling: confirmed on int-358 a40d952a
+      evidence: a40d952a -- seams plus six int358_ tests; all six failed on their assertions, none errored; 380 existing passed
+- [x] G2 pending_count uses PENDING and cmd_status calls
       it. int358_status_counts_only_pending passes and
       nothing else changes.
       ask: status counts exactly the proposals fix would list
-      ruling:
-      evidence:
-- [ ] G3 DocsCountConsistencyCheck and its suite line are
+      ruling: confirmed on int-358 44dc5fb0
+      evidence: 44dc5fb0 -- pending_count counts with PENDING; int358_status_counts_only_pending passes; laptop status went from 5 at draft time to 0 after d
+- [x] G3 DocsCountConsistencyCheck and its suite line are
       gone. The docs-check test passes; a stand_in with the
       old README line gives no issue; the old row retires
       as `check removed` on the next run.
       ask: the README count proposal is removed rather than repaired, because zero-docs never writes the README
-      ruling:
-      evidence:
-- [ ] G4 fix_run with dry_run true returns a preview line
+      ruling: confirmed on int-358 5b7c64f4
+      evidence: 5b7c64f4 -- check and suite line removed, README untouched; Category Documentation kept with allow dead_code because the sort test and as_str use it; old row retired as check removed
+- [x] G4 fix_run with dry_run true returns a preview line
       per proposal and writes no file and no row.
       int358_dry_run_previews_and_writes_nothing passes.
       ask: the preview shows the exact line apply would write, and a dry run changes nothing
-      ruling:
-      evidence:
-- [ ] G5 fix_run with dry_run false applies each row,
+      ruling: confirmed on int-358 de41c439
+      evidence: de41c439 -- preview shows the tools.toml line before and after and writes nothing; int358_dry_run_previews_and_writes_nothing passes
+- [x] G5 fix_run with dry_run false applies each row,
       verifies each afterward and sorts the outcomes;
       ApplyError and the verification are in apply_row;
       `apply` and `heal` print what they printed before.
       The two apply tests pass and cargo test -p core is
       green.
       ask: every proposal the engine can apply is applied and checked again, and one failure does not stop the rest
-      ruling:
-      evidence:
-- [ ] G6 `core integrity fix [--dry-run]` is wired and
+      ruling: confirmed on int-358 d4a43da6
+      evidence: d4a43da6 -- apply re-runs the named check and reports applied, refused or needs hand; stored data with no tab and a set_version that changes no line are refusals; int358_ apply and sort tests pass
+- [x] G6 `core integrity fix [--dry-run]` is wired and
       prints the report in the shape above, with a non-zero
       exit on a refusal or needs-hand. All six int358_
       tests pass. Box scratch proof pasted.
       ask: the command reads the way it should and exits right
-      ruling:
-      evidence:
-- [ ] G7 laptop: after merge and ship, `core integrity
+      ruling: confirmed on int-358 bc1cb34c
+      evidence: bc1cb34c -- --dry-run wired through parser, commands, mod and dispatcher; scratch-copy proof: dry run showed 5.3.2 to 5.3.3 and left tools.toml unchanged, fix said applied, verified, fix again said No pending proposals, status 0; 386 of 386 pass, no warnings
+- [x] G7 laptop: after merge and ship, `core integrity
       fix --dry-run` and `core integrity status` agree (both
       0 or both the same N); `d` has no "integrity
       proposal(s) pending" line and Integrity is 100%;
@@ -358,8 +358,8 @@ G7 is the laptop proof.
       a scratch-copy proof of fix on one real drift is
       pasted; d is green.
       ask: the laptop agrees, and d is clean and shows no phantom proposal
-      ruling:
-      evidence:
+      ruling: confirmed on laptop
+      evidence: Block T 6 int358_ passed, 386 of 386, doors 4 of 4; after merge, ship core and d: fix --dry-run No pending proposals and status 0 agree, Integrity 100 pct, no pending line, d 96 pct with only cistart uncommitted; 7 seals intact
 
 ## Job order
 Jobs run on branch int-358 only. Agents never push to
