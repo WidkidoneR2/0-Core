@@ -5854,12 +5854,56 @@ fn park_commit_message(id: &str, reason: &str) -> String {
     format!("INT-{id}: park; {reason}\n\nIntent: INT-{id}\n")
 }
 
-/// INT-359. Stub. G2 writes the status line and G3 clears focus. This writes nothing.
+/// The frontmatter status value, or None when that line is absent. A body quote is not a status.
+fn frontmatter_status_value(content: &str) -> Option<String> {
+    let open = content.find("---")?;
+    let after = open + 3;
+    let close_rel = content[after..].find("---")?;
+    let fm = &content[after..after + close_rel];
+    for line in fm.lines() {
+        let trimmed = line.trim();
+        if let Some(rest) = trimmed.strip_prefix("status:") {
+            return Some(rest.trim().trim_matches('"').to_string());
+        }
+    }
+    None
+}
+
+/// INT-359. Rewrite an open in-progress intent's status line to planned. Focus is G3.
+/// Nothing here stages, commits, moves the file, or touches closed.tsv.
 pub fn park_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<ParkReport> {
-    let _ = (ctx, id, reason);
+    ctx.capabilities
+        .require("intent", &[Capability::FilesystemWriteHome])?;
+    if reason.trim().is_empty() {
+        return Err(crate::errors::CoreError::Domain {
+            domain: "intent".to_string(),
+            message: "park requires a non-empty --reason".to_string(),
+        });
+    }
+    let path = finder::find_intent_file(&intents_dir(ctx), id, folders::ACTIVE).ok_or_else(
+        || crate::errors::CoreError::Domain {
+            domain: "intent".to_string(),
+            message: format!(
+                "Active intent {} not found (already complete or cancelled?)",
+                id
+            ),
+        },
+    )?;
+    let content = std::fs::read_to_string(&path)?;
+    let status = frontmatter_status_value(&content);
+    if status.as_deref() != Some("in-progress") {
+        let named = status.unwrap_or_else(|| "absent".to_string());
+        return Err(crate::errors::CoreError::Domain {
+            domain: "intent".to_string(),
+            message: format!("intent {id} is {named}, not in-progress"),
+        });
+    }
+    let updated = set_frontmatter_status(&content, &["in-progress"], "planned");
+    std::fs::write(&path, updated)?;
+    let rel_path = repo_relative(Path::new(&ctx.core_root), &path).unwrap_or_default();
     Ok(ParkReport {
-        rel_path: String::new(),
-        suggested_commit: String::new(),
+        rel_path,
+        suggested_commit: park_commit_message(id, reason),
         cleared_focus: false,
     })
 }
