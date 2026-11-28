@@ -3,7 +3,7 @@ id: 360
 date: 2026-11-27
 type: future
 title: "core integrity counts in-progress by status line and drops a dead check"
-status: planned
+status: in-progress
 tags: [core, integrity, intent]
 depends_on: []
 format: 3
@@ -245,32 +245,32 @@ G4 is the laptop proof.
   repo, and any secret or confidential value.
 
 ## Success Criteria
-- [ ] G1 red first: the four int360_ tests are in the
+- [x] G1 red first: the four int360_ tests are in the
       integrity tests module. The two body-quote tests
       fail on their assertions (none errors), and the
       two guard tests pass. The 393 existing tests stay
       green.
       ask: today a body quote of the phrase can make the count alert, and nothing tests it
-      ruling:
-      evidence:
-- [ ] G2 IntentInProgressCountCheck counts a file only
+      ruling: confirmed on int-360 59ee6f72
+      evidence: 59ee6f72 -- four int360_ tests; the two body-quote tests failed on their assertions (8 and 10 intents marked in-progress), none errored; the two guard tests passed; 395 passed, 2 failed
+- [x] G2 IntentInProgressCountCheck counts a file only
       when frontmatter_status says `status: in-progress`.
       All four int360_ tests pass and the full suite is
       397 passed. Box scratch proof pasted: planned files
       that quote the phrase give 100%, really
       in-progress files give the alert.
       ask: only a real in-progress status counts, and eight real ones still alert
-      ruling:
-      evidence:
-- [ ] G3 IntentStatusDirectoryCheck, its suite line and
+      ruling: confirmed on int-360 b1608a20
+      evidence: b1608a20 -- one line, contains replaced by frontmatter_status equals status: in-progress; four int360_ pass, 397 of 397; box scratch run 100 pct clean, 100 pct with eight planned quoting files, 84 pct and one alert with eight real
+- [x] G3 IntentStatusDirectoryCheck, its suite line and
       its old test are removed, and
       int360_status_directory_check_is_gone passes. The
       full suite is 397 passed. Nothing else in the
       suite changes.
       ask: the suite no longer carries a check that cannot report anything
-      ruling:
-      evidence:
-- [ ] G4 laptop: after merge and ship, `core integrity
+      ruling: confirmed on int-360 660aa3db
+      evidence: 660aa3db -- struct, impl, suite line and old test removed; int360_status_directory_check_is_gone added; five int360_ pass, 397 of 397; build has no warning
+- [x] G4 laptop: after merge and ship, `core integrity
       run` on a scratch copy of the tree with eight
       planned files that quote the phrase reports 100%
       and no intent issue; with eight really
@@ -278,8 +278,8 @@ G4 is the laptop proof.
       is green with integrity 100%; the laptop's real
       open intents and state are untouched.
       ask: the shipped binary counts by the status line, and the real tree is untouched
-      ruling:
-      evidence:
+      ruling: confirmed on laptop
+      evidence: Block T 5 int360_ passed, 397 of 397, tree clean, doors 4 of 4; merge, 4 seals intact, ship core, d 96 pct with only the cistart status line uncommitted, Integrity 100 pct; scratch clone with eight planned quoting files 100 pct no issues; with eight real in-progress files one alert at 82 pct, not the 84 pct of G2, because G3 removed one check and the score is 100 minus 200 over 2 plus the number of checks
 
 ## Job order
 Jobs run on branch int-360 only. Agents never push to
