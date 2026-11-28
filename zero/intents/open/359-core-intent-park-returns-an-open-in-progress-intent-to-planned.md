@@ -3,7 +3,7 @@ id: 359
 date: 2026-11-27
 type: future
 title: "core intent park returns an open in-progress intent to planned"
-status: planned
+status: in-progress
 tags: [core, intent, ledger]
 depends_on: []
 format: 3
@@ -283,7 +283,7 @@ G5 is the laptop proof.
   value.
 
 ## Success Criteria
-- [ ] G1 red first: the seven int359_ tests and the
+- [x] G1 red first: the seven int359_ tests and the
       seams (ParkReport, the empty park_intent, and
       park_commit_message) are in intent/mod.rs and
       cli/parser.rs. All seven fail on their
@@ -291,38 +291,38 @@ G5 is the laptop proof.
       defer parses inside the seventh already pass.
       The 386 existing tests stay green.
       ask: today there is no park command, and a hand edit is the only way back to planned
-      ruling:
-      evidence:
-- [ ] G2 park_intent rewrites only the status line,
+      ruling: confirmed on int-359 299a79c4
+      evidence: 299a79c4 -- seams ParkReport, park_intent stub and park_commit_message plus seven int359_ tests; all seven failed on their assertions, none errored; 386 existing passed
+- [x] G2 park_intent rewrites only the status line,
       refuses an id not in open/, a non-in-progress
       status (already planned included) and an empty
       reason, neither stages nor commits, and returns
       the suggested message. The five write, refusal
       and no-commit tests pass.
       ask: only the status line changes, a bad id or status is a no-op, and the message is ready
-      ruling:
-      evidence:
-- [ ] G3 park_intent clears focus only when this id is
+      ruling: confirmed on int-359 297f3dde
+      evidence: 297f3dde -- status read from the frontmatter only; empty reason, id not in open, and any status other than in-progress are refused and write nothing; only the status line changes; no commit or stage; five int359_ tests pass, 391 total
+- [x] G3 park_intent clears focus only when this id is
       the focused intent. The focus test passes.
       ask: parking the focused intent drops focus, and another intent's focus stays
-      ruling:
-      evidence:
-- [ ] G4 `core intent park <id> --reason` is wired and
+      ruling: confirmed on int-359 0bafbcce
+      evidence: 0bafbcce -- focus removed only when read_focus is this id, the same way cancel and complete do; another focus is left alone; int359 focus test passes, 392 total
+- [x] G4 `core intent park <id> --reason` is wired and
       prints the report and the suggested commit
       message in the shape above. All seven int359_
       tests pass. Box scratch proof pasted.
       ask: the command reads the way it should, does not commit, and suggests the message
-      ruling:
-      evidence:
-- [ ] G5 laptop: after merge and ship, `core intent
+      ruling: confirmed on int-359 9d1c7c29
+      evidence: 9d1c7c29 -- Park wired through parser, commands, cli mod and dispatcher; --reason required; prints the report and suggested message with a Seal reminder; box proof park, second park refused, 999 refused; 393 of 393 pass
+- [x] G5 laptop: after merge and ship, `core intent
       park` on a scratch in-progress intent in a copy
       of the tree rewrites only that status line, exits
       0, and a second park is refused; `d` does not
       list that id as in progress; the laptop's real
       open intents and focus are untouched; d is green.
       ask: the shipped binary parks a scratch intent, and the laptop's ledger is untouched
-      ruling:
-      evidence:
+      ruling: confirmed on laptop
+      evidence: Block T 7 int359_ passed, 393 of 393, park help ok, park 999 refused, tree clean, doors 4 of 4; merge, 5 seals intact, ship core, d 96 pct with only cistart uncommitted, Integrity 100 pct; scratch clone park 359 printed Intent parked, clone status empty, second park refused as planned
 
 ## Job order
 Jobs run on branch int-359 only. Agents never push to
