@@ -1913,6 +1913,33 @@ mod intent_json_cli_tests {
     }
 }
 
+#[cfg(test)]
+mod int358_fix_flag_tests {
+    use super::{Cli, Commands, IntegrityCommands};
+    use clap::Parser;
+
+    /// INT-358. `fix` and `apply 7` already parse. `--dry-run` does not, yet.
+    #[test]
+    fn int358_fix_dry_run_flag_parses_and_fix_alone_still_does() {
+        assert!(
+            Cli::try_parse_from(["core", "integrity", "fix"]).is_ok(),
+            "fix alone must still parse"
+        );
+        let apply = Cli::try_parse_from(["core", "integrity", "apply", "7"]);
+        let apply_ok = matches!(
+            apply.as_ref().map(|c| &c.command),
+            Ok(Commands::Integrity {
+                command: IntegrityCommands::Apply { id }
+            }) if id == "7"
+        );
+        assert!(apply_ok, "apply 7 must still parse");
+        assert!(
+            Cli::try_parse_from(["core", "integrity", "fix", "--dry-run"]).is_ok(),
+            "fix --dry-run must parse"
+        );
+    }
+}
+
 /// INT-269 -- the fingerprint verbs. show never writes; record is the one writer.
 #[derive(Debug, Subcommand)]
 pub enum FingerprintCommands {

@@ -153,6 +153,47 @@ pub trait IntegrityCheck {
     fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue>;
 }
 
+/// What one proposal did, or would do. INT-358.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum FixVerdict {
+    WouldApply,
+    Applied,
+    Refused(String),
+    NeedsHand(String),
+}
+
+/// One proposal in a fix report. INT-358.
+#[derive(Debug, Clone)]
+pub struct FixLine {
+    pub id: Option<i64>,
+    pub category: String,
+    pub check: String,
+    pub description: String,
+    pub change: Vec<String>,
+    pub verdict: FixVerdict,
+}
+
+/// The whole `core integrity fix` run. INT-358.
+#[derive(Debug, Clone)]
+pub struct FixReport {
+    pub dry_run: bool,
+    pub auto_fixed: usize,
+    pub lines: Vec<FixLine>,
+}
+
+/// Stub. G4 and G5 fill this in. No scan, no write.
+pub fn fix_run(
+    _ctx: &AppContext,
+    _checks: &[Box<dyn IntegrityCheck>],
+    dry_run: bool,
+) -> FixReport {
+    FixReport {
+        dry_run,
+        auto_fixed: 0,
+        lines: vec![],
+    }
+}
+
 // ── DB Init ───────────────────────────────────────────────────────────────────
 
 pub fn ensure_tables(ctx: &AppContext) -> CoreResult<()> {
@@ -598,19 +639,22 @@ pub fn cmd_run(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-pub fn cmd_status(ctx: &AppContext) -> CoreResult<()> {
-    ensure_tables(ctx)?;
-
-    // Count pending fixes
-    let pending: i64 = ctx
-        .runtime
+/// Today's status count: rows with no applied_at. INT-358 G2 switches this to PENDING.
+pub(crate) fn pending_count(ctx: &AppContext) -> i64 {
+    ctx.runtime
         .db
         .query_row(
             "SELECT COUNT(*) FROM pending_fixes WHERE applied_at IS NULL",
             [],
             |r| r.get(0),
         )
-        .unwrap_or(0);
+        .unwrap_or(0)
+}
+
+pub fn cmd_status(ctx: &AppContext) -> CoreResult<()> {
+    ensure_tables(ctx)?;
+
+    let pending: i64 = pending_count(ctx);
 
     // Count recent auto-fixes (last 24h)
     let recent_fixed: i64 = ctx
@@ -2293,6 +2337,228 @@ mod tests {
         assert!(
             heavy < light,
             "weight 5 ({heavy}) is not lower than weight 1 ({light})"
+        );
+    }
+
+    fn table_rows(ctx: &AppContext, table: &str) -> i64 {
+        ctx.runtime
+            .db
+            .query_row(&format!("SELECT COUNT(*) FROM {table}"), [], |r| r.get(0))
+            .unwrap_or(0)
+    }
+
+    /// INT-358. Named like the real drift check so a later reconcile keeps its rows.
+    struct StickyThree;
+    impl IntegrityCheck for StickyThree {
+        fn name(&self) -> &'static str {
+            "registry_version_drift"
+        }
+        fn category(&self) -> Category {
+            Category::Registry
+        }
+        fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
+            let from = ctx.core_root.join("move-from.txt");
+            let to = ctx.core_root.join("move-to.txt");
+            vec![
+                IntegrityIssue::propose(
+                    Category::Documentation,
+                    "registry_version_drift",
+                    "sync the docs",
+                    FixAction::SyncDocs,
+                    1,
+                ),
+                IntegrityIssue::propose(
+                    Category::Registry,
+                    "registry_version_drift",
+                    "move the file",
+                    FixAction::MoveFile { from, to },
+                    1,
+                ),
+                IntegrityIssue::propose(
+                    Category::Registry,
+                    "registry_version_drift",
+                    "alpha stays at 9.9.9",
+                    FixAction::UpdateRegistryVersion {
+                        tool: "alpha".to_string(),
+                        version: "9.9.9".to_string(),
+                    },
+                    1,
+                ),
+            ]
+        }
+    }
+
+    #[test]
+    fn int358_status_counts_only_pending() {
+        let (ctx, root) = stand_in("status-count");
+        ctx.runtime
+            .db
+            .execute_batch(
+                "INSERT INTO pending_fixes
+                    (category, check_name, action_type, action_data, description, created_at, retired_at, applied_at)
+                 VALUES
+                    ('registry', 'registry_version_drift', 'UpdateRegistryVersion', 'alpha\t2.0.0', 'pending', 1, NULL, NULL),
+                    ('registry', 'registry_version_drift', 'UpdateRegistryVersion', 'beta\t2.0.0', 'retired', 1, 2, NULL),
+                    ('registry', 'registry_version_drift', 'UpdateRegistryVersion', 'core\t4.0.0', 'applied', 1, NULL, 3);",
+            )
+            .unwrap();
+        let n = pending_count(&ctx);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(n, 1, "status counted {n}, pending only is 1");
+    }
+
+    #[test]
+    fn int358_dry_run_previews_and_writes_nothing() {
+        let (ctx, root) = stand_in("dry-run");
+        let reg = root.join("zero/registry/tools.toml");
+        let before = std::fs::read(&reg).unwrap();
+        let fixes_before = table_rows(&ctx, "pending_fixes");
+        let log_before = table_rows(&ctx, "integrity_log");
+        let report = fix_run(&ctx, &drift_only(), true);
+        let after = std::fs::read(&reg).unwrap();
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(after, before, "dry run wrote registry/tools.toml");
+        assert_eq!(
+            table_rows(&ctx, "pending_fixes"),
+            fixes_before,
+            "dry run wrote pending_fixes"
+        );
+        assert_eq!(
+            table_rows(&ctx, "integrity_log"),
+            log_before,
+            "dry run wrote integrity_log"
+        );
+        assert_eq!(fixes_before, 0, "stand-in started with pending rows");
+        assert_eq!(log_before, 0, "stand-in started with log rows");
+        assert_eq!(report.lines.len(), 2, "dry run returned {:?}", report.lines);
+        let has = |needle_a: &str, needle_b: &str| {
+            report.lines.iter().any(|l| {
+                let text = l.change.join("\n");
+                text.contains(needle_a)
+                    && text.contains(needle_b)
+                    && matches!(l.verdict, FixVerdict::WouldApply)
+            })
+        };
+        assert!(has("1.0.0", "2.0.0"), "alpha preview missing: {:?}", report.lines);
+        assert!(has("3.0.0", "4.0.0"), "core preview missing: {:?}", report.lines);
+    }
+
+    #[test]
+    fn int358_fix_applies_and_verifies_every_drift() {
+        let (ctx, root) = stand_in("apply-all");
+        let report = fix_run(&ctx, &drift_only(), false);
+        let tools = std::fs::read_to_string(root.join("zero/registry/tools.toml")).unwrap();
+        let fresh = checks::RegistryVersionDriftCheck.run(&IntegrityContext::new(&ctx));
+        let applied: i64 = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM pending_fixes WHERE applied_at IS NOT NULL",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(report.lines.len(), 2, "apply returned {:?}", report.lines);
+        assert!(
+            report
+                .lines
+                .iter()
+                .all(|l| matches!(l.verdict, FixVerdict::Applied)),
+            "not all applied: {:?}",
+            report.lines
+        );
+        assert!(
+            tools.contains("name = \"alpha\"") && tools.contains("version = \"2.0.0\""),
+            "alpha was not 2.0.0:\n{tools}"
+        );
+        assert!(
+            tools.contains("name = \"core\"") && tools.contains("version = \"4.0.0\""),
+            "core was not 4.0.0:\n{tools}"
+        );
+        assert!(!tools.contains("1.0.0") && !tools.contains("3.0.0"), "old versions remain:\n{tools}");
+        assert!(fresh.is_empty(), "drift check still finds {:?}", fresh);
+        assert_eq!(applied, 2, "applied rows: {applied}");
+    }
+
+    #[test]
+    fn int358_fix_sorts_refused_needs_hand_and_unverified() {
+        let (ctx, root) = stand_in("sort");
+        let from = root.join("move-from.txt");
+        let to = root.join("move-to.txt");
+        std::fs::write(&from, "source\n").unwrap();
+        std::fs::write(&to, "dest\n").unwrap();
+        let from_before = std::fs::read(&from).unwrap();
+        let to_before = std::fs::read(&to).unwrap();
+        let checks: Vec<Box<dyn IntegrityCheck>> = vec![Box::new(StickyThree)];
+        let report = fix_run(&ctx, &checks, false);
+        let needs = report
+            .lines
+            .iter()
+            .filter(|l| matches!(l.verdict, FixVerdict::NeedsHand(_)))
+            .count();
+        let overwrite = report
+            .lines
+            .iter()
+            .filter(|l| {
+                matches!(l.verdict, FixVerdict::Refused(ref s) if s.contains("would overwrite"))
+            })
+            .count();
+        let still = report
+            .lines
+            .iter()
+            .filter(|l| {
+                matches!(l.verdict, FixVerdict::Refused(ref s) if s.contains("still finds"))
+            })
+            .count();
+        let pending_unverified: i64 = ctx
+            .runtime
+            .db
+            .query_row(
+                "SELECT COUNT(*) FROM pending_fixes
+                 WHERE action_data LIKE '%9.9.9%' AND applied_at IS NULL
+                   AND (retired_at IS NULL)",
+                [],
+                |r| r.get(0),
+            )
+            .unwrap_or(0);
+        let from_after = std::fs::read(&from).unwrap_or_default();
+        let to_after = std::fs::read(&to).unwrap_or_default();
+        let _ = std::fs::remove_dir_all(&root);
+        assert_eq!(needs, 1, "needs hand: {:?}", report.lines);
+        assert_eq!(overwrite, 1, "overwrite refusal: {:?}", report.lines);
+        assert_eq!(still, 1, "unverified refusal: {:?}", report.lines);
+        assert_eq!(from_after, from_before, "move source changed");
+        assert_eq!(to_after, to_before, "move target changed");
+        assert_eq!(pending_unverified, 1, "unverified row was applied or retired");
+    }
+
+    #[test]
+    fn int358_docs_count_check_is_gone_and_100_percent_is_not_a_count() {
+        let names: Vec<&str> = build_check_suite().iter().map(|c| c.name()).collect();
+        assert!(
+            !names.contains(&"docs_count_consistency"),
+            "docs_count_consistency is still in the suite: {names:?}"
+        );
+        let (ctx, root) = stand_in("docs-gone");
+        std::fs::write(
+            root.join("README.md"),
+            "  | OK  Path Resilience         17/17 tools deployed (100%)\n",
+        )
+        .unwrap();
+        let ictx = IntegrityContext::new(&ctx);
+        let mut docs = Vec::new();
+        for check in build_check_suite() {
+            for issue in check.run(&ictx) {
+                if issue.check == "docs_count_consistency" {
+                    docs.push(issue.description);
+                }
+            }
+        }
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(
+            docs.is_empty(),
+            "the README sample line was read as a tool count: {docs:?}"
         );
     }
 }
