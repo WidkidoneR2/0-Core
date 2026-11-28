@@ -7574,6 +7574,14 @@ const CONFORMANCE_CASES: &[ConformCase] = &[
     ("echo \"q\\\"x; echo leak\"", None),
     ("case k in k) echo case-k;; esac", None),
     ("echo f > /tmp/nsh_conform_f.txt; find /tmp/nsh_conform_f.txt -exec echo found {} \\;", None),
+    // --- a ( ) group with a redirect, a pipe or a chain after it (INT-363). nsh hands the piece
+    // to sh whole. Red before the fix: the group ran apart from its redirect or pipe.
+    // The file is emptied first and read back in capitals, so only a real redirect can give the
+    // expected text; the group's own output is lower case and would otherwise match by accident.
+    ("printf '' > /tmp/nsh_conform_g.txt; (echo grp-a; echo grp-b) > /tmp/nsh_conform_g.txt; tr a-z A-Z < /tmp/nsh_conform_g.txt", None),
+    ("(echo grp-a; echo grp-b) | wc -l", None),
+    ("echo pipe-in | (cat; echo pipe-after)", None),
+    ("(echo grp-d) > /tmp/nsh_conform_h.txt && echo grp-after", None),
     // --- THE DECLARED DIVERGENCES. Matching bash here would be the regression. ---
     // ⭐ THESE TWO WERE THE ONLY DECLARED DIVERGENCES, AND THEY ARE GONE (2026-08-07). fsh used to
     // read any digit-initial or `=`-initial redirect target as a comparison, so that
