@@ -4642,3 +4642,99 @@ mod int361_split {
         assert_eq!(segs("echo a && echo b"), vec!["echo a", "echo b"]);
     }
 }
+
+#[cfg(test)]
+mod int363_split {
+    use super::split_into_segments;
+
+    fn segs(line: &str) -> Vec<String> {
+        split_into_segments(line)
+            .into_iter()
+            .map(|(s, _)| s)
+            .collect()
+    }
+
+    #[test]
+    fn int363_group_with_redirect_pipe_or_amp_is_one_piece() {
+        for line in [
+            "(echo hi) > g.txt",
+            "(echo hi)>g.txt",
+            "(echo a; echo b) >> g.txt",
+            "(cat) < i.txt",
+            "(echo oops 1>&2) 2> e.txt",
+            "(echo oops 1>&2) 2>&1 | wc -c",
+            "(echo a; echo b) | wc -l",
+            "(echo a; echo b)|wc -l",
+            "(echo a; echo b) | sort -r | head -1",
+            "(echo hi) &",
+            "((echo deep)) > g.txt",
+            "(case x in x) echo X;; esac) | cat",
+        ] {
+            assert_eq!(segs(line), vec![line.to_string()], "{line}");
+        }
+        assert_eq!(
+            segs("(echo a) > g.txt; echo b"),
+            vec!["(echo a) > g.txt", "echo b"]
+        );
+        assert_eq!(
+            segs("(echo a) | cat && echo b"),
+            vec!["(echo a) | cat", "echo b"]
+        );
+        assert_eq!(
+            segs("true && (echo a) > g.txt"),
+            vec!["true", "(echo a) > g.txt"]
+        );
+        let got = split_into_segments("(false) | cat || echo fb");
+        assert_eq!(got[0], ("(false) | cat".to_string(), Some(false)));
+        assert_eq!(got[1].0, "echo fb");
+    }
+
+    #[test]
+    fn int363_time_and_pipe_into_a_group_are_one_piece() {
+        for line in [
+            "time (echo t1; echo t2)",
+            "time (echo t1) > t.txt",
+            "echo x | (cat; echo y)",
+        ] {
+            assert_eq!(segs(line), vec![line.to_string()], "{line}");
+        }
+        assert_eq!(
+            segs("echo pre; time (echo t1)"),
+            vec!["echo pre", "time (echo t1)"]
+        );
+        assert_eq!(
+            segs("true && echo x | (cat; echo y)"),
+            vec!["true", "echo x | (cat; echo y)"]
+        );
+        assert_eq!(
+            segs("(echo a) > g.txt; (echo b) | cat; (echo c) &"),
+            vec!["(echo a) > g.txt", "(echo b) | cat", "(echo c) &"]
+        );
+    }
+
+    #[test]
+    fn int363_plain_groups_quotes_and_substitutions_are_unchanged() {
+        assert_eq!(segs("(echo a; echo b)"), vec!["(echo a; echo b)"]);
+        assert_eq!(segs("(echo a) && echo b"), vec!["(echo a)", "echo b"]);
+        assert_eq!(segs("(false) || echo b"), vec!["(false)", "echo b"]);
+        assert_eq!(segs("(echo a); echo b"), vec!["(echo a)", "echo b"]);
+        assert_eq!(segs("echo a; (echo b)"), vec!["echo a", "(echo b)"]);
+        assert_eq!(
+            segs("(echo a > g.txt); echo b"),
+            vec!["(echo a > g.txt)", "echo b"]
+        );
+        for line in [
+            "echo \"(x) > q.txt\"",
+            "echo '(a) | b'",
+            "echo \"(a) &\"",
+            "echo \"time (x)\"",
+            "echo \\(x\\) > e.txt",
+            "echo $(echo hi) > c.txt",
+            "echo $(echo a) | cat",
+            "echo time | cat",
+            "find . \\( -name a -o -name b \\) -print",
+        ] {
+            assert_eq!(segs(line), vec![line.to_string()], "{line}");
+        }
+    }
+}
