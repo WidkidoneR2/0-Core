@@ -785,12 +785,12 @@ pub fn cmd_run(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-/// Today's status count: rows with no applied_at. INT-358 G2 switches this to PENDING.
+/// Pending proposals: not applied and not retired. INT-358 G2.
 pub(crate) fn pending_count(ctx: &AppContext) -> i64 {
     ctx.runtime
         .db
         .query_row(
-            "SELECT COUNT(*) FROM pending_fixes WHERE applied_at IS NULL",
+            &format!("SELECT COUNT(*) FROM pending_fixes WHERE {}", PENDING),
             [],
             |r| r.get(0),
         )
