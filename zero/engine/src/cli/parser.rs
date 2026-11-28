@@ -1751,8 +1751,11 @@ pub enum IntegrityCommands {
     Status,
     /// Show history of integrity issues
     Log,
-    /// Apply pending proposals
-    Fix,
+    /// Preview (--dry-run) or apply every pending proposal, and check each afterward
+    Fix {
+        #[arg(long)]
+        dry_run: bool,
+    },
     /// Apply a specific pending proposal by ID
     Apply { id: String },
     /// Auto-heal all safe integrity issues

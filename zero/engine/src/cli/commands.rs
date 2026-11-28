@@ -864,7 +864,7 @@ pub enum IntegrityCommand {
     Run,
     Status,
     Log,
-    Fix,
+    Fix { dry_run: bool },
     Apply { id: String },
     Heal { dry_run: bool },
     Trend,

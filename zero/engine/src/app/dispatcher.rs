@@ -891,7 +891,7 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
             IntegrityCommand::Run => crate::domains::integrity::cmd_run(ctx),
             IntegrityCommand::Status => crate::domains::integrity::cmd_status(ctx),
             IntegrityCommand::Log => crate::domains::integrity::cmd_log(ctx),
-            IntegrityCommand::Fix => crate::domains::integrity::cmd_fix(ctx),
+            IntegrityCommand::Fix { dry_run } => crate::domains::integrity::cmd_fix(ctx, dry_run),
             IntegrityCommand::Apply { id } => crate::domains::integrity::cmd_apply(ctx, &id),
             IntegrityCommand::Heal { dry_run } => crate::domains::integrity::cmd_heal(ctx, dry_run),
             IntegrityCommand::Trend => crate::domains::integrity::cmd_trend(ctx),

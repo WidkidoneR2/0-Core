@@ -968,53 +968,79 @@ pub fn cmd_log(ctx: &AppContext) -> CoreResult<()> {
     Ok(())
 }
 
-pub fn cmd_fix(ctx: &AppContext) -> CoreResult<()> {
+pub fn cmd_fix(ctx: &AppContext, dry_run: bool) -> CoreResult<()> {
+    use colored::*;
     ensure_tables(ctx)?;
-    // INT-275: list what a fresh run finds, not what the table remembers. This is the run
-    // quick_scan makes on every d; the reconcile at its end retires what is no longer true.
-    run_pipeline(&IntegrityContext::new(ctx), &build_check_suite(), true);
-
-    let mut stmt = ctx.runtime.db.prepare(&format!(
-        "SELECT id, category, check_name, description FROM pending_fixes WHERE {} ORDER BY created_at ASC",
-        PENDING
-    ))?;
-
-    let rows: Vec<(i64, String, String, String)> = stmt
-        .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?)))?
-        .filter_map(|r| r.ok())
-        .collect();
-
-    if rows.is_empty() {
+    let report = fix_run(ctx, &build_check_suite(), dry_run);
+    if report.lines.is_empty() {
         println!("  {} No pending proposals", "✅".normal());
         print_retired_history(ctx);
         return Ok(());
     }
 
     println!();
-    println!("  {} Pending Proposals", "📋".normal());
-    println!(
-        "{}",
-        "  ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━".dimmed()
-    );
+    if report.dry_run {
+        println!("  Dry run: nothing will be written");
+    } else {
+        println!("  Pending Proposals ({})", report.lines.len());
+    }
+    if report.auto_fixed > 0 {
+        println!("  Auto-fixed: {}", report.auto_fixed);
+    }
     println!();
 
-    for (id, cat, check, desc) in &rows {
+    let mut applied = 0usize;
+    let mut refused = 0usize;
+    let mut hand = 0usize;
+    let mut would = 0usize;
+    for line in &report.lines {
+        let id = match line.id {
+            Some(id) => format!("#{id}"),
+            None => "new".to_string(),
+        };
         println!(
-            "  {} #{} [{}] {}",
-            "⚠️ ".normal(),
+            "  {} [{}] {}",
             id,
-            cat.bright_cyan(),
-            desc.bright_white()
+            line.category.bright_cyan(),
+            line.description.bright_white()
         );
-        println!("     {} {}", "check:".dimmed(), check.dimmed());
-        println!(
-            "     {} Apply this fix? (run: core integrity apply {})",
-            "→".dimmed(),
-            id
-        );
+        println!("    {} {}", "check:".dimmed(), line.check.dimmed());
+        for change in &line.change {
+            println!("    {change}");
+        }
+        let verdict = match &line.verdict {
+            FixVerdict::WouldApply => {
+                would += 1;
+                "would apply".to_string()
+            }
+            FixVerdict::Applied => {
+                applied += 1;
+                "applied, verified".to_string()
+            }
+            FixVerdict::Refused(why) => {
+                refused += 1;
+                format!("refused: {why}")
+            }
+            FixVerdict::NeedsHand(why) => {
+                hand += 1;
+                format!("needs hand: {why}")
+            }
+        };
+        println!("    {verdict}");
         println!();
     }
-    print_retired_history(ctx);
+
+    let summary = if report.dry_run {
+        format!(
+            "dry run: nothing written. {would} would apply, {refused} would be refused, {hand} need hand"
+        )
+    } else {
+        format!("{applied} applied, {refused} refused, {hand} need hand")
+    };
+    println!("  {summary}");
+    if !report.dry_run && (refused > 0 || hand > 0) {
+        return Err(crate::errors::CoreError::Reported(summary));
+    }
     Ok(())
 }
 

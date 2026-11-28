@@ -609,7 +609,7 @@ pub fn parse() -> Command {
             IntegrityCommands::Run => IntegrityCommand::Run,
             IntegrityCommands::Status => IntegrityCommand::Status,
             IntegrityCommands::Log => IntegrityCommand::Log,
-            IntegrityCommands::Fix => IntegrityCommand::Fix,
+            IntegrityCommands::Fix { dry_run } => IntegrityCommand::Fix { dry_run },
             IntegrityCommands::Apply { id } => IntegrityCommand::Apply { id },
             IntegrityCommands::Heal { dry_run } => IntegrityCommand::Heal { dry_run },
             IntegrityCommands::Trend => IntegrityCommand::Trend,
