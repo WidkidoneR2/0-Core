@@ -381,8 +381,20 @@ do",
     let mut current = String::new();
     let mut in_quote = false;
     let mut quote_char = ' ';
+    let mut escaped = false;
     for ch in line.chars() {
+        // INT-361: a backslash outside single quotes takes the next character
+        // literally, so an escaped semicolon, quote or paren splits nothing.
+        if escaped {
+            current.push(ch);
+            escaped = false;
+            continue;
+        }
         match ch {
+            '\\' if !(in_quote && quote_char == '\'') => {
+                escaped = true;
+                current.push(ch);
+            }
             '"' | '\'' if !in_quote => {
                 in_quote = true;
                 quote_char = ch;
@@ -416,11 +428,12 @@ do",
 enum RegionCloser {
     Done,
     Fi,
+    Esac,
     Paren,
 }
 
 fn word_at(chars: &[char], i: usize) -> Option<&'static str> {
-    const WORDS: &[&str] = &["for", "while", "until", "if", "done", "fi"];
+    const WORDS: &[&str] = &["for", "while", "until", "if", "case", "done", "fi", "esac"];
     for w in WORDS {
         let wc: Vec<char> = w.chars().collect();
         if i + wc.len() > chars.len() || chars[i..i + wc.len()] != wc[..] {
@@ -463,6 +476,10 @@ fn line_has_compound(line: &str) -> bool {
     let mut i = 0;
     while i < chars.len() {
         let ch = chars[i];
+        if ch == '\\' && !(in_quote && quote == '\'') {
+            i += 2;
+            continue;
+        }
         if !in_quote && (ch == '"' || ch == '\'') {
             in_quote = true;
             quote = ch;
@@ -487,7 +504,7 @@ fn line_has_compound(line: &str) -> bool {
         }
         if command_position(&chars, i) {
             if let Some(w) = word_at(&chars, i) {
-                if matches!(w, "for" | "while" | "until" | "if") {
+                if matches!(w, "for" | "while" | "until" | "if" | "case") {
                     return true;
                 }
             }
@@ -517,6 +534,14 @@ fn split_around_compounds(line: &str) -> Vec<(String, bool)> {
     let mut i = 0;
     while i < chars.len() {
         let ch = chars[i];
+        if ch == '\\' && !(in_quote && quote == '\'') {
+            current.push(ch);
+            if let Some(&next) = chars.get(i + 1) {
+                current.push(next);
+            }
+            i += 2;
+            continue;
+        }
         if !in_quote && (ch == '"' || ch == '\'') {
             in_quote = true;
             quote = ch;
@@ -566,17 +591,17 @@ fn split_around_compounds(line: &str) -> Vec<(String, bool)> {
         }
         if stack.is_empty() && command_position(&chars, i) {
             if let Some(w) = word_at(&chars, i) {
-                if matches!(w, "for" | "while" | "until" | "if") {
+                if matches!(w, "for" | "while" | "until" | "if" | "case") {
                     push_marked(&mut segments, &mut current, false);
                     let n = w.chars().count();
                     for _ in 0..n {
                         current.push(chars[i]);
                         i += 1;
                     }
-                    stack.push(if w == "if" {
-                        RegionCloser::Fi
-                    } else {
-                        RegionCloser::Done
+                    stack.push(match w {
+                        "if" => RegionCloser::Fi,
+                        "case" => RegionCloser::Esac,
+                        _ => RegionCloser::Done,
                     });
                     continue;
                 }
@@ -589,10 +614,14 @@ fn split_around_compounds(line: &str) -> Vec<(String, bool)> {
                         stack.push(RegionCloser::Done);
                     }
                     "if" if command_position(&chars, i) => stack.push(RegionCloser::Fi),
+                    "case" if command_position(&chars, i) => stack.push(RegionCloser::Esac),
                     "done" if stack.last() == Some(&RegionCloser::Done) => {
                         stack.pop();
                     }
                     "fi" if stack.last() == Some(&RegionCloser::Fi) => {
+                        stack.pop();
+                    }
+                    "esac" if stack.last() == Some(&RegionCloser::Esac) => {
                         stack.pop();
                     }
                     _ => {}

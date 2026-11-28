@@ -572,6 +572,15 @@ pub fn split_logical(line: &str) -> Vec<(String, Option<bool>)> {
     while i < chars.len() {
         let ch = chars[i];
         match ch {
+            // INT-361: a backslash outside single quotes takes the next character literally.
+            '\\' if !(in_quote && quote_char == '\'') => {
+                current.push(ch);
+                if let Some(&next) = chars.get(i + 1) {
+                    current.push(next);
+                }
+                i += 2;
+                continue;
+            }
             '"' | '\'' if !in_quote => {
                 in_quote = true;
                 quote_char = ch;
