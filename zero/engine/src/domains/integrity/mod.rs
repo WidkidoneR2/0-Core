@@ -2427,6 +2427,105 @@ mod tests {
         assert_eq!(frontmatter_status("no frontmatter at all\n"), "");
     }
 
+    /// INT-360. Write open intents and run only the in-progress count.
+    fn int360_run(tag: &str, files: &[(&str, &str, &str)]) -> Vec<IntegrityIssue> {
+        let (ctx, root) = stand_in(tag);
+        let dir = ctx.fpath("intents/open");
+        std::fs::create_dir_all(&dir).unwrap();
+        for (name, status, body) in files {
+            std::fs::write(
+                dir.join(name),
+                format!("---\nstatus: {status}\n---\n{body}\n"),
+            )
+            .unwrap();
+        }
+        let issues =
+            checks::IntentInProgressCountCheck.run(&IntegrityContext::new(&ctx));
+        let _ = std::fs::remove_dir_all(&root);
+        issues
+    }
+
+    #[test]
+    fn int360_inprogress_count_ignores_a_body_quote() {
+        let quote = "Body quote: status: in-progress";
+        let files = [
+            ("q1.md", "planned", quote),
+            ("q2.md", "planned", quote),
+            ("q3.md", "planned", quote),
+            ("q4.md", "planned", quote),
+            ("q5.md", "planned", quote),
+            ("q6.md", "planned", quote),
+            ("q7.md", "planned", quote),
+            ("q8.md", "planned", quote),
+        ];
+        let issues = int360_run("int360-a", &files);
+        assert!(
+            issues.is_empty(),
+            "a body quote is not in progress: {issues:?}"
+        );
+    }
+
+    #[test]
+    fn int360_inprogress_count_ignores_quotes_beside_real_ones() {
+        let quote = "Body quote: status: in-progress";
+        let files = [
+            ("r1.md", "in-progress", "real"),
+            ("r2.md", "in-progress", "real"),
+            ("r3.md", "in-progress", "real"),
+            ("r4.md", "in-progress", "real"),
+            ("r5.md", "in-progress", "real"),
+            ("r6.md", "in-progress", "real"),
+            ("r7.md", "in-progress", "real"),
+            ("q1.md", "planned", quote),
+            ("q2.md", "planned", quote),
+            ("q3.md", "planned", quote),
+        ];
+        let issues = int360_run("int360-b", &files);
+        assert!(
+            issues.is_empty(),
+            "seven real in-progress files are allowed: {issues:?}"
+        );
+    }
+
+    #[test]
+    fn int360_inprogress_count_alerts_on_eight_real() {
+        let files = [
+            ("r1.md", "in-progress", "real"),
+            ("r2.md", "in-progress", "real"),
+            ("r3.md", "in-progress", "real"),
+            ("r4.md", "in-progress", "real"),
+            ("r5.md", "in-progress", "real"),
+            ("r6.md", "in-progress", "real"),
+            ("r7.md", "in-progress", "real"),
+            ("r8.md", "in-progress", "real"),
+        ];
+        let issues = int360_run("int360-c", &files);
+        assert_eq!(issues.len(), 1, "{issues:?}");
+        assert_eq!(issues[0].check, "intent_inprogress_count");
+        assert!(
+            issues[0]
+                .description
+                .starts_with("8 intents marked in-progress"),
+            "{}",
+            issues[0].description
+        );
+    }
+
+    #[test]
+    fn int360_inprogress_count_allows_seven_real() {
+        let files = [
+            ("r1.md", "in-progress", "real"),
+            ("r2.md", "in-progress", "real"),
+            ("r3.md", "in-progress", "real"),
+            ("r4.md", "in-progress", "real"),
+            ("r5.md", "in-progress", "real"),
+            ("r6.md", "in-progress", "real"),
+            ("r7.md", "in-progress", "real"),
+        ];
+        let issues = int360_run("int360-d", &files);
+        assert!(issues.is_empty(), "seven real files must not alert: {issues:?}");
+    }
+
     /// INT-267 L2: the check finds Cargo.toml where the owner says crates live. Seen red while
     /// it joined paths no crate has lived in since the tree moved under zero/.
     #[test]
