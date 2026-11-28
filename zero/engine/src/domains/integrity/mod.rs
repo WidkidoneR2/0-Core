@@ -304,32 +304,92 @@ fn line_from_issue(ctx: &AppContext, issue: &IntegrityIssue) -> FixLine {
     }
 }
 
-/// Preview when dry_run is true. The apply path is filled in by G5.
+struct StoredFix {
+    id: i64,
+    category: String,
+    check_name: String,
+    description: String,
+    action_type: String,
+    action_data: String,
+}
+
+/// Pending rows whose check is one this run was given, oldest first.
+fn pending_for_checks(ctx: &AppContext, names: &[&str]) -> Vec<StoredFix> {
+    if names.is_empty() {
+        return Vec::new();
+    }
+    let marks = vec!["?"; names.len()].join(", ");
+    let sql = format!(
+        "SELECT id, category, check_name, description, action_type, action_data
+         FROM pending_fixes
+         WHERE {PENDING} AND check_name IN ({marks})
+         ORDER BY created_at, id"
+    );
+    let Ok(mut stmt) = ctx.runtime.db.prepare(&sql) else {
+        return Vec::new();
+    };
+    let Ok(rows) = stmt.query_map(rusqlite::params_from_iter(names.iter()), |r| {
+        Ok(StoredFix {
+            id: r.get(0)?,
+            category: r.get(1)?,
+            check_name: r.get(2)?,
+            description: r.get(3)?,
+            action_type: r.get(4)?,
+            action_data: r.get(5)?,
+        })
+    }) else {
+        return Vec::new();
+    };
+    rows.filter_map(Result::ok).collect()
+}
+
+/// Preview when dry_run is true. Otherwise run the pipeline, then carry out each
+/// still-pending row of these checks. One refusal does not stop the next row.
 pub fn fix_run(
     ctx: &AppContext,
     checks: &[Box<dyn IntegrityCheck>],
     dry_run: bool,
 ) -> FixReport {
-    if !dry_run {
+    if dry_run {
+        let ictx = IntegrityContext::new(ctx);
+        let mut lines = Vec::new();
+        for check in checks {
+            for issue in check.run(&ictx) {
+                if issue.severity != Severity::Propose || issue.fix.is_none() {
+                    continue;
+                }
+                lines.push(line_from_issue(ctx, &issue));
+            }
+        }
         return FixReport {
             dry_run,
             auto_fixed: 0,
-            lines: vec![],
+            lines,
         };
     }
     let ictx = IntegrityContext::new(ctx);
+    let pipeline = run_pipeline(&ictx, checks, true);
+    let names: Vec<&str> = checks.iter().map(|c| c.name()).collect();
     let mut lines = Vec::new();
-    for check in checks {
-        for issue in check.run(&ictx) {
-            if issue.severity != Severity::Propose || issue.fix.is_none() {
-                continue;
-            }
-            lines.push(line_from_issue(ctx, &issue));
-        }
+    for row in pending_for_checks(ctx, &names) {
+        let (change, _) = preview_stored(ctx, &row.action_type, &row.action_data);
+        let verdict = match apply_row(ctx, row.id, checks) {
+            Ok(()) => FixVerdict::Applied,
+            Err(ApplyError::Refused(why)) => FixVerdict::Refused(why),
+            Err(ApplyError::NeedsHand(why)) => FixVerdict::NeedsHand(why),
+        };
+        lines.push(FixLine {
+            id: Some(row.id),
+            category: row.category,
+            check: row.check_name,
+            description: row.description,
+            change,
+            verdict,
+        });
     }
     FixReport {
         dry_run,
-        auto_fixed: 0,
+        auto_fixed: pipeline.auto_fixed,
         lines,
     }
 }
@@ -1689,7 +1749,8 @@ pub fn cmd_apply(ctx: &AppContext, id: &str) -> CoreResult<()> {
     use colored::*;
     ensure_tables(ctx)?;
     let outcome = match id.parse::<i64>() {
-        Ok(fix_id) => apply_row(ctx, fix_id).map_err(|why| format!("#{} {}", fix_id, why)),
+        Ok(fix_id) => apply_row(ctx, fix_id, &build_check_suite())
+            .map_err(|why| format!("#{} {}", fix_id, why.to_string())),
         Err(_) => Err(format!("{} is not a proposal id", id)),
     };
     match outcome {
@@ -1705,49 +1766,145 @@ pub fn cmd_apply(ctx: &AppContext, id: &str) -> CoreResult<()> {
     }
 }
 
+/// A refusal is printed as its text. NeedsHand is the proposal whose stored type has no
+/// apply path; every other failure is a refusal.
+enum ApplyError {
+    Refused(String),
+    NeedsHand(String),
+}
+
+impl std::fmt::Display for ApplyError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ApplyError::Refused(why) | ApplyError::NeedsHand(why) => f.write_str(why),
+        }
+    }
+}
+
+/// The same pass apply_row used to make with build_check_suite filtered to one name:
+/// run that check, persist what it still proposes, retire what it no longer finds.
+fn rerun_named(ctx: &IntegrityContext, checks: &[Box<dyn IntegrityCheck>], name: &str) {
+    let matched: Vec<&dyn IntegrityCheck> = checks
+        .iter()
+        .map(|c| c.as_ref())
+        .filter(|c| c.name() == name)
+        .collect();
+    let mut all_issues: Vec<IntegrityIssue> = Vec::new();
+    for check in &matched {
+        all_issues.extend(check.run(ctx));
+    }
+    let auto_fixable: Vec<&IntegrityIssue> = all_issues
+        .iter()
+        .filter(|i| i.severity == Severity::AutoFix && i.fix.is_some())
+        .collect();
+    let proposals: Vec<&IntegrityIssue> = all_issues
+        .iter()
+        .filter(|i| i.severity == Severity::Propose)
+        .collect();
+    let alerts: Vec<&IntegrityIssue> = all_issues
+        .iter()
+        .filter(|i| i.severity == Severity::Alert)
+        .collect();
+    for issue in &auto_fixable {
+        if let Some(fix) = &issue.fix {
+            let recently_fixed: i64 = ctx.ctx.runtime.db.query_row(
+                "SELECT COUNT(*) FROM integrity_log WHERE check_name = ?1 AND fixed = 1 AND detected_at > ?2",
+                rusqlite::params![issue.check, now_ts() - 300],
+                |r| r.get(0),
+            ).unwrap_or(0);
+            if recently_fixed > 0 {
+                continue;
+            }
+            let fixed = apply_safe_fix(fix, ctx);
+            log_issue(ctx, issue, fixed);
+        }
+    }
+    for issue in &proposals {
+        persist_proposal(ctx, issue);
+        log_issue(ctx, issue, false);
+    }
+    let ran: Vec<&'static str> = matched.iter().map(|c| c.name()).collect();
+    reconcile(ctx, &ran, &proposals);
+    for issue in &alerts {
+        log_issue(ctx, issue, false);
+    }
+}
+
+/// True when this row's check still proposes the same subject after the write.
+fn still_proposes(
+    ctx: &IntegrityContext,
+    checks: &[Box<dyn IntegrityCheck>],
+    check_name: &str,
+    subject: &Option<String>,
+) -> bool {
+    checks.iter().any(|check| {
+        check.name() == check_name
+            && check.run(ctx).iter().any(|issue| {
+                issue.check == check_name
+                    && issue.fix.as_ref().and_then(fix_subject).as_deref() == subject.as_deref()
+            })
+    })
+}
+
 /// INT-275: carry out one pending row, or say why not. The row's own check runs again first, so a
 /// proposal is applied only while a fresh run still finds it; then the row's stored data is
-/// carried out, never a re-scan. Err is the reason, for the caller to print. Nothing is written
-/// on any Err path.
-fn apply_row(ctx: &AppContext, fix_id: i64) -> Result<(), String> {
+/// carried out, never a re-scan. After the write, the same check runs once more: if it still
+/// finds this subject, applied_at stays null. Err is the reason, for the caller to print.
+fn apply_row(
+    ctx: &AppContext,
+    fix_id: i64,
+    checks: &[Box<dyn IntegrityCheck>],
+) -> Result<(), ApplyError> {
     use colored::*;
     let db = &ctx.runtime.db;
-    let row: Option<(String, String, String, Option<i64>, Option<String>)> = db
+    let row: Option<(
+        String,
+        String,
+        String,
+        Option<i64>,
+        Option<String>,
+        Option<String>,
+    )> = db
         .query_row(
-            "SELECT check_name, action_type, description, applied_at, retired_reason
+            "SELECT check_name, action_type, description, applied_at, retired_reason, subject
              FROM pending_fixes WHERE id = ?1",
             [fix_id],
-            |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?, r.get(3)?, r.get(4)?)),
+            |r| {
+                Ok((
+                    r.get(0)?,
+                    r.get(1)?,
+                    r.get(2)?,
+                    r.get(3)?,
+                    r.get(4)?,
+                    r.get(5)?,
+                ))
+            },
         )
         .ok();
-    let (check_name, action_type, description, applied, retired) = match row {
-        None => return Err("is not a proposal".to_string()),
+    let (check_name, action_type, description, applied, retired, subject) = match row {
+        None => return Err(ApplyError::Refused("is not a proposal".to_string())),
         Some(r) => r,
     };
     if applied.is_some() {
-        return Err("was already applied".to_string());
+        return Err(ApplyError::Refused("was already applied".to_string()));
     }
     if let Some(reason) = retired {
-        return Err(format!("was retired: {}", reason));
+        return Err(ApplyError::Refused(format!("was retired: {}", reason)));
     }
 
     // Re-run this row's check alone. A check no longer in the suite runs nothing, and the
     // reconcile retires the row as check removed.
-    let own: Vec<Box<dyn IntegrityCheck>> = build_check_suite()
-        .into_iter()
-        .filter(|c| c.name() == check_name)
-        .collect();
     let ictx = IntegrityContext::new(ctx);
-    run_pipeline(&ictx, &own, true);
+    rerun_named(&ictx, checks, &check_name);
     let (retired, data): (Option<String>, String) = db
         .query_row(
             "SELECT retired_reason, action_data FROM pending_fixes WHERE id = ?1",
             [fix_id],
             |r| Ok((r.get(0)?, r.get(1)?)),
         )
-        .map_err(|e| format!("could not be read again: {}", e))?;
+        .map_err(|e| ApplyError::Refused(format!("could not be read again: {}", e)))?;
     if let Some(reason) = retired {
-        return Err(format!("is no longer true: {}", reason));
+        return Err(ApplyError::Refused(format!("is no longer true: {}", reason)));
     }
 
     println!();
@@ -1783,10 +1940,16 @@ fn apply_row(ctx: &AppContext, fix_id: i64) -> Result<(), String> {
         ("MoveFile", Some((from, to))) => {
             let (from, to) = (PathBuf::from(from), PathBuf::from(to));
             if !from.exists() {
-                return Err(format!("names {}, which is not there", from.display()));
+                return Err(ApplyError::Refused(format!(
+                    "names {}, which is not there",
+                    from.display()
+                )));
             }
             if to.exists() {
-                return Err(format!("would overwrite {}", to.display()));
+                return Err(ApplyError::Refused(format!(
+                    "would overwrite {}",
+                    to.display()
+                )));
             }
             println!(
                 "  {} move {} -> {}",
@@ -1797,20 +1960,33 @@ fn apply_row(ctx: &AppContext, fix_id: i64) -> Result<(), String> {
             std::fs::rename(&from, &to).is_ok()
         }
         _ => {
-            return Err(format!(
+            return Err(ApplyError::NeedsHand(format!(
                 "has no stored {} fix to carry out; apply it by hand: {}",
                 action_type, description
-            ))
+            )))
         }
     };
     if !done {
-        return Err("could not be carried out; it stays pending".to_string());
+        return Err(ApplyError::Refused(
+            "could not be carried out; it stays pending".to_string(),
+        ));
+    }
+    if still_proposes(&ictx, checks, &check_name, &subject) {
+        return Err(ApplyError::Refused(format!(
+            "carried out, but check {check_name} still finds {}; it stays pending",
+            subject.as_deref().unwrap_or("")
+        )));
     }
     db.execute(
         "UPDATE pending_fixes SET applied_at = ?1 WHERE id = ?2",
         rusqlite::params![now_ts(), fix_id],
     )
-    .map_err(|e| format!("was carried out but could not be marked applied: {}", e))?;
+    .map_err(|e| {
+        ApplyError::Refused(format!(
+            "was carried out but could not be marked applied: {}",
+            e
+        ))
+    })?;
     println!("  {} Fix applied successfully", "✅".normal());
     Ok(())
 }
@@ -1933,9 +2109,11 @@ pub fn cmd_heal(ctx: &AppContext, dry_run: bool) -> CoreResult<()> {
         for (id, check) in &pending {
             println!("    {} #{} {}", "·".dimmed(), id, check.bright_white());
             if !dry_run {
-                match apply_row(ctx, *id) {
+                match apply_row(ctx, *id, &build_check_suite()) {
                     Ok(()) => healed += 1,
-                    Err(why) => println!("      {} #{} not healed: {}", "·".dimmed(), id, why),
+                    Err(why) => {
+                        println!("      {} #{} not healed: {}", "·".dimmed(), id, why.to_string())
+                    }
                 }
             } else {
                 would_heal += 1;
