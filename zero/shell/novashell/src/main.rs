@@ -514,6 +514,83 @@ fn line_has_compound(line: &str) -> bool {
     false
 }
 
+/// INT-363: the byte offset just after the last `;`, `&&` or `||` outside quotes in `s`, or 0.
+/// What follows it is the command a `time` or a `|` belongs to.
+fn after_last_chain_operator(s: &str) -> usize {
+    let chars: Vec<(usize, char)> = s.char_indices().collect();
+    let mut in_quote = false;
+    let mut quote = ' ';
+    let mut cut = 0;
+    let mut k = 0;
+    while k < chars.len() {
+        let ch = chars[k].1;
+        if ch == '\\' && !(in_quote && quote == '\'') {
+            k += 2;
+            continue;
+        }
+        if !in_quote && (ch == '"' || ch == '\'') {
+            in_quote = true;
+            quote = ch;
+        } else if in_quote && ch == quote {
+            in_quote = false;
+        } else if !in_quote && ch == ';' {
+            cut = chars[k].0 + 1;
+        } else if !in_quote && (ch == '&' || ch == '|') {
+            if let Some(&(at, next)) = chars.get(k + 1) {
+                if next == ch {
+                    cut = at + 1;
+                    k += 2;
+                    continue;
+                }
+            }
+        }
+        k += 1;
+    }
+    cut
+}
+
+/// INT-363: does the text in front of a top-level `(` make this group one that only sh can run?
+/// `time (...)` and `cmd | (...)`. `prefix` is what was read since the last `;`.
+fn group_head_needs_sh(prefix: &str) -> bool {
+    let tail = prefix[after_last_chain_operator(prefix)..].trim();
+    tail == "time" || (tail.ends_with('|') && !tail.ends_with("||"))
+}
+
+/// INT-363: does the text after the `)` that closes a top-level group make it one that only sh can
+/// run? A redirect (`>`, `>>`, `<`, `2>`, `2>&1`), a pipe `|`, or a single `&`. A `;`, `&&`, `||`
+/// or the end of the line does not, because nsh already runs a bare group itself.
+fn group_tail_needs_sh(chars: &[char], after: usize) -> bool {
+    let mut j = after;
+    while j < chars.len() && (chars[j] == ' ' || chars[j] == '\t') {
+        j += 1;
+    }
+    let Some(&c) = chars.get(j) else {
+        return false;
+    };
+    let next = chars.get(j + 1).copied();
+    match c {
+        '>' | '<' => true,
+        '|' => next != Some('|'),
+        '&' => next != Some('&'),
+        d if d.is_ascii_digit() => {
+            let mut k = j;
+            while k < chars.len() && chars[k].is_ascii_digit() {
+                k += 1;
+            }
+            matches!(chars.get(k), Some('>') | Some('<'))
+        }
+        _ => false,
+    }
+}
+
+/// INT-363: true when `line` holds a `( )` group that only sh can run: `time ( )`, `cmd | ( )`,
+/// or `( )` followed by a redirect, a pipe or `&`. It asks split_around_compounds, so the
+/// splitter that keeps such a piece whole and the engine that hands it to sh cannot disagree.
+/// A `\(`, a `$( )`, a `<( )` or `>( )` and a paren inside quotes are not such a group.
+pub(crate) fn line_has_sh_only_group(line: &str) -> bool {
+    line_has_compound(line) && scan_compounds(line).1
+}
+
 fn push_marked(segments: &mut Vec<(String, bool)>, current: &mut String, atomic: bool) {
     let seg = current.trim().to_string();
     if !seg.is_empty() {
@@ -525,12 +602,23 @@ fn push_marked(segments: &mut Vec<(String, bool)>, current: &mut String, atomic:
 /// Split on `;` outside quotes, and lift for/while/until/if and `( ... )` out as
 /// atomic pieces so a later `&&` split cannot cut them.
 fn split_around_compounds(line: &str) -> Vec<(String, bool)> {
+    scan_compounds(line).0
+}
+
+/// split_around_compounds, and whether it kept a group together for sh (INT-363).
+fn scan_compounds(line: &str) -> (Vec<(String, bool)>, bool) {
+    let mut sh_only = false;
     let chars: Vec<char> = line.chars().collect();
     let mut segments = Vec::new();
     let mut current = String::new();
     let mut in_quote = false;
     let mut quote = ' ';
     let mut stack: Vec<RegionCloser> = Vec::new();
+    // INT-363: `unit` is true while a `( )` group that only sh can run (see line_has_sh_only_group)
+    // is being collected together with its redirect, pipe, `&` or `time`. It ends at the next `;`,
+    // `&&`, `||` or `&` outside quotes and parens, and the piece is marked atomic for sh.
+    let mut unit = false;
+    let mut group_is_procsub = false;
     let mut i = 0;
     while i < chars.len() {
         let ch = chars[i];
@@ -577,13 +665,50 @@ fn split_around_compounds(line: &str) -> Vec<(String, bool)> {
             }
             continue;
         }
+        if unit && stack.is_empty() {
+            let next = chars.get(i + 1).copied();
+            let prev = if i > 0 { chars[i - 1] } else { ' ' };
+            if (ch == '&' && next == Some('&')) || (ch == '|' && next == Some('|')) {
+                // the chain operator is left in `current` for the next piece
+                push_marked(&mut segments, &mut current, true);
+                unit = false;
+            } else if ch == '&'
+                && next != Some('>')
+                && next != Some('&')
+                && !matches!(prev, '>' | '<' | '|' | '&')
+            {
+                current.push('&');
+                push_marked(&mut segments, &mut current, true);
+                unit = false;
+                i += 1;
+                continue;
+            }
+        }
         if stack.is_empty() && ch == ';' {
-            push_marked(&mut segments, &mut current, false);
+            push_marked(&mut segments, &mut current, unit);
+            unit = false;
             i += 1;
             continue;
         }
         if stack.is_empty() && ch == '(' {
-            push_marked(&mut segments, &mut current, false);
+            if unit {
+                current.push('(');
+                stack.push(RegionCloser::Paren);
+                i += 1;
+                continue;
+            }
+            group_is_procsub = i > 0 && matches!(chars[i - 1], '<' | '>');
+            if !group_is_procsub && group_head_needs_sh(&current) {
+                // `time (...)` or `cmd | (...)`: the piece starts after the last `&&` or `||`
+                let cut = after_last_chain_operator(&current);
+                let tail = current.split_off(cut);
+                push_marked(&mut segments, &mut current, false);
+                current = tail;
+                unit = true;
+                sh_only = true;
+            } else {
+                push_marked(&mut segments, &mut current, false);
+            }
             current.push('(');
             stack.push(RegionCloser::Paren);
             i += 1;
@@ -592,7 +717,9 @@ fn split_around_compounds(line: &str) -> Vec<(String, bool)> {
         if stack.is_empty() && command_position(&chars, i) {
             if let Some(w) = word_at(&chars, i) {
                 if matches!(w, "for" | "while" | "until" | "if" | "case") {
-                    push_marked(&mut segments, &mut current, false);
+                    if !unit {
+                        push_marked(&mut segments, &mut current, false);
+                    }
                     let n = w.chars().count();
                     for _ in 0..n {
                         current.push(chars[i]);
@@ -632,7 +759,7 @@ fn split_around_compounds(line: &str) -> Vec<(String, bool)> {
                     current.push(chars[i]);
                     i += 1;
                 }
-                if finished {
+                if finished && !unit {
                     push_marked(&mut segments, &mut current, true);
                 }
                 continue;
@@ -648,8 +775,13 @@ fn split_around_compounds(line: &str) -> Vec<(String, bool)> {
             stack.pop();
             current.push(ch);
             i += 1;
-            if stack.is_empty() {
-                push_marked(&mut segments, &mut current, true);
+            if stack.is_empty() && !unit {
+                if !group_is_procsub && group_tail_needs_sh(&chars, i) {
+                    unit = true;
+                    sh_only = true;
+                } else {
+                    push_marked(&mut segments, &mut current, true);
+                }
             }
             continue;
         }
@@ -657,12 +789,12 @@ fn split_around_compounds(line: &str) -> Vec<(String, bool)> {
         i += 1;
     }
     if !current.trim().is_empty() {
-        push_marked(&mut segments, &mut current, !stack.is_empty());
+        push_marked(&mut segments, &mut current, !stack.is_empty() || unit);
     }
     if segments.is_empty() {
         segments.push((line.trim().to_string(), false));
     }
-    segments
+    (segments, sh_only)
 }
 
 /// INT-097: true if `needle` appears in `line` OUTSIDE any quotes.
@@ -4645,7 +4777,7 @@ mod int361_split {
 
 #[cfg(test)]
 mod int363_split {
-    use super::split_into_segments;
+    use super::{line_has_sh_only_group, split_into_segments};
 
     fn segs(line: &str) -> Vec<String> {
         split_into_segments(line)
@@ -4735,6 +4867,47 @@ mod int363_split {
             "find . \\( -name a -o -name b \\) -print",
         ] {
             assert_eq!(segs(line), vec![line.to_string()], "{line}");
+        }
+    }
+
+    #[test]
+    fn int363_which_lines_need_sh_for_a_group() {
+        for line in [
+            "(echo hi) > g.txt",
+            "(a) | b",
+            "(a) &",
+            "(a) 2>&1",
+            "time (a)",
+            "echo x | (cat)",
+            "true && echo x | (cat)",
+            "echo pre; time (a)",
+            "(a) > f; echo z",
+            "(case x in x) echo X;; esac) | cat",
+        ] {
+            assert!(line_has_sh_only_group(line), "{line}");
+        }
+        for line in [
+            "(echo a; echo b)",
+            "(echo a) && echo b",
+            "(echo a) || echo b",
+            "(echo a); echo b",
+            "(echo a > f)",
+            "(echo a | cat)",
+            "(sleep 1 &)",
+            "echo \"(x) > f\"",
+            "echo '(x) | f'",
+            "echo \"time (x)\"",
+            "echo \\(x\\) > f",
+            "echo $(echo a) > f",
+            "echo $(echo a; echo b) | cat",
+            "diff <(echo a) <(echo b)",
+            "echo hi > >(cat)",
+            "echo time | cat",
+            "echo timer; (echo a)",
+            "for x in 1 2; do echo $x; done > f",
+            "{ echo a; echo b; } > f",
+        ] {
+            assert!(!line_has_sh_only_group(line), "{line}");
         }
     }
 }
