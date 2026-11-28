@@ -3,7 +3,7 @@ id: 362
 date: 2026-11-28
 type: future
 title: "two core tests that start a fresh fake script fail now and then with Text file busy"
-status: planned
+status: in-progress
 tags: [core, tests, flake]
 depends_on: []
 format: 3
@@ -152,24 +152,24 @@ G4 is the laptop proof.
   confidential value.
 
 ## Success Criteria
-- [ ] G1 panel.rs test: retries only "Text file busy" on
+- [x] G1 panel.rs test: retries only "Text file busy" on
       launch for up to 5s, the fake script writes
       argv.tmp then moves it to argv.txt, the wait for
       argv.txt is a 5s Instant deadline, and the asserts
       are unchanged. cargo test -p core panel passes
       (3 tests) and cargo test -p core is 397 passed.
       ask: the panel test no longer fails when another thread forks during its start
-      ruling:
-      evidence:
-- [ ] G2 notify/mod.rs test: the child run is repeated
+      ruling: confirmed on int-362 6726753c
+      evidence: 6726753c -- panel.rs test only, 21 added 3 removed, launch retried only on Text file busy up to 5s, argv.tmp then mv, 5s Instant wait; panel 3 passed, core 397 of 397, rustfmt clean
+- [x] G2 notify/mod.rs test: the child run is repeated
       up to 5 times until the marker exists, and the
       asserts are unchanged. cargo test -p core
       f0013_desktop passes and cargo test -p core is 397
       passed.
       ask: the busctl test does not fail on a start that lost the same race
-      ruling:
-      evidence:
-- [ ] G3 box proof: the same stress (whole core suite
+      ruling: confirmed on int-362 de0a7d46
+      evidence: de0a7d46 -- notify/mod.rs test only, child run repeated up to 5 times until the marker exists, asserts unchanged; f0013_desktop 1 passed, core 397 of 397, rustfmt clean
+- [x] G3 box proof: the same stress (whole core suite
       repeated under busy loops) on d5a211cf and on the
       int-362 tip, with the run counts and failure counts
       for each. On d5a211cf the panel test failed 3 of
@@ -177,14 +177,14 @@ G4 is the laptop proof.
       busy); on the int-362 tip it fails in none, and no
       test fails in a way the two fixes do not explain.
       ask: the failure rate drops to zero in the same stress, with the numbers shown
-      ruling:
-      evidence:
-- [ ] G4 laptop: cargo test -p core passes (397), doors
+      ruling: confirmed on box
+      evidence: box 200 suite runs under 32 busy loops, d5a211cf panel failed 3 of 200 all Text file busy at launch; int-362 de0a7d46 panel 0 of 200, suite 0 not ok; tip cargo test -p core 397 of 397; tip single test 400 of 400
+- [x] G4 laptop: cargo test -p core passes (397), doors
       and d are green, and the push of the close commit
       passes the pre-push hook on its first try.
       ask: the laptop agrees and the pre-push hook is quiet
-      ruling:
-      evidence:
+      ruling: confirmed on laptop
+      evidence: int-362 panel 3 passed, f0013_desktop 1 passed, core 397 of 397, tree clean, doors 4 of 4 with nsh-test 151.6s; merge, 3 seals intact, d 96 pct with only the cistart status line uncommitted, Integrity 100 pct
 
 ## Job order
 Jobs run on branch int-362 only. Agents never push to
