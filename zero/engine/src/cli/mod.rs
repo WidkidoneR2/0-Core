@@ -261,6 +261,7 @@ pub fn parse() -> Command {
             IntentCommands::Graph => IntentCommand::Graph,
             IntentCommands::Defer { id, reason } => IntentCommand::Defer { id, reason },
             IntentCommands::Cancel { id, reason } => IntentCommand::Cancel { id, reason },
+            IntentCommands::Park { id, reason } => IntentCommand::Park { id, reason },
             IntentCommands::Override { id, reason } => IntentCommand::Override { id, reason },
             IntentCommands::Find {
                 what,

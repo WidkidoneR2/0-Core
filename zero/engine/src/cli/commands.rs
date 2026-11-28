@@ -376,6 +376,10 @@ pub enum IntentCommand {
         id: String,
         reason: String,
     },
+    Park {
+        id: String,
+        reason: String,
+    },
     Override {
         id: String,
         reason: String,

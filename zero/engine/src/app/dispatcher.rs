@@ -202,6 +202,11 @@ pub fn dispatch(cmd: Command, ctx: &AppContext) -> CoreResult<()> {
                 IntentCommand::Cancel { id, reason } => {
                     crate::domains::intent::cancel_intent(ctx, &id, &reason)
                 }
+                IntentCommand::Park { id, reason } => {
+                    crate::domains::intent::park_intent(ctx, &id, &reason).map(|report| {
+                        crate::domains::intent::print_park(&id, &reason, &report);
+                    })
+                }
                 IntentCommand::Override { id, reason } => {
                     crate::domains::intent::override_intent(ctx, &id, &reason)
                 }

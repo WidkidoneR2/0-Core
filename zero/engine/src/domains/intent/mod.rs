@@ -5916,6 +5916,21 @@ pub fn park_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<ParkR
     })
 }
 
+/// INT-359. The report `core intent park` prints. ASCII only.
+pub fn print_park(id: &str, reason: &str, report: &ParkReport) {
+    println!("Intent parked");
+    println!("Intent:  INT-{id}");
+    println!("Reason:  {reason}");
+    println!("State:   in-progress -> planned");
+    println!("{}", report.rel_path);
+    if report.cleared_focus {
+        println!("Focus cleared");
+    }
+    println!("park does not commit. Suggested commit message:");
+    print!("{}", report.suggested_commit);
+    println!("Add Seal: of that intent's plan (16 lowercase hex).");
+}
+
 pub fn defer_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()> {
     ctx.capabilities
         .require("intent", &[Capability::FilesystemWriteHome])?;

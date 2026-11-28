@@ -805,6 +805,14 @@ pub enum IntentCommands {
         #[arg(long)]
         reason: String,
     },
+    /// Return an in-progress intent in open/ to planned (rewrites only the status line, does not commit)
+    Park {
+        /// Intent ID
+        id: String,
+        /// Reason for parking (mandatory)
+        #[arg(long)]
+        reason: String,
+    },
     /// Override a gate with reason (bypasses gate check, logs reason)
     Override {
         /// Intent ID  
