@@ -1,7 +1,7 @@
 ---
 id: 231
 title: "code cites intents that do not exist, and nothing notices"
-status: in-progress
+status: planned
 type: fix
 priority: medium
 date: 2026-08-23
