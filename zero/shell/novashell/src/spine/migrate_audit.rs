@@ -583,13 +583,18 @@ impl MigrationReport {
         //                              PROCESS and a bare assignment is a session statement, so
         //                              it "cannot be represented rather than merely being
         //                              unimplemented". This kind can never reach zero.
+        //   sequence                -- plan.rs, lower: a sequence must never be lowered because
+        //                              later items expand after earlier ones run
+        //                              (`touch x && ls *.txt`); legacy owns plain sequences
+        //                              by design.
         //
         // Matched on the kind strings because those strings are already load-bearing -- they are
         // the keys of declined_by_reason, so a rename already changes the report. A marker on
         // LowerError would survive renaming and is the better fix when someone touches that enum.
-        const RULED_DELIBERATE: [&str; 2] = [
+        const RULED_DELIBERATE: [&str; 3] = [
             "unlowerable: value pipeline (legacy owns these)",
             "unlowerable: bare assignment with no command (a shell statement, not a process)",
+            "unlowerable: sequence",
         ];
         let ruled: usize = RULED_DELIBERATE
             .iter()
@@ -700,5 +705,27 @@ mod tests {
         let seq_at = block.find("sequence").expect("sequence kind");
         let src_at = block.find("echo a; echo b").expect("source");
         assert!(src_at > seq_at, "example must sit under the sequence row:\n{block}");
+    }
+
+    #[test]
+    fn int357_declined_sequence_counts_as_ruled() {
+        let mut audit = MigrationAudit::new();
+        audit.observe(AuditObservation {
+            source: "grep x f; echo y",
+            legacy: plan(&["grep", "x", "f"]),
+            spine: Err(LowerError::UnsupportedConstruct {
+                kind: "sequence",
+                span: super::super::ast::Span::new(0, 1),
+            }),
+        });
+        let rendered = audit.finish().render();
+        assert!(
+            rendered.contains("0 not yet ruled"),
+            "a sequence decline is ruled, so nothing is still blocking:\n{rendered}"
+        );
+        assert!(
+            rendered.contains("Every remaining kind is ruled deliberate."),
+            "the closing sentence must take the all-ruled path:\n{rendered}"
+        );
     }
 }
