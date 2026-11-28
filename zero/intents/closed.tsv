@@ -33,3 +33,4 @@ id	status	closed	last_commit	title	reason
 359	complete	2026-11-27	813572e121d6415c17da17804e3f660b27c99270	core intent park returns an open in-progress intent to planned
 360	complete	2026-11-27	08211b23e21469499510a776a9420471691bfd4f	core integrity counts in-progress by status line and drops a dead check
 361	complete	2026-11-28	206bf812f1d2488c60bbcf4ba1fe15b2b3ae8aa3	the splitter ignores backslashes and case, so find -exec and case lines are cut apart
+362	complete	2026-11-28	f96f0a7aac5010d92954d2a39b321d2c4e1b60f0	two core tests that start a fresh fake script fail now and then with Text file busy
