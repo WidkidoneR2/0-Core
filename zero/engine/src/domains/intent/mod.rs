@@ -5869,7 +5869,8 @@ fn frontmatter_status_value(content: &str) -> Option<String> {
     None
 }
 
-/// INT-359. Rewrite an open in-progress intent's status line to planned. Focus is G3.
+/// INT-359. Rewrite an open in-progress intent's status line to planned.
+/// Clears focus only when this id is the focused one.
 /// Nothing here stages, commits, moves the file, or touches closed.tsv.
 pub fn park_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<ParkReport> {
     ctx.capabilities
@@ -5901,10 +5902,17 @@ pub fn park_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<ParkR
     let updated = set_frontmatter_status(&content, &["in-progress"], "planned");
     std::fs::write(&path, updated)?;
     let rel_path = repo_relative(Path::new(&ctx.core_root), &path).unwrap_or_default();
+    let mut cleared_focus = false;
+    if let Some(state) = read_focus() {
+        if state.id == id {
+            let _ = std::fs::remove_file(focus_file());
+            cleared_focus = true;
+        }
+    }
     Ok(ParkReport {
         rel_path,
         suggested_commit: park_commit_message(id, reason),
-        cleared_focus: false,
+        cleared_focus,
     })
 }
 
