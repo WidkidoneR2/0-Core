@@ -1760,8 +1760,13 @@ impl Engine {
         }
         let shell_construct_word = crate::commands::command_word(line);
         // INT-363: a `( )` group with a redirect, a pipe or `&`, or after `time` or a pipe, is
-        // a construct nsh does not parse, so sh gets it whole.
+        // a construct nsh does not parse, so sh gets it whole. nsh-only words are named first.
         let sh_only_group = crate::line_has_sh_only_group(line);
+        if sh_only_group {
+            if let Some(note) = self.sh_handoff_notice(line) {
+                eprintln!("{}", note);
+            }
+        }
         let shell_construct = sh_only_group
             || matches!(
                 shell_construct_word.as_str(),
@@ -1779,6 +1784,46 @@ impl Engine {
             return Some(SegmentOutcome::Next);
         }
         None
+    }
+
+    /// INT-363: the words in `line` that sit where a command goes and that nsh runs itself (an
+    /// alias or a builtin) but sh does not know, as one `nsh: note:` line; None when there are
+    /// none. sh is asked with `command -v`, so a name that is also a real program (cat, env, cd)
+    /// is not listed.
+    fn sh_handoff_notice(&self, line: &str) -> Option<String> {
+        let mut seen: Vec<String> = Vec::new();
+        let mut words: Vec<String> = Vec::new();
+        for word in crate::command_words_in(line) {
+            let alias = self.db().get_alias(&word.to_lowercase());
+            if !(crate::commands::builtin_names::is_builtin(&word) || alias.is_some())
+                || seen.contains(&word)
+            {
+                continue;
+            }
+            seen.push(word.clone());
+            let known_to_sh = std::process::Command::new("sh")
+                .arg("-c")
+                .arg("command -v \"$1\" >/dev/null 2>&1")
+                .arg("sh")
+                .arg(&word)
+                .status()
+                .map(|s| s.success())
+                .unwrap_or(false);
+            if !known_to_sh {
+                words.push(match alias {
+                    Some(body) => format!("{} (alias for {})", word, body),
+                    None => word,
+                });
+            }
+        }
+        if words.is_empty() {
+            return None;
+        }
+        Some(format!(
+            "nsh: note: this line runs in sh, which does not know the nsh {}: {}",
+            if words.len() == 1 { "word" } else { "words" },
+            words.join(", ")
+        ))
     }
 
     /// A grouping `( ... )` runs in this engine against a saved cwd and environment.
@@ -2412,6 +2457,7 @@ mod int363_handoff_tests {
 
     fn engine() -> Engine {
         let db = StateDb::open_in_memory().expect("in-memory db");
+        db.add_alias("zzqalias", "git status");
         Engine::new(db, "/tmp".to_string(), Vec::new())
     }
 
@@ -2445,5 +2491,40 @@ mod int363_handoff_tests {
         let mut e = engine();
         assert!(e.try_shell_construct("echo plain").is_none());
         assert!(e.try_shell_construct("echo \"(x) > f\"").is_none());
+    }
+
+    #[test]
+    fn int363_notice_names_an_nsh_alias_that_sh_does_not_have() {
+        let e = engine();
+        let got = e.sh_handoff_notice("(zzqalias) | cat").expect("a notice");
+        assert!(got.starts_with("nsh: note: "), "{got}");
+        assert!(got.contains("zzqalias (alias for git status)"), "{got}");
+    }
+
+    #[test]
+    fn int363_notice_names_an_nsh_builtin_that_sh_does_not_have() {
+        let e = engine();
+        let got = e
+            .sh_handoff_notice("(intents) > out.txt")
+            .expect("a notice");
+        assert!(got.contains("the nsh word: intents"), "{got}");
+        let got = e
+            .sh_handoff_notice("(zzqalias; intents; echo a) | cat")
+            .expect("a notice");
+        assert!(got.contains("the nsh words: "), "{got}");
+        assert!(got.contains("zzqalias") && got.contains("intents"), "{got}");
+        assert!(!got.contains("echo"), "{got}");
+    }
+
+    #[test]
+    fn int363_no_notice_for_words_sh_knows_or_for_quoted_text() {
+        let e = engine();
+        // echo, cat, cd and pwd are nsh words too, but sh has them
+        assert_eq!(
+            e.sh_handoff_notice("(echo a; cat f; cd /tmp; pwd) > g.txt"),
+            None
+        );
+        assert_eq!(e.sh_handoff_notice("(echo 'intents zzqalias') | cat"), None);
+        assert_eq!(e.sh_handoff_notice("echo x | (cat; echo y)"), None);
     }
 }

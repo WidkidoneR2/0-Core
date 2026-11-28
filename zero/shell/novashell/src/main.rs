@@ -583,6 +583,71 @@ fn group_tail_needs_sh(chars: &[char], after: usize) -> bool {
     }
 }
 
+/// INT-363: the first word of every simple command in `line`, as nsh would read it: cut at
+/// `;`, `&`, `|`, parens and newlines outside quotes, then skip a leading `NAME=value`, `time`,
+/// `!` or a shell keyword (`if`, `then`, `do`, ...) and a redirect-only piece. Used to find the
+/// words nsh runs itself before a line is handed to sh.
+pub(crate) fn command_words_in(line: &str) -> Vec<String> {
+    let mut parts: Vec<String> = Vec::new();
+    let mut cur = String::new();
+    let mut in_quote = false;
+    let mut quote = ' ';
+    let mut chars = line.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch == '\\' && !(in_quote && quote == '\'') {
+            cur.push(ch);
+            if let Some(n) = chars.next() {
+                cur.push(n);
+            }
+            continue;
+        }
+        if !in_quote && (ch == '"' || ch == '\'') {
+            in_quote = true;
+            quote = ch;
+            cur.push(ch);
+        } else if in_quote && ch == quote {
+            in_quote = false;
+            cur.push(ch);
+        } else if !in_quote
+            && ch == '&'
+            && (cur.ends_with(['>', '<']) || chars.peek() == Some(&'>'))
+        {
+            // `2>&1`, `<&3` and `&>file` are redirects, not the end of a command
+            cur.push(ch);
+        } else if !in_quote && matches!(ch, ';' | '&' | '|' | '(' | ')' | '\n') {
+            parts.push(std::mem::take(&mut cur));
+        } else {
+            cur.push(ch);
+        }
+    }
+    parts.push(cur);
+    const SKIP: &[&str] = &[
+        "time", "!", "if", "then", "else", "elif", "fi", "do", "done", "while", "until", "{", "}",
+    ];
+    let mut out = Vec::new();
+    for part in parts {
+        for tok in crate::commands::tokenize(part.trim()) {
+            let is_assignment = tok
+                .split_once('=')
+                .map(|(n, _)| {
+                    !n.is_empty() && n.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
+                })
+                .unwrap_or(false);
+            if is_assignment || SKIP.contains(&tok.as_str()) {
+                continue;
+            }
+            let redirect_only = tok
+                .trim_start_matches(|c: char| c.is_ascii_digit())
+                .starts_with(['<', '>']);
+            if !redirect_only {
+                out.push(tok);
+            }
+            break;
+        }
+    }
+    out
+}
+
 /// INT-363: true when `line` holds a `( )` group that only sh can run: `time ( )`, `cmd | ( )`,
 /// or `( )` followed by a redirect, a pipe or `&`. It asks split_around_compounds, so the
 /// splitter that keeps such a piece whole and the engine that hands it to sh cannot disagree.
@@ -4777,7 +4842,7 @@ mod int361_split {
 
 #[cfg(test)]
 mod int363_split {
-    use super::{line_has_sh_only_group, split_into_segments};
+    use super::{command_words_in, line_has_sh_only_group, split_into_segments};
 
     fn segs(line: &str) -> Vec<String> {
         split_into_segments(line)
@@ -4909,5 +4974,22 @@ mod int363_split {
         ] {
             assert!(!line_has_sh_only_group(line), "{line}");
         }
+    }
+
+    #[test]
+    fn int363_command_words_are_read_from_each_simple_command() {
+        assert_eq!(
+            command_words_in("(gs; ll) | head"),
+            vec!["gs", "ll", "head"]
+        );
+        assert_eq!(
+            command_words_in("X=1 intents > f; time (d --help) 2>&1"),
+            vec!["intents", "d"]
+        );
+        assert_eq!(
+            command_words_in("if intents; then echo \"ll\"; fi"),
+            vec!["intents", "echo"]
+        );
+        assert_eq!(command_words_in("echo 'a; ll' | cat"), vec!["echo", "cat"]);
     }
 }
