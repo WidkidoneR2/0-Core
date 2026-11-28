@@ -217,22 +217,35 @@ mod tests {
         let old_path = std::env::var("PATH").unwrap_or_default();
         let child_path = format!("{}:{}", dir.display(), old_path);
         let exe = std::env::current_exe().unwrap();
-        let out = std::process::Command::new(&exe)
-            .args([
-                "domains::notify::tests::f0013_desktop_notify_prints_nothing",
-                "--exact",
-                "--test-threads=1",
-                "--nocapture",
-            ])
-            .env("F0013_CHILD", "1")
-            .env("PATH", &child_path)
-            .env_remove("ZERO_NO_NOTIFY")
-            .env(
-                "DBUS_SESSION_BUS_ADDRESS",
-                format!("unix:path={}", dir.join("no-bus").display()),
-            )
-            .output()
-            .unwrap();
+        // The fake busctl was written a moment ago. Linux refuses to run a file while any
+        // process holds it open for writing, and another test thread that forks between our
+        // write and the exec carries our write handle until its own exec. busctl() ignores
+        // a failed start, so the one sign is a marker that never appears. Run the child again
+        // (up to five times) until the marker is there; the asserts below are unchanged.
+        let mut attempts = 0;
+        let out = loop {
+            attempts += 1;
+            let out = std::process::Command::new(&exe)
+                .args([
+                    "domains::notify::tests::f0013_desktop_notify_prints_nothing",
+                    "--exact",
+                    "--test-threads=1",
+                    "--nocapture",
+                ])
+                .env("F0013_CHILD", "1")
+                .env("PATH", &child_path)
+                .env_remove("ZERO_NO_NOTIFY")
+                .env(
+                    "DBUS_SESSION_BUS_ADDRESS",
+                    format!("unix:path={}", dir.join("no-bus").display()),
+                )
+                .output()
+                .unwrap();
+            if marker.exists() || attempts >= 5 {
+                break out;
+            }
+            std::thread::sleep(std::time::Duration::from_millis(50));
+        };
         let stdout = String::from_utf8_lossy(&out.stdout).to_string();
         let stderr = String::from_utf8_lossy(&out.stderr).to_string();
         let marker_ran = marker.exists();
