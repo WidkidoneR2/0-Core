@@ -1087,7 +1087,6 @@ fn print_retired_history(ctx: &AppContext) {
 pub fn build_check_suite() -> Vec<Box<dyn IntegrityCheck>> {
     vec![
         // Phase 1: Intent Ledger
-        Box::new(checks::IntentStatusDirectoryCheck),
         Box::new(checks::IntentDuplicateIdCheck),
         Box::new(checks::IntentInProgressCountCheck),
         // Phase 2: Registry
@@ -1111,70 +1110,6 @@ pub mod checks {
     use super::*;
 
     // ── Intent Checks ─────────────────────────────────────────────────────────
-
-    pub struct IntentStatusDirectoryCheck;
-    impl IntegrityCheck for IntentStatusDirectoryCheck {
-        fn name(&self) -> &'static str {
-            "intent_status_directory"
-        }
-        fn category(&self) -> Category {
-            Category::Intent
-        }
-        fn run(&self, ctx: &IntegrityContext) -> Vec<IntegrityIssue> {
-            let mut issues = vec![];
-            let dirs = [("open", ctx.ctx.fpath("intents/open"))];
-            for (dir_type, dir_path) in &dirs {
-                let expected_status = match *dir_type {
-                    "complete" => "complete",
-                    "future" => "planned",
-                    _ => continue,
-                };
-                if let Ok(entries) = std::fs::read_dir(dir_path) {
-                    for entry in entries.flatten() {
-                        let path = entry.path();
-                        // Skip arch-era/ -- archived Arch intents are not active intents
-                        if path.to_string_lossy().contains("arch-era") {
-                            continue;
-                        }
-                        if path.extension().map(|e| e != "md").unwrap_or(true) {
-                            continue;
-                        }
-                        if let Ok(content) = std::fs::read_to_string(&path) {
-                            // Check for status mismatch
-                            // Only check frontmatter status field — exact line match
-                            let status_line = frontmatter_status(&content);
-                            let _has_complete = status_line == "status: complete";
-                            let has_planned = status_line == "status: planned";
-                            let has_deferred = status_line == "status: deferred";
-                            let has_inprog = status_line == "status: in-progress";
-
-                            // INT-313 stage 3. cistart, cicomplete and cancel leave the file
-                            // where it is and change the status line. A folder that does not
-                            // match the status is not a move. The alert below stays: a file
-                            // already in complete/ whose status is not complete is still wrong.
-                            if *dir_type == "complete"
-                                && (has_planned || has_deferred || has_inprog)
-                            {
-                                let fname = path
-                                    .file_name()
-                                    .unwrap_or_default()
-                                    .to_string_lossy()
-                                    .to_string();
-                                issues.push(IntegrityIssue::alert(
-                                    Category::Intent,
-                                    "intent_status_directory",
-                                    &format!("{} in complete/ but status is not complete", fname),
-                                    3,
-                                ));
-                            }
-                            let _ = expected_status;
-                        }
-                    }
-                }
-            }
-            issues
-        }
-    }
 
     pub struct IntentDuplicateIdCheck;
     impl IntegrityCheck for IntentDuplicateIdCheck {
@@ -2387,36 +2322,6 @@ mod tests {
         assert_eq!(reason.as_deref(), Some("check removed"));
     }
 
-    /// INT-275 G7 proved apply moves only the file its row names. INT-313 stage 3: the check
-    /// no longer files that row. A future/ file whose status is complete stays put, and so does
-    /// a neighbour whose body only mentions the phrase.
-    #[test]
-    fn a_status_that_does_not_match_its_folder_is_not_a_move() {
-        let (ctx, root) = stand_in("move");
-        let open = ctx.fpath("intents/open");
-        std::fs::create_dir_all(&open).unwrap();
-        let bystander = open.join("901-bystander.md");
-        std::fs::write(
-            &bystander,
-            "---\nstatus: planned\n---\nThis body only mentions the phrase status: complete\n",
-        )
-        .unwrap();
-        let done = open.join("902-done.md");
-        std::fs::write(&done, "---\nstatus: complete\n---\n").unwrap();
-        let suite: Vec<Box<dyn IntegrityCheck>> =
-            vec![Box::new(checks::IntentStatusDirectoryCheck)];
-        run_pipeline(&IntegrityContext::new(&ctx), &suite, true);
-        let proposed = pending_data(&ctx, "902-done.md%");
-        let stayed = done.exists() && bystander.exists();
-        let _ = std::fs::remove_dir_all(&root);
-        assert!(
-            proposed.is_empty(),
-            "a status that does not match the folder is not a move: {:?}",
-            proposed
-        );
-        assert!(stayed, "a file was moved");
-    }
-
     /// INT-275: an intent's status is its frontmatter line; a body that mentions one is not one.
     #[test]
     fn status_is_the_frontmatter_line_not_a_mention() {
@@ -2947,6 +2852,33 @@ mod tests {
         assert!(
             docs.is_empty(),
             "the README sample line was read as a tool count: {docs:?}"
+        );
+    }
+
+    #[test]
+    fn int360_status_directory_check_is_gone() {
+        let names: Vec<&str> = build_check_suite().iter().map(|c| c.name()).collect();
+        assert!(
+            !names.contains(&"intent_status_directory"),
+            "intent_status_directory is still in the suite: {names:?}"
+        );
+        let (ctx, root) = stand_in("status-dir-gone");
+        let open = ctx.fpath("intents/open");
+        std::fs::create_dir_all(&open).unwrap();
+        std::fs::write(open.join("901-complete.md"), "---\nstatus: complete\n---\n").unwrap();
+        let ictx = IntegrityContext::new(&ctx);
+        let mut hits = Vec::new();
+        for check in build_check_suite() {
+            for issue in check.run(&ictx) {
+                if issue.check == "intent_status_directory" {
+                    hits.push(issue.description);
+                }
+            }
+        }
+        let _ = std::fs::remove_dir_all(&root);
+        assert!(
+            hits.is_empty(),
+            "a complete file in open/ was reported as intent_status_directory: {hits:?}"
         );
     }
 }
