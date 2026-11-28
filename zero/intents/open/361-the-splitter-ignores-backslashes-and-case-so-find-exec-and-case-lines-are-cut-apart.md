@@ -3,7 +3,7 @@ id: 361
 date: 2026-11-27
 type: future
 title: "the splitter ignores backslashes and case, so find -exec and case lines are cut apart"
-status: planned
+status: in-progress
 tags: [nsh, splitter, parser]
 depends_on: []
 format: 3
@@ -225,40 +225,40 @@ G5 is the laptop proof.
   confidential value.
 
 ## Success Criteria
-- [ ] G1 red first: the five int361_ tests are in a new
+- [x] G1 red first: the five int361_ tests are in a new
       mod int361_split in main.rs. The four escape and
       case tests fail on their assertions (none errors)
       and int361_plain_splits_are_unchanged passes. The
       308 existing tests stay green.
       ask: today the splitter cuts at an escaped character and inside case, and nothing tests it
-      ruling:
-      evidence:
-- [ ] G2 the backslash check in the four scanners and
+      ruling: confirmed on int-361 14bc110e
+      evidence: 14bc110e -- five int361_ tests; the four escape and case tests failed on their assertions, none errored; int361_plain_splits_are_unchanged passed; 309 passed, 4 failed
+- [x] G2 the backslash check in the four scanners and
       case ... esac handled like if ... fi. All five
       int361_ tests pass and cargo test -p novashell is
       313 passed.
       ask: an escaped character and a case line stay whole, and plain splits are unchanged
-      ruling:
-      evidence:
-- [ ] G3 box proof: of the 41 probe lines, the 13 that
+      ruling: confirmed on int-361 ebd7d22f
+      evidence: ebd7d22f -- main.rs and expand.rs only; five int361_ pass, 313 of 313, no new warning; echo a\;b, find -exec with an escaped semicolon and a one-line case match bash
+- [x] G3 box proof: of the 41 probe lines, the 13 that
       differ from bash on main match bash on int-361,
       the 12 that matched still match, and the 16
       follow-up lines are unchanged.
       ask: the fixed lines now match bash and nothing that matched before moved
-      ruling:
-      evidence:
-- [ ] G4 four CONFORMANCE_CASES for an escaped `;`, an
+      ruling: confirmed on box
+      evidence: box probe of 41 lines, no commit -- main same 12 diff 29, int-361 same 25 diff 16; the 13 that moved are the find, backslash and case lines; no line that matched on main differs on int-361
+- [x] G4 four CONFORMANCE_CASES for an escaped `;`, an
       escaped quote, a case line and find -exec with
       `\;` are in nsh-test.
       ask: the laptop suite holds these four lines to bash from now on
-      ruling:
-      evidence:
-- [ ] G5 laptop: cargo test -p novashell int361_
+      ruling: confirmed on int-361 671b9c44
+      evidence: 671b9c44 -- four cases in nsh-test CONFORMANCE_CASES; main nsh differs from bash on all four, int-361 nsh matches on all four; build -p novashell -p nsh-test clean
+- [x] G5 laptop: cargo test -p novashell int361_
       passes; the four new conform_ cases pass in
       doors' nsh-test run; doors and d are green.
       ask: the laptop agrees, and nsh-test, doors and d are green
-      ruling:
-      evidence:
+      ruling: confirmed on laptop
+      evidence: Block T five int361_ passed, 313 of 313, tree clean, doors 4 of 4 with nsh-test 152.7s; merge, 4 seals intact, ship nsh 6.1.3, d 96 pct with only the cistart status line uncommitted, Integrity 100 pct
 
 ## Job order
 Jobs run on branch int-361 only. Agents never push to
