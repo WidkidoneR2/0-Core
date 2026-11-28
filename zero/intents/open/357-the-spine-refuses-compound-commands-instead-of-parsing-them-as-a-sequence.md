@@ -3,7 +3,7 @@ id: 357
 date: 2026-11-27
 type: future
 title: "the spine refuses compound commands instead of parsing them as a sequence"
-status: planned
+status: in-progress
 tags: [nsh, spine, parser, migrate]
 depends_on: []
 format: 3
@@ -201,43 +201,43 @@ G5 is the laptop proof.
   any secret or confidential value.
 
 ## Success Criteria
-- [ ] G1 red first: the four int357_ tests are in
+- [x] G1 red first: the four int357_ tests are in
       spine/parser.rs. The three refusal tests fail on the
       code as it stands, none errors, and
       int357_non_opener_keywords_still_parse passes. The
       existing tests stay green.
       ask: compound lines parse Complete as a Sequence today, and the guard already passes
-      ruling:
-      evidence:
-- [ ] G2 the CompoundCommand refusal in parse_command, the
+      ruling: confirmed on int-357 6df0ae9c
+      evidence: 6df0ae9c -- parser.rs tests only; 303 passed, the 3 refusal tests failed as expected, none errored, non_opener passed
+- [x] G2 the CompoundCommand refusal in parse_command, the
       diagnose_parse arm in spine/mod.rs and the
       spine_parse_error key in spine/migrate_audit.rs.
       All four int357_ tests pass and cargo test -p
       novashell is green.
       ask: compound commands are refused, and plain sequences and every other test are unchanged
-      ruling:
-      evidence:
-- [ ] G3 a scratch state.db with the ten G3 rows gives
+      ruling: confirmed on int-357 cffdc020
+      evidence: cffdc020 -- parser.rs, mod.rs, migrate_audit.rs; 306 of 306 pass, int357_ 4 passed
+- [x] G3 a scratch state.db with the ten G3 rows gives
       `8 sequence` and "8 not yet ruled" before the fix,
       and after it no sequence row, `8 compound command`
       under Refused at parse, "0 not yet ruled", and
       Equivalent still 4.
       ask: the audit moves the compound rows from sequence to refused, and Equivalent does not move
-      ruling:
-      evidence:
-- [ ] G4 four CONFORMANCE_CASES for for, if, piped while
+      ruling: confirmed on a scratch db, no repo commit
+      evidence: main gave 8 sequence and 8 not yet ruled; int-357 gave no sequence row, 8 compound command under Refused at parse, 0 not yet ruled, Equivalent 4
+- [x] G4 four CONFORMANCE_CASES for for, if, piped while
       and a ( ) group are in nsh-test and match bash.
       ask: the default shell still runs compound commands the way bash does
-      ruling:
-      evidence:
-- [ ] G5 laptop: cargo test -p novashell int357_ passes;
+      ruling: confirmed on int-357 c82aa8d0
+      evidence: c82aa8d0 -- 4 cases match bash -c output; nsh-test door pass on laptop
+- [x] G5 laptop: cargo test -p novashell int357_ passes;
       `./target/debug/nsh -c 'spine migrate'` shows no
       sequence row under Declined at lowering and
       "0 not yet ruled" unless a new unruled kind appears;
       nsh-test, doors and d are green.
       ask: the laptop agrees, and nsh-test, doors and d are green
-      ruling:
-      evidence:
+      ruling: confirmed on laptop, with a scope addition Christian approved
+      evidence: after G2 the laptop still showed 2 sequence (one plain grep then echo line, typed twice), a Stop and ask case; Christian ruled plain sequence deliberate; 5a0527f4 prints examples per stage kind, 09d6dcb9 adds unlowerable sequence to RULED_DELIBERATE; final audit 213 compound command refused, 2 sequence ruled, 0 not yet ruled; int357_ 6 passed, doors 4 of 4, d 96 pct with only cistart uncommitted
 
 ## Job order
 Jobs run on branch int-357 only. Agents never push to main.
