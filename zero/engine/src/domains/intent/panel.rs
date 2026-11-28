@@ -132,16 +132,34 @@ mod tests {
         let bin = dir.0.join("quickshell");
         fs::write(
             &bin,
-            "#!/bin/sh\nprintf '%s\\n' \"$@\" > \"$(dirname \"$0\")/argv.txt\"\n",
+            "#!/bin/sh\nd=$(dirname \"$0\")\nprintf '%s\\n' \"$@\" > \"$d/argv.tmp\"\nmv \"$d/argv.tmp\" \"$d/argv.txt\"\n",
         )
         .unwrap();
         let mut perms = fs::metadata(&bin).unwrap().permissions();
         perms.set_mode(0o755);
         fs::set_permissions(&bin, perms).unwrap();
-        launch(Some(dir.0.as_os_str())).expect("quickshell is on PATH");
+        // Linux refuses to run a file while any process holds it open for writing. Another
+        // test thread that forks between our write and our exec carries our write handle
+        // until its own exec, so a start can fail once with ETXTBSY. Retry only that error.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        loop {
+            match launch(Some(dir.0.as_os_str())) {
+                Ok(()) => break,
+                Err(crate::errors::CoreError::Reported(why))
+                    if why.contains("Text file busy") && std::time::Instant::now() < deadline =>
+                {
+                    std::thread::sleep(std::time::Duration::from_millis(10));
+                }
+                Err(err) => panic!("quickshell is on PATH: {err:?}"),
+            }
+        }
         let argv_path = dir.0.join("argv.txt");
         let mut text = String::new();
-        for _ in 0..50 {
+        // argv.txt appears whole (the script writes argv.tmp, then mv). The deadline is
+        // generous because the pre-push hook runs the whole suite under load; the loop
+        // still ends the moment the file is there.
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);
+        while std::time::Instant::now() < deadline {
             if let Ok(got) = fs::read_to_string(&argv_path) {
                 if !got.is_empty() {
                     text = got;
