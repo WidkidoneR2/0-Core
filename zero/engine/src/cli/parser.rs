@@ -1943,6 +1943,41 @@ mod int358_fix_flag_tests {
     }
 }
 
+#[cfg(test)]
+mod int359_park_flag_tests {
+    use super::Cli;
+    use clap::Parser;
+
+    /// INT-359. Cancel and defer already parse. Park does not, yet.
+    #[test]
+    fn int359_park_parses_with_reason_and_park_alone_does_not() {
+        assert!(
+            Cli::try_parse_from(["core", "intent", "cancel", "181", "--reason", "x"]).is_ok(),
+            "cancel --reason must still parse"
+        );
+        assert!(
+            Cli::try_parse_from(["core", "intent", "defer", "181", "a note"]).is_ok(),
+            "defer with a positional reason must still parse"
+        );
+        assert!(
+            Cli::try_parse_from(["core", "intent", "park", "312"]).is_err(),
+            "park alone must not parse"
+        );
+        assert!(
+            Cli::try_parse_from([
+                "core",
+                "intent",
+                "park",
+                "312",
+                "--reason",
+                "taking a break"
+            ])
+            .is_ok(),
+            "park --reason must parse"
+        );
+    }
+}
+
 /// INT-269 -- the fingerprint verbs. show never writes; record is the one writer.
 #[derive(Debug, Subcommand)]
 pub enum FingerprintCommands {

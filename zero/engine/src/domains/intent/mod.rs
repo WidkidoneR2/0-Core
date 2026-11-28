@@ -5841,6 +5841,29 @@ pub fn cancel_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()>
     Ok(())
 }
 
+/// What `core intent park` did. INT-359.
+#[derive(Debug, Clone)]
+pub struct ParkReport {
+    pub rel_path: String,
+    pub suggested_commit: String,
+    pub cleared_focus: bool,
+}
+
+/// The subject and the Intent trailer. Park does not invent a seal.
+fn park_commit_message(id: &str, reason: &str) -> String {
+    format!("INT-{id}: park; {reason}\n\nIntent: INT-{id}\n")
+}
+
+/// INT-359. Stub. G2 writes the status line and G3 clears focus. This writes nothing.
+pub fn park_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<ParkReport> {
+    let _ = (ctx, id, reason);
+    Ok(ParkReport {
+        rel_path: String::new(),
+        suggested_commit: String::new(),
+        cleared_focus: false,
+    })
+}
+
 pub fn defer_intent(ctx: &AppContext, id: &str, reason: &str) -> CoreResult<()> {
     ctx.capabilities
         .require("intent", &[Capability::FilesystemWriteHome])?;
@@ -7223,6 +7246,355 @@ mod cancel_closes_like_complete_tests {
         assert!(
             body.contains("Reason:"),
             "show must print Reason: for a closed row that has one"
+        );
+    }
+}
+
+/// INT-359. Park is a stub, so these fail on the assertion and do not error.
+#[cfg(test)]
+mod int359_park_tests {
+    use super::{park_commit_message, park_intent, set_frontmatter_status};
+    use std::path::Path;
+    use std::process::Command;
+
+    fn scratch(name: &str) -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "int359-park-{name}-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn git(repo: &Path, args: &[&str]) {
+        let out = Command::new("git")
+            .arg("-C")
+            .arg(repo)
+            .args(args)
+            .output()
+            .expect("git");
+        assert!(
+            out.status.success(),
+            "{args:?} {}",
+            String::from_utf8_lossy(&out.stderr)
+        );
+    }
+
+    fn repo(name: &str) -> std::path::PathBuf {
+        let dir = scratch(name);
+        git(&dir, &["init", "-q"]);
+        git(&dir, &["config", "user.email", "t@example.com"]);
+        git(&dir, &["config", "user.name", "test"]);
+        dir
+    }
+
+    fn write_open(repo: &Path, name: &str, body: &str) -> std::path::PathBuf {
+        let path = repo.join(format!("zero/intents/open/{name}"));
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, body).unwrap();
+        path
+    }
+
+    fn intent_text(id: &str, status: &str, extra: &str) -> String {
+        format!("---\nid: {id}\ntitle: \"Park\"\nstatus: {status}\ndate: 2026-11-27\n---\n\n{extra}")
+    }
+
+    fn ctx(repo: &Path) -> crate::app::context::AppContext {
+        crate::app::context::AppContext {
+            runtime: crate::runtime::Runtime {
+                root: repo.to_path_buf(),
+                logs: repo.join("logs"),
+                cache: repo.join("cache"),
+                snapshots: repo.join("snapshots"),
+                locks: repo.join("locks"),
+                db: rusqlite::Connection::open_in_memory().unwrap(),
+            },
+            capabilities: crate::capabilities::CapabilityContext::unprivileged(),
+            home: repo.display().to_string(),
+            core_root: repo.display().to_string(),
+            source_root: repo.join("zero").display().to_string(),
+        }
+    }
+
+    fn with_scratch_state<T>(repo: &Path, f: impl FnOnce() -> T) -> T {
+        let _guard = crate::HOME_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let prev_state = std::env::var("ZERO_STATE_DIR").ok();
+        let prev_xdg = std::env::var("XDG_STATE_HOME").ok();
+        let state = repo.join("state");
+        std::fs::create_dir_all(&state).unwrap();
+        unsafe {
+            std::env::set_var("ZERO_STATE_DIR", &state);
+            std::env::set_var("XDG_STATE_HOME", &state);
+        }
+        let out = f();
+        match prev_state {
+            Some(v) => unsafe { std::env::set_var("ZERO_STATE_DIR", v) },
+            None => unsafe { std::env::remove_var("ZERO_STATE_DIR") },
+        }
+        match prev_xdg {
+            Some(v) => unsafe { std::env::set_var("XDG_STATE_HOME", v) },
+            None => unsafe { std::env::remove_var("XDG_STATE_HOME") },
+        }
+        out
+    }
+
+    fn head(repo: &Path) -> String {
+        let out = Command::new("git")
+            .args(["-C", repo.to_str().unwrap(), "rev-parse", "HEAD"])
+            .output()
+            .unwrap();
+        String::from_utf8(out.stdout).unwrap().trim().to_string()
+    }
+
+    fn focus_path(repo: &Path) -> std::path::PathBuf {
+        repo.join("state/0-core/intent/focus.toml")
+    }
+
+    fn write_focus(repo: &Path, id: &str) {
+        let path = focus_path(repo);
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &path,
+            format!(
+                "id = \"{id}\"\ntitle = \"Park\"\nstarted = \"2026-11-27T00:00:00\"\nworkflow = \"standard\"\n"
+            ),
+        )
+        .unwrap();
+    }
+
+    fn status_is_planned(text: &str) -> bool {
+        text.split("---")
+            .nth(1)
+            .unwrap_or("")
+            .lines()
+            .any(|line| line.trim() == "status: planned")
+    }
+
+    #[test]
+    fn int359_park_rewrites_only_the_status_line() {
+        let repo = repo("rewrite");
+        let name = "312-park.md";
+        let src = intent_text(
+            "312",
+            "in-progress",
+            "A body quote of status: planned stays.\n\n## Gate Check\ndeferred: kept\n",
+        );
+        let path = write_open(&repo, name, &src);
+        let report = with_scratch_state(&repo, || {
+            park_intent(&ctx(&repo), "312", "taking a break").expect("park")
+        });
+        let after = std::fs::read_to_string(&path).unwrap();
+        let expected = set_frontmatter_status(&src, &["in-progress"], "planned");
+        let _ = std::fs::remove_dir_all(&repo);
+        assert_eq!(after, expected, "park must change only the status line");
+        assert!(
+            after.contains("status: planned stays."),
+            "the body quote was rewritten"
+        );
+        assert!(
+            after.contains("## Gate Check\ndeferred: kept"),
+            "the gate block was rewritten"
+        );
+        assert_eq!(report.rel_path, format!("zero/intents/open/{name}"));
+    }
+
+    #[test]
+    fn int359_park_refuses_an_id_not_open() {
+        let missing = repo("missing");
+        let missing_err = with_scratch_state(&missing, || park_intent(&ctx(&missing), "312", "x"));
+        let _ = std::fs::remove_dir_all(&missing);
+        assert!(
+            missing_err.is_err(),
+            "an id with no open file must be refused, got {missing_err:?}"
+        );
+        assert!(
+            missing_err.unwrap_err().to_string().contains("not found"),
+            "the refusal must say the active intent was not found"
+        );
+
+        let repo = repo("decisions");
+        let path = repo.join("zero/intents/decisions/312-decided.md");
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        let body = intent_text("312", "in-progress", "kept\n");
+        std::fs::write(&path, &body).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let err = with_scratch_state(&repo, || park_intent(&ctx(&repo), "312", "x"));
+        let after = std::fs::read(&path).unwrap();
+        let _ = std::fs::remove_dir_all(&repo);
+        assert!(
+            err.is_err(),
+            "a file only in decisions/ must be refused, got {err:?}"
+        );
+        assert_eq!(after, before, "the decisions file was written");
+    }
+
+    #[test]
+    fn int359_park_refuses_already_planned_and_any_other_status() {
+        let repo = repo("status");
+        let planned = write_open(
+            &repo,
+            "312-planned.md",
+            &intent_text("312", "planned", "stay\n"),
+        );
+        let deferred = write_open(
+            &repo,
+            "313-deferred.md",
+            &intent_text("313", "deferred", "stay\n"),
+        );
+        let planned_before = std::fs::read(&planned).unwrap();
+        let deferred_before = std::fs::read(&deferred).unwrap();
+        let planned_err = with_scratch_state(&repo, || park_intent(&ctx(&repo), "312", "x"));
+        let deferred_err = with_scratch_state(&repo, || park_intent(&ctx(&repo), "313", "x"));
+        let planned_after = std::fs::read(&planned).unwrap();
+        let deferred_after = std::fs::read(&deferred).unwrap();
+        let _ = std::fs::remove_dir_all(&repo);
+        let planned_text = planned_err
+            .as_ref()
+            .err()
+            .map(|e| e.to_string())
+            .unwrap_or_default();
+        let deferred_text = deferred_err
+            .as_ref()
+            .err()
+            .map(|e| e.to_string())
+            .unwrap_or_default();
+        assert!(
+            planned_text.contains("planned"),
+            "a planned file must be refused and name planned, got {planned_err:?}"
+        );
+        assert!(
+            deferred_text.contains("deferred"),
+            "a deferred file must be refused and name deferred, got {deferred_err:?}"
+        );
+        assert_eq!(planned_after, planned_before, "the planned file was written");
+        assert_eq!(
+            deferred_after, deferred_before,
+            "the deferred file was written"
+        );
+    }
+
+    #[test]
+    fn int359_park_refuses_an_empty_reason() {
+        let repo = repo("reason");
+        let path = write_open(
+            &repo,
+            "312-park.md",
+            &intent_text("312", "in-progress", "stay\n"),
+        );
+        let before = std::fs::read(&path).unwrap();
+        let empty = with_scratch_state(&repo, || park_intent(&ctx(&repo), "312", ""));
+        let spaces = with_scratch_state(&repo, || park_intent(&ctx(&repo), "312", "   "));
+        let after = std::fs::read(&path).unwrap();
+        let _ = std::fs::remove_dir_all(&repo);
+        for (label, err) in [("empty", empty), ("spaces", spaces)] {
+            let text = err.as_ref().err().map(|e| e.to_string()).unwrap_or_default();
+            assert!(
+                text.contains("non-empty --reason"),
+                "{label} reason must name a non-empty --reason, got {err:?}"
+            );
+        }
+        assert_eq!(after, before, "an empty reason wrote the file");
+    }
+
+    #[test]
+    fn int359_park_clears_focus_when_focused_and_leaves_other_focus() {
+        {
+        let repo = repo("focus-self");
+        let path = write_open(
+            &repo,
+            "312-park.md",
+            &intent_text("312", "in-progress", "stay\n"),
+        );
+        let report = with_scratch_state(&repo, || {
+            write_focus(&repo, "312");
+            park_intent(&ctx(&repo), "312", "taking a break").expect("park")
+        });
+        let text = std::fs::read_to_string(&path).unwrap();
+        let gone = !focus_path(&repo).exists();
+        let _ = std::fs::remove_dir_all(&repo);
+        assert!(report.cleared_focus, "parking the focused intent must clear focus");
+        assert!(gone, "focus.toml for this id must be removed");
+        assert!(status_is_planned(&text), "status is not planned:\n{text}");
+        }
+
+        let repo = repo("focus-other");
+        let path = write_open(
+            &repo,
+            "312-park.md",
+            &intent_text("312", "in-progress", "stay\n"),
+        );
+        let report = with_scratch_state(&repo, || {
+            write_focus(&repo, "999");
+            let focus_before = std::fs::read(focus_path(&repo)).unwrap();
+            let report = park_intent(&ctx(&repo), "312", "taking a break").expect("park");
+            let focus_after = std::fs::read(focus_path(&repo)).unwrap();
+            assert_eq!(focus_after, focus_before, "another id's focus was changed");
+            report
+        });
+        let text = std::fs::read_to_string(&path).unwrap();
+        let _ = std::fs::remove_dir_all(&repo);
+        assert!(
+            !report.cleared_focus,
+            "a focus on another id must be left alone"
+        );
+        assert!(status_is_planned(&text), "status is not planned:\n{text}");
+    }
+
+    #[test]
+    fn int359_park_does_not_commit_or_stage_and_suggests_a_message() {
+        let repo = repo("nocommit");
+        let name = "312-park.md";
+        let rel = format!("zero/intents/open/{name}");
+        let src = intent_text("312", "in-progress", "stay\n");
+        write_open(&repo, name, &src);
+        git(&repo, &["add", &rel]);
+        git(&repo, &["commit", "-q", "-m", "add 312"]);
+        let before = head(&repo);
+        let report = with_scratch_state(&repo, || {
+            park_intent(&ctx(&repo), "312", "taking a break").expect("park")
+        });
+        let after_head = head(&repo);
+        let staged = Command::new("git")
+            .args(["-C", repo.to_str().unwrap(), "diff", "--cached", "--name-only"])
+            .output()
+            .unwrap();
+        let diff = Command::new("git")
+            .args(["-C", repo.to_str().unwrap(), "diff", "-U0", "--", &rel])
+            .output()
+            .unwrap();
+        let diff_text = String::from_utf8(diff.stdout).unwrap();
+        let changed: Vec<&str> = diff_text
+            .lines()
+            .filter(|line| {
+                (line.starts_with('+') || line.starts_with('-'))
+                    && !line.starts_with("+++")
+                    && !line.starts_with("---")
+            })
+            .collect();
+        let still_open = repo.join(&rel).is_file();
+        let tsv = repo.join("zero/intents/closed.tsv").exists();
+        let _ = std::fs::remove_dir_all(&repo);
+        assert_eq!(after_head, before, "park committed");
+        assert!(
+            staged.stdout.is_empty(),
+            "park staged {}",
+            String::from_utf8_lossy(&staged.stdout)
+        );
+        assert!(!tsv, "park wrote closed.tsv");
+        assert!(still_open, "park moved the file out of open/");
+        assert_eq!(
+            changed,
+            vec!["-status: in-progress", "+status: planned"],
+            "only the status line should be dirty: {diff_text}"
+        );
+        assert_eq!(
+            report.suggested_commit,
+            park_commit_message("312", "taking a break")
         );
     }
 }
