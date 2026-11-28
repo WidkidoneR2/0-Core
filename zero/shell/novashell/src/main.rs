@@ -4544,3 +4544,72 @@ mod int328_split {
         assert_eq!(segs, vec![line.to_string()]);
     }
 }
+
+#[cfg(test)]
+mod int361_split {
+    use super::split_into_segments;
+
+    fn segs(line: &str) -> Vec<String> {
+        split_into_segments(line)
+            .into_iter()
+            .map(|(s, _)| s)
+            .collect()
+    }
+
+    #[test]
+    fn int361_escaped_semicolon_is_not_a_split() {
+        let line = "find . -name x -exec echo found {} \\;";
+        assert_eq!(segs(line), vec![line.to_string()]);
+        let line = "echo a\\;b";
+        assert_eq!(segs(line), vec![line.to_string()]);
+        let got = segs("echo x && find . -name x -exec echo {} \\;");
+        assert_eq!(
+            got,
+            vec![
+                "echo x".to_string(),
+                "find . -name x -exec echo {} \\;".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn int361_escaped_quote_does_not_end_the_quote() {
+        let line = "echo \"a\\\"b; c\"";
+        assert_eq!(segs(line), vec![line.to_string()]);
+        let line = "echo \"a\\\"b && c\"";
+        assert_eq!(segs(line), vec![line.to_string()]);
+    }
+
+    #[test]
+    fn int361_escaped_paren_is_not_a_group() {
+        let line = "find . \\( -name a -o -name b \\) -print";
+        assert_eq!(segs(line), vec![line.to_string()]);
+    }
+
+    #[test]
+    fn int361_case_is_one_segment() {
+        let line = "case x in a) echo A;; x) echo X;; esac";
+        assert_eq!(segs(line), vec![line.to_string()]);
+        let got = segs("echo pre; case x in x) echo X;; esac && echo after");
+        assert_eq!(
+            got,
+            vec![
+                "echo pre".to_string(),
+                "case x in x) echo X;; esac".to_string(),
+                "echo after".to_string()
+            ]
+        );
+    }
+
+    #[test]
+    fn int361_plain_splits_are_unchanged() {
+        assert_eq!(segs("echo a; echo b"), vec!["echo a", "echo b"]);
+        assert_eq!(segs("echo 'a\\'; echo b"), vec!["echo 'a\\'", "echo b"]);
+        assert_eq!(
+            segs("echo \"a\\\\\"; echo b"),
+            vec!["echo \"a\\\\\"", "echo b"]
+        );
+        assert_eq!(segs("echo case; echo esac"), vec!["echo case", "echo esac"]);
+        assert_eq!(segs("echo a && echo b"), vec!["echo a", "echo b"]);
+    }
+}
